@@ -1,0 +1,1951 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { CityOptInDialog } from "@/components/CityOptInDialog";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useProfile } from "@/hooks/useProfile";
+import { useDevices } from "@/hooks/useDevices";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { logError, logWarn } from "@/lib/logger";
+import JSZip from "jszip";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw } from "lucide-react";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { formatDistanceToNow } from "date-fns";
+
+const CHANGE_WINDOW_DAYS = 7;
+
+const Settings = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { profile, isLoading, updateProfile, isUpdating, refetch } = useProfile();
+  const { deviceId, profileId } = useAuth();
+  const { devices, isLoading: isLoadingDevices, revokeDevice, isRevoking, clearSuspiciousFlag, isClearingSuspicious, refetch: refetchDevices, error: devicesError } = useDevices();
+  // Safely get push notification state with defaults
+  const pushNotifications = usePushNotifications();
+  const isPushSupported = pushNotifications?.isSupported ?? false;
+  const isPushEnabled = pushNotifications?.isEnabled ?? false;
+  const pushPermission = pushNotifications?.permission ?? 'default';
+  const requestPermission = pushNotifications?.requestPermission ?? (() => Promise.resolve(false));
+
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
+  const [cityTagEnabled, setCityTagEnabled] = useState(false);
+  const [autoplayNextEnabled, setAutoplayNextEnabled] = useState(true);
+  const [tapToRecordEnabled, setTapToRecordEnabled] = useState(false);
+  const [topicAlertsEnabled, setTopicAlertsEnabled] = useState(true);
+  const [matureFilterEnabled, setMatureFilterEnabled] = useState(true);
+  const [isHandleDialogOpen, setIsHandleDialogOpen] = useState(false);
+  const [pendingHandle, setPendingHandle] = useState("");
+  const [isSavingHandle, setIsSavingHandle] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isMagicLinkDialogOpen, setIsMagicLinkDialogOpen] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
+  const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
+  const [magicLinkExpiresAt, setMagicLinkExpiresAt] = useState<string | null>(null);
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [isExportingAudio, setIsExportingAudio] = useState(false);
+
+  // Auto-update device user_agent when Settings page loads
+  useEffect(() => {
+    const updateDeviceInfo = async () => {
+      if (!deviceId) return;
+      
+      const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+      if (userAgent && userAgent !== "unknown") {
+        try {
+          // Try direct update first (most reliable)
+          // @ts-ignore - user_agent column exists but not in generated types
+          const { error: directError } = await supabase
+            .from("devices")
+            // @ts-ignore
+            .update({
+              user_agent: userAgent,
+              last_seen_at: new Date().toISOString(),
+            })
+            .eq("device_id", deviceId);
+          
+          if (directError) {
+            console.warn("Direct update failed, trying RPC function:", directError);
+            // Fallback to RPC function
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+            const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_current_device_user_agent`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": SUPABASE_KEY,
+                "Authorization": `Bearer ${SUPABASE_KEY}`,
+                "x-device-id": deviceId,
+              },
+              body: JSON.stringify({ p_user_agent: userAgent }),
+            });
+          } else {
+            console.log("✅ Direct update successful:", userAgent.substring(0, 50));
+          }
+          
+          // Refetch devices after a short delay to show updated info
+          setTimeout(() => {
+            refetchDevices();
+          }, 500);
+        } catch (error) {
+          // Log error for debugging
+          console.warn("Failed to auto-update device user_agent:", error);
+        }
+      }
+    };
+    
+    updateDeviceInfo();
+  }, [deviceId, refetchDevices]);
+  
+  const [isExportingTranscripts, setIsExportingTranscripts] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setCaptionsEnabled(profile.default_captions);
+      setPendingHandle(profile.handle);
+      setCityTagEnabled(profile.consent_city);
+      setAutoplayNextEnabled(profile.autoplay_next_clip);
+      setTapToRecordEnabled(profile.tap_to_record ?? false);
+      setTopicAlertsEnabled(profile.notify_new_topics);
+      setMatureFilterEnabled(profile.filter_mature_content);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && typeof (navigator as Navigator & { share?: unknown }).share === "function") {
+      setCanNativeShare(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMagicLinkDialogOpen) {
+      setMagicLinkUrl(null);
+      setMagicLinkExpiresAt(null);
+      setIsGeneratingMagicLink(false);
+    }
+  }, [isMagicLinkDialogOpen]);
+
+  const nextHandleChangeDate = useMemo(() => {
+    if (!profile?.handle_last_changed_at) return null;
+    const lastChange = new Date(profile.handle_last_changed_at);
+    if (Number.isNaN(lastChange.getTime())) return null;
+    const next = new Date(lastChange);
+    next.setDate(lastChange.getDate() + CHANGE_WINDOW_DAYS);
+    return next;
+  }, [profile?.handle_last_changed_at]);
+
+  const isHandleChangeLocked = useMemo(() => {
+    if (!nextHandleChangeDate) return false;
+    return nextHandleChangeDate.getTime() > Date.now();
+  }, [nextHandleChangeDate]);
+
+  const magicLinkExpiresDisplay = useMemo(() => {
+    if (!magicLinkExpiresAt) return null;
+    const expires = new Date(magicLinkExpiresAt);
+    if (Number.isNaN(expires.getTime())) return null;
+    return expires.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }, [magicLinkExpiresAt]);
+
+  const handleCaptionsToggle = async (checked: boolean) => {
+    setCaptionsEnabled(checked);
+    try {
+      await updateProfile({ default_captions: checked });
+      toast({
+        title: checked ? "Captions on" : "Captions off",
+        description: checked
+          ? "Clips will open with captions visible."
+          : "Captions will stay hidden unless you tap to show them.",
+      });
+    } catch (error) {
+      logError("Failed to update captions preference", error);
+      setCaptionsEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update preference",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAutoplayToggle = async (checked: boolean) => {
+    setAutoplayNextEnabled(checked);
+    try {
+      await updateProfile({ autoplay_next_clip: checked });
+      toast({
+        title: checked ? "Autoplay on" : "Autoplay off",
+        description: checked
+          ? "We’ll keep the vibes going by playing the next clip automatically."
+          : "Playback will pause after each clip until you press play.",
+      });
+    } catch (error) {
+      logError("Failed to update autoplay preference", error);
+      setAutoplayNextEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update autoplay",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTapToRecordToggle = async (checked: boolean) => {
+    setTapToRecordEnabled(checked);
+    try {
+      await updateProfile({ tap_to_record: checked });
+      toast({
+        title: checked ? "Tap to record enabled" : "Hold to record enabled",
+        description: checked
+          ? "Tap once to start recording and tap again to finish."
+          : "Press and hold the mic button while you speak.",
+      });
+    } catch (error) {
+      logError("Failed to update tap-to-record preference", error);
+      setTapToRecordEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update recording preference",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTopicAlertsToggle = async (checked: boolean) => {
+    setTopicAlertsEnabled(checked);
+    try {
+      await updateProfile({ notify_new_topics: checked });
+      toast({
+        title: checked ? "Notifications on" : "Notifications off",
+        description: checked
+          ? "We'll remind you when new daily topics drop."
+          : "We’ll stop sending topic notifications.",
+      });
+    } catch (error) {
+      logError("Failed to update notification preference", error);
+      setTopicAlertsEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update notifications",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleGenerateMagicLink = async () => {
+    if (isGeneratingMagicLink) return;
+    setIsGeneratingMagicLink(true);
+    try {
+      const trimmedEmail = magicLinkEmail.trim();
+      const { data, error } = await supabase.rpc("create_magic_login_link", {
+        target_email: trimmedEmail.length > 0 ? trimmedEmail : null,
+      });
+      if (error) throw error;
+
+      const result = data?.[0];
+      if (!result?.token) {
+        throw new Error("Login link was not created");
+      }
+
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const loginUrl =
+        origin.length > 0 ? `${origin}/login-link?token=${result.token}` : `/login-link?token=${result.token}`;
+
+      setMagicLinkUrl(loginUrl);
+      setMagicLinkExpiresAt(result.expires_at ?? null);
+
+      let copied = false;
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(loginUrl);
+          copied = true;
+          toast({
+            title: "Login link copied",
+            description: "We copied the login link to your clipboard.",
+          });
+        } catch {
+          copied = false;
+        }
+      }
+
+      if (!copied) {
+        toast({
+          title: "Login link ready",
+          description: "Copy or send it before it expires.",
+        });
+      }
+    } catch (error) {
+      logError("Failed to create login link", error);
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Couldn't create login link",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingMagicLink(false);
+    }
+  };
+
+  const handleCopyMagicLink = async () => {
+    if (!magicLinkUrl) return;
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(magicLinkUrl);
+        toast({
+          title: "Link copied",
+          description: "Paste it wherever you need it.",
+        });
+        return;
+      }
+      throw new Error("Clipboard unavailable");
+    } catch {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = magicLinkUrl;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        toast({
+          title: "Link copied",
+          description: "Paste it wherever you need it.",
+        });
+      } catch (fallbackError) {
+        logError("Failed to copy login link", fallbackError);
+        toast({
+          title: "Couldn't copy link",
+          description: "Select the link text and copy it manually.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleShareMagicLink = async () => {
+    if (!magicLinkUrl || !canNativeShare) return;
+    try {
+      await (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share?.({
+        title: "Echo Garden login link",
+        text: "Tap this link to sign back in to Echo Garden.",
+        url: magicLinkUrl,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
+      logError("Failed to share login link", error);
+      toast({
+        title: "Couldn't share link",
+        description: "Try copying it instead.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEmailMagicLink = () => {
+    if (!magicLinkUrl) return;
+    const trimmedEmail = magicLinkEmail.trim();
+    if (trimmedEmail.length === 0) return;
+    const subject = encodeURIComponent("Your Echo Garden login link");
+    const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
+    const body = encodeURIComponent(
+      `Use this link to sign back in to Echo Garden on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
+    );
+    window.open(`mailto:${trimmedEmail}?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleMatureFilterToggle = async (checked: boolean) => {
+    setMatureFilterEnabled(checked);
+    try {
+      await updateProfile({ filter_mature_content: checked });
+      toast({
+        title: checked ? "Filter on" : "Filter off",
+        description: checked
+          ? "We'll hide clips tagged with mature themes."
+          : "We'll include clips even if they're tagged as mature.",
+      });
+    } catch (error) {
+      logError("Failed to update content filter", error);
+      setMatureFilterEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update filter",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCityToggle = async (checked: boolean) => {
+    setCityTagEnabled(checked);
+
+    if (checked) {
+      setIsCityDialogOpen(true);
+      return;
+    }
+
+    try {
+      await updateProfile({ consent_city: false, city: null });
+      toast({
+        title: "City hidden",
+        description: "Future clips will no longer include your city.",
+      });
+    } catch (error) {
+      logError("Failed to disable city tag", error);
+      setCityTagEnabled(true);
+      toast({
+        title: "Couldn't update city preference",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveCity = async ({ city, consent }: { city: string | null; consent: boolean }) => {
+    try {
+      await updateProfile({ city, consent_city: consent });
+      setCityTagEnabled(consent);
+      toast({
+        title: consent ? "City saved" : "City hidden",
+        description: consent
+          ? "We'll add your city to future clips."
+          : "We won't include your city going forward.",
+      });
+    } catch (error) {
+      logError("Failed to save city preference", error);
+      setCityTagEnabled(profile.consent_city);
+      toast({
+        title: "Couldn't save city",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCityDialogOpenChange = (open: boolean) => {
+    setIsCityDialogOpen(open);
+    if (!open && !profile.consent_city) {
+      setCityTagEnabled(false);
+    }
+  };
+
+  const handleOpenHandleDialog = () => {
+    if (profile) {
+      setPendingHandle(profile.handle);
+    }
+    setIsHandleDialogOpen(true);
+  };
+
+  const handleChangePseudonym = async () => {
+    if (!pendingHandle.trim()) {
+      toast({
+        title: "Handle required",
+        description: "Please enter a pseudonym.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingHandle(true);
+    try {
+      const { error } = await supabase.rpc("change_pseudonym", { new_handle: pendingHandle.trim() });
+      if (error) throw error;
+      await refetch();
+      toast({
+        title: "Pseudonym updated",
+        description: "You'll see your new name across the app.",
+      });
+      setIsHandleDialogOpen(false);
+    } catch (error) {
+      logError("Failed to change pseudonym", error);
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Couldn't change pseudonym",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingHandle(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.rpc("export_profile_data");
+      if (error) throw error;
+
+      const jsonString = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const dateStamp = new Date().toISOString().split("T")[0];
+      anchor.href = url;
+      anchor.download = `echo-garden-export-${dateStamp}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export ready",
+        description: "We downloaded a JSON file with your data.",
+      });
+    } catch (error) {
+      logError("Failed to export data", error);
+      toast({
+        title: "Couldn't export data",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportAudioClips = async () => {
+    if (!profile?.id) {
+      toast({
+        title: "Profile required",
+        description: "Please sign in to export your clips.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExportingAudio(true);
+    try {
+      // Fetch all clips for the user
+      const { data: clips, error: clipsError } = await supabase
+        .from("clips")
+        .select("id, audio_path, created_at, title, captions")
+        .eq("profile_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (clipsError) throw clipsError;
+
+      if (!clips || clips.length === 0) {
+        toast({
+          title: "No clips found",
+          description: "You don't have any clips to export yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Preparing export",
+        description: `Downloading ${clips.length} audio file${clips.length > 1 ? "s" : ""}...`,
+      });
+
+      const zip = new JSZip();
+      let downloadedCount = 0;
+
+      // Download each audio file and add to ZIP
+      for (const clip of clips) {
+        try {
+          const { data: audioData, error: audioError } = await supabase.storage
+            .from("audio")
+            .download(clip.audio_path);
+
+          if (audioError) {
+            logWarn(`Failed to download clip ${clip.id}`, audioError);
+            continue;
+          }
+
+          if (audioData) {
+            // Create a safe filename
+            const date = clip.created_at ? new Date(clip.created_at).toISOString().split("T")[0] : "unknown";
+            const safeTitle = clip.title ? clip.title.replace(/[^a-z0-9]/gi, "_").substring(0, 50) : "clip";
+            const filename = `${date}_${safeTitle}_${clip.id.substring(0, 8)}.webm`;
+            
+            zip.file(filename, audioData);
+            downloadedCount++;
+          }
+        } catch (error) {
+          logWarn(`Error processing clip ${clip.id}`, error);
+        }
+      }
+
+      if (downloadedCount === 0) {
+        toast({
+          title: "Export failed",
+          description: "Could not download any audio files.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const anchor = document.createElement("a");
+      const dateStamp = new Date().toISOString().split("T")[0];
+      anchor.href = url;
+      anchor.download = `echo-garden-audio-clips-${dateStamp}.zip`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export complete",
+        description: `Downloaded ${downloadedCount} audio file${downloadedCount > 1 ? "s" : ""} as ZIP.`,
+      });
+    } catch (error) {
+      logError("Failed to export audio clips", error);
+      toast({
+        title: "Couldn't export audio clips",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingAudio(false);
+    }
+  };
+
+  const handleExportTranscripts = async () => {
+    if (!profile?.id) {
+      toast({
+        title: "Profile required",
+        description: "Please sign in to export your transcriptions.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExportingTranscripts(true);
+    try {
+      // Fetch all clips with transcriptions
+      const { data: clips, error: clipsError } = await supabase
+        .from("clips")
+        .select("id, created_at, title, captions, summary, tags")
+        .eq("profile_id", profile.id)
+        .not("captions", "is", null)
+        .order("created_at", { ascending: false });
+
+      if (clipsError) throw clipsError;
+
+      if (!clips || clips.length === 0) {
+        toast({
+          title: "No transcriptions found",
+          description: "You don't have any clips with transcriptions yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create JSON export
+      const transcriptsData = {
+        exported_at: new Date().toISOString(),
+        profile_id: profile.id,
+        profile_handle: profile.handle,
+        total_transcripts: clips.length,
+        transcripts: clips.map((clip) => ({
+          id: clip.id,
+          created_at: clip.created_at,
+          title: clip.title,
+          transcription: clip.captions,
+          summary: clip.summary,
+          tags: clip.tags,
+        })),
+      };
+
+      // Also create a text file version
+      let textContent = `Echo Garden Transcriptions Export\n`;
+      textContent += `Exported: ${transcriptsData.exported_at}\n`;
+      textContent += `Profile: ${profile.handle}\n`;
+      textContent += `Total Transcripts: ${clips.length}\n`;
+      textContent += `\n${"=".repeat(80)}\n\n`;
+
+      clips.forEach((clip, index) => {
+        textContent += `Transcript ${index + 1}\n`;
+        textContent += `ID: ${clip.id}\n`;
+        textContent += `Date: ${clip.created_at ? new Date(clip.created_at).toLocaleString() : "Unknown"}\n`;
+        if (clip.title) textContent += `Title: ${clip.title}\n`;
+        textContent += `\nTranscription:\n${clip.captions}\n\n`;
+        if (clip.summary) textContent += `Summary: ${clip.summary}\n\n`;
+        if (clip.tags && clip.tags.length > 0) textContent += `Tags: ${clip.tags.join(", ")}\n\n`;
+        textContent += `${"-".repeat(80)}\n\n`;
+      });
+
+      // Download JSON version
+      const jsonBlob = new Blob([JSON.stringify(transcriptsData, null, 2)], { type: "application/json" });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonAnchor = document.createElement("a");
+      const dateStamp = new Date().toISOString().split("T")[0];
+      jsonAnchor.href = jsonUrl;
+      jsonAnchor.download = `echo-garden-transcripts-${dateStamp}.json`;
+      jsonAnchor.click();
+      URL.revokeObjectURL(jsonUrl);
+
+      // Download text version
+      const textBlob = new Blob([textContent], { type: "text/plain" });
+      const textUrl = URL.createObjectURL(textBlob);
+      const textAnchor = document.createElement("a");
+      textAnchor.href = textUrl;
+      textAnchor.download = `echo-garden-transcripts-${dateStamp}.txt`;
+      // Small delay to allow first download to complete
+      setTimeout(() => {
+        textAnchor.click();
+        URL.revokeObjectURL(textUrl);
+      }, 500);
+
+      toast({
+        title: "Transcriptions exported",
+        description: `Downloaded ${clips.length} transcription${clips.length > 1 ? "s" : ""} in JSON and TXT formats.`,
+      });
+    } catch (error) {
+      logError("Failed to export transcriptions", error);
+      toast({
+        title: "Couldn't export transcriptions",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingTranscripts(false);
+    }
+  };
+
+  const handleBackupToCloud = async () => {
+    if (!profile?.id) {
+      toast({
+        title: "Profile required",
+        description: "Please sign in to backup your data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsBackingUp(true);
+    try {
+      // Export profile data
+      const { data: profileData, error: profileError } = await supabase.rpc("export_profile_data");
+      if (profileError) throw profileError;
+
+      // Fetch all clips with audio paths
+      const { data: clips, error: clipsError } = await supabase
+        .from("clips")
+        .select("id, audio_path, created_at")
+        .eq("profile_id", profile.id);
+
+      if (clipsError) throw clipsError;
+
+      // Create backup package
+      const backupData = {
+        exported_at: new Date().toISOString(),
+        profile_data: profileData,
+        clips_metadata: clips?.map((clip) => ({
+          id: clip.id,
+          audio_path: clip.audio_path,
+          created_at: clip.created_at,
+        })) || [],
+        total_clips: clips?.length || 0,
+      };
+
+      // Convert to JSON blob
+      const jsonBlob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+      
+      // Upload to Supabase storage backup bucket (create if doesn't exist)
+      const dateStamp = new Date().toISOString().split("T")[0];
+      const timestamp = Date.now();
+      const backupFileName = `${profile.id}/${dateStamp}_${timestamp}.json`;
+      
+      // Try to upload to backup bucket, fallback to audio bucket if backup bucket doesn't exist
+      let uploadError = null;
+      let { error } = await supabase.storage
+        .from("backups")
+        .upload(backupFileName, jsonBlob, {
+          contentType: "application/json",
+          upsert: false,
+        });
+      uploadError = error;
+
+      // If backup bucket doesn't exist or upload fails, try audio bucket as fallback
+      if (uploadError) {
+        logWarn("Failed to upload to backup bucket, trying audio bucket", uploadError);
+        const { error: fallbackError } = await supabase.storage
+          .from("audio")
+          .upload(`backups/${backupFileName}`, jsonBlob, {
+            contentType: "application/json",
+            upsert: false,
+          });
+        uploadError = fallbackError;
+      }
+
+      if (uploadError) {
+        // If upload fails, download the backup instead
+        logWarn("Failed to upload backup to cloud, downloading instead", uploadError);
+        const url = URL.createObjectURL(jsonBlob);
+        const anchor = document.createElement("a");
+        const dateStamp = new Date().toISOString().split("T")[0];
+        anchor.href = url;
+        anchor.download = `echo-garden-backup-${dateStamp}.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Backup downloaded",
+          description: "Cloud backup unavailable. Downloaded backup file instead.",
+        });
+      } else {
+        toast({
+          title: "Backup complete",
+          description: "Your data has been backed up to cloud storage.",
+        });
+      }
+    } catch (error) {
+      logError("Failed to backup data", error);
+      toast({
+        title: "Couldn't backup data",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestartTutorial = () => {
+    localStorage.removeItem("echo_garden_tutorial_completed");
+    navigate("/");
+    toast({
+      title: "Tutorial reset",
+      description: "The interactive tutorial will appear when you return to the home page.",
+    });
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.rpc("purge_account");
+      if (error) throw error;
+
+      localStorage.removeItem("profileId");
+      queryClient.removeQueries({ queryKey: ["profile"] });
+
+      toast({
+        title: "Account deleted",
+        description: "Thanks for trying Echo Garden. You're welcome back anytime.",
+      });
+
+      navigate("/", { replace: true });
+    } catch (error) {
+      logError("Failed to delete account", error);
+      toast({
+        title: "Couldn't delete account",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Settings</h1>
+          </div>
+        </header>
+        <main className="max-w-2xl mx-auto px-4 py-6">
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div className="h-4 w-1/2 rounded-full bg-muted animate-pulse" />
+            <div className="h-4 w-3/4 rounded-full bg-muted animate-pulse" />
+            <div className="h-4 w-2/3 rounded-full bg-muted animate-pulse" />
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Settings</h1>
+          </div>
+        </header>
+        <main className="max-w-2xl mx-auto px-4 py-6">
+          <Card className="p-6 rounded-3xl space-y-3 text-center text-muted-foreground">
+            <p>We couldn't find your profile.</p>
+            <p>Please return home and start the onboarding flow.</p>
+            <Button variant="outline" className="rounded-2xl mt-4" asChild>
+              <Link to="/">Back to home</Link>
+            </Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Link to="/">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-bold">Settings</h1>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Preferences</h2>
+          <Card className="p-6 rounded-3xl space-y-6">
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Theme</p>
+                <p className="text-sm text-muted-foreground">
+                  Switch between light and dark mode.
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Captions by default</p>
+                <p className="text-sm text-muted-foreground">
+                  Automatically show captions when you open a clip.
+                </p>
+              </div>
+              <Switch
+                checked={captionsEnabled}
+                onCheckedChange={handleCaptionsToggle}
+                disabled={isUpdating}
+                aria-label="Toggle captions visibility by default"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Autoplay next clip</p>
+                <p className="text-sm text-muted-foreground">
+                  Keep listening without tapping play—perfect for hands-free sessions.
+                </p>
+              </div>
+              <Switch
+                checked={autoplayNextEnabled}
+                onCheckedChange={handleAutoplayToggle}
+                disabled={isUpdating}
+                aria-label="Toggle autoplay for the next clip"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Tap to record</p>
+                <p className="text-sm text-muted-foreground">
+                  Choose whether the mic starts with a tap or while holding it down.
+                </p>
+              </div>
+              <Switch
+                checked={tapToRecordEnabled}
+                onCheckedChange={handleTapToRecordToggle}
+                disabled={isUpdating}
+                aria-label="Toggle tap to record preference"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Topic alerts</p>
+                <p className="text-sm text-muted-foreground">
+                  Get a gentle nudge when the daily prompt is ready.
+                </p>
+              </div>
+              <Switch
+                checked={topicAlertsEnabled}
+                onCheckedChange={handleTopicAlertsToggle}
+                disabled={isUpdating}
+                aria-label="Toggle notifications for new topics"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Browser push notifications</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPushSupported
+                    ? isPushEnabled
+                      ? "Receive notifications even when the app is closed."
+                      : "Enable to receive notifications for comments, replies, follows, and reactions."
+                    : "Not supported in your browser."}
+                </p>
+              </div>
+              {isPushSupported ? (
+                <Switch
+                  checked={isPushEnabled}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      requestPermission();
+                    }
+                  }}
+                  disabled={pushPermission === 'denied'}
+                  aria-label="Toggle browser push notifications"
+                />
+              ) : (
+                <Switch checked={false} disabled aria-label="Push notifications not supported" />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Filter mature content</p>
+                <p className="text-sm text-muted-foreground">
+                  Hide clips flagged with sensitive or explicit themes from your feed.
+                </p>
+              </div>
+              <Switch
+                checked={matureFilterEnabled}
+                onCheckedChange={handleMatureFilterToggle}
+                disabled={isUpdating}
+                aria-label="Toggle mature content filter"
+              />
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">City-level tagging</p>
+                <p className="text-sm text-muted-foreground">
+                  Let neighbors find your clips. We only store the city you provide.
+                </p>
+                {profile.consent_city && profile.city && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Current city: {profile.city}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-3">
+                <Switch
+                  checked={cityTagEnabled}
+                  onCheckedChange={handleCityToggle}
+                  disabled={isUpdating}
+                  aria-label="Toggle city-level tagging"
+                />
+                {profile.consent_city && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-2xl"
+                    onClick={() => setIsCityDialogOpen(true)}
+                  >
+                    Update city
+                  </Button>
+                )}
+              </div>
+            </div>
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Account</h2>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Change pseudonym</p>
+                <p className="text-sm text-muted-foreground">
+                  Pick a new name for your clips. You can do this once every {CHANGE_WINDOW_DAYS} days.
+                </p>
+                {isHandleChangeLocked && nextHandleChangeDate && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Next change available on {nextHandleChangeDate.toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleOpenHandleDialog}
+                disabled={isHandleChangeLocked}
+              >
+                Edit name
+              </Button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Export profile data</p>
+                <p className="text-sm text-muted-foreground">
+                  Download a JSON file with your profile, clips, listens, and reactions (GDPR compliant).
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleExportData}
+                disabled={isExporting}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? "Preparing..." : "Export JSON"}
+              </Button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Interactive Tutorial</p>
+                <p className="text-sm text-muted-foreground">
+                  Restart the interactive tutorial to learn how to use Echo Garden.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleRestartTutorial}
+              >
+                <GraduationCap className="mr-2 h-4 w-4" />
+                Restart Tutorial
+              </Button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Log in on a new device</p>
+                <p className="text-sm text-muted-foreground">
+                  Generate a one-time login link so you can sign in from another phone or computer within 30 minutes.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() => setIsMagicLinkDialogOpen(true)}
+              >
+                Send link
+              </Button>
+            </div>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="rounded-2xl">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-3xl">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This removes your profile, clips, listens, and reactions. Audio files in storage may take a little
+                    longer to disappear, but the links will stop working. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-2xl"
+                    disabled={isDeleting}
+                    onClick={handleDeleteAccount}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </Card>
+        </section>
+
+        {/* Device Activity Section - Always visible */}
+        <section className="space-y-4" id="device-activity">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Device Activity</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                try {
+                  // Force update user_agent and refresh devices
+                  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+                  if (userAgent && deviceId) {
+                    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+                    const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                    
+                    // Try the RPC function first
+                    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/update_current_device_user_agent`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": `Bearer ${SUPABASE_KEY}`,
+                        "x-device-id": deviceId,
+                      },
+                      body: JSON.stringify({ p_user_agent: userAgent }),
+                    });
+                    
+                    // If RPC function doesn't exist, try direct update
+                    if (!response.ok) {
+                      console.log("RPC function failed, trying direct update...");
+                      // Direct update using Supabase client
+                      // @ts-ignore - user_agent column exists but not in types
+                      const { error: updateError } = await supabase
+                        .from("devices")
+                        .update({
+                          user_agent: userAgent,
+                          last_seen_at: new Date().toISOString(),
+                        } as any)
+                        .eq("device_id", deviceId);
+                      
+                      if (updateError) {
+                        throw updateError;
+                      }
+                    }
+                  }
+                  
+                  // Wait a moment for the update to process
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                  
+                  // Refetch devices to show updated info
+                  await refetchDevices();
+                  toast({
+                    title: "Device info updated",
+                    description: "Browser and activity information has been refreshed.",
+                  });
+                } catch (error) {
+                  logError("Failed to refresh device info", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to refresh device info. Please check the console for details.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={isLoadingDevices}
+              className="rounded-xl"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingDevices ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                View and manage devices where you're logged in. You can revoke access from any device.
+              </p>
+            </div>
+
+            {devicesError ? (
+              <div className="text-center py-8 space-y-2">
+                <p className="text-muted-foreground">Unable to load devices</p>
+                <p className="text-xs text-muted-foreground">
+                  {devicesError.message || "Please make sure migrations have been run."}
+                </p>
+                {deviceId && (
+                  <div className="mt-4 p-4 rounded-2xl border border-border/60 bg-card/80">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Monitor className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">Current Device</p>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                            <CheckCircle2 className="h-3 w-3" />
+                            This device
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Device ID: {deviceId.slice(0, 8)}...</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : isLoadingDevices ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Loading devices...</p>
+              </div>
+            ) : devices.length === 0 ? (
+              <div className="text-center py-8 space-y-2">
+                <p className="text-muted-foreground">
+                  {devicesError 
+                    ? "Unable to load devices from database"
+                    : "No devices found"}
+                </p>
+                {deviceId && (
+                  <div className="mt-4 p-4 rounded-2xl border border-primary/50 bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Monitor className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">Current Device</p>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                            <CheckCircle2 className="h-3 w-3" />
+                            This device
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Device ID: {deviceId.slice(0, 8)}...{deviceId.slice(-4)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Active now
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Show count and "Revoke All Others" if multiple devices */}
+                {devices.length > 1 && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/60">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium">
+                        {devices.length} {devices.length === 1 ? "device" : "devices"} active
+                      </p>
+                    </div>
+                    {devices.filter(d => d.device_id !== deviceId && !d.is_revoked).length > 0 && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl text-destructive hover:text-destructive"
+                            disabled={isRevoking}
+                          >
+                            Revoke All Others
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="rounded-3xl">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revoke all other devices?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will sign out all other devices ({devices.filter(d => d.device_id !== deviceId && !d.is_revoked).length} device{devices.filter(d => d.device_id !== deviceId && !d.is_revoked).length !== 1 ? 's' : ''}) and prevent them from accessing your account. You can sign in again using a login link.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="rounded-2xl bg-destructive hover:bg-destructive/90"
+                              onClick={async () => {
+                                const otherDevices = devices.filter(d => d.device_id !== deviceId && !d.is_revoked);
+                                let successCount = 0;
+                                let failCount = 0;
+                                
+                                for (const device of otherDevices) {
+                                  try {
+                                    await revokeDevice(device.device_id);
+                                    successCount++;
+                                  } catch (error) {
+                                    logError("Failed to revoke device", error, device.device_id);
+                                    failCount++;
+                                  }
+                                }
+                                
+                                if (successCount > 0) {
+                                  toast({
+                                    title: `${successCount} device${successCount !== 1 ? 's' : ''} revoked`,
+                                    description: failCount > 0 ? `${failCount} device${failCount !== 1 ? 's' : ''} could not be revoked.` : "All other devices have been signed out.",
+                                  });
+                                } else {
+                                  toast({
+                                    title: "Couldn't revoke devices",
+                                    description: "Please try again.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }}
+                            >
+                              Revoke All
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                )}
+                
+                {devices.map((device) => {
+                  const isCurrentDevice = device.device_id === deviceId;
+                  const lastSeen = device.last_seen_at
+                    ? formatDistanceToNow(new Date(device.last_seen_at), { addSuffix: true })
+                    : "Never";
+                  const firstSeen = device.first_seen_at
+                    ? new Date(device.first_seen_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "Unknown";
+
+                  // Detect device type from user agent
+                  const userAgent = device.user_agent || "";
+                  let deviceType: "mobile" | "desktop" | "tablet" = "desktop";
+                  let DeviceIcon = Monitor;
+                  if (/mobile|android|iphone|ipod/i.test(userAgent)) {
+                    deviceType = "mobile";
+                    DeviceIcon = Smartphone;
+                  } else if (/tablet|ipad/i.test(userAgent)) {
+                    deviceType = "tablet";
+                    DeviceIcon = Tablet;
+                  }
+
+                  // Get browser name and version (improved detection)
+                  let browserName = "Unknown Browser";
+                  let browserVersion = "";
+                  
+                  // Debug: log user agent to help diagnose issues
+                  if (!userAgent || userAgent.trim() === "") {
+                    console.warn("⚠️ Device has no user_agent stored:", {
+                      device_id: device.device_id.slice(0, 8) + "...",
+                      user_agent: device.user_agent,
+                      last_seen: device.last_seen_at,
+                    });
+                    browserName = "Unknown Browser";
+                  } else {
+                    // Debug: log the user agent we're trying to parse
+                    console.log("✅ Parsing user agent:", userAgent.substring(0, 100));
+                    const ua = userAgent.toLowerCase();
+                    
+                    // Check for Edge first (since it contains Chrome)
+                    if (ua.includes("edg") || ua.includes("edg/")) {
+                      browserName = "Edge";
+                      const match = userAgent.match(/Edg(?:e)?\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Opera (contains Chrome)
+                    else if (ua.includes("opr") || ua.includes("opera")) {
+                      browserName = "Opera";
+                      const match = userAgent.match(/(?:OPR|Opera)\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Chrome (but not Edge or Opera)
+                    else if (ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr")) {
+                      browserName = "Chrome";
+                      const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Firefox
+                    else if (ua.includes("firefox")) {
+                      browserName = "Firefox";
+                      const match = userAgent.match(/Firefox\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Safari (but not Chrome-based)
+                    else if (ua.includes("safari") && !ua.includes("chrome")) {
+                      browserName = "Safari";
+                      const match = userAgent.match(/Version\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Brave
+                    else if (ua.includes("brave")) {
+                      browserName = "Brave";
+                      const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Vivaldi
+                    else if (ua.includes("vivaldi")) {
+                      browserName = "Vivaldi";
+                      const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Check for Samsung Internet
+                    else if (ua.includes("samsungbrowser")) {
+                      browserName = "Samsung Internet";
+                      const match = userAgent.match(/SamsungBrowser\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    }
+                    // Fallback: try to extract any browser name
+                    else {
+                      const match = userAgent.match(/([A-Za-z]+)\/([0-9.]+)/);
+                      if (match && match[1]) {
+                        browserName = match[1];
+                        browserVersion = match[2] || "";
+                      }
+                    }
+                  }
+
+                  // Format IP address (mask for privacy)
+                  const formatIP = (ip: string | null) => {
+                    if (!ip) return "Unknown location";
+                    // For IPv4, show first two octets
+                    if (ip.includes(".")) {
+                      const parts = ip.split(".");
+                      return `${parts[0]}.${parts[1]}.xxx.xxx`;
+                    }
+                    // For IPv6, show first segment
+                    if (ip.includes(":")) {
+                      const parts = ip.split(":");
+                      return `${parts[0]}:${parts[1]}:xxxx:xxxx`;
+                    }
+                    return ip;
+                  };
+
+                  return (
+                    <div
+                      key={device.id}
+                      className={`rounded-2xl border p-4 space-y-3 ${
+                        isCurrentDevice
+                          ? "border-primary/50 bg-primary/5"
+                          : device.is_revoked
+                          ? "border-destructive/30 bg-destructive/5 opacity-60"
+                          : "border-border/60 bg-card/80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div
+                            className={`p-2 rounded-xl flex-shrink-0 ${
+                              isCurrentDevice ? "bg-primary/10" : device.is_revoked ? "bg-destructive/10" : "bg-muted"
+                            }`}
+                          >
+                            <DeviceIcon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <p className="font-medium truncate">
+                                {browserName} {browserVersion && `v${browserVersion.split(".")[0]}`} {deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop"}
+                              </p>
+                              {isCurrentDevice && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary flex-shrink-0">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  This device
+                                </span>
+                              )}
+                              {device.is_revoked && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive flex-shrink-0">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Revoked
+                                </span>
+                              )}
+                              {device.is_suspicious && !device.is_revoked && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 flex-shrink-0">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Suspicious
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={async () => {
+                                      try {
+                                        await clearSuspiciousFlag(device.device_id);
+                                        toast({
+                                          title: "Suspicious flag cleared",
+                                          description: "This device is no longer marked as suspicious.",
+                                        });
+                                      } catch (error) {
+                                        logError("Failed to clear suspicious flag", error);
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to clear suspicious flag. Please try again.",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                    disabled={isClearingSuspicious}
+                                  >
+                                    {isClearingSuspicious ? "Clearing..." : "Clear Flag"}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Device Details */}
+                            <div className="space-y-2 text-sm">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-muted-foreground text-xs mb-0.5">Last seen</p>
+                                  <p className="font-medium">{lastSeen}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground text-xs mb-0.5">First seen</p>
+                                  <p className="font-medium">{firstSeen}</p>
+                                </div>
+                                {device.ip_address && (
+                                  <div>
+                                    <p className="text-muted-foreground text-xs mb-0.5">Location</p>
+                                    <p className="font-medium">{formatIP(device.ip_address)}</p>
+                                  </div>
+                                )}
+                                {device.request_count > 0 && (
+                                  <div>
+                                    <p className="text-muted-foreground text-xs mb-0.5">Activity</p>
+                                    <p className="font-medium">{device.request_count.toLocaleString()} requests</p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Device ID (truncated) */}
+                              <div className="pt-2 border-t border-border/60">
+                                <p className="text-muted-foreground text-xs mb-0.5">Device ID</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-mono text-xs text-muted-foreground break-all">
+                                    {device.device_id.slice(0, 8)}...{device.device_id.slice(-4)}
+                                  </p>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-2 text-xs"
+                                    onClick={async () => {
+                                      try {
+                                        await navigator.clipboard.writeText(device.device_id);
+                                        toast({
+                                          title: "Copied!",
+                                          description: "Device ID copied to clipboard",
+                                        });
+                                      } catch {
+                                        // Fallback if clipboard API fails
+                                        const textArea = document.createElement("textarea");
+                                        textArea.value = device.device_id;
+                                        document.body.appendChild(textArea);
+                                        textArea.select();
+                                        document.execCommand("copy");
+                                        document.body.removeChild(textArea);
+                                        toast({
+                                          title: "Copied!",
+                                          description: "Device ID copied to clipboard",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Copy
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              {/* Account Info */}
+                              {device.profile_id && (
+                                <div className="pt-2 border-t border-border/60">
+                                  <p className="text-muted-foreground text-xs mb-0.5">Linked to account</p>
+                                  <p className="font-medium text-xs">
+                                    {profile?.handle || "Your account"}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Revoke Button - Show for all non-current devices that aren't revoked */}
+                        {!isCurrentDevice && !device.is_revoked && (
+                          <div className="flex-shrink-0">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
+                                  disabled={isRevoking}
+                                >
+                                  Revoke
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="rounded-3xl">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Revoke this device?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    <div className="space-y-2 mt-2">
+                                      <p>This will sign out this device and prevent it from accessing your account.</p>
+                                      <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
+                                        <p><strong>Device:</strong> {browserName} {deviceType}</p>
+                                        <p><strong>Last seen:</strong> {lastSeen}</p>
+                                        {device.ip_address && <p><strong>Location:</strong> {formatIP(device.ip_address)}</p>}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
+                                    </div>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="rounded-2xl bg-destructive hover:bg-destructive/90"
+                                    onClick={async () => {
+                                      try {
+                                        await revokeDevice(device.device_id);
+                                        toast({
+                                          title: "Device revoked",
+                                          description: `${browserName} ${deviceType} has been signed out.`,
+                                        });
+                                      } catch (error) {
+                                        logError("Failed to revoke device", error);
+                                        toast({
+                                          title: "Couldn't revoke device",
+                                          description: "Please try again.",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Revoke Device
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Export & Backup</h2>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Export all clips as audio files</p>
+                <p className="text-sm text-muted-foreground">
+                  Download all your audio clips as a ZIP file containing WebM audio files.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleExportAudioClips}
+                disabled={isExportingAudio}
+              >
+                <FileAudio className="mr-2 h-4 w-4" />
+                {isExportingAudio ? "Exporting..." : "Export Audio"}
+              </Button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Download transcriptions</p>
+                <p className="text-sm text-muted-foreground">
+                  Export all your clip transcriptions as JSON and text files.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleExportTranscripts}
+                disabled={isExportingTranscripts}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {isExportingTranscripts ? "Exporting..." : "Export Transcripts"}
+              </Button>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Backup to cloud storage</p>
+                <p className="text-sm text-muted-foreground">
+                  Create a complete backup of your profile data and metadata in cloud storage.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleBackupToCloud}
+                disabled={isBackingUp}
+              >
+                <CloudUpload className="mr-2 h-4 w-4" />
+                {isBackingUp ? "Backing up..." : "Backup to Cloud"}
+              </Button>
+            </div>
+          </Card>
+        </section>
+      </main>
+
+      <Dialog open={isMagicLinkDialogOpen} onOpenChange={setIsMagicLinkDialogOpen}>
+        <DialogContent className="sm:max-w-lg rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Send a login link</DialogTitle>
+            <DialogDescription>
+              We’ll generate a single-use link that signs you in on another device. It expires after 30 minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="magic-link-email">Email (optional)</Label>
+              <Input
+                id="magic-link-email"
+                type="email"
+                value={magicLinkEmail}
+                onChange={(event) => setMagicLinkEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="rounded-2xl"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter an email to draft a message automatically, or leave it blank to copy the link yourself.
+              </p>
+            </div>
+
+            {magicLinkUrl && (
+              <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Login link</p>
+                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all">
+                    {magicLinkUrl}
+                  </div>
+                </div>
+                {magicLinkExpiresDisplay && (
+                  <p className="text-xs text-muted-foreground">Expires {magicLinkExpiresDisplay}</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-2xl"
+                    onClick={handleCopyMagicLink}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy
+                  </Button>
+                  {canNativeShare && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-2xl"
+                      onClick={handleShareMagicLink}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share
+                    </Button>
+                  )}
+                  {magicLinkEmail.trim().length > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-2xl"
+                      onClick={handleEmailMagicLink}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Open this link on the other device and you’ll be signed in automatically.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-2xl"
+              onClick={() => setIsMagicLinkDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              className="rounded-2xl"
+              onClick={handleGenerateMagicLink}
+              disabled={isGeneratingMagicLink}
+            >
+              {isGeneratingMagicLink ? "Creating..." : "Generate link"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <CityOptInDialog
+        open={isCityDialogOpen}
+        onOpenChange={handleCityDialogOpenChange}
+        initialCity={profile.city}
+        initialConsent={profile.consent_city}
+        onSave={handleSaveCity}
+      />
+
+      <Dialog open={isHandleDialogOpen} onOpenChange={setIsHandleDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Choose a new pseudonym</DialogTitle>
+            <DialogDescription>
+              Pick something playful—no real names required. Handles must be unique and at least 3 characters.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="handle">Pseudonym</Label>
+              <Input
+                id="handle"
+                value={pendingHandle}
+                onChange={(event) => setPendingHandle(event.target.value)}
+                placeholder="e.g. BrightFox42"
+                className="rounded-2xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsHandleDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangePseudonym}
+              disabled={isSavingHandle}
+              className="rounded-2xl"
+            >
+              {isSavingHandle ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Settings;
+
+

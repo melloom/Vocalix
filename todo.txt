@@ -1,0 +1,89 @@
+Iteration 1 – Foundations ✅
+- Anonymous onboarding flow: pseudonym generator, device handle storage, Supabase profile sync. ✅
+- Supabase schema setup: profiles, devices, topics, clips, clip_reactions tables. ✅
+- Daily topics feed UI: today’s topic + past seven days chips with counts. ✅
+- Recording flow: waveform animation, 30s cap, preview, mood tag selection, publish. ✅
+- Clip listing UI: playback controls with avatar, pseudonym, scrubber, timestamps. ✅
+
+Iteration 2 – Intelligence & Feedback ✅
+- [x] Background upload queue with status snackbars.
+- [x] Supabase Edge Function for Whisper transcription and GPT summaries/tags/ratings.
+- [x] Clip processing state updates via realtime or polling.
+- [x] Emoji reactions with live counts, optimistic updates, burst animation.
+- [x] Minimal public profile page showing pseudonym, joined date, stats, most-used emoji.
+
+Iteration 3 – Moderation & Discovery ✅
+- [x] Pre-publish heuristics for duration, silence, file type.
+- [x] Post-publish AI moderation with flags, reviewer queue, auto-hide unsafe clips.
+- [x] Clip reporting flow with reason capture and Supabase moderation storage.
+- [x] Feed ranking (“For You” freshness × engagement) plus “Latest” chronological toggle.
+- [x] Optional city-level geo tagging opt-in and filtering.
+
+Non-Goals (v1)
+- No text comments or direct messages.
+- No friend/follow graph or social graph features.
+- No long-form uploads; enforce 30-second maximum strictly.
+
+UI / UX Requirements
+- Style: clean, warm, minimal with rounded elements, subtle depth, generous whitespace.
+- Colors: muted neutral backgrounds, soft primary accent, auto-support dark mode.
+- Typography: large, legible headings with accessible contrast.
+- Animations: smooth micro-interactions (button press, reaction burst, recording waveform).
+- Key screens: onboarding, home/topic feed, record flow, clip detail, profile, report modal, hidden admin queue.
+
+Data Model (Supabase SQL)
+- Tables with RLS and timestamps: profiles, topics, clips, listens, reports, admins.
+- Each table matches the provided schema (device-linked profiles, daily topics, clips metadata, listens analytics, reports moderation, admins roles).
+- Storage buckets: `audio/` (private originals), `waveforms/` (JSON peaks). Serve via signed URLs.
+- High-level RLS: profiles-owner access, live clips public read, owners/admins update, reactions/listens controlled, reports/admin tables restricted.
+
+Edge Functions
+- `on-clip-uploaded`: validate duration, run Whisper + GPT, update clip status, auto-hide unsafe, send push notifications.
+- `react-to-clip`: auth check, emoji whitelist, atomic JSONB increment, return counts.
+- `increment-listen`: auth check, throttle, insert listen record, bump listens_count.
+- `admin-review`: admin-only moderation actions.
+
+AI Prompts (server-side)
+- Summarization prompt: two-sentence summary, 1–3 lowercase tags, sentiment from defined list, kind tone.
+- Moderation prompt: JSON response `{ flag, reasons[], risk }`, reasons from predefined categories.
+
+Feed Ranking
+- “For You” score uses freshness decay, sqrt of reactions/listens, completion rate, random jitter; toggle to chronological “Latest”.
+
+Screens & Components (React Native parity)
+- HomeScreen: TopicHeader, FeedToggle, ClipList.
+- RecordScreen: RecordButton, CountdownBadge, WaveformView, PostSheet.
+- ClipDetail: AudioPlayerBar, CaptionToggle, ReactionBar, ReportButton.
+- ProfileScreen: StatsTiles, YourClipsList, SettingsList.
+- AdminScreen: FlaggedList, moderation actions.
+
+Design & Interaction Notes
+- Framer Motion/Moti animations, haptics on key actions, respect system dark mode.
+- Accessibility: captions default when muted, large touch targets, VoiceOver labels, high-contrast mode support.
+- Performance: signed URLs with short TTL, lazy-load audio, prefetch next clip, pagination, debounce reactions.
+
+Telemetry
+- `events` table capturing app_open, record_start, record_publish, listen_start/complete, reaction_tap with payload JSON.
+
+Push Notifications
+- Daily topic push at 9 AM local for opted-in users.
+- Single notification per clip when reactions hit threshold.
+- Use Expo tokens stored on profiles.
+
+- Settings
+
+  - Toggles: captions default, city-level tagging opt-in.
+
+  - Change pseudonym (rate-limited), export data (JSON), delete account purge flow.
+
+Admin Notes & Testing
+- Seed week of topics; hidden `/admin` route gated by admins table.
+- Acceptance criteria: record-to-publish <10s; playback start <250ms; captions <60s; moderation <30s; RLS enforced.
+- Example UI copy: “Be the first voice…”, “Hold to speak…”, “Polishing your voice note…”, etc.
+
+Environment Variables
+- `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `OPENAI_API_KEY`, `EXPO_PUBLIC_ENV`, `EXPO_PUBLIC_AUDIO_BUCKET`, `EXPO_PUBLIC_MAX_DURATION_SECONDS`.
+
+Stretch Goals
+- On-device noise reduction, sound themes, tag-based collections, shareable audiogram.
+

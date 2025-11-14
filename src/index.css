@@ -1,0 +1,220 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital,wght@0,400;0,600;1,400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 30 40% 97%;
+    --foreground: 20 15% 15%;
+
+    --card: 30 50% 99%;
+    --card-foreground: 20 15% 15%;
+
+    --popover: 30 50% 99%;
+    --popover-foreground: 20 15% 15%;
+
+    --primary: 15 85% 62%;
+    --primary-foreground: 30 50% 99%;
+
+    --secondary: 160 30% 88%;
+    --secondary-foreground: 20 15% 15%;
+
+    --muted: 30 25% 92%;
+    --muted-foreground: 20 10% 45%;
+
+    --accent: 25 95% 55%;
+    --accent-foreground: 30 50% 99%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 30 50% 99%;
+
+    --border: 30 20% 88%;
+    --input: 30 20% 88%;
+    --ring: 15 85% 62%;
+
+    --radius: 1rem;
+
+    --record-pulse: 15 85% 62%;
+    --waveform: 15 75% 55%;
+    --emoji-glow: 45 100% 60%;
+
+    --font-sans: "DM Sans", "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "DM Serif Display", "Georgia", serif;
+  }
+
+  .dark {
+    --background: 20 20% 8%;
+    --foreground: 30 30% 95%;
+
+    --card: 20 18% 12%;
+    --card-foreground: 30 30% 95%;
+
+    --popover: 20 18% 12%;
+    --popover-foreground: 30 30% 95%;
+
+    --primary: 15 85% 62%;
+    --primary-foreground: 30 50% 99%;
+
+    --secondary: 160 15% 20%;
+    --secondary-foreground: 30 30% 95%;
+
+    --muted: 20 15% 18%;
+    --muted-foreground: 30 15% 60%;
+
+    --accent: 25 95% 55%;
+    --accent-foreground: 30 50% 99%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 30 30% 95%;
+
+    --border: 20 15% 18%;
+    --input: 20 15% 18%;
+    --ring: 15 85% 62%;
+
+    --record-pulse: 15 85% 62%;
+    --waveform: 15 75% 55%;
+    --emoji-glow: 45 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border selection:bg-primary/20 selection:text-primary-foreground;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    @apply bg-background text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    @apply tracking-tight text-foreground;
+  }
+
+  h1 {
+    @apply text-4xl leading-tight md:text-5xl;
+  }
+
+  h2 {
+    @apply text-3xl leading-tight md:text-4xl;
+  }
+
+  h3 {
+    @apply text-2xl leading-snug md:text-3xl;
+  }
+
+  p {
+    @apply leading-relaxed text-base text-foreground/80;
+  }
+
+  a,
+  button {
+    @apply transition-all duration-200;
+  }
+
+  /* Smooth page transitions */
+  * {
+    @apply transition-colors duration-200 ease-in-out;
+  }
+
+  /* Focus visible styles for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow:
+      0 25px 45px -35px hsl(var(--foreground) / 0.25),
+      0 18px 35px -30px hsl(var(--primary) / 0.3);
+  }
+
+  .glass-surface {
+    @apply bg-card/80 backdrop-blur-lg supports-[backdrop-filter]:bg-card/70 border border-border/60;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-transform duration-300 ease-out hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Touch target minimum size for mobile */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Loading skeleton animation */
+  @keyframes skeleton-loading {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+  }
+
+  /* Page transition animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* Mobile swipe gestures hint */
+  .swipe-hint {
+    @apply relative overflow-hidden;
+  }
+
+  .swipe-hint::after {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent;
+    transform: translateX(-100%);
+    animation: swipe-hint 2s ease-in-out infinite;
+  }
+
+  @keyframes swipe-hint {
+    0%, 100% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(100%);
+    }
+  }
+}
