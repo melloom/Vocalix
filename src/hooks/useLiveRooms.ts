@@ -217,11 +217,37 @@ export const useCreateLiveRoom = () => {
       scheduled_start_time?: string;
       max_speakers?: number;
       max_listeners?: number;
+      max_duration_minutes?: number;
       recording_enabled?: boolean;
       transcription_enabled?: boolean;
     }) => {
       if (!profile?.id) {
         throw new Error('Must be logged in to create a live room');
+      }
+
+      // Validate room limits
+      const { data: limitsValidation, error: limitsError } = await supabase
+        .rpc('validate_room_limits', {
+          max_speakers_param: data.max_speakers || 10,
+          max_listeners_param: data.max_listeners || 100,
+        });
+
+      if (limitsError) throw limitsError;
+      if (!limitsValidation || limitsValidation.length === 0 || !limitsValidation[0].is_valid) {
+        throw new Error(limitsValidation?.[0]?.reason || 'Invalid room limits');
+      }
+
+      // Check if user can create a live room (rate limiting with duration validation)
+      const maxDurationMinutes = data.max_duration_minutes || 120; // Default 2 hours
+      const { data: canCreate, error: canCreateError } = await supabase
+        .rpc('can_create_live_room', { 
+          profile_id_param: profile.id,
+          max_duration_minutes_param: maxDurationMinutes
+        });
+
+      if (canCreateError) throw canCreateError;
+      if (!canCreate || canCreate.length === 0 || !canCreate[0].can_create) {
+        throw new Error(canCreate?.[0]?.reason || 'Cannot create live room at this time');
       }
 
       const { data: room, error } = await supabase
@@ -234,6 +260,7 @@ export const useCreateLiveRoom = () => {
           scheduled_start_time: data.scheduled_start_time || null,
           max_speakers: data.max_speakers || 10,
           max_listeners: data.max_listeners || 100,
+          max_duration_minutes: maxDurationMinutes,
           recording_enabled: data.recording_enabled !== false,
           transcription_enabled: data.transcription_enabled !== false,
           status: data.scheduled_start_time ? 'scheduled' : 'live',
@@ -389,5 +416,56 @@ export const useRoomParticipation = (roomId: string | null) => {
     isLeaving: leaveMutation.isPending,
     isTogglingMute: toggleMuteMutation.isPending,
   };
+};
+
+// Hook to set live room successor
+export const useSetLiveRoomSuccessor = (roomId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (successorProfileId: string) => {
+      if (!roomId) {
+        throw new Error('Room ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('set_live_room_successor', {
+          p_room_id: roomId,
+          p_successor_profile_id: successorProfileId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['community-live-rooms'] });
+    },
+  });
+};
+
+// Hook to clear live room successor
+export const useClearLiveRoomSuccessor = (roomId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!roomId) {
+        throw new Error('Room ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('clear_live_room_successor', {
+          p_room_id: roomId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['community-live-rooms'] });
+    },
+  });
 };
 

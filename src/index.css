@@ -91,6 +91,8 @@ All colors MUST be HSL.
   body {
     font-family: var(--font-sans);
     @apply bg-background text-foreground antialiased;
+    /* Performance optimization for theme switching */
+    will-change: background-color, color;
   }
 
   h1,
@@ -119,12 +121,14 @@ All colors MUST be HSL.
 
   a,
   button {
-    @apply transition-all duration-200;
+    @apply transition-colors duration-200;
   }
 
-  /* Smooth page transitions */
-  * {
-    @apply transition-colors duration-200 ease-in-out;
+  /* Optimized theme transitions - only transition the body element */
+  /* CSS variables will update smoothly without needing transitions on every element */
+  body {
+    transition: background-color 150ms ease-in-out, 
+                color 150ms ease-in-out;
   }
 
   /* Focus visible styles for accessibility */

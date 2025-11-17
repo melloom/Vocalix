@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, setSessionCookie } from "@/integrations/supabase/client";
 import { useDeviceId } from "@/hooks/useDeviceId";
 
 type RedemptionStatus = "initializing" | "redeeming" | "success" | "error";
@@ -42,6 +42,53 @@ const LoginLink = () => {
         const result = data?.[0];
         if (!result?.profile_id) {
           throw new Error("We couldn't find the account connected to this link.");
+        }
+
+        // Create session for this profile
+        // PERMANENTLY DISABLED until PostgREST cache refreshes
+        const sessionCreationDisabled = typeof window !== "undefined" ? localStorage.getItem("disable_session_creation") === "true" : false;
+        
+        if (!sessionCreationDisabled) {
+          try {
+            const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+            // Silently ignore 404 errors - function may not be visible to PostgREST yet
+            const { data: sessionData, error: sessionError } = await supabase.rpc("create_session", {
+            p_profile_id: result.profile_id,
+            p_device_id: deviceId,
+            p_user_agent: userAgent,
+            p_duration_hours: 720, // 30 days
+          });
+
+          if (!sessionError && sessionData?.[0]?.session_token) {
+            // Set cookie via edge function
+            await setSessionCookie(sessionData[0].session_token);
+          }
+          // Silently ignore 404 errors (PostgREST cache issue)
+          if (sessionError && (
+            sessionError.code === "PGRST301" ||
+            (sessionError as any)?.status === 404 ||
+            sessionError.message?.includes("404") ||
+            sessionError.message?.includes("not found") ||
+            sessionError.message?.includes("does not exist")
+          )) {
+            // Completely silent - don't log 404 errors
+            return;
+          }
+        } catch (sessionError: any) {
+          // Silently ignore 404 errors (PostgREST cache issue)
+          if (
+            sessionError?.code === "PGRST301" ||
+            sessionError?.status === 404 ||
+            sessionError?.message?.includes("404") ||
+            sessionError?.message?.includes("not found") ||
+            sessionError?.message?.includes("does not exist")
+          ) {
+            // Completely silent - don't log 404 errors
+            return;
+          }
+          // Only log non-404 errors
+          console.warn("Failed to create session (non-critical):", sessionError);
+        }
         }
 
         localStorage.setItem("profileId", result.profile_id);

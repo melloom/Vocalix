@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Mic, X, Check, Waves, Play, Pause } from "lucide-react";
+import { Mic, X, Check, Waves, Play, Pause, Save, Calendar, Sparkles, Upload, FileAudio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -7,10 +7,15 @@ import { useUploadQueue } from "@/context/UploadQueueContext";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAudioEnhancements } from "@/hooks/useAudioEnhancements";
 import { AudioEnhancementControls } from "@/components/AudioEnhancementControls";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { useTagSuggestions } from "@/hooks/useTagSuggestions";
 import { logError, logWarn } from "@/lib/logger";
+import { AudioTemplateSelector, type AudioTemplate } from "@/components/AudioTemplateSelector";
+import { supabase } from "@/integrations/supabase/client";
+import { validateFileUpload } from "@/lib/validation";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -25,6 +30,7 @@ interface RecordModalProps {
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
+  onOpenBulkUpload?: () => void;
   replyingTo?: {
     id: string;
     handle: string;
@@ -60,6 +66,7 @@ export const RecordModal = ({
   chainId = null,
   challengeId = null,
   communityId = null,
+  onOpenBulkUpload,
   replyingTo = null,
   remixingFrom = null,
   continuingChain = null,
@@ -73,9 +80,19 @@ export const RecordModal = ({
   const [isSensitive, setIsSensitive] = useState(false);
   const [title, setTitle] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [category, setCategory] = useState<string>("");
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const [isPodcastMode, setIsPodcastMode] = useState(false);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("public");
+  const [signLanguageUrl, setSignLanguageUrl] = useState("");
+  const [audioDescriptionUrl, setAudioDescriptionUrl] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dynamic max duration based on podcast mode
   const MAX_DURATION = isPodcastMode ? MAX_DURATION_PODCAST : MAX_DURATION_SHORT;
@@ -90,10 +107,17 @@ export const RecordModal = ({
   const playbackTimerRef = useRef<number | null>(null);
 
   const { toast } = useToast();
-  const { enqueueUpload, isProcessing } = useUploadQueue();
+  const { enqueueUpload, saveDraft, isProcessing } = useUploadQueue();
   
   // Audio enhancements for playback
   const { enhancements, updateEnhancement } = useAudioEnhancements(audioPlayerRef);
+  
+  // Tag suggestions
+  const currentTagQuery = useMemo(() => {
+    const parts = tagInput.split(/[,\s]+/);
+    return parts[parts.length - 1]?.replace(/^#/, "") || "";
+  }, [tagInput]);
+  const { suggestions: tagSuggestions, isLoading: isLoadingTags } = useTagSuggestions(currentTagQuery);
 
   const parseTags = useCallback(
     (value: string) =>
@@ -208,6 +232,105 @@ export const RecordModal = ({
     stopTracking();
   }, [stopTracking]);
 
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const validation = validateFileUpload(file, 10 * 1024 * 1024); // 10MB max
+    if (!validation.valid) {
+      toast({
+        title: "Invalid file",
+        description: validation.error || "Please select a valid audio file",
+        variant: "destructive",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    try {
+      // Convert File to Blob
+      const audioBlob = new Blob([file], { type: file.type });
+      
+      // Get audio duration and generate waveform
+      const audio = new Audio();
+      const url = URL.createObjectURL(audioBlob);
+      
+      await new Promise<void>((resolve, reject) => {
+        audio.addEventListener("loadedmetadata", async () => {
+          const fileDuration = audio.duration;
+          setDuration(Math.round(fileDuration));
+          
+          // Generate waveform from audio file
+          try {
+            const audioContext = new AudioContext();
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Generate waveform from audio data
+            const channelData = audioBuffer.getChannelData(0);
+            const samplesPerBin = Math.floor(channelData.length / WAVEFORM_BINS);
+            const waveform = Array.from({ length: WAVEFORM_BINS }, (_, i) => {
+              const start = i * samplesPerBin;
+              const end = start + samplesPerBin;
+              let sum = 0;
+              for (let j = start; j < end && j < channelData.length; j++) {
+                sum += Math.abs(channelData[j]);
+              }
+              const avg = sum / samplesPerBin;
+              // Normalize to 0-1 range
+              return Math.min(1, Math.max(0.1, avg * 2));
+            });
+            
+            setWaveform(waveform);
+            audioContext.close();
+          } catch (error) {
+            logWarn("Could not generate waveform from file, using default", error);
+            // Fallback to simple waveform
+            const waveform = Array.from({ length: WAVEFORM_BINS }, () => Math.random() * 0.5 + 0.3);
+            setWaveform(waveform);
+          }
+          
+          URL.revokeObjectURL(url);
+          resolve();
+        });
+        
+        audio.addEventListener("error", () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Failed to load audio file"));
+        });
+        
+        audio.src = url;
+      });
+
+      setAudioBlob(audioBlob);
+      setUploadedFileName(file.name);
+      
+      // Auto-enable podcast mode if duration > 30 seconds
+      if (audio.duration > 30) {
+        setIsPodcastMode(true);
+      }
+      
+      toast({
+        title: "File loaded",
+        description: "Your audio file is ready. You can preview it or continue to add details.",
+      });
+    } catch (error) {
+      logError("Error loading audio file", error);
+      toast({
+        title: "Error",
+        description: "Failed to load audio file. Please try another file.",
+        variant: "destructive",
+      });
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [toast]);
+
   const handleReset = useCallback(() => {
     // Stop playback if playing
     if (audioPlayerRef.current) {
@@ -229,9 +352,15 @@ export const RecordModal = ({
     setTitle("");
     setTagInput("");
     setIsPodcastMode(false);
+    setIsScheduled(false);
+    setScheduledTime("");
+    setUploadedFileName(null);
     stopTracking();
     cleanupAudio();
     mediaRecorderRef.current = null;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, [cleanupAudio, stopTracking]);
 
   const handlePlayback = useCallback(() => {
@@ -527,6 +656,38 @@ export const RecordModal = ({
       const trimmedTitle = title.trim();
       const tags = parseTags(tagInput);
 
+      // Convert scheduled time to ISO string if scheduling
+      const scheduledFor = isScheduled && scheduledTime 
+        ? new Date(scheduledTime).toISOString()
+        : null;
+
+      // Validate scheduled post if scheduling
+      if (scheduledFor) {
+        const profileId = localStorage.getItem("profileId");
+        if (profileId) {
+          try {
+            const { data: canSchedule, error: scheduleError } = await supabase
+              .rpc('can_schedule_post', {
+                profile_id_param: profileId,
+                scheduled_for_param: scheduledFor,
+              });
+
+            if (scheduleError) throw scheduleError;
+            if (!canSchedule || canSchedule.length === 0 || !canSchedule[0].can_schedule) {
+              throw new Error(canSchedule?.[0]?.reason || 'Cannot schedule post at this time');
+            }
+          } catch (error: any) {
+            setIsUploading(false);
+            toast({
+              title: "Cannot schedule post",
+              description: error.message || "Please check the scheduled time and try again",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+
       await enqueueUpload({
         topicId,
         profileId,
@@ -540,12 +701,18 @@ export const RecordModal = ({
         contentRating: isSensitive ? "sensitive" : "general",
         title: trimmedTitle ? trimmedTitle : null,
         tags: tags.length > 0 ? tags : undefined,
+        category: category || undefined,
         parentClipId: parentClipId || undefined,
         remixOfClipId: remixOfClipId || undefined,
         chainId: chainId || undefined,
         challengeId: challengeId || undefined,
         communityId: communityId || undefined,
         isPodcast: isPodcastMode,
+        saveAsDraft: false,
+        scheduledFor,
+        visibility,
+        signLanguageUrl: signLanguageUrl || null,
+        audioDescriptionUrl: audioDescriptionUrl || null,
       });
 
       onSuccess();
@@ -563,9 +730,125 @@ export const RecordModal = ({
     }
   };
 
+  const handleSaveDraft = async () => {
+    if (!audioBlob || !selectedMood || selectedMood.trim() === "") {
+      toast({
+        title: "Add a mood emoji",
+        description: "Enter an emoji to represent your mood",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!topicId) {
+      toast({
+        title: "Topic unavailable",
+        description: "Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const profileId = localStorage.getItem("profileId");
+      const deviceId = localStorage.getItem("deviceId");
+
+      if (!profileId || !deviceId) {
+        toast({
+          title: "Profile missing",
+          description: "Please finish onboarding before recording.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (duration <= 1) {
+        toast({
+          title: "Too short",
+          description: "Record at least two seconds to save as draft.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsUploading(true);
+      const trimmedTitle = title.trim();
+      const tags = parseTags(tagInput);
+
+      // Convert scheduled time to ISO string if scheduling
+      const scheduledFor = isScheduled && scheduledTime 
+        ? new Date(scheduledTime).toISOString()
+        : null;
+
+      await saveDraft({
+        topicId,
+        profileId,
+        deviceId,
+        duration,
+        moodEmoji: selectedMood,
+        waveform,
+        audioBlob,
+        city: profileCity,
+        consentCity: profileConsentCity,
+        contentRating: isSensitive ? "sensitive" : "general",
+        title: trimmedTitle ? trimmedTitle : null,
+        tags: tags.length > 0 ? tags : undefined,
+        category: category || undefined,
+        parentClipId: parentClipId || undefined,
+        remixOfClipId: remixOfClipId || undefined,
+        chainId: chainId || undefined,
+        challengeId: challengeId || undefined,
+        communityId: communityId || undefined,
+        isPodcast: isPodcastMode,
+        scheduledFor,
+        visibility,
+        signLanguageUrl: signLanguageUrl || null,
+        audioDescriptionUrl: audioDescriptionUrl || null,
+      });
+
+      onSuccess();
+      handleReset();
+      onClose();
+    } catch (error) {
+      logError("Error saving draft", error);
+      toast({
+        title: "Failed to save draft",
+        description: "Please try again",
+        variant: "destructive",
+      });
+      setIsUploading(false);
+    }
+  };
+
+  const handleTemplateSelect = useCallback((template: AudioTemplate) => {
+    setSelectedMood(template.moodEmoji);
+    if (template.suggestedTitle) {
+      setTitle(template.suggestedTitle);
+    }
+    if (template.suggestedTags.length > 0) {
+      setTagInput(template.suggestedTags.map((tag) => `#${tag}`).join(" "));
+    }
+    if (template.suggestedCategory) {
+      setCategory(template.suggestedCategory);
+    }
+    if (template.id === "podcast") {
+      setIsPodcastMode(true);
+    }
+  }, []);
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-sm rounded-3xl">
+    <>
+      <Dialog open={showTemplateSelector} onOpenChange={setShowTemplateSelector}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <AudioTemplateSelector
+            onSelectTemplate={handleTemplateSelect}
+            onClose={() => setShowTemplateSelector(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-sm rounded-3xl">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-center text-xl">
             {remixingFrom
@@ -624,6 +907,46 @@ export const RecordModal = ({
         <div className="space-y-3 py-2">
           {!audioBlob ? (
             <>
+              {/* Single File Upload Option - only show for new recordings (not replies/remixes) */}
+              {!replyingTo && !remixingFrom && !continuingChain && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="audio-upload-input"
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl py-6 flex items-center justify-center gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <FileAudio className="h-5 w-5" />
+                    <span className="font-medium">Upload Audio File</span>
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground px-2">
+                    Supports: .webm, .mp3, .wav, .ogg, .m4a, .aac (max 10MB)
+                  </p>
+                </>
+              )}
+              
+              {/* Bulk Upload Option - only show for new recordings (not replies/remixes) */}
+              {!replyingTo && !remixingFrom && !continuingChain && onOpenBulkUpload && (
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl py-6 flex items-center justify-center gap-2"
+                  onClick={() => {
+                    onClose();
+                    onOpenBulkUpload();
+                  }}
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="font-medium">Bulk Upload Files</span>
+                </Button>
+              )}
+              
               {/* Podcast Mode Toggle - only show for new recordings (not replies/remixes) */}
               {!replyingTo && !remixingFrom && !continuingChain && (
                 <div className="bg-muted/60 rounded-xl p-3">
@@ -826,6 +1149,14 @@ export const RecordModal = ({
                     Playback
                   </div>
                   
+                  {/* Show uploaded file name if file was uploaded */}
+                  {uploadedFileName && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <FileAudio className="h-3 w-3" />
+                      <span className="truncate max-w-[200px]">{uploadedFileName}</span>
+                    </div>
+                  )}
+                  
                   {/* Waveform visualization during playback */}
                   <div className="flex justify-center items-center h-16 gap-1 px-2 w-full">
                     {waveform.map((height, i) => (
@@ -884,12 +1215,24 @@ export const RecordModal = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium" htmlFor="clip-mood">
-                  Mood emoji{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (any emoji)
-                  </span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium" htmlFor="clip-mood">
+                    Mood emoji{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      (any emoji)
+                    </span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowTemplateSelector(true)}
+                    className="h-7 text-xs"
+                  >
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    Templates
+                  </Button>
+                </div>
                 <EmojiPicker
                   value={selectedMood}
                   onChange={(emoji) => setSelectedMood(emoji)}
@@ -917,19 +1260,75 @@ export const RecordModal = ({
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs font-medium" htmlFor="clip-category">
+                    Category{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      optional
+                    </span>
+                  </label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="clip-category" className="rounded-xl h-9">
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="storytelling">📖 Storytelling</SelectItem>
+                      <SelectItem value="advice">💡 Advice</SelectItem>
+                      <SelectItem value="news">📰 News</SelectItem>
+                      <SelectItem value="comedy">😂 Comedy</SelectItem>
+                      <SelectItem value="education">🎓 Education</SelectItem>
+                      <SelectItem value="music">🎵 Music</SelectItem>
+                      <SelectItem value="interview">🎤 Interview</SelectItem>
+                      <SelectItem value="podcast">🎙️ Podcast</SelectItem>
+                      <SelectItem value="other">📝 Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1 relative">
                   <label className="text-xs font-medium" htmlFor="clip-tags">
                     Tags{" "}
                     <span className="text-xs font-normal text-muted-foreground">
                       use # or commas
                     </span>
                   </label>
-                  <Input
-                    id="clip-tags"
-                    value={tagInput}
-                    onChange={(event) => setTagInput(event.target.value)}
-                    placeholder="#gratitude #mood"
-                    className="rounded-xl h-9"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="clip-tags"
+                      value={tagInput}
+                      onChange={(event) => {
+                        setTagInput(event.target.value);
+                        setShowTagSuggestions(true);
+                      }}
+                      onFocus={() => setShowTagSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
+                      placeholder="#gratitude #mood"
+                      className="rounded-xl h-9"
+                    />
+                    {showTagSuggestions && tagSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {tagSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.tag}
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex items-center justify-between"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const parts = tagInput.split(/[,\s]+/);
+                              parts[parts.length - 1] = `#${suggestion.tag}`;
+                              setTagInput(parts.join(" ") + " ");
+                              setShowTagSuggestions(false);
+                            }}
+                          >
+                            <span>#{suggestion.tag}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {suggestion.clip_count} clips
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {tagList.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {tagList.map((tag) => (
@@ -964,6 +1363,90 @@ export const RecordModal = ({
                 </div>
               </div>
 
+              <div className="bg-muted/60 rounded-xl p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium">Schedule for later</p>
+                    <p className="text-xs text-muted-foreground">
+                      Publish this clip at a specific time.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isScheduled}
+                    onCheckedChange={(checked) => {
+                      setIsScheduled(checked);
+                      if (checked && !scheduledTime) {
+                        // Set default to 1 hour from now
+                        const defaultTime = new Date();
+                        defaultTime.setHours(defaultTime.getHours() + 1);
+                        setScheduledTime(defaultTime.toISOString().slice(0, 16));
+                      }
+                    }}
+                    aria-label="Schedule clip for later"
+                  />
+                </div>
+                {isScheduled && (
+                  <Input
+                    type="datetime-local"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="rounded-xl h-9"
+                  />
+                )}
+              </div>
+
+              {/* Privacy Controls */}
+              <div className="bg-muted/60 rounded-xl p-3 space-y-2">
+                <label className="text-xs font-medium">Privacy</label>
+                <Select value={visibility} onValueChange={(value: "public" | "followers" | "private") => setVisibility(value)}>
+                  <SelectTrigger className="rounded-xl h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">🌍 Public - Everyone can see</SelectItem>
+                    <SelectItem value="followers">👥 Followers - Only your followers</SelectItem>
+                    <SelectItem value="private">🔒 Private - Only you</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {visibility === "public" && "Anyone can view this clip"}
+                  {visibility === "followers" && "Only people who follow you can view"}
+                  {visibility === "private" && "Only you can view this clip"}
+                </p>
+              </div>
+
+              {/* Accessibility Options */}
+              <div className="bg-muted/60 rounded-xl p-3 space-y-3">
+                <p className="text-xs font-medium">Accessibility Options</p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Sign Language Video URL (optional)
+                    </label>
+                    <Input
+                      type="url"
+                      value={signLanguageUrl}
+                      onChange={(e) => setSignLanguageUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="rounded-xl h-9 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Audio Description URL (optional)
+                    </label>
+                    <Input
+                      type="url"
+                      value={audioDescriptionUrl}
+                      onChange={(e) => setAudioDescriptionUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="rounded-xl h-9 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -971,6 +1454,15 @@ export const RecordModal = ({
                   className="flex-1 h-10 rounded-xl text-sm"
                 >
                   Re-record
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleSaveDraft}
+                  disabled={!selectedMood || isUploading || isProcessing}
+                  className="h-10 rounded-xl text-sm"
+                >
+                  <Save className="mr-1.5 h-4 w-4" />
+                  {isScheduled ? "Schedule" : "Save Draft"}
                 </Button>
                 <Button
                   onClick={handlePost}
@@ -985,5 +1477,6 @@ export const RecordModal = ({
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 };

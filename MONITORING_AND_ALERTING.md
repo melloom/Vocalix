@@ -100,17 +100,13 @@ serve(async (req: Request) => {
 
 ## Production Setup with Sentry SDK
 
-The current implementation includes placeholder functions that log to console. For production, integrate the actual Sentry SDK:
+✅ **The Sentry SDK has been integrated!** The implementation uses the actual Sentry SDK for both frontend and Edge Functions. To enable it in production, just set the DSN environment variables.
 
 ### Frontend
 
-1. Install Sentry SDK:
+✅ **Already implemented!** The Sentry SDK is already integrated in `src/lib/monitoring.ts` using `@sentry/react`.
 
-```bash
-npm install @sentry/react
-```
-
-2. Update `src/lib/monitoring.ts`:
+If you need to customize the configuration, you can modify `src/lib/monitoring.ts`:
 
 ```typescript
 import * as Sentry from "@sentry/react";
@@ -144,32 +140,15 @@ export function captureException(error: Error | unknown, context?: ErrorContext)
 
 ### Edge Functions (Deno)
 
-1. Install Sentry SDK for Deno:
+✅ **Already implemented!** The Sentry SDK for Deno is already integrated in `supabase/functions/_shared/monitoring.ts` using `https://deno.land/x/sentry/index.mjs`.
 
-Add to your Edge Function's `deno.json` or import directly:
+The implementation automatically:
+- Initializes Sentry with your DSN
+- Captures exceptions with context
+- Tracks performance metrics
+- Filters sensitive data
 
-```typescript
-import { init, captureException } from "https://deno.land/x/sentry/index.ts";
-
-export function initializeSentry(dsn: string | null): void {
-  if (!dsn) return;
-  
-  init({
-    dsn: dsn,
-    environment: Deno.env.get("ENVIRONMENT") || "production",
-  });
-}
-
-export async function captureException(error: Error | unknown, context?: ErrorContext): Promise<void> {
-  await captureException(error, {
-    tags: {
-      function: context?.functionName,
-    },
-    user: context?.userId ? { id: context.userId } : undefined,
-    extra: context?.additionalData,
-  });
-}
-```
+No additional setup needed - just set the `SENTRY_DSN` environment variable!
 
 ## Usage Examples
 

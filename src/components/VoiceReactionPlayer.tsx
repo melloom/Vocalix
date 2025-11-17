@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { logError } from "@/lib/logger";
+import { useProfile } from "@/hooks/useProfile";
 
 interface VoiceReaction {
   id: string;
@@ -27,6 +28,10 @@ export const VoiceReactionPlayer = ({ voiceReaction }: VoiceReactionPlayerProps)
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { profile } = useProfile();
+  
+  // Get playback speed from user profile (default to 1.0)
+  const playbackSpeed = profile?.playback_speed ? Number(profile.playback_speed) : 1.0;
 
   useEffect(() => {
     return () => {
@@ -60,6 +65,8 @@ export const VoiceReactionPlayer = ({ voiceReaction }: VoiceReactionPlayerProps)
         setAudioUrl(data.signedUrl);
         const audio = new Audio(data.signedUrl);
         audioRef.current = audio;
+        // Apply user's playback speed preference
+        audio.playbackRate = playbackSpeed;
 
         audio.onended = () => {
           setIsPlaying(false);
@@ -80,11 +87,20 @@ export const VoiceReactionPlayer = ({ voiceReaction }: VoiceReactionPlayerProps)
       }
     } else {
       if (audioRef.current) {
+        // Ensure playback speed is applied
+        audioRef.current.playbackRate = playbackSpeed;
         await audioRef.current.play();
         setIsPlaying(true);
       }
     }
   };
+  
+  // Update playback speed when profile changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed]);
 
   const handle = voiceReaction.profiles?.handle || "Anonymous";
   const emoji = voiceReaction.profiles?.emoji_avatar || "🎤";

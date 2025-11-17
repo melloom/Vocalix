@@ -16,12 +16,18 @@ interface EnqueueUploadOptions {
   contentRating: "general" | "sensitive";
   title?: string | null;
   tags?: string[];
+  category?: string;
   parentClipId?: string | null;
   remixOfClipId?: string | null;
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
   isPodcast?: boolean;
+  saveAsDraft?: boolean;
+  scheduledFor?: string | null; // ISO timestamp
+  visibility?: "public" | "followers" | "private";
+  signLanguageUrl?: string | null;
+  audioDescriptionUrl?: string | null;
 }
 
 interface UploadQueueItem {
@@ -39,16 +45,21 @@ interface UploadQueueItem {
   contentRating: "general" | "sensitive";
   title?: string | null;
   tags?: string[];
+  category?: string;
   parentClipId?: string | null;
   remixOfClipId?: string | null;
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
   isPodcast?: boolean;
+  visibility?: "public" | "followers" | "private";
+  signLanguageUrl?: string | null;
+  audioDescriptionUrl?: string | null;
 }
 
 interface UploadQueueContextValue {
   enqueueUpload: (options: EnqueueUploadOptions) => Promise<void>;
+  saveDraft: (options: EnqueueUploadOptions) => Promise<string | null>; // Returns draft clip ID
   queue: UploadQueueItem[];
   isProcessing: boolean;
 }
@@ -58,6 +69,10 @@ const defaultContextValue: UploadQueueContextValue = {
   enqueueUpload: async () => {
     logWarn("useUploadQueue called outside UploadQueueProvider");
   },
+  saveDraft: async () => {
+    logWarn("useUploadQueue called outside UploadQueueProvider");
+    return null;
+  },
   queue: [],
   isProcessing: false,
 };
@@ -65,6 +80,8 @@ const defaultContextValue: UploadQueueContextValue = {
 const UploadQueueContext = createContext<UploadQueueContextValue>(defaultContextValue);
 
 const QUEUE_STORAGE_KEY = "echo-garden-upload-queue";
+const MAX_QUEUE_SIZE = 5; // Maximum pending uploads
+const UPLOAD_COOLDOWN_MS = 30 * 1000; // 30 seconds between uploads
 
 const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
@@ -127,6 +144,99 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
     saveQueueToStorage(queue);
   }, [queue]);
 
+  const saveDraft = useCallback(
+    async ({
+      topicId,
+      profileId,
+      deviceId,
+      duration,
+      moodEmoji,
+      waveform,
+      audioBlob,
+      city,
+      consentCity,
+      contentRating,
+      title,
+      tags,
+      category,
+      parentClipId,
+      remixOfClipId,
+      chainId,
+      challengeId,
+      communityId,
+      isPodcast,
+      scheduledFor,
+      visibility,
+      signLanguageUrl,
+      audioDescriptionUrl,
+    }: EnqueueUploadOptions): Promise<string | null> => {
+      try {
+        // Upload audio file first
+        const fileName = `${profileId}/${Date.now()}.webm`;
+        const { error: uploadError } = await supabase.storage.from("audio").upload(fileName, audioBlob);
+        
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const waveformPayload = waveform.map((value) => Number(value.toFixed(2)));
+
+        // Save as draft in database
+        const { data: clipData, error: insertError } = await supabase
+          .from("clips")
+          .insert({
+            topic_id: topicId,
+            profile_id: profileId,
+            audio_path: fileName,
+            duration_seconds: duration,
+            mood_emoji: moodEmoji,
+            status: "draft",
+            waveform: waveformPayload,
+            city: consentCity ? city : null,
+            content_rating: contentRating,
+            title: title?.trim() ? title.trim() : null,
+            tags: tags && tags.length > 0 ? tags : null,
+            category: category || null,
+            parent_clip_id: parentClipId ?? null,
+            remix_of_clip_id: remixOfClipId ?? null,
+            chain_id: chainId ?? null,
+            challenge_id: challengeId ?? null,
+            community_id: communityId ?? null,
+            is_podcast: isPodcast ?? false,
+            scheduled_for: scheduledFor || null,
+            visibility: visibility || "public",
+            is_private: visibility === "private",
+            sign_language_video_url: signLanguageUrl || null,
+            audio_description_url: audioDescriptionUrl || null,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        toast({
+          title: scheduledFor ? "Clip scheduled! 📅" : "Draft saved! 💾",
+          description: scheduledFor 
+            ? "Your clip will be published at the scheduled time."
+            : "You can edit and publish it later.",
+        });
+
+        return clipData.id;
+      } catch (error) {
+        logError("Failed to save draft", error);
+        toast({
+          title: "Failed to save draft",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+        return null;
+      }
+    },
+    [queue, toast],
+  );
+
   const enqueueUpload = useCallback(
     async ({
       topicId,
@@ -141,13 +251,76 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       contentRating,
       title,
       tags,
+      category,
       parentClipId,
       remixOfClipId,
       chainId,
       challengeId,
       communityId,
       isPodcast,
+      saveAsDraft,
+      scheduledFor,
+      visibility,
+      signLanguageUrl,
+      audioDescriptionUrl,
     }: EnqueueUploadOptions) => {
+      // If saving as draft, use saveDraft instead
+      if (saveAsDraft) {
+        await saveDraft({
+          topicId,
+          profileId,
+          deviceId,
+          duration,
+          moodEmoji,
+          waveform,
+          audioBlob,
+          city,
+          consentCity,
+          contentRating,
+          title,
+          tags,
+          category,
+          parentClipId,
+          remixOfClipId,
+          chainId,
+          challengeId,
+          communityId,
+          isPodcast,
+          scheduledFor,
+        });
+        return;
+      }
+
+      // Check queue size limit
+      const currentQueue = queue;
+      const pendingCount = currentQueue.filter((item) => !item.id.startsWith('draft-')).length;
+      if (pendingCount >= MAX_QUEUE_SIZE) {
+        toast({
+          title: "Upload queue full",
+          description: `Maximum ${MAX_QUEUE_SIZE} pending uploads allowed. Please wait for current uploads to complete.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check cooldown period (30 seconds between uploads)
+      const lastUpload = currentQueue
+        .filter((item) => !item.id.startsWith('draft-'))
+        .sort((a, b) => b.createdAt - a.createdAt)[0];
+      
+      if (lastUpload) {
+        const timeSinceLastUpload = Date.now() - lastUpload.createdAt;
+        if (timeSinceLastUpload < UPLOAD_COOLDOWN_MS) {
+          const waitTime = Math.ceil((UPLOAD_COOLDOWN_MS - timeSinceLastUpload) / 1000);
+          toast({
+            title: "Please wait",
+            description: `Please wait ${waitTime} seconds before uploading again.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const id = crypto.randomUUID();
       const audioBase64 = await blobToDataUrl(audioBlob);
 
@@ -166,15 +339,31 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
         contentRating,
         title: title?.trim() ? title.trim() : undefined,
         tags: tags?.length ? tags : undefined,
+        category: category || undefined,
         parentClipId: parentClipId || undefined,
         remixOfClipId: remixOfClipId || undefined,
         chainId: chainId || undefined,
         challengeId: challengeId || undefined,
         communityId: communityId || undefined,
         isPodcast: isPodcast || false,
+        visibility: visibility || "public",
+        signLanguageUrl: signLanguageUrl || undefined,
+        audioDescriptionUrl: audioDescriptionUrl || undefined,
       };
 
-      setQueue((prev) => [...prev, item]);
+      setQueue((prev) => {
+        // Double-check queue size before adding (defensive check)
+        const pendingCount = prev.filter((item) => !item.id.startsWith('draft-')).length;
+        if (pendingCount >= MAX_QUEUE_SIZE) {
+          toast({
+            title: "Upload queue full",
+            description: `Maximum ${MAX_QUEUE_SIZE} pending uploads allowed. Please wait for current uploads to complete.`,
+            variant: "destructive",
+          });
+          return prev;
+        }
+        return [...prev, item];
+      });
 
       toast({
         title: "Voice note queued",
@@ -183,7 +372,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           : "Offline detected. We'll upload once you're back online.",
       });
     },
-    [toast],
+    [queue, toast, saveDraft],
   );
 
   const removeFromQueue = useCallback((id: string) => {
@@ -224,12 +413,17 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           content_rating: item.contentRating,
           title: item.title ?? null,
           tags: item.tags && item.tags.length > 0 ? item.tags : null,
+          category: item.category || null,
           parent_clip_id: item.parentClipId ?? null,
           remix_of_clip_id: item.remixOfClipId ?? null,
           chain_id: item.chainId ?? null,
           challenge_id: item.challengeId ?? null,
           community_id: item.communityId ?? null,
           is_podcast: item.isPodcast ?? false,
+          visibility: item.visibility || "public",
+          is_private: item.visibility === "private",
+          sign_language_video_url: item.signLanguageUrl || null,
+          audio_description_url: item.audioDescriptionUrl || null,
         })
         .select()
         .single();
@@ -306,10 +500,11 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       enqueueUpload,
+      saveDraft,
       queue,
       isProcessing,
     }),
-    [enqueueUpload, queue, isProcessing],
+    [enqueueUpload, saveDraft, queue, isProcessing],
   );
 
   return <UploadQueueContext.Provider value={value}>{children}</UploadQueueContext.Provider>;

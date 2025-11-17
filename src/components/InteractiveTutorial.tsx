@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,14 +21,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     title: "Welcome to Echo Garden! 🌱",
-    description: "Let's take a quick tour to help you get started. This will only take a minute!",
+    description: "Let's take a comprehensive tour to help you get started. This will cover all the amazing features Echo Garden has to offer!",
     position: "center",
     icon: <Sparkles className="h-6 w-6" />,
   },
   {
     id: "record-button",
     title: "Record Your Voice",
-    description: "Click the + button in the bottom-right corner (or press 'n' on your keyboard) to record your first voice clip. You can share thoughts, stories, or reactions in 30 seconds or less!",
+    description: "Click the + button in the bottom-right corner (or press 'n' on your keyboard) to record your first voice clip. You can share thoughts, stories, or reactions in 30 seconds or less! The upload button above it lets you bulk upload multiple audio files.",
     targetSelector: '[data-tutorial="record-button"]',
     position: "top",
     icon: <Mic className="h-6 w-6" />,
@@ -37,7 +37,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "today-topic",
     title: "Daily Topics",
-    description: "Every day, there's a new topic to inspire conversations. Click 'Focus this topic' to see only clips about today's topic, or explore past topics below.",
+    description: "Every day, there's a new topic to inspire conversations. Click 'Focus this topic' to see only clips about today's topic, or explore past topics below. Topics help organize conversations around shared themes!",
     targetSelector: '[data-tutorial="today-topic"]',
     position: "bottom",
     icon: <Sparkles className="h-6 w-6" />,
@@ -45,15 +45,31 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "feed-sorting",
     title: "Feed Sorting",
-    description: "Switch between different feed views: Hot (trending now), Top (all-time favorites), Controversial (mixed reactions), Rising (gaining traction), or Trending (algorithm picks).",
+    description: "Switch between different feed views: Hot (trending now), Top (all-time favorites with time period selector), Controversial (mixed reactions), Rising (gaining traction), or Trending (algorithm picks). Each mode shows clips in a different way!",
     targetSelector: '[data-tutorial="feed-sorting"]',
     position: "bottom",
-    icon: <Sparkles className="h-6 w-6" />,
+    icon: <Filter className="h-6 w-6" />,
+  },
+  {
+    id: "view-modes",
+    title: "View Modes",
+    description: "Toggle between List view (detailed cards) and Compact view (condensed cards) using the view mode buttons. Choose what works best for your browsing style!",
+    targetSelector: '[data-tutorial="view-mode"]',
+    position: "bottom",
+    icon: <Grid3x3 className="h-6 w-6" />,
+  },
+  {
+    id: "filters",
+    title: "Filters & Discovery",
+    description: "Use filters to find exactly what you want: City filter (Everyone/Near you), Mood filters (😊 🔥 ❤️ 🙏 😔 😂 😮 🧘 💡), and more. These help you discover content that matches your interests!",
+    targetSelector: '[data-tutorial="filters"]',
+    position: "bottom",
+    icon: <Filter className="h-6 w-6" />,
   },
   {
     id: "clip-interactions",
     title: "Interact with Clips",
-    description: "Listen to clips by clicking play. React with emojis (😊 🔥 ❤️ 🙏), reply with your voice, save clips you love, or share them with others!",
+    description: "Listen to clips by clicking play. React with emojis (😊 🔥 ❤️ 🙏), reply with your voice, remix clips, continue chains, save clips you love, or share them with others! Each clip is a conversation starter.",
     targetSelector: '[data-tutorial="clip-card"]',
     position: "top",
     icon: <Heart className="h-6 w-6" />,
@@ -62,7 +78,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "search",
     title: "Search & Discover",
-    description: "Press '/' or click the search bar to find clips, creators, topics, or hashtags. Use advanced filters to find exactly what you're looking for!",
+    description: "Press '/' or click the search bar to find clips, creators, topics, or hashtags. Use advanced filters (duration, date range, mood, city, topic) to find exactly what you're looking for! You can also save your favorite searches.",
     targetSelector: '[data-tutorial="search"]',
     position: "bottom",
     icon: <Search className="h-6 w-6" />,
@@ -70,23 +86,78 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "follow",
     title: "Follow Creators",
-    description: "Click on any creator's handle or avatar to visit their profile. Click 'Follow' to see their clips in your Following feed! You can access your Following feed from the header.",
+    description: "Click on any creator's handle or avatar to visit their profile. Click 'Follow' to see their clips in your Following feed! You can access your Following feed from the header. Build your personalized feed by following voices you love.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <UserPlus className="h-6 w-6" />,
   },
   {
-    id: "navigation",
-    title: "Navigation",
-    description: "Use the header icons to explore: Communities, Live Rooms, Following feed, Saved clips, Your recordings, and Settings. Everything is just a click away!",
+    id: "communities",
+    title: "Communities",
+    description: "Join audio communities to connect with like-minded voices! Click the Communities icon in the header to discover themed groups. Join communities, follow them, and participate in community-specific conversations and events.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Users className="h-6 w-6" />,
+  },
+  {
+    id: "live-rooms",
+    title: "Live Audio Rooms",
+    description: "Join real-time voice conversations in Live Rooms! Click the Live Rooms icon to see active rooms. Host your own room, join as a speaker or listener, and engage in live discussions with the community.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Radio className="h-6 w-6" />,
+  },
+  {
+    id: "saved-clips",
+    title: "Saved Clips & Bookmarks",
+    description: "Save clips you love for later! Click the bookmark icon on any clip, then access all your saved clips from the Saved icon in the header. Create playlists and organize your favorite voices into collections.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Bookmark className="h-6 w-6" />,
+  },
+  {
+    id: "notifications",
+    title: "Notifications",
+    description: "Stay updated with the bell icon in the header! Get notified about new followers, replies to your clips, reactions, and more. Never miss important interactions with your content!",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Bell className="h-6 w-6" />,
+  },
+  {
+    id: "my-recordings",
+    title: "My Recordings",
+    description: "Manage all your published clips from the My Recordings page! Access it via the microphone icon in the header. View your clips, see their stats, edit them, and track your voice journey.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Mic className="h-6 w-6" />,
+  },
+  {
+    id: "settings",
+    title: "Settings & Customization",
+    description: "Customize your Echo Garden experience in Settings! Change your handle (with limits), update your avatar, set your city, adjust playback preferences, enable captions by default, and more. Make it yours!",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Settings className="h-6 w-6" />,
+  },
+  {
+    id: "keyboard-shortcuts",
+    title: "Keyboard Shortcuts",
+    description: "Speed up your workflow with keyboard shortcuts! Click the keyboard icon in the header to see all available shortcuts. Press '/' to search, 'n' to record, 'd' to toggle dark mode, and more!",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Sparkles className="h-6 w-6" />,
   },
   {
+    id: "advanced-features",
+    title: "Advanced Features",
+    description: "Explore more: Reply to clips with voice replies, remix clips with your own voice overlay, continue audio story chains, browse by hashtags, filter by city, and discover trending content. There's always something new to explore!",
+    position: "center",
+    icon: <PlayCircle className="h-6 w-6" />,
+  },
+  {
     id: "complete",
     title: "You're All Set! 🎉",
-    description: "You now know the basics of Echo Garden. Start recording your first clip, explore the community, and share your voice! You can always access this tutorial again from Settings.",
+    description: "You now know all the amazing features Echo Garden has to offer! Start recording your first clip, explore communities, join live rooms, and share your voice with the world. Welcome to the garden - let your voice bloom! You can always access this tutorial again from Settings.",
     position: "center",
     icon: <Sparkles className="h-6 w-6" />,
   },
@@ -107,6 +178,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const overlayRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const positionUpdateRef = useRef<number | null>(null);
+  const isNavigatingRef = useRef(false); // Guard against rapid clicks
   const step = TUTORIAL_STEPS[currentStep];
 
   // Check if tutorial should be shown
@@ -135,7 +207,55 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         return;
       }
 
-      const element = document.querySelector(step.targetSelector) as HTMLElement;
+      // Use a more specific query to avoid matching wrong elements
+      let element = document.querySelector(step.targetSelector) as HTMLElement;
+      
+      // Special handling for specific steps to ensure correct targeting
+      if (step.id === "record-button") {
+        // Find the fixed bottom-right container specifically
+        const allRecordButtons = document.querySelectorAll('[data-tutorial="record-button"]');
+        for (const btn of Array.from(allRecordButtons)) {
+          if (btn.classList.contains("fixed")) {
+            element = btn as HTMLElement;
+            break;
+          }
+        }
+      } else if (step.id === "filters") {
+        // Find the mood filters container (the one with emoji buttons)
+        const allFilters = document.querySelectorAll('[data-tutorial="filters"]');
+        for (const filter of Array.from(allFilters)) {
+          // Check if this container has emoji buttons or "All moods" text
+          const buttons = filter.querySelectorAll('button');
+          let hasEmojiButtons = false;
+          for (const btn of Array.from(buttons)) {
+            if (btn.textContent?.includes("😊") || btn.textContent?.includes("All moods")) {
+              hasEmojiButtons = true;
+              break;
+            }
+          }
+          if (hasEmojiButtons || filter.textContent?.includes("All moods")) {
+            element = filter as HTMLElement;
+            break;
+          }
+        }
+        // If no mood filters found, use the first filters container
+        if (!element && allFilters.length > 0) {
+          element = allFilters[0] as HTMLElement;
+        }
+      } else if (step.id === "clip-interactions") {
+        // Find the first visible clip card
+        const clipCard = document.querySelector('[data-tutorial="clip-card"]') as HTMLElement;
+        if (clipCard) {
+          element = clipCard;
+        }
+      } else if (step.targetSelector) {
+        // For all other steps, ensure we get the correct element
+        const found = document.querySelector(step.targetSelector) as HTMLElement;
+        if (found) {
+          element = found;
+        }
+      }
+      
       if (!element) {
         setTargetElement(null);
         setTooltipPosition(null);
@@ -224,20 +344,18 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   // Update position on scroll/resize with debouncing
   useEffect(() => {
     if (step.targetSelector) {
-      setIsTransitioning(true);
-      
-      // Initial calculation with delay for smooth transition
+      // Don't set transitioning on step change - let it be smooth
+      // Initial calculation with minimal delay
       const initialTimeout = setTimeout(() => {
         calculatePosition();
-        setIsTransitioning(false);
-      }, 150);
+      }, 50);
 
       let resizeTimeout: NodeJS.Timeout;
       const handleResize = () => {
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
           calculatePosition();
-        }, 100);
+        }, 150); // Increased debounce to reduce lag
       };
 
       let scrollTimeout: NodeJS.Timeout;
@@ -245,14 +363,39 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
           calculatePosition();
-        }, 50);
+        }, 100); // Increased debounce to reduce lag
+      };
+
+      // Throttle theme changes to prevent lag
+      let themeChangeTimeout: NodeJS.Timeout;
+      const handleThemeChange = () => {
+        clearTimeout(themeChangeTimeout);
+        themeChangeTimeout = setTimeout(() => {
+          calculatePosition();
+        }, 200); // Delay position recalculation on theme change
       };
 
       window.addEventListener("resize", handleResize, { passive: true });
       window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+      // Listen for theme changes (class changes on html/body)
+      const observer = new MutationObserver(handleThemeChange);
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
 
       // Smooth scroll to element if needed
-      const element = document.querySelector(step.targetSelector) as HTMLElement;
+      let element = document.querySelector(step.targetSelector) as HTMLElement;
+      
+      // Special handling for record button to ensure we get the right container
+      if (step.id === "record-button") {
+        const recordContainer = document.querySelector('[data-tutorial="record-button"]') as HTMLElement;
+        if (recordContainer && recordContainer.classList.contains("fixed")) {
+          // Make sure we got the fixed bottom-right container, not something else
+          element = recordContainer;
+        }
+      }
+      
       if (element && step.highlight) {
         const rect = element.getBoundingClientRect();
         const isVisible = 
@@ -270,8 +413,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         clearTimeout(initialTimeout);
         clearTimeout(resizeTimeout);
         clearTimeout(scrollTimeout);
+        clearTimeout(themeChangeTimeout);
         window.removeEventListener("resize", handleResize);
         window.removeEventListener("scroll", handleScroll, true);
+        observer.disconnect();
         if (positionUpdateRef.current) {
           cancelAnimationFrame(positionUpdateRef.current);
         }
@@ -286,20 +431,17 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   // Add data attributes to elements for targeting
   useEffect(() => {
-    // Add data attributes to key elements
-    const recordButton = document.querySelector('button[aria-label*="record"], button:has(svg)') as HTMLElement;
-    if (recordButton && !recordButton.closest('[data-tutorial="record-button"]')) {
-      const wrapper = document.createElement("div");
-      wrapper.setAttribute("data-tutorial", "record-button");
-      wrapper.style.position = "relative";
-      wrapper.style.zIndex = "10000";
-      recordButton.parentNode?.insertBefore(wrapper, recordButton);
-      wrapper.appendChild(recordButton);
+    // The record button container should already have the data attribute from Index.tsx
+    // Just ensure it exists and is properly set
+    const recordButtonContainer = document.querySelector('[data-tutorial="record-button"]') as HTMLElement;
+    if (recordButtonContainer) {
+      // Ensure it's visible and has proper z-index
+      recordButtonContainer.style.zIndex = "10000";
     }
 
-    // Mark other elements
+    // Mark search input
     const searchInput = document.querySelector('input[placeholder*="Search"], input[type="search"]') as HTMLElement;
-    if (searchInput) {
+    if (searchInput && !searchInput.hasAttribute("data-tutorial")) {
       searchInput.setAttribute("data-tutorial", "search");
     }
 
@@ -309,29 +451,63 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   }, [currentStep]);
 
   const handleNext = () => {
+    // Prevent rapid clicks
+    if (isNavigatingRef.current || isTransitioning) {
+      return;
+    }
+    
     if (currentStep < TUTORIAL_STEPS.length - 1) {
+      isNavigatingRef.current = true;
       setIsTransitioning(true);
+      // Shorter transition time to reduce flashing
       setTimeout(() => {
         setCurrentStep(currentStep + 1);
-        setIsTransitioning(false);
+        // Small delay before re-enabling to ensure smooth transition
+        setTimeout(() => {
+          setIsTransitioning(false);
+          isNavigatingRef.current = false;
+        }, 50);
       }, 200);
     } else {
+      isNavigatingRef.current = true;
       markCompleted();
+      setTimeout(() => {
+        isNavigatingRef.current = false;
+      }, 200);
     }
   };
 
   const handlePrevious = () => {
+    // Prevent rapid clicks
+    if (isNavigatingRef.current || isTransitioning) {
+      return;
+    }
+    
     if (currentStep > 0) {
+      isNavigatingRef.current = true;
       setIsTransitioning(true);
+      // Shorter transition time to reduce flashing
       setTimeout(() => {
         setCurrentStep(currentStep - 1);
-        setIsTransitioning(false);
+        // Small delay before re-enabling to ensure smooth transition
+        setTimeout(() => {
+          setIsTransitioning(false);
+          isNavigatingRef.current = false;
+        }, 50);
       }, 200);
     }
   };
 
   const handleSkip = () => {
+    // Prevent rapid clicks
+    if (isNavigatingRef.current) {
+      return;
+    }
+    isNavigatingRef.current = true;
     markCompleted();
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 300);
   };
 
   const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100;
@@ -388,8 +564,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       <div
         ref={overlayRef}
         className={cn(
-          "absolute inset-0 bg-black/70 backdrop-blur-md transition-all duration-500",
-          isTransitioning && "opacity-0"
+          "absolute inset-0 bg-black/70 backdrop-blur-md transition-all duration-300 ease-in-out pointer-events-none"
         )}
         style={spotlightStyle}
       />
@@ -410,8 +585,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       <div
         ref={tooltipRef}
         className={cn(
-          "absolute pointer-events-auto transition-all duration-500 ease-out",
-          isTransitioning && "opacity-0 scale-95 translate-y-2"
+          "absolute pointer-events-auto transition-all duration-300 ease-in-out"
         )}
         style={
           tooltipPosition
@@ -419,19 +593,21 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                 top: `${tooltipPosition.top}px`,
                 left: `${tooltipPosition.left}px`,
                 width: "min(400px, 90vw)",
-                transform: isTransitioning ? "scale(0.95) translateY(8px)" : "scale(1) translateY(0)",
+                transform: "scale(1) translateY(0)",
+                transition: "top 300ms ease-in-out, left 300ms ease-in-out",
+                opacity: isTransitioning ? 0.9 : 1,
               }
             : {
                 top: "50%",
                 left: "50%",
-                transform: isTransitioning 
-                  ? "translate(-50%, -45%) scale(0.95)" 
-                  : "translate(-50%, -50%) scale(1)",
+                transform: "translate(-50%, -50%) scale(1)",
                 width: "min(400px, 90vw)",
+                transition: "opacity 300ms ease-in-out",
+                opacity: isTransitioning ? 0.9 : 1,
               }
         }
       >
-        <Card className="shadow-2xl border-2 border-primary/30 bg-background/95 backdrop-blur-xl">
+        <Card className="shadow-2xl border-2 border-primary/30 bg-background backdrop-blur-xl">
           <CardHeader className="space-y-3 pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -442,7 +618,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   <CardTitle className="text-xl font-semibold">{step.title}</CardTitle>
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge variant="secondary" className="text-xs font-medium">
-                      Step {currentStep + 1} of {TUTORIAL_STEPS.length}
+                      {currentStep + 1} of {TUTORIAL_STEPS.length}
                     </Badge>
                   </div>
                 </div>
@@ -475,7 +651,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               <Button
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={currentStep === 0 || isTransitioning}
+                disabled={currentStep === 0 || isTransitioning || isNavigatingRef.current}
                 className="flex-1 rounded-xl font-medium transition-all disabled:opacity-50"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -483,7 +659,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               </Button>
               <Button
                 onClick={handleNext}
-                disabled={isTransitioning}
+                disabled={isTransitioning || isNavigatingRef.current}
                 className="flex-1 rounded-xl font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50"
               >
                 {currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started" : "Next"}

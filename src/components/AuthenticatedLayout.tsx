@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { AuthGuard } from "./AuthGuard";
 import { AudioPlayerProvider } from "@/context/AudioPlayerContext";
 import { MiniPlayer } from "./MiniPlayer";
@@ -8,10 +8,12 @@ import { MiniPlayer } from "./MiniPlayer";
  * This prevents flickering when navigating between pages
  */
 export const AuthenticatedLayout = () => {
+  const location = useLocation();
+  
   return (
     <AuthGuard>
       <AudioPlayerProvider>
-        <div className="pb-20">
+        <div className="pb-20" key={location.pathname}>
           <Outlet />
         </div>
         <MiniPlayer />

@@ -76,12 +76,53 @@ Every request automatically:
 - Tracks IP address and user agent
 - Validates device isn't revoked or suspicious
 
-### 7. **Enhanced Authentication Functions**
+### 7. **Session Timeout Management**
+
+Sessions automatically expire after a configurable timeout period (default: 24 hours):
+- **Session Expiration**: Sessions expire after inactivity or timeout period
+- **Auto-Refresh**: Sessions automatically refresh when close to expiring (within 1 hour)
+- **Activity Tracking**: Last activity timestamp is tracked for session management
+- **Client-Side Monitoring**: Automatic session checking and refresh on the client
+- **Graceful Expiration**: Expired sessions clear auth state and require re-authentication
+
+**Session Functions:**
+- `is_session_valid(device_id)` - Checks if session is valid
+- `refresh_device_session(device_id, timeout_hours)` - Refreshes session expiration
+- `initialize_device_session(device_id, timeout_hours)` - Initializes new session
+- `get_session_status(device_id)` - Gets current session status
+
+### 8. **Anomaly Detection (Statistical ML Models)**
+
+Advanced anomaly detection using statistical methods to identify suspicious device behavior:
+- **Feature Extraction**: Calculates statistical features from device activity
+- **Z-Score Detection**: Detects outliers using statistical Z-scores
+- **Threshold-Based Detection**: Multiple anomaly rules (request rates, auth failures, IP changes)
+- **Risk Scoring**: 0-100 anomaly score with risk levels (low, medium, high, critical)
+- **Automatic Flagging**: High-risk devices are automatically marked as suspicious
+- **Anomaly Storage**: All detection results stored for analysis and auditing
+
+**Detected Anomalies:**
+- Excessive request rates (Z-score > 3)
+- High failed authentication rates (>50%)
+- Frequent IP address changes (>10)
+- Frequent user agent changes (>5)
+- Burst activity patterns (>100 events/hour)
+- Extremely high daily request rates (>10,000/day)
+
+**Anomaly Functions:**
+- `calculate_device_features(device_id)` - Calculates statistical features
+- `detect_device_anomalies(device_id)` - Runs anomaly detection
+- `record_anomaly_detection(device_id)` - Stores detection results
+- `get_latest_anomaly_score(device_id)` - Gets latest anomaly score
+
+### 9. **Enhanced Authentication Functions**
 
 #### `profile_ids_for_request_secure()`
 - Checks if device is revoked before returning profile IDs
 - Validates device isn't suspicious
-- Updates device activity
+- Checks session validity
+- Updates device activity with session management
+- Runs periodic anomaly detection
 - Logs security events
 
 #### `update_device_activity()`
@@ -133,14 +174,32 @@ Detects suspicious environments:
 ### Database Functions for Admins
 
 ```sql
--- Get device security status
+-- Get device security status (now includes trust score and geolocation)
 SELECT * FROM get_device_security_status('device-id-here');
+
+-- Calculate/update device trust score
+SELECT calculate_device_trust_score('device-id-here');
+
+-- Update device geolocation
+SELECT update_device_geolocation('device-id-here', '192.168.1.1'::INET);
 
 -- Revoke a device
 SELECT revoke_device('device-id-here', 'Reason for revocation');
 
 -- Check if device is suspicious
 SELECT check_device_suspicious('device-id-here');
+
+-- Get session status
+SELECT * FROM get_session_status('device-id-here');
+
+-- Refresh device session
+SELECT refresh_device_session('device-id-here', 24);
+
+-- Run anomaly detection
+SELECT * FROM detect_device_anomalies('device-id-here');
+
+-- Get latest anomaly score
+SELECT * FROM get_latest_anomaly_score('device-id-here');
 
 -- View security audit logs
 SELECT * FROM security_audit_log 
@@ -170,6 +229,32 @@ ORDER BY security_events DESC;
 SELECT * FROM devices
 WHERE is_revoked = true
 ORDER BY revoked_at DESC;
+
+-- Devices with low trust scores
+SELECT device_id, trust_score, trust_score_factors, country_name, city
+FROM devices
+WHERE trust_score < 30
+ORDER BY trust_score ASC;
+
+-- Devices by country
+SELECT country_code, country_name, COUNT(*) as device_count
+FROM devices
+WHERE country_code IS NOT NULL
+GROUP BY country_code, country_name
+ORDER BY device_count DESC;
+
+-- Trust score distribution
+SELECT 
+  CASE 
+    WHEN trust_score >= 80 THEN 'High (80-100)'
+    WHEN trust_score >= 50 THEN 'Medium (50-79)'
+    WHEN trust_score >= 30 THEN 'Low (30-49)'
+    ELSE 'Very Low (0-29)'
+  END as trust_level,
+  COUNT(*) as device_count
+FROM devices
+GROUP BY trust_level
+ORDER BY trust_level;
 ```
 
 ## 🔐 Best Practices
@@ -224,21 +309,99 @@ Track these metrics for security health:
 - Security events per day
 - Average requests per device
 - Devices with high request counts
+- Average trust score across devices
+- Devices with low trust scores (< 30)
+- Geolocation distribution by country
+- Devices with location changes
+
+### 8. **IP-Based Geolocation Tracking**
+
+Tracks device location based on IP address:
+- **Country & Region**: Country code, country name, region, city
+- **Coordinates**: Latitude and longitude (when available)
+- **Timezone**: Device timezone information
+- **ISP**: Internet Service Provider information
+- **Automatic Updates**: Geolocation is updated when IP address changes
+- **Location Consistency**: Tracks location changes for trust scoring
+
+**Database Columns:**
+- `country_code`, `country_name`, `region`, `city`
+- `latitude`, `longitude`
+- `timezone`, `isp`
+- `geolocation_updated_at`, `geolocation_source`
+
+**Functions:**
+- `lookup_ip_geolocation(ip_address)` - Looks up geolocation for an IP (extensible for API integration)
+- `update_device_geolocation(device_id, ...)` - Updates device geolocation data
+
+### 9. **Device Trust Scoring**
+
+Calculates a trust score (0-100) for each device based on multiple factors:
+
+**Trust Score Factors:**
+- **Device Age** (0-30 points): Older devices are more trusted
+  - 90+ days: +30 points
+  - 30+ days: +20 points
+  - 7+ days: +10 points
+  - 1+ days: +5 points
+
+- **Failed Auth Attempts** (-0 to -40 points): More failures = less trusted
+  - 20+ failures: -40 points
+  - 10+ failures: -25 points
+  - 5+ failures: -15 points
+  - 1+ failures: -5 points
+
+- **Suspicious Flags** (-0 to -50 points):
+  - Revoked device: -50 points
+  - Suspicious device: -30 points
+
+- **Request Consistency** (0-20 points): Regular activity indicates legitimate use
+  - 100+ requests in 7 days: +20 points
+  - 50+ requests: +15 points
+  - 20+ requests: +10 points
+  - 5+ requests: +5 points
+
+- **Geolocation Consistency** (0-15 points): Same location = more trusted
+  - 1 location: +15 points
+  - 2 locations: +10 points
+  - 3 locations: +5 points
+
+- **Request Volume** (0-10 points): Reasonable volume indicates legitimate use
+  - 10-10,000 requests: +10 points
+  - 5-50,000 requests: +5 points
+  - 100,000+ requests: -10 points (suspicious)
+
+**Base Score:** 50 points
+
+**Database Columns:**
+- `trust_score` (0-100)
+- `trust_score_updated_at`
+- `trust_score_factors` (JSONB with detailed breakdown)
+
+**Functions:**
+- `calculate_device_trust_score(device_id)` - Calculates and updates trust score
+- Trust scores are automatically recalculated every 10 requests or every 24 hours
+- Low trust scores (< 20) can trigger suspicious device detection
+
+**Integration:**
+- Trust scores are integrated into `check_device_suspicious()` function
+- Devices with trust scores < 20 are automatically marked as suspicious
+- Trust score factors are stored in JSONB for analysis and debugging
 
 ## 🔄 Future Enhancements
 
 Potential additional security measures:
-- [ ] IP-based geolocation tracking
-- [ ] Device trust scoring
+- [x] IP-based geolocation tracking ✅
+- [x] Device trust scoring ✅
 - [ ] Automatic device rotation
 - [ ] Two-factor authentication
 - [ ] Biometric authentication
 - [ ] Device encryption keys
-- [ ] Session timeout management
-- [ ] Anomaly detection ML models
+- [x] Session timeout management ✅
+- [x] Anomaly detection ML models ✅
 
 ---
 
-**Last Updated**: 2025-01-XX
+**Last Updated**: 2025-12-15
 **Maintained By**: Development Team
 

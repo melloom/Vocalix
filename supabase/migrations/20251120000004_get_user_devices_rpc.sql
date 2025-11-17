@@ -85,32 +85,49 @@ BEGIN
   -- Return all devices for these profiles, or devices matching the current device_id
   -- SECURITY DEFINER bypasses RLS, so we can read all matching devices
   -- Use DISTINCT to avoid duplicates
+  -- Wrap in subquery to allow ORDER BY with expressions not in SELECT list
   RETURN QUERY
-  SELECT DISTINCT
-    d.id,
-    d.device_id,
-    d.profile_id,
-    d.created_at,
-    d.updated_at,
-    d.last_seen_at,
-    d.first_seen_at,
-    d.user_agent,
-    d.ip_address,
-    COALESCE(d.is_revoked, false) as is_revoked,
-    COALESCE(d.is_suspicious, false) as is_suspicious,
-    COALESCE(d.request_count, 0) as request_count,
-    COALESCE(d.failed_auth_count, 0) as failed_auth_count
-  FROM public.devices d
-  WHERE (
-    -- Always return current device if it exists (this should always match)
-    (current_device_id IS NOT NULL AND d.device_id = current_device_id)
-    -- OR devices linked to any of the user's profiles (for multi-device support via magic links)
-    OR (user_profile_ids IS NOT NULL AND array_length(user_profile_ids, 1) > 0 AND d.profile_id = ANY(user_profile_ids))
-  )
+  SELECT 
+    distinct_devices.id,
+    distinct_devices.device_id,
+    distinct_devices.profile_id,
+    distinct_devices.created_at,
+    distinct_devices.updated_at,
+    distinct_devices.last_seen_at,
+    distinct_devices.first_seen_at,
+    distinct_devices.user_agent,
+    distinct_devices.ip_address,
+    distinct_devices.is_revoked,
+    distinct_devices.is_suspicious,
+    distinct_devices.request_count,
+    distinct_devices.failed_auth_count
+  FROM (
+    SELECT DISTINCT
+      d.id,
+      d.device_id,
+      d.profile_id,
+      d.created_at,
+      d.updated_at,
+      d.last_seen_at,
+      d.first_seen_at,
+      d.user_agent,
+      d.ip_address,
+      COALESCE(d.is_revoked, false) as is_revoked,
+      COALESCE(d.is_suspicious, false) as is_suspicious,
+      COALESCE(d.request_count, 0) as request_count,
+      COALESCE(d.failed_auth_count, 0) as failed_auth_count
+    FROM public.devices d
+    WHERE (
+      -- Always return current device if it exists (this should always match)
+      (current_device_id IS NOT NULL AND d.device_id = current_device_id)
+      -- OR devices linked to any of the user's profiles (for multi-device support via magic links)
+      OR (user_profile_ids IS NOT NULL AND array_length(user_profile_ids, 1) > 0 AND d.profile_id = ANY(user_profile_ids))
+    )
+  ) distinct_devices
   ORDER BY 
     -- Current device first
-    CASE WHEN d.device_id = current_device_id THEN 0 ELSE 1 END,
-    d.last_seen_at DESC NULLS LAST;
+    CASE WHEN distinct_devices.device_id = current_device_id THEN 0 ELSE 1 END,
+    distinct_devices.last_seen_at DESC NULLS LAST;
 END;
 $$;
 

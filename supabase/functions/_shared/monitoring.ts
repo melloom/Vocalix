@@ -3,6 +3,10 @@
  * Integrates with Sentry for error tracking and performance monitoring
  */
 
+// Import Sentry SDK for Deno
+// Note: Use index.mjs for better compatibility with Supabase Edge Functions
+import * as Sentry from "https://deno.land/x/sentry/index.mjs";
+
 interface ErrorContext {
   functionName?: string;
   userId?: string;
@@ -18,129 +22,85 @@ interface PerformanceMetric {
   tags?: Record<string, string>;
 }
 
+let sentryInitialized = false;
+
 /**
  * Initialize Sentry for Deno Edge Functions
- * Note: This is a placeholder implementation. For production, use @sentry/deno
  */
-let sentryEnabled = false;
-let sentryDsn: string | null = null;
-
 export function initializeSentry(dsn: string | null): void {
   if (!dsn) {
     console.warn("[Monitoring] Sentry DSN not provided. Error tracking disabled.");
-    sentryEnabled = false;
-    sentryDsn = null;
+    sentryInitialized = false;
     return;
   }
 
-  sentryDsn = dsn;
-  sentryEnabled = true;
-  console.log("[Monitoring] Sentry initialized successfully");
+  try {
+    Sentry.init({
+      dsn: dsn,
+      environment: Deno.env.get("ENVIRONMENT") || "production",
+      // Performance monitoring - sample 10% of transactions in production
+      tracesSampleRate: Deno.env.get("ENVIRONMENT") === "development" ? 1.0 : 0.1,
+      // Release tracking
+      release: Deno.env.get("RELEASE_VERSION") || undefined,
+      // Filter sensitive data
+      beforeSend(event, hint) {
+        // Filter out sensitive information from event
+        if (event.extra) {
+          const sensitiveKeys = ["password", "token", "secret", "apiKey", "authorization"];
+          for (const key of sensitiveKeys) {
+            if (key in event.extra) {
+              event.extra[key] = "[REDACTED]";
+            }
+          }
+        }
+        return event;
+      },
+    });
+
+    sentryInitialized = true;
+    console.log("[Monitoring] Sentry initialized successfully");
+  } catch (error) {
+    console.error("[Monitoring] Failed to initialize Sentry:", error);
+    sentryInitialized = false;
+  }
 }
 
 /**
  * Capture exception to Sentry
- * In production, this would integrate with @sentry/deno
  */
 export async function captureException(
   error: Error | unknown,
   context?: ErrorContext
 ): Promise<void> {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     // Fallback to console logging if Sentry is not enabled
     console.error("[Error]", error, context);
     return;
   }
 
   try {
-    // In production, replace this with actual Sentry SDK call:
-    // Sentry.captureException(error, {
-    //   tags: {
-    //     function: context?.functionName,
-    //   },
-    //   user: context?.userId ? { id: context.userId } : undefined,
-    //   contexts: {
-    //     device: context?.deviceId ? { id: context.deviceId } : undefined,
-    //   },
-    //   extra: context?.additionalData,
-    // });
-
-    // For now, log to console with structured format
-    console.error("[Sentry]", {
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      } : String(error),
-      context: {
-        function: context?.functionName,
-        userId: context?.userId,
-        deviceId: context?.deviceId,
+    Sentry.captureException(error, {
+      tags: {
+        function: context?.functionName || "unknown",
         requestId: context?.requestId,
-        ...context?.additionalData,
       },
-      timestamp: new Date().toISOString(),
+      user: context?.userId
+        ? {
+            id: context.userId,
+          }
+        : undefined,
+      contexts: {
+        device: context?.deviceId
+          ? {
+              id: context.deviceId,
+            }
+          : undefined,
+      },
+      extra: context?.additionalData || {},
     });
-
-    // Optionally send to Sentry API directly
-    if (sentryDsn) {
-      await sendToSentry(error, context);
-    }
   } catch (sentryError) {
     // Don't fail the request if Sentry fails
     console.error("[Monitoring] Failed to capture exception:", sentryError);
-  }
-}
-
-/**
- * Send error to Sentry API directly (fallback method)
- */
-async function sendToSentry(error: Error | unknown, context?: ErrorContext): Promise<void> {
-  if (!sentryDsn) return;
-
-  try {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-
-    const sentryEvent = {
-      message: errorMessage,
-      level: "error",
-      platform: "deno",
-      timestamp: Math.floor(Date.now() / 1000),
-      exception: {
-        values: [
-          {
-            type: error instanceof Error ? error.name : "Error",
-            value: errorMessage,
-            stacktrace: errorStack
-              ? {
-                  frames: errorStack
-                    .split("\n")
-                    .slice(1)
-                    .map((line) => ({
-                      filename: line.trim(),
-                      function: "unknown",
-                    })),
-                }
-              : undefined,
-          },
-        ],
-      },
-      tags: {
-        function: context?.functionName || "unknown",
-      },
-      user: context?.userId ? { id: context.userId } : undefined,
-      contexts: {
-        device: context?.deviceId ? { id: context.deviceId } : undefined,
-      },
-      extra: context?.additionalData || {},
-    };
-
-    // Note: This is a simplified implementation. Production should use Sentry SDK
-    // For now, we'll just log it in a format that can be easily integrated later
-    console.log("[Sentry Event]", JSON.stringify(sentryEvent));
-  } catch (err) {
-    console.error("[Monitoring] Failed to send to Sentry:", err);
   }
 }
 
@@ -152,14 +112,25 @@ export async function captureMessage(
   level: "info" | "warning" | "error" = "info",
   context?: ErrorContext
 ): Promise<void> {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.log(`[${level.toUpperCase()}]`, message, context);
     return;
   }
 
   try {
-    // In production, use: Sentry.captureMessage(message, level, { ...context })
-    console.log(`[Sentry ${level}]`, message, context);
+    Sentry.captureMessage(message, {
+      level: level === "info" ? "info" : level === "warning" ? "warning" : "error",
+      tags: {
+        function: context?.functionName,
+        requestId: context?.requestId,
+      },
+      user: context?.userId
+        ? {
+            id: context.userId,
+          }
+        : undefined,
+      extra: context?.additionalData || {},
+    });
   } catch (error) {
     console.error("[Monitoring] Failed to capture message:", error);
   }
@@ -169,14 +140,17 @@ export async function captureMessage(
  * Track performance metric
  */
 export function trackPerformance(metric: PerformanceMetric): void {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.log("[Performance]", metric);
     return;
   }
 
   try {
-    // In production, use: Sentry.metrics.distribution(metric.name, metric.value, { ...metric.tags })
-    console.log("[Performance Metric]", JSON.stringify(metric));
+    // Sentry metrics API for Deno
+    Sentry.metrics.distribution(metric.name, metric.value, {
+      unit: metric.unit,
+      tags: metric.tags || {},
+    });
   } catch (error) {
     console.error("[Monitoring] Failed to track performance:", error);
   }
@@ -222,6 +196,33 @@ export function extractRequestContext(req: Request): Partial<ErrorContext> {
 }
 
 /**
+ * Start a Sentry transaction for performance monitoring
+ */
+export function startTransaction(
+  name: string,
+  operation: string,
+  context?: ErrorContext
+): Sentry.Transaction | null {
+  if (!sentryInitialized) return null;
+
+  try {
+    const transaction = Sentry.startTransaction({
+      name,
+      op: operation,
+      tags: {
+        function: context?.functionName,
+      },
+      data: context?.additionalData || {},
+    });
+
+    return transaction;
+  } catch (error) {
+    console.error("[Monitoring] Failed to start transaction:", error);
+    return null;
+  }
+}
+
+/**
  * Initialize monitoring from environment variables
  */
 export function initializeMonitoring(functionName: string): void {
@@ -231,4 +232,3 @@ export function initializeMonitoring(functionName: string): void {
   // Log initialization
   console.log(`[Monitoring] Monitoring initialized for function: ${functionName}`);
 }
-

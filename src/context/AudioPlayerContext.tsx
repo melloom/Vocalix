@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { logError, logWarn } from "@/lib/logger";
+import { offlineStorage } from "@/utils/offlineStorage";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Clip {
   id: string;
@@ -40,9 +42,79 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressUpdateRef = useRef<number | null>(null);
+  const wasPlayingBeforeInterruptionRef = useRef(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const { profile, updateProfile } = useProfile();
 
-  // Initialize Media Session API
+  // Load playback speed from user profile on mount or when profile changes
+  useEffect(() => {
+    if (profile?.playback_speed !== undefined && profile.playback_speed !== null) {
+      const speed = Number(profile.playback_speed);
+      // Validate speed is within allowed range (0.5 to 2.0)
+      if (speed >= 0.5 && speed <= 2.0) {
+        setPlaybackRate(speed);
+        // Apply to audio element if it exists
+        if (audioRef.current) {
+          audioRef.current.playbackRate = speed;
+        }
+      }
+    }
+  }, [profile?.playback_speed]);
+
+  // Handle page visibility changes - continue playing in background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!audioRef.current || !currentClip) return;
+
+      // When page becomes visible again, restore playback state if needed
+      if (!document.hidden && wasPlayingBeforeInterruptionRef.current) {
+        // Only auto-resume if it was playing before and wasn't manually paused
+        // This prevents auto-resuming after user explicitly paused
+        if (audioRef.current.paused && wasPlayingBeforeInterruptionRef.current) {
+          audioRef.current.play().catch((error) => {
+            logWarn("Could not auto-resume playback", error);
+          });
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentClip]);
+
+  // Handle audio interruptions (calls, other audio apps)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleSuspend = () => {
+      // Audio was suspended (e.g., by another app or system)
+      // This happens when audio is interrupted by phone calls, other apps, etc.
+      if (isPlaying && !audio.paused) {
+        wasPlayingBeforeInterruptionRef.current = true;
+        // The pause event will be fired automatically, which will update state
+      }
+    };
+
+    const handleResume = () => {
+      // Audio can resume (interruption ended)
+      // Don't auto-resume here - let user control it via Media Session controls
+      // This allows users to decide if they want to continue listening
+    };
+
+    audio.addEventListener("suspend", handleSuspend);
+    audio.addEventListener("resume", handleResume);
+
+    return () => {
+      audio.removeEventListener("suspend", handleSuspend);
+      audio.removeEventListener("resume", handleResume);
+    };
+  }, [isPlaying]);
+
+  // Initialize Media Session API with proper handlers
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
       logWarn("Media Session API not supported");
@@ -51,46 +123,56 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
     const mediaSession = navigator.mediaSession;
 
-    // Set action handlers
-    mediaSession.setActionHandler("play", () => {
-      resume();
-    });
+    // Set action handlers - these will be updated when pause/resume functions are available
+    const setupMediaSessionHandlers = () => {
+      mediaSession.setActionHandler("play", () => {
+        if (audioRef.current) {
+          audioRef.current.play().catch((error) => {
+            logError("Error resuming from media session", error);
+          });
+        }
+      });
 
-    mediaSession.setActionHandler("pause", () => {
-      pause();
-    });
+      mediaSession.setActionHandler("pause", () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      });
 
-    mediaSession.setActionHandler("seekto", (details) => {
-      if (details.seekTime !== undefined && audioRef.current) {
-        audioRef.current.currentTime = details.seekTime;
-      }
-    });
+      mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime !== undefined && audioRef.current) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      });
 
-    mediaSession.setActionHandler("seekbackward", (details) => {
-      if (audioRef.current) {
-        const seekTime = details.seekTime || 10;
-        audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - seekTime);
-      }
-    });
+      mediaSession.setActionHandler("seekbackward", (details) => {
+        if (audioRef.current) {
+          const seekTime = details.seekTime || 10;
+          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - seekTime);
+        }
+      });
 
-    mediaSession.setActionHandler("seekforward", (details) => {
-      if (audioRef.current && audioRef.current.duration) {
-        const seekTime = details.seekTime || 10;
-        audioRef.current.currentTime = Math.min(
-          audioRef.current.duration,
-          audioRef.current.currentTime + seekTime
-        );
-      }
-    });
+      mediaSession.setActionHandler("seekforward", (details) => {
+        if (audioRef.current && audioRef.current.duration) {
+          const seekTime = details.seekTime || 10;
+          audioRef.current.currentTime = Math.min(
+            audioRef.current.duration,
+            audioRef.current.currentTime + seekTime
+          );
+        }
+      });
 
-    // Handle interruptions
-    mediaSession.setActionHandler("previoustrack", () => {
-      // Could implement previous clip in playlist
-    });
+      // Handle interruptions
+      mediaSession.setActionHandler("previoustrack", () => {
+        // Could implement previous clip in playlist
+      });
 
-    mediaSession.setActionHandler("nexttrack", () => {
-      // Could implement next clip in playlist
-    });
+      mediaSession.setActionHandler("nexttrack", () => {
+        // Could implement next clip in playlist
+      });
+    };
+
+    setupMediaSessionHandlers();
   }, []);
 
   // Update Media Session metadata when clip changes
@@ -184,6 +266,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
     const handlePause = () => {
       setIsPlaying(false);
+      // Reset interruption flag if user manually paused
+      wasPlayingBeforeInterruptionRef.current = false;
       if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "paused";
       }
@@ -240,6 +324,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       if (progressUpdateRef.current) {
         cancelAnimationFrame(progressUpdateRef.current);
       }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
   }, [audioUrl]);
 
@@ -255,23 +342,51 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         setAudioUrl(null);
       }
 
-      // Load new audio
-      const { data, error } = await supabase.storage
-        .from("audio")
-        .createSignedUrl(clip.audio_path, 3600); // 1 hour expiry
+      let urlToUse: string;
 
-      if (error) throw error;
-      if (!data?.signedUrl) throw new Error("Failed to get signed URL");
+      // Check if offline and clip is downloaded
+      const isOffline = !navigator.onLine;
+      if (isOffline) {
+        const audioBlob = await offlineStorage.getAudioBlob(clip.id);
+        if (audioBlob) {
+          // Use offline version
+          urlToUse = URL.createObjectURL(audioBlob);
+          setAudioUrl(urlToUse);
+        } else {
+          throw new Error("Clip not available offline. Please connect to the internet to play this clip.");
+        }
+      } else {
+        // Try to use offline version first if available (faster, no network request)
+        const audioBlob = await offlineStorage.getAudioBlob(clip.id);
+        if (audioBlob) {
+          urlToUse = URL.createObjectURL(audioBlob);
+          setAudioUrl(urlToUse);
+        } else {
+          // Load from Supabase
+          const { data, error } = await supabase.storage
+            .from("audio")
+            .createSignedUrl(clip.audio_path, 3600); // 1 hour expiry
 
-      setAudioUrl(data.signedUrl);
+          if (error) throw error;
+          if (!data?.signedUrl) throw new Error("Failed to get signed URL");
+
+          urlToUse = data.signedUrl;
+          setAudioUrl(urlToUse);
+        }
+      }
       
       // Create or get audio element
       if (!audioRef.current) {
         audioRef.current = new Audio();
+        // Configure for background playback
+        audioRef.current.crossOrigin = "anonymous"; // Allow CORS for better compatibility
+        audioRef.current.preload = "auto"; // Preload for smoother playback
       }
       
-      audioRef.current.src = data.signedUrl;
+      audioRef.current.src = urlToUse;
       audioRef.current.playbackRate = playbackRate;
+      // Ensure audio continues playing in background
+      audioRef.current.setAttribute("playsinline", "true");
       
       // Wait for metadata to load
       await new Promise<void>((resolve, reject) => {
@@ -307,9 +422,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch (error) {
       logError("Error loading audio", error);
+      const errorMessage = error instanceof Error ? error.message : "Could not load audio. Please try again.";
       toast({
         title: "Error loading audio",
-        description: "Could not load audio. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
@@ -344,6 +460,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
+      // Mark as manually paused (not interrupted)
+      wasPlayingBeforeInterruptionRef.current = false;
     }
   }, []);
 
@@ -423,7 +541,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         <audio
           ref={audioRef}
           src={audioUrl}
-          preload="metadata"
+          preload="auto"
+          crossOrigin="anonymous"
+          playsInline
           style={{ display: "none" }}
         />
       )}

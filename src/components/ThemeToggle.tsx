@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -26,7 +26,10 @@ export const ThemeToggle = () => {
   }
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    // Use startTransition to make theme change non-blocking and smoother
+    startTransition(() => {
+      setTheme(theme === "dark" ? "light" : "dark");
+    });
   };
 
   return (

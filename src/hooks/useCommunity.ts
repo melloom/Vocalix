@@ -9,6 +9,7 @@ export interface Community {
   description: string | null;
   avatar_emoji: string;
   created_by_profile_id: string | null;
+  successor_profile_id?: string | null;
   member_count: number;
   clip_count: number;
   follower_count?: number;
@@ -293,6 +294,24 @@ export const useCreateCommunity = () => {
         throw new Error('Must be logged in to create a community');
       }
 
+      // Validate slug uniqueness (case-insensitive)
+      const { data: slugValidation, error: slugError } = await supabase
+        .rpc('validate_community_slug', { slug_param: data.slug });
+
+      if (slugError) throw slugError;
+      if (!slugValidation || slugValidation.length === 0 || !slugValidation[0].is_valid) {
+        throw new Error(slugValidation?.[0]?.reason || 'Invalid community slug');
+      }
+
+      // Check if user can create a community (rate limiting, account age)
+      const { data: canCreate, error: canCreateError } = await supabase
+        .rpc('can_create_community', { profile_id_param: currentProfile.id });
+
+      if (canCreateError) throw canCreateError;
+      if (!canCreate || canCreate.length === 0 || !canCreate[0].can_create) {
+        throw new Error(canCreate?.[0]?.reason || 'Cannot create community at this time');
+      }
+
       const { data: community, error } = await supabase
         .from('communities')
         .insert({
@@ -319,6 +338,167 @@ export const useCreateCommunity = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['communities'] });
+    },
+  });
+};
+
+// Hook to add a moderator to a community
+export const useAddModerator = (communityId: string | null) => {
+  const { profile: currentProfile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (moderatorProfileId: string) => {
+      if (!currentProfile?.id || !communityId) {
+        throw new Error('Must be logged in and have a community');
+      }
+
+      // Verify user is the creator
+      const { data: community, error: communityError } = await supabase
+        .from('communities')
+        .select('created_by_profile_id')
+        .eq('id', communityId)
+        .single();
+
+      if (communityError) throw communityError;
+      if (community?.created_by_profile_id !== currentProfile.id) {
+        throw new Error('Only community creators can add moderators');
+      }
+
+      // Check if user is already a moderator
+      const { data: existingModerator } = await supabase
+        .from('community_moderators')
+        .select('id')
+        .eq('community_id', communityId)
+        .eq('moderator_profile_id', moderatorProfileId)
+        .maybeSingle();
+
+      if (existingModerator) {
+        throw new Error('User is already a moderator');
+      }
+
+      // Add moderator
+      const { error } = await supabase
+        .from('community_moderators')
+        .insert({
+          community_id: communityId,
+          moderator_profile_id: moderatorProfileId,
+          elected_by_profile_id: currentProfile.id,
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+    },
+  });
+};
+
+// Hook to remove a moderator from a community
+export const useRemoveModerator = (communityId: string | null) => {
+  const { profile: currentProfile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (moderatorProfileId: string) => {
+      if (!currentProfile?.id || !communityId) {
+        throw new Error('Must be logged in and have a community');
+      }
+
+      // Verify user is the creator
+      const { data: community, error: communityError } = await supabase
+        .from('communities')
+        .select('created_by_profile_id')
+        .eq('id', communityId)
+        .single();
+
+      if (communityError) throw communityError;
+      if (community?.created_by_profile_id !== currentProfile.id) {
+        throw new Error('Only community creators can remove moderators');
+      }
+
+      // Remove moderator
+      const { error } = await supabase
+        .from('community_moderators')
+        .delete()
+        .eq('community_id', communityId)
+        .eq('moderator_profile_id', moderatorProfileId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+    },
+  });
+};
+
+// Hook to search for users by handle
+export const useSearchUsers = (searchQuery: string) => {
+  return useQuery({
+    queryKey: ['search-users', searchQuery],
+    queryFn: async () => {
+      if (!searchQuery || searchQuery.length < 2) return [];
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, handle, emoji_avatar')
+        .ilike('handle', `%${searchQuery}%`)
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!searchQuery && searchQuery.length >= 2,
+  });
+};
+
+// Hook to set community successor
+export const useSetCommunitySuccessor = (communityId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (successorProfileId: string) => {
+      if (!communityId) {
+        throw new Error('Community ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('set_community_successor', {
+          p_community_id: communityId,
+          p_successor_profile_id: successorProfileId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+    },
+  });
+};
+
+// Hook to clear community successor
+export const useClearCommunitySuccessor = (communityId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!communityId) {
+        throw new Error('Community ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('clear_community_successor', {
+          p_community_id: communityId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
     },
   });
 };

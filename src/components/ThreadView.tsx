@@ -148,18 +148,35 @@ export const ThreadView = ({
 
       {isExpanded && (
         <div className="space-y-3 ml-8 border-l-2 border-l-primary/20 pl-4">
-          {replies.map((reply) => (
+          {replies.map((reply, index) => (
             <div key={reply.id} className="relative">
               <div className="absolute -left-6 top-6 w-4 h-0.5 bg-primary/30" />
-              <ClipCard
-                clip={reply}
-                captionsDefault={false}
-                highlightQuery={highlightQuery}
-                onReply={onReply}
-                showReplyButton={false}
-                isReply={true}
-                depth={1}
-              />
+              <div className="relative">
+                {/* Thread line connector */}
+                {index < replies.length - 1 && (
+                  <div className="absolute -left-4 top-12 bottom-0 w-0.5 bg-primary/20" />
+                )}
+                <ClipCard
+                  clip={reply}
+                  captionsDefault={false}
+                  highlightQuery={highlightQuery}
+                  onReply={onReply}
+                  showReplyButton={true}
+                  isReply={true}
+                  depth={1}
+                />
+                {/* Nested replies (if any) */}
+                {reply.reply_count && reply.reply_count > 0 && (
+                  <div className="mt-2 ml-4">
+                    <ThreadView
+                      parentClip={reply}
+                      onReply={onReply}
+                      highlightQuery={highlightQuery}
+                      maxDepth={maxDepth - 1}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

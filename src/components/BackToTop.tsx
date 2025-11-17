@@ -43,7 +43,7 @@ export const BackToTop = ({ threshold = 400, className }: BackToTopProps) => {
       onClick={scrollToTop}
       size="icon"
       className={cn(
-        "fixed bottom-24 right-6 h-12 w-12 rounded-full shadow-lg z-40 transition-all duration-300 hover:scale-110",
+        "fixed bottom-44 right-6 h-12 w-12 rounded-full shadow-lg z-40 transition-all duration-300 hover:scale-110",
         className
       )}
       aria-label="Back to top"

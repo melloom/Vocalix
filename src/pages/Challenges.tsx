@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Calendar, Users } from "lucide-react";
+import { ArrowLeft, Trophy, Calendar, Users, Bell, BellOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useProfile } from "@/hooks/useProfile";
+import { useChallengeFollow } from "@/hooks/useChallengeFollow";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface Challenge {
   id: string;
@@ -50,11 +53,13 @@ interface Clip {
 
 const Challenges = () => {
   const navigate = useNavigate();
+  const { profile: viewerProfile } = useProfile();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingClips, setIsLoadingClips] = useState(false);
+  const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadChallenges = async () => {
@@ -76,7 +81,30 @@ const Challenges = () => {
 
         if (error) throw error;
 
-        setChallenges((data as Challenge[]) || []);
+        const challengesData = (data as Challenge[]) || [];
+        setChallenges(challengesData);
+
+        // Load follower counts for all challenges
+        const challengeIds = challengesData.map((c) => c.id);
+        if (challengeIds.length > 0) {
+          const { data: countsData } = await supabase
+            .from("challenge_follows")
+            .select("challenge_id")
+            .in("challenge_id", challengeIds);
+
+          const counts: Record<string, number> = {};
+          challengeIds.forEach((id) => {
+            counts[id] = 0;
+          });
+          if (countsData) {
+            countsData.forEach((follow: any) => {
+              if (follow.challenge_id) {
+                counts[follow.challenge_id] = (counts[follow.challenge_id] || 0) + 1;
+              }
+            });
+          }
+          setFollowerCounts(counts);
+        }
       } catch (error) {
         console.error("Error loading challenges:", error);
       } finally {
@@ -137,18 +165,6 @@ const Challenges = () => {
     return !endDate || endDate > now;
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background pb-24">
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-          <Skeleton className="h-12 w-64" />
-          <Skeleton className="h-32 w-full rounded-2xl" />
-          <Skeleton className="h-32 w-full rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -171,44 +187,13 @@ const Challenges = () => {
           <>
             <div className="grid gap-4">
               {challenges.map((challenge) => (
-                <Card
+                <ChallengeCard
                   key={challenge.id}
-                  className={`p-6 rounded-3xl cursor-pointer transition-all hover:shadow-lg ${
-                    selectedChallenge?.id === challenge.id ? "border-2 border-primary" : ""
-                  }`}
-                  onClick={() => handleChallengeSelect(challenge)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-primary" />
-                        <h3 className="text-xl font-bold">{challenge.title}</h3>
-                        {isChallengeActive(challenge) && (
-                          <Badge variant="default" className="ml-2">
-                            Active
-                          </Badge>
-                        )}
-                      </div>
-                      {challenge.description && (
-                        <p className="text-muted-foreground">{challenge.description}</p>
-                      )}
-                      {challenge.topics && (
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="w-4 h-4" />
-                            <span>Topic: {challenge.topics.title}</span>
-                          </div>
-                          {challenge.end_date && (
-                            <div className="flex items-center gap-1.5">
-                              <Calendar className="w-4 h-4" />
-                              <span>Ends: {format(new Date(challenge.end_date), "MMM d, yyyy")}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
+                  challenge={challenge}
+                  isSelected={selectedChallenge?.id === challenge.id}
+                  onSelect={() => handleChallengeSelect(challenge)}
+                  followerCount={followerCounts[challenge.id] || 0}
+                />
               ))}
             </div>
 
@@ -252,6 +237,120 @@ const Challenges = () => {
         )}
       </main>
     </div>
+  );
+};
+
+// Challenge Card Component with Follow Button
+const ChallengeCard = ({
+  challenge,
+  isSelected,
+  onSelect,
+  followerCount,
+}: {
+  challenge: Challenge;
+  isSelected: boolean;
+  onSelect: () => void;
+  followerCount: number;
+}) => {
+  const { profile: viewerProfile } = useProfile();
+  const { isFollowing, toggleFollow, isToggling } = useChallengeFollow(challenge.id);
+  const [localFollowerCount, setLocalFollowerCount] = useState(followerCount);
+
+  useEffect(() => {
+    setLocalFollowerCount(followerCount);
+  }, [followerCount]);
+
+  const isChallengeActive = (challenge: Challenge) => {
+    if (!challenge.is_active) return false;
+    const now = new Date();
+    const endDate = challenge.end_date ? new Date(challenge.end_date) : null;
+    return !endDate || endDate > now;
+  };
+
+  const handleFollowClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection when clicking follow button
+    if (!viewerProfile?.id) {
+      toast.error("Please log in to follow challenges");
+      return;
+    }
+
+    toggleFollow();
+    if (isFollowing) {
+      setLocalFollowerCount((prev) => Math.max(0, prev - 1));
+      toast.success("Unfollowed challenge");
+    } else {
+      setLocalFollowerCount((prev) => prev + 1);
+      toast.success("Following challenge - you'll be notified of new clips");
+    }
+  };
+
+  return (
+    <Card
+      className={`p-6 rounded-3xl transition-all hover:shadow-lg ${
+        isSelected ? "border-2 border-primary" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div
+          className="flex-1 space-y-2 cursor-pointer"
+          onClick={onSelect}
+        >
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" />
+            <h3 className="text-xl font-bold">{challenge.title}</h3>
+            {isChallengeActive(challenge) && (
+              <Badge variant="default" className="ml-2">
+                Active
+              </Badge>
+            )}
+          </div>
+          {challenge.description && (
+            <p className="text-muted-foreground">{challenge.description}</p>
+          )}
+          {challenge.topics && (
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" />
+                <span>Topic: {challenge.topics.title}</span>
+              </div>
+              {challenge.end_date && (
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  <span>Ends: {format(new Date(challenge.end_date), "MMM d, yyyy")}</span>
+                </div>
+              )}
+              {localFollowerCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-4 h-4" />
+                  <span>{localFollowerCount} {localFollowerCount === 1 ? "follower" : "followers"}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {viewerProfile && (
+          <Button
+            variant={isFollowing ? "default" : "outline"}
+            size="sm"
+            onClick={handleFollowClick}
+            disabled={isToggling}
+            className="flex items-center gap-2 shrink-0"
+          >
+            {isFollowing ? (
+              <>
+                <BellOff className="h-4 w-4" />
+                Unfollow
+              </>
+            ) : (
+              <>
+                <Bell className="h-4 w-4" />
+                Follow
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 };
 

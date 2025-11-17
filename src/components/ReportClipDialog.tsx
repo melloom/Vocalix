@@ -74,7 +74,9 @@ export const ReportClipDialog = ({ clipId, trigger }: ReportClipDialogProps) => 
       <DialogContent className="sm:max-w-md rounded-3xl">
         <DialogHeader>
           <DialogTitle>Report clip</DialogTitle>
-          <DialogDescription>Select a reason and share any details. Our moderators will review it quickly.</DialogDescription>
+          <DialogDescription>
+            Select a reason and share any details. Our moderation team will review it quickly.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -83,7 +85,7 @@ export const ReportClipDialog = ({ clipId, trigger }: ReportClipDialogProps) => 
               <Button
                 key={option}
                 variant={option === reason ? "default" : "outline"}
-                className="rounded-2xl capitalize"
+                className="rounded-2xl capitalize text-xs"
                 onClick={() => setReason(option)}
               >
                 {option}
@@ -95,8 +97,12 @@ export const ReportClipDialog = ({ clipId, trigger }: ReportClipDialogProps) => 
             placeholder="Extra context (optional)"
             value={details}
             onChange={(event) => setDetails(event.target.value)}
-            className="rounded-2xl"
+            className="rounded-2xl min-h-[100px]"
+            maxLength={500}
           />
+          <p className="text-xs text-muted-foreground text-right">
+            {details.length}/500 characters
+          </p>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -104,7 +110,7 @@ export const ReportClipDialog = ({ clipId, trigger }: ReportClipDialogProps) => 
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting} className="rounded-2xl">
-            {isSubmitting ? "Sending..." : "Submit"}
+            {isSubmitting ? "Sending..." : "Submit Report"}
           </Button>
         </DialogFooter>
       </DialogContent>

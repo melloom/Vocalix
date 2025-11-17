@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,9 +7,15 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Backups
+backups/
+*.backup
+backup-cron.txt
+
+# Build outputs
+node_modules/
+dist/
+dist-ssr/
 *.local
 
 # Environment variables - SECURITY: Never commit secrets
@@ -23,7 +29,7 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -36,3 +42,82 @@ dist-ssr
 *.pem
 secrets/
 .secrets/
+setup-cron-job.sql
+
+# Temporary SQL fix/test files (keep locally, don't commit)
+*_FIX.sql
+*_FIX_*.sql
+FIX_*.sql
+TEST_*.sql
+*_TEST.sql
+CHECK_*.sql
+QUICK_*.sql
+VERIFY_*.sql
+DIAGNOSE_*.sql
+CREATE_SESSION_*.sql
+DELETE_*.sql
+MANAGE_*.sql
+ADD_*.sql
+GET_*.sql
+CLEAR_*.sql
+FORCE_*.sql
+NUCLEAR_*.sql
+ULTIMATE_*.sql
+SIMPLE_*.sql
+COMBINED_MIGRATION.sql
+COMMUNITY_MIGRATIONS.sql
+verify_deployment.sql
+
+# Temporary test/debug files
+TEST_*.js
+TEST_*.mjs
+test-*.mjs
+test-*.js
+*_TEST.js
+*_test.js
+drop-*.cjs
+run-community-migrations.mjs
+run-migrations.mjs
+run-migrations-simple.mjs
+
+# Temporary documentation/notes (keep important ones, ignore temp)
+todo.txt
+*_ANALYSIS*.md
+*_SUMMARY*.md
+*_EXPLANATION*.md
+FINAL_*.md
+QUICK_*.md
+DEPLOY_*.md
+RUN_*.md
+*_STEP_BY_STEP.md
+
+# OS and editor files
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+
+# Package manager files (keep lock files for consistency)
+# package-lock.json - Keep this for consistency
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Deployment artifacts
+.tall/
+netlify/functions/.netlify/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# Temporary PowerShell scripts
+deploy-*.ps1
+setup-*.ps1

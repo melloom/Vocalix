@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -22,6 +22,7 @@ import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 import { ClipCard } from "@/components/ClipCard";
 import { RecordModal } from "@/components/RecordModal";
+import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { ThreadView } from "@/components/ThreadView";
 import { ChainView } from "@/components/ChainView";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,11 +33,15 @@ import { ViewModeToggle } from "@/components/ViewModeToggle";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { useTheme } from "next-themes";
 import { useFollow } from "@/hooks/useFollow";
+import { useBlockedUsers } from "@/hooks/useBlock";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { UserPlus, UserCheck } from "lucide-react";
 import { AdvancedSearchFilters, SearchFilters } from "@/components/AdvancedSearchFilters";
 import { useAuth } from "@/context/AuthContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { BackToTop } from "@/components/BackToTop";
+import { useSearch } from "@/hooks/useSearch";
+import { SearchSuggestions } from "@/components/SearchSuggestions";
 
 interface Topic {
   id: string;
@@ -187,7 +192,12 @@ const Index = () => {
   // Use centralized auth context instead of localStorage
   const { profileId, profile, isLoading: isAuthLoading, deviceId } = useAuth();
   const location = useLocation();
+  const search = useSearch(profileId);
+  const { blockedUsers } = useBlockedUsers();
+  const { isAdmin } = useAdminStatus();
+  const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -228,10 +238,14 @@ const Index = () => {
     dateTo: null,
     city: null,
     topicId: null,
+    qualityBadge: null,
+    emotion: null,
     searchQuery: "",
   });
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: SearchFilters }>>([]);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [searchResults, setSearchResults] = useState<string[]>([]); // Clip IDs from database search
+  const [isSearchingDatabase, setIsSearchingDatabase] = useState(false);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
@@ -491,7 +505,7 @@ const Index = () => {
   const loadRecommendations = useCallback(async () => {
     if (!profileId) return;
     
-    setIsLoadingRecommendations(true);
+    setIsLoadingRecommendedClips(true);
     try {
       // Get user's listening history
       const { data: listens, error: listensError } = await supabase
@@ -590,7 +604,7 @@ const Index = () => {
     } catch (error) {
       console.error("Error loading recommendations:", error);
     } finally {
-      setIsLoadingRecommendations(false);
+      setIsLoadingRecommendedClips(false);
     }
   }, [profileId]);
 
@@ -774,11 +788,15 @@ const Index = () => {
 
   // Check if tutorial should be shown on mount (for existing users who haven't seen it)
   useEffect(() => {
-    if (profileId && !isAuthLoading) {
+    if (profileId && !isAuthLoading && !showTutorial) {
       const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
-      if (!tutorialCompleted && !showTutorial) {
-        // Only show if user just completed onboarding (check if profile was just created)
-        // For existing users, they can access tutorial from settings
+      if (!tutorialCompleted) {
+        // Show tutorial for users who haven't seen it yet
+        // Add a small delay to ensure the page is fully rendered
+        const timer = setTimeout(() => {
+          setShowTutorial(true);
+        }, 1000);
+        return () => clearTimeout(timer);
       }
     }
   }, [profileId, isAuthLoading, showTutorial]);
@@ -820,6 +838,11 @@ const Index = () => {
   const displayClips = useMemo(() => {
     const now = Date.now();
     let filtered = clips;
+
+    // Filter out clips from blocked users
+    if (blockedUserIds.size > 0) {
+      filtered = filtered.filter((clip) => !clip.profile_id || !blockedUserIds.has(clip.profile_id));
+    }
 
     // Apply legacy city filter (global/local) if advanced city filter is not set
     if (!advancedFilters.city) {
@@ -877,8 +900,9 @@ const Index = () => {
       );
     }
 
-    // Filter out blocked/rejected clips
+    // Filter out blocked/rejected clips and apply content security filtering
     const validClips = filtered.filter((clip) => {
+      // Check moderation decision
       const moderationData = clip.moderation ?? null;
       const moderationDecision =
         typeof moderationData?.decision === "string"
@@ -886,7 +910,25 @@ const Index = () => {
           : typeof moderationData?.status === "string"
             ? moderationData.status
             : null;
-      return moderationDecision !== "blocked" && moderationDecision !== "reject";
+      if (moderationDecision === "blocked" || moderationDecision === "reject") {
+        return false;
+      }
+      
+      // Filter out hidden/removed clips
+      if (clip.status === "hidden" || clip.status === "removed") {
+        return false;
+      }
+      
+      // Filter out high-risk flagged content
+      if (moderationData?.flag === true && (moderationData?.risk || 0) >= 7) {
+        return false;
+      }
+      
+      // Filter out clips with multiple pending reports (3+)
+      // Note: This would require fetching reports, so we skip for performance
+      // The server-side filter will handle this
+      
+      return true;
     });
 
     return validClips
@@ -1023,7 +1065,7 @@ const Index = () => {
       .filter((entry): entry is { clip: Clip; score: number } => entry !== null)
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.clip);
-  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters]);
+  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters, blockedUserIds]);
 
   const allTopics = useMemo(() => {
     const list: Topic[] = [];
@@ -1065,8 +1107,17 @@ const Index = () => {
     });
   }, [allTopics, normalizedQuery]);
 
+  // Enhanced search: Use database search when query exists, otherwise use client-side filtering
   const filteredClips = useMemo(() => {
+    // If we have database search results, filter clips by those IDs
+    if (normalizedQuery && searchResults.length > 0) {
+      const resultSet = new Set(searchResults);
+      return displayClips.filter((clip) => resultSet.has(clip.id));
+    }
+    
+    // Fallback to client-side filtering for non-text searches or when database search hasn't run
     if (!normalizedQuery) return displayClips;
+    
     return displayClips.filter((clip) => {
       const needle = [
         clip.summary,
@@ -1082,7 +1133,7 @@ const Index = () => {
         .toLowerCase();
       return needle.includes(normalizedQuery);
     });
-  }, [displayClips, normalizedQuery]);
+  }, [displayClips, normalizedQuery, searchResults]);
 
   // Debounce search query for performance
   useEffect(() => {
@@ -1092,6 +1143,59 @@ const Index = () => {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Enhanced database search when query or filters change
+  useEffect(() => {
+    const performSearch = async () => {
+      const hasQuery = debouncedSearchQuery.trim().length > 0;
+      const hasFilters = 
+        advancedFilters.moodEmoji !== null ||
+        advancedFilters.durationMin !== null ||
+        advancedFilters.durationMax !== null ||
+        advancedFilters.dateFrom !== null ||
+        advancedFilters.dateTo !== null ||
+        advancedFilters.city !== null ||
+        advancedFilters.topicId !== null;
+
+      // Only use database search if we have a query or filters
+      if (!hasQuery && !hasFilters) {
+        setSearchResults([]);
+        setIsSearchingDatabase(false);
+        return;
+      }
+
+      setIsSearchingDatabase(true);
+      try {
+        const result = await search.searchClips.mutateAsync({
+          searchText: hasQuery ? debouncedSearchQuery : undefined,
+          filters: hasFilters ? advancedFilters : undefined,
+          limit: 100,
+        });
+
+        const clipIds = result.map((r) => r.clip_id);
+        setSearchResults(clipIds);
+
+        // Save to search history if we have a query
+        if (hasQuery && profileId) {
+          await search.saveSearchHistory.mutateAsync({
+            query: debouncedSearchQuery,
+            searchType: "text",
+            filters: advancedFilters as unknown as Record<string, unknown>,
+            resultCount: clipIds.length,
+          });
+        }
+      } catch (error) {
+        console.error("Error performing search:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearchingDatabase(false);
+      }
+    };
+
+    performSearch();
+    // search.searchClips and search.saveSearchHistory are stable React Query mutations
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery, advancedFilters, profileId]);
 
   // Load recommended users for suggestions
   useEffect(() => {
@@ -1426,35 +1530,23 @@ const Index = () => {
     }
   }, [selectedTopicId, advancedFilters.topicId]);
 
-  // Load saved searches
-  const loadSavedSearches = useCallback(async () => {
-    if (!profileId) return;
-    try {
-      const { data, error } = await supabase
-        .from("saved_searches")
-        .select("*")
-        .eq("profile_id", profileId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      const formatted = (data || []).map((search: any) => ({
-        id: search.id,
-        name: search.name,
+  // Load saved searches using the hook
+  useEffect(() => {
+    if (search.savedSearches.data) {
+      const formatted = search.savedSearches.data.map((saved) => ({
+        id: saved.id,
+        name: saved.name,
         filters: {
-          ...search.filters,
-          dateFrom: search.filters.dateFrom ? new Date(search.filters.dateFrom) : null,
-          dateTo: search.filters.dateTo ? new Date(search.filters.dateTo) : null,
+          ...saved.filters,
+          dateFrom: saved.filters.dateFrom ? new Date(saved.filters.dateFrom) : null,
+          dateTo: saved.filters.dateTo ? new Date(saved.filters.dateTo) : null,
         } as SearchFilters,
       }));
-
       setSavedSearches(formatted);
-    } catch (error) {
-      console.error("Error loading saved searches:", error);
     }
-  }, [profileId]);
+  }, [search.savedSearches.data]);
 
-  // Save search
+  // Save search using the hook
   const handleSaveSearch = useCallback(async (name: string) => {
     if (!profileId) {
       toast({
@@ -1466,26 +1558,15 @@ const Index = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from("saved_searches")
-        .insert({
-          profile_id: profileId,
-          name,
-          filters: {
-            ...advancedFilters,
-            dateFrom: advancedFilters.dateFrom?.toISOString() || null,
-            dateTo: advancedFilters.dateTo?.toISOString() || null,
-          },
-        });
-
-      if (error) throw error;
+      await search.saveSearch.mutateAsync({
+        name,
+        filters: advancedFilters,
+      });
 
       toast({
         title: "Search saved",
         description: `"${name}" has been saved.`,
       });
-
-      loadSavedSearches();
     } catch (error) {
       console.error("Error saving search:", error);
       toast({
@@ -1494,7 +1575,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [profileId, advancedFilters, toast, loadSavedSearches]);
+  }, [profileId, advancedFilters, toast, search]);
 
   // Load search
   const handleLoadSearch = useCallback((filters: SearchFilters) => {
@@ -1511,22 +1592,15 @@ const Index = () => {
     });
   }, [toast]);
 
-  // Delete search
+  // Delete search using the hook
   const handleDeleteSearch = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("saved_searches")
-        .delete()
-        .eq("id", id);
-
-      if (error) throw error;
+      await search.deleteSavedSearch.mutateAsync(id);
 
       toast({
         title: "Search deleted",
         description: "The saved search has been removed.",
       });
-
-      loadSavedSearches();
     } catch (error) {
       console.error("Error deleting search:", error);
       toast({
@@ -1535,14 +1609,7 @@ const Index = () => {
         variant: "destructive",
       });
     }
-  }, [toast, loadSavedSearches]);
-
-  // Load saved searches when profile loads
-  useEffect(() => {
-    if (profileId) {
-      loadSavedSearches();
-    }
-  }, [profileId, loadSavedSearches]);
+  }, [toast, search]);
 
   const handleTopicToggle = useCallback(
     (topicId: string | null) => {
@@ -1839,7 +1906,9 @@ const Index = () => {
       // Toggle dark mode with d
       if (event.key === "d" && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
-        setTheme(theme === "dark" ? "light" : "dark");
+        startTransition(() => {
+          setTheme(theme === "dark" ? "light" : "dark");
+        });
         return;
       }
     };
@@ -2007,7 +2076,19 @@ const Index = () => {
           }
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Handle subscription errors gracefully
+        if (err) {
+          // Suppress WebSocket errors - they're non-critical
+          // The app works fine without real-time updates
+          if (err.message?.includes("WebSocket") || err.message?.includes("websocket")) {
+            // Silently ignore WebSocket connection errors
+            return;
+          }
+          // Only log non-WebSocket errors
+          console.debug("Realtime subscription error (non-critical):", err.message);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -2025,50 +2106,113 @@ const Index = () => {
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold">Echo Garden</h1>
-            <div className="flex items-center gap-2" data-tutorial="navigation">
+            <div className="flex items-center gap-2" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
               <ThemeToggle />
               <KeyboardShortcutsDialog />
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/live-rooms" aria-label="Live Rooms">
-                  <Radio className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/communities" aria-label="Communities">
-                  <Users className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/following" aria-label="Following">
-                  <UserCheck className="h-5 w-5" />
-                </Link>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/live-rooms" aria-label="Live Rooms">
+                      <Radio className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Live Rooms - Join real-time voice conversations</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/communities" aria-label="Communities">
+                      <Users className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Communities - Discover and join themed groups</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/following" aria-label="Following">
+                      <UserCheck className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Following - See clips from creators you follow</p>
+                </TooltipContent>
+              </Tooltip>
               <NotificationCenter />
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/saved" aria-label="Saved Clips">
-                  <Bookmark className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/my-recordings" aria-label="My Recordings">
-                  <Mic className="h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                <Link to="/settings" aria-label="Settings">
-                  <Settings className="h-5 w-5" />
-                </Link>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/saved" aria-label="Saved Clips">
+                      <Bookmark className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Saved Clips - View your bookmarked voices</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/my-recordings" aria-label="My Recordings">
+                      <Mic className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>My Recordings - Manage your published clips</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/settings" aria-label="Settings">
+                      <Settings className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Settings - Configure your account and preferences</p>
+                </TooltipContent>
+              </Tooltip>
+              {isAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                      <Link to="/admin" aria-label="Admin Dashboard">
+                        <Shield className="h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Admin Dashboard - Manage moderation and security</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {profile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-2xl"
-                  onClick={() => setIsCityDialogOpen(true)}
-                  disabled={isAuthLoading}
-                >
-                  {profile.consent_city && profile.city ? `City: ${profile.city}` : "Set city"}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-2xl"
+                      onClick={() => setIsCityDialogOpen(true)}
+                      disabled={isAuthLoading}
+                    >
+                      {profile.consent_city && profile.city ? `City: ${profile.city}` : "Set city"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{profile.consent_city && profile.city ? `Your city is set to ${profile.city}. Click to change.` : "Set your city to see local clips and connect with nearby voices"}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -2096,13 +2240,14 @@ const Index = () => {
               aria-describedby="search-hint"
               data-tutorial="search"
             />
-            {isSearching ? (
+            {isSearching || isSearchingDatabase ? (
               <button
                 type="button"
                 onClick={() => {
                   setSearchQuery("");
                   setShowSuggestions(false);
                   setSelectedSuggestionIndex(-1);
+                  setSearchResults([]);
                 }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -2112,6 +2257,24 @@ const Index = () => {
               <span id="search-hint" className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 text-xs font-medium text-muted-foreground/80 sm:block">
                 Press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-muted-foreground bg-muted border border-border rounded">/</kbd> to search
               </span>
+            )}
+            
+            {/* Enhanced Search Suggestions */}
+            {showSuggestions && !isSearchMode && (
+              <SearchSuggestions
+                query={searchQuery}
+                profileId={profileId}
+                onSelectSuggestion={(suggestion) => {
+                  setSearchQuery(suggestion);
+                  setShowSuggestions(false);
+                }}
+                onClearHistory={async () => {
+                  if (profileId) {
+                    await search.clearSearchHistory.mutateAsync();
+                  }
+                }}
+                className="mt-2"
+              />
             )}
             
             {/* User Suggestions Dropdown */}
@@ -2214,103 +2377,188 @@ const Index = () => {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+            <div data-tutorial="view-mode">
+              <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+            </div>
             <div className="flex bg-muted/60 rounded-full p-1" data-tutorial="feed-sorting">
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={sortMode === "hot" ? "default" : "ghost"}
-                onClick={() => setSortMode("hot")}
-              >
-                Hot
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={sortMode === "top" ? "default" : "ghost"}
-                onClick={() => setSortMode("top")}
-              >
-                Top
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={sortMode === "controversial" ? "default" : "ghost"}
-                onClick={() => setSortMode("controversial")}
-              >
-                Controversial
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={sortMode === "rising" ? "default" : "ghost"}
-                onClick={() => setSortMode("rising")}
-              >
-                Rising
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={sortMode === "trending" ? "default" : "ghost"}
-                onClick={() => setSortMode("trending")}
-              >
-                Trending
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={sortMode === "hot" ? "default" : "ghost"}
+                    onClick={() => setSortMode("hot")}
+                  >
+                    Hot
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Hot - Trending now with recent engagement</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={sortMode === "top" ? "default" : "ghost"}
+                    onClick={() => setSortMode("top")}
+                  >
+                    Top
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Top - Highest engagement (all-time, week, or month)</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={sortMode === "controversial" ? "default" : "ghost"}
+                    onClick={() => setSortMode("controversial")}
+                  >
+                    Controversial
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Controversial - High engagement with mixed reactions</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={sortMode === "rising" ? "default" : "ghost"}
+                    onClick={() => setSortMode("rising")}
+                  >
+                    Rising
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Rising - Gaining traction quickly</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={sortMode === "trending" ? "default" : "ghost"}
+                    onClick={() => setSortMode("trending")}
+                  >
+                    Trending
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Trending - Algorithm picks based on quality and engagement</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             {sortMode === "top" && (
-              <Select value={topTimePeriod} onValueChange={(value: "all" | "week" | "month") => setTopTimePeriod(value)}>
-                <SelectTrigger className="h-9 w-[120px] rounded-full bg-muted/60 border-transparent">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All time</SelectItem>
-                  <SelectItem value="week">This week</SelectItem>
-                  <SelectItem value="month">This month</SelectItem>
-                </SelectContent>
-              </Select>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Select value={topTimePeriod} onValueChange={(value: "all" | "week" | "month") => setTopTimePeriod(value)}>
+                      <SelectTrigger className="h-9 w-[120px] rounded-full bg-muted/60 border-transparent">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All time</SelectItem>
+                        <SelectItem value="week">This week</SelectItem>
+                        <SelectItem value="month">This month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Time period for Top sorting - choose how far back to look</p>
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
           {profile?.consent_city && profile.city && (
-            <div className="flex bg-muted/60 rounded-full p-1">
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={cityFilter === "global" ? "default" : "ghost"}
-                onClick={() => setCityFilter("global")}
-              >
-                Everyone
-              </Button>
-              <Button
-                size="sm"
-                className="rounded-full px-4"
-                variant={cityFilter === "local" ? "default" : "ghost"}
-                onClick={() => setCityFilter("local")}
-              >
-                Near you
-              </Button>
+            <div className="flex bg-muted/60 rounded-full p-1" data-tutorial="filters">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={cityFilter === "global" ? "default" : "ghost"}
+                    onClick={() => setCityFilter("global")}
+                  >
+                    Everyone
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Show clips from all locations worldwide</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="rounded-full px-4"
+                    variant={cityFilter === "local" ? "default" : "ghost"}
+                    onClick={() => setCityFilter("local")}
+                  >
+                    Near you
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Show clips from your city: {profile.city}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           )}
-          <div className="flex bg-muted/60 rounded-full p-1 gap-1">
-            <Button
-              size="sm"
-              className="rounded-full px-3"
-              variant={moodFilter === null ? "default" : "ghost"}
-              onClick={() => setMoodFilter(null)}
-            >
-              All moods
-            </Button>
-            {["😊", "🔥", "❤️", "🙏", "😔", "😂", "😮", "🧘", "💡"].map((emoji) => (
-              <Button
-                key={emoji}
-                size="sm"
-                className="rounded-full px-3 text-lg"
-                variant={moodFilter === emoji ? "default" : "ghost"}
-                onClick={() => setMoodFilter(moodFilter === emoji ? null : emoji)}
-                title={`Filter by ${emoji} reactions`}
-              >
-                {emoji}
-              </Button>
-            ))}
+          <div className="flex bg-muted/60 rounded-full p-1 gap-1" data-tutorial="filters">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  className="rounded-full px-3"
+                  variant={moodFilter === null ? "default" : "ghost"}
+                  onClick={() => setMoodFilter(null)}
+                >
+                  All moods
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Show clips with any mood or reaction</p>
+              </TooltipContent>
+            </Tooltip>
+            {["😊", "🔥", "❤️", "🙏", "😔", "😂", "😮", "🧘", "💡"].map((emoji) => {
+              const moodLabels: Record<string, string> = {
+                "😊": "Happy",
+                "🔥": "Fire/Exciting",
+                "❤️": "Love",
+                "🙏": "Grateful",
+                "😔": "Sad",
+                "😂": "Funny",
+                "😮": "Surprised",
+                "🧘": "Calm/Peaceful",
+                "💡": "Insightful"
+              };
+              return (
+                <Tooltip key={emoji}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="rounded-full px-3 text-lg"
+                      variant={moodFilter === emoji ? "default" : "ghost"}
+                      onClick={() => setMoodFilter(moodFilter === emoji ? null : emoji)}
+                    >
+                      {emoji}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Filter by {moodLabels[emoji] || emoji} reactions</p>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
           </div>
         </div>
 
@@ -2376,14 +2624,21 @@ const Index = () => {
                 Garden Spotlight
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-                <Button
-                  variant={selectedTopicId === todayTopic.id ? "default" : "secondary"}
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => handleTopicToggle(todayTopic.id)}
-                >
-                  {selectedTopicId === todayTopic.id ? "Focused on this topic" : "Focus this topic"}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={selectedTopicId === todayTopic.id ? "default" : "secondary"}
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => handleTopicToggle(todayTopic.id)}
+                    >
+                      {selectedTopicId === todayTopic.id ? "Focused on this topic" : "Focus this topic"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{selectedTopicId === todayTopic.id ? "Click to show all topics" : "Show only clips about today's topic"}</p>
+                  </TooltipContent>
+                </Tooltip>
                 <Badge variant="secondary" className="rounded-full px-3 py-1">
                   {topicMetrics[todayTopic.id]?.listens ?? 0} listeners tuned in
                 </Badge>
@@ -2401,14 +2656,21 @@ const Index = () => {
                   {topicMetrics[todayTopic.id]?.listens ?? 0} listens
                 </span>
               </div>
-              <Button
-                onClick={() => setIsRecordModalOpen(true)}
-                size="lg"
-                className="mt-4 h-14 px-8 rounded-2xl"
-              >
-                <Mic className="mr-2 h-5 w-5" />
-                Share your voice
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => setIsRecordModalOpen(true)}
+                    size="lg"
+                    className="mt-4 h-14 px-8 rounded-2xl"
+                  >
+                    <Mic className="mr-2 h-5 w-5" />
+                    Share your voice
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Record a 30-second voice clip about today's topic (or press 'n' key)</p>
+                </TooltipContent>
+              </Tooltip>
               {promptSeeds.length > 0 && (
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {promptSeeds.map((seed, index) => (
@@ -2432,17 +2694,24 @@ const Index = () => {
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Topics</h3>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Button
-                    size="sm"
-                    variant={selectedTopicId === null ? "default" : "ghost"}
-                    className="w-full justify-between h-9 px-3 rounded-xl text-xs"
-                    onClick={() => handleTopicToggle(null)}
-                  >
-                    <span className="font-medium">All voices</span>
-                    <span className="text-xs text-muted-foreground">
-                      {totalValidClips}
-                    </span>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant={selectedTopicId === null ? "default" : "ghost"}
+                        className="w-full justify-between h-9 px-3 rounded-xl text-xs"
+                        onClick={() => handleTopicToggle(null)}
+                      >
+                        <span className="font-medium">All voices</span>
+                        <span className="text-xs text-muted-foreground">
+                          {totalValidClips}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Show all clips from all topics</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <div className="flex flex-wrap gap-1.5">
                     {recentTopics.map((topic) => {
                       const posts = topicMetrics[topic.id]?.posts ?? 0;
@@ -2589,14 +2858,36 @@ const Index = () => {
         </div>
       </main>
 
-      <div data-tutorial="record-button">
-        <Button
-          onClick={() => setIsRecordModalOpen(true)}
-          size="lg"
-          className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg animate-pulse-glow z-50"
-        >
-          <Plus className="h-8 w-8" />
-        </Button>
+      <div data-tutorial="record-button" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => setIsBulkUploadModalOpen(true)}
+              size="lg"
+              variant="outline"
+              className="h-14 w-14 rounded-full shadow-lg"
+            >
+              <Upload className="h-6 w-6" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Bulk Upload - Upload multiple audio files at once</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => setIsRecordModalOpen(true)}
+              size="lg"
+              className="h-16 w-16 rounded-full shadow-lg animate-pulse-glow"
+            >
+              <Plus className="h-8 w-8" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Record a new voice clip (or press 'n' key)</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <RecordModal
@@ -2610,9 +2901,19 @@ const Index = () => {
         parentClipId={replyingToClipId}
         remixOfClipId={remixingFromClipId}
         chainId={continuingChainId}
+        onOpenBulkUpload={() => setIsBulkUploadModalOpen(true)}
         replyingTo={replyingToClip}
         remixingFrom={remixingFromClip}
         continuingChain={continuingChain}
+      />
+
+      <BulkUploadModal
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+        topicId={(selectedTopicId ?? todayTopic?.id) || ""}
+        onSuccess={loadData}
+        profileCity={profile?.city ?? null}
+        profileConsentCity={profile?.consent_city ?? false}
       />
 
       <CityOptInDialog

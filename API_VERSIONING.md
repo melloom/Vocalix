@@ -18,8 +18,8 @@ We use [Semantic Versioning](https://semver.org/) (SemVer) format: `MAJOR.MINOR.
 - **PATCH**: Bug fixes (backward compatible)
 
 Current supported versions:
-- `1.0.0` - Initial API version
-- `2.0.0` - Latest version (example)
+- `1.0.0` - Initial API version (default)
+- `2.0.0` - Latest version with enhanced features
 
 ## How to Request a Specific Version
 
@@ -176,7 +176,7 @@ Follow this timeline:
 ### JavaScript/TypeScript
 
 ```typescript
-// Set version in headers
+// Set version in headers (Recommended)
 const response = await fetch('/functions/v1/admin-review', {
   method: 'POST',
   headers: {
@@ -192,17 +192,74 @@ const isDeprecated = response.headers.get('X-API-Deprecated') === 'true';
 
 if (isDeprecated) {
   const sunsetDate = response.headers.get('X-API-Sunset-Date');
+  const migrationGuide = response.headers.get('X-API-Migration-Guide');
   console.warn(`API version ${apiVersion} is deprecated. Sunset date: ${sunsetDate}`);
+  console.info(`Migration guide: ${migrationGuide}`);
 }
+
+// Alternative: Use Accept header
+const response2 = await fetch('/functions/v1/admin-review', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.echogarden+json;version=2.0.0',
+  },
+  body: JSON.stringify({ action: 'list' }),
+});
+
+// Alternative: Use query parameter
+const response3 = await fetch('/functions/v1/admin-review?version=2.0.0', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ action: 'list' }),
+});
 ```
 
 ### cURL
 
 ```bash
+# Method 1: X-API-Version header (Recommended)
 curl -X POST https://your-project.supabase.co/functions/v1/admin-review \
   -H "X-API-Version: 2.0.0" \
   -H "Content-Type: application/json" \
   -d '{"action":"list"}'
+
+# Method 2: Accept header
+curl -X POST https://your-project.supabase.co/functions/v1/admin-review \
+  -H "Accept: application/vnd.echogarden+json;version=2.0.0" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"list"}'
+
+# Method 3: Query parameter
+curl -X POST "https://your-project.supabase.co/functions/v1/admin-review?version=2.0.0" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"list"}'
+```
+
+### Python
+
+```python
+import requests
+
+# Method 1: X-API-Version header (Recommended)
+response = requests.post(
+    'https://your-project.supabase.co/functions/v1/admin-review',
+    headers={
+        'X-API-Version': '2.0.0',
+        'Content-Type': 'application/json',
+    },
+    json={'action': 'list'}
+)
+
+# Check deprecation status
+api_version = response.headers.get('X-API-Version')
+is_deprecated = response.headers.get('X-API-Deprecated') == 'true'
+
+if is_deprecated:
+    sunset_date = response.headers.get('X-API-Sunset-Date')
+    print(f"Warning: API version {api_version} is deprecated. Sunset date: {sunset_date}")
 ```
 
 ## Testing
@@ -231,14 +288,14 @@ const response3 = await fetch('/functions/v1/admin-review', {
 
 When adding a new version:
 
-- [ ] Update `API_VERSIONS` constant
-- [ ] Add version to `VERSION_METADATA`
-- [ ] Implement version-specific logic in Edge Functions
-- [ ] Update API documentation
-- [ ] Add migration guide (if breaking changes)
-- [ ] Test all version negotiation methods
-- [ ] Update client examples
-- [ ] Announce version changes in changelog
+- [x] Update `API_VERSIONS` constant
+- [x] Add version to `VERSION_METADATA`
+- [x] Implement version-specific logic in Edge Functions
+- [x] Update API documentation
+- [x] Add migration guide (if breaking changes)
+- [x] Test all version negotiation methods
+- [x] Update client examples
+- [x] Announce version changes in changelog
 
 ## Resources
 
@@ -248,6 +305,7 @@ When adding a new version:
 
 ---
 
-**Last Updated**: 2025-01-XX
+**Last Updated**: 2025-01-27
 **Current Default Version**: 1.0.0
+**Latest Version**: 2.0.0
 

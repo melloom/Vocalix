@@ -40,6 +40,18 @@ export const useFollow = (targetProfileId: string | null) => {
         throw new Error('Cannot follow yourself');
       }
 
+      // Check if user can follow (rate limiting, cooldown)
+      const { data: canFollow, error: canFollowError } = await supabase
+        .rpc('can_follow_profile', {
+          follower_id_param: currentProfile.id,
+          following_id_param: targetProfileId,
+        });
+
+      if (canFollowError) throw canFollowError;
+      if (!canFollow || canFollow.length === 0 || !canFollow[0].can_follow) {
+        throw new Error(canFollow?.[0]?.reason || 'Cannot follow at this time');
+      }
+
       const { error } = await supabase
         .from('follows')
         .insert({
@@ -223,6 +235,75 @@ export const useFollowingCount = (profileId: string | null) => {
   return {
     count: count || 0,
     isLoading,
+  };
+};
+
+// Hook to get mutual follows between current user and target profile
+export const useMutualFollows = (targetProfileId: string | null) => {
+  const { profile: currentProfile } = useProfile();
+
+  const {
+    data: mutualFollows,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['mutual-follows', currentProfile?.id, targetProfileId],
+    queryFn: async () => {
+      if (!currentProfile?.id || !targetProfileId || currentProfile.id === targetProfileId) {
+        return [];
+      }
+
+      try {
+        // Get who current user follows
+        const { data: currentFollowing, error: currentError } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', currentProfile.id);
+
+        if (currentError) throw currentError;
+
+        // Get who target user follows
+        const { data: targetFollowing, error: targetError } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', targetProfileId);
+
+        if (targetError) throw targetError;
+
+        // Find mutual follows
+        const currentFollowingIds = new Set((currentFollowing || []).map((f: any) => f.following_id));
+        const mutualIds = (targetFollowing || [])
+          .map((f: any) => f.following_id)
+          .filter((id: string) => currentFollowingIds.has(id));
+
+        if (mutualIds.length === 0) return [];
+
+        // Get profile details for mutual follows
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, handle, emoji_avatar')
+          .in('id', mutualIds)
+          .limit(10); // Limit to 10 mutual follows for display
+
+        if (profilesError) throw profilesError;
+
+        return (profilesData || []).map((profile: any) => ({
+          id: profile.id,
+          handle: profile.handle,
+          emoji_avatar: profile.emoji_avatar,
+        }));
+      } catch (error: any) {
+        console.error("Error loading mutual follows:", error);
+        return [];
+      }
+    },
+    enabled: !!currentProfile?.id && !!targetProfileId && currentProfile.id !== targetProfileId,
+  });
+
+  return {
+    mutualFollows: mutualFollows || [],
+    isLoading,
+    error,
   };
 };
 

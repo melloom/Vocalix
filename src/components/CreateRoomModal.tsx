@@ -66,6 +66,27 @@ export const CreateRoomModal = ({
     try {
       setIsSubmitting(true);
 
+      // Validate room limits
+      const { data: limitsValidation, error: limitsError } = await supabase
+        .rpc('validate_room_limits', {
+          max_speakers_param: maxSpeakers,
+          max_listeners_param: maxListeners,
+        });
+
+      if (limitsError) throw limitsError;
+      if (!limitsValidation || limitsValidation.length === 0 || !limitsValidation[0].is_valid) {
+        throw new Error(limitsValidation?.[0]?.reason || 'Invalid room limits');
+      }
+
+      // Check if user can create a live room (rate limiting)
+      const { data: canCreate, error: canCreateError } = await supabase
+        .rpc('can_create_live_room', { profile_id_param: profile.id });
+
+      if (canCreateError) throw canCreateError;
+      if (!canCreate || canCreate.length === 0 || !canCreate[0].can_create) {
+        throw new Error(canCreate?.[0]?.reason || 'Cannot create live room at this time');
+      }
+
       const roomData: any = {
         title: title.trim(),
         description: description.trim() || null,

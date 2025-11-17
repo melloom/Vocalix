@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => ({
     watch: {
       usePolling: false,
     },
+    // Ensure proper module serving
+    fs: {
+      strict: false,
+    },
+    // Disable HTTP/2 if causing issues
+    http2: false,
   },
   plugins: [react()],
   resolve: {
@@ -49,6 +55,8 @@ export default defineConfig(({ mode }) => ({
     ],
     // Force React deduplication to prevent multiple instances
     dedupe: ["react", "react-dom"],
+    // Force re-optimization
+    force: false,
   },
   // Vitest configuration
   test: {

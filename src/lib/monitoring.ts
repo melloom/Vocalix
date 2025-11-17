@@ -3,6 +3,8 @@
  * Integrates with Sentry for error tracking and performance monitoring
  */
 
+import * as Sentry from "@sentry/react";
+
 interface ErrorContext {
   userId?: string;
   deviceId?: string;
@@ -11,37 +13,66 @@ interface ErrorContext {
 
 /**
  * Initialize Sentry for frontend
- * In production, this would use @sentry/react
  */
-let sentryEnabled = false;
-let sentryDsn: string | null = null;
+let sentryInitialized = false;
 
 export function initializeSentry(dsn: string | null): void {
   if (!dsn) {
-    console.warn("[Monitoring] Sentry DSN not provided. Error tracking disabled.");
-    sentryEnabled = false;
-    sentryDsn = null;
+    // Only show warning in development mode
+    if (import.meta.env.DEV) {
+      console.debug("[Monitoring] Sentry DSN not provided. Error tracking disabled.");
+    }
+    sentryInitialized = false;
     return;
   }
 
-  sentryDsn = dsn;
-  sentryEnabled = true;
+  try {
+    Sentry.init({
+      dsn: dsn,
+      environment: import.meta.env.MODE,
+      integrations: [
+        Sentry.browserTracingIntegration(),
+        Sentry.replayIntegration({
+          maskAllText: false,
+          blockAllMedia: false,
+        }),
+      ],
+      // Performance Monitoring
+      tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0, // 10% in production, 100% in dev
+      // Session Replay
+      replaysSessionSampleRate: 0.1, // 10% of sessions
+      replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
+      // Release tracking
+      release: import.meta.env.VITE_APP_VERSION || undefined,
+      // Filter sensitive data
+      beforeSend(event, hint) {
+        // Don't send events in development (optional)
+        if (import.meta.env.DEV && import.meta.env.VITE_SENTRY_ENABLED !== "true") {
+          return null;
+        }
+        return event;
+      },
+      // Filter breadcrumbs
+      beforeBreadcrumb(breadcrumb, hint) {
+        // Filter out sensitive data from breadcrumbs
+        if (breadcrumb.data) {
+          const sensitiveKeys = ["password", "token", "secret", "apiKey", "authorization"];
+          for (const key of sensitiveKeys) {
+            if (key in breadcrumb.data) {
+              breadcrumb.data[key] = "[REDACTED]";
+            }
+          }
+        }
+        return breadcrumb;
+      },
+    });
 
-  // In production, initialize Sentry SDK:
-  // import * as Sentry from "@sentry/react";
-  // Sentry.init({
-  //   dsn: dsn,
-  //   environment: import.meta.env.MODE,
-  //   integrations: [
-  //     new Sentry.BrowserTracing(),
-  //     new Sentry.Replay(),
-  //   ],
-  //   tracesSampleRate: 1.0,
-  //   replaysSessionSampleRate: 0.1,
-  //   replaysOnErrorSampleRate: 1.0,
-  // });
-
-  console.log("[Monitoring] Sentry initialized successfully");
+    sentryInitialized = true;
+    console.log("[Monitoring] Sentry initialized successfully");
+  } catch (error) {
+    console.error("[Monitoring] Failed to initialize Sentry:", error);
+    sentryInitialized = false;
+  }
 }
 
 /**
@@ -51,25 +82,23 @@ export function captureException(
   error: Error | unknown,
   context?: ErrorContext
 ): void {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.error("[Error]", error, context);
     return;
   }
 
   try {
-    // In production, use: Sentry.captureException(error, { ...context })
-    console.error("[Sentry]", {
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      } : String(error),
-      context: {
+    Sentry.captureException(error, {
+      tags: {
         userId: context?.userId,
         deviceId: context?.deviceId,
-        ...context?.additionalData,
       },
-      timestamp: new Date().toISOString(),
+      extra: context?.additionalData,
+      user: context?.userId
+        ? {
+            id: context.userId,
+          }
+        : undefined,
     });
   } catch (sentryError) {
     console.error("[Monitoring] Failed to capture exception:", sentryError);
@@ -84,14 +113,20 @@ export function captureMessage(
   level: "info" | "warning" | "error" = "info",
   context?: ErrorContext
 ): void {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.log(`[${level.toUpperCase()}]`, message, context);
     return;
   }
 
   try {
-    // In production, use: Sentry.captureMessage(message, level, { ...context })
-    console.log(`[Sentry ${level}]`, message, context);
+    Sentry.captureMessage(message, {
+      level: level === "info" ? "info" : level === "warning" ? "warning" : "error",
+      tags: {
+        userId: context?.userId,
+        deviceId: context?.deviceId,
+      },
+      extra: context?.additionalData,
+    });
   } catch (error) {
     console.error("[Monitoring] Failed to capture message:", error);
   }
@@ -106,36 +141,72 @@ export function trackPerformance(
   unit: "ms" | "bytes" | "count" = "ms",
   tags?: Record<string, string>
 ): void {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.log("[Performance]", { name, value, unit, tags });
     return;
   }
 
   try {
-    // In production, use: Sentry.metrics.distribution(name, value, { tags })
-    console.log("[Performance Metric]", JSON.stringify({ name, value, unit, tags }));
+    // Use Sentry's metrics API
+    Sentry.metrics.distribution(name, value, {
+      unit: unit,
+      tags: tags || {},
+    });
   } catch (error) {
     console.error("[Monitoring] Failed to track performance:", error);
   }
 }
 
 /**
- * Track user action
+ * Track user action as breadcrumb
  */
 export function trackUserAction(
   action: string,
   properties?: Record<string, unknown>
 ): void {
-  if (!sentryEnabled) {
+  if (!sentryInitialized) {
     console.log("[User Action]", action, properties);
     return;
   }
 
   try {
-    // In production, use: Sentry.addBreadcrumb({ message: action, data: properties, category: 'user' })
-    console.log("[User Action]", JSON.stringify({ action, properties }));
+    Sentry.addBreadcrumb({
+      message: action,
+      data: properties,
+      category: "user",
+      level: "info",
+    });
   } catch (error) {
     console.error("[Monitoring] Failed to track user action:", error);
+  }
+}
+
+/**
+ * Set user context for Sentry
+ */
+export function setUserContext(userId: string, additionalData?: Record<string, unknown>): void {
+  if (!sentryInitialized) return;
+
+  try {
+    Sentry.setUser({
+      id: userId,
+      ...additionalData,
+    });
+  } catch (error) {
+    console.error("[Monitoring] Failed to set user context:", error);
+  }
+}
+
+/**
+ * Clear user context
+ */
+export function clearUserContext(): void {
+  if (!sentryInitialized) return;
+
+  try {
+    Sentry.setUser(null);
+  } catch (error) {
+    console.error("[Monitoring] Failed to clear user context:", error);
   }
 }
 
@@ -146,28 +217,7 @@ export function initializeMonitoring(): void {
   const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
   initializeSentry(sentryDsn || null);
 
-  // Set up global error handlers
-  if (sentryEnabled) {
-    window.addEventListener("error", (event) => {
-      captureException(event.error, {
-        additionalData: {
-          message: event.message,
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno,
-        },
-      });
-    });
-
-    window.addEventListener("unhandledrejection", (event) => {
-      captureException(event.reason, {
-        additionalData: {
-          type: "unhandledrejection",
-        },
-      });
-    });
-  }
-
+  // Note: Global error handlers are automatically set up by Sentry
+  // when using @sentry/react, but we keep them for non-Sentry logging
   console.log("[Monitoring] Frontend monitoring initialized");
 }
-

@@ -1,0 +1,301 @@
+# Contributing to Echo Garden
+
+Thank you for your interest in contributing to Echo Garden! This document provides guidelines and instructions for contributing.
+
+## 📋 Table of Contents
+
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Setup](#development-setup)
+- [Making Changes](#making-changes)
+- [Pull Request Process](#pull-request-process)
+- [Code Style](#code-style)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Questions?](#questions)
+
+## 📜 Code of Conduct
+
+By participating in this project, you agree to maintain a respectful and inclusive environment for all contributors.
+
+## 🚀 Getting Started
+
+1. **Fork the repository**
+2. **Clone your fork**:
+   ```bash
+   git clone https://github.com/your-username/echo-garden-49-main.git
+   cd echo-garden-49-main
+   ```
+3. **Set up your development environment** (see [Development Setup](#development-setup))
+
+## 💻 Development Setup
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- Supabase account (for backend)
+- Git
+
+### Setup Steps
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set up environment variables**:
+   - Copy `.env.example` to `.env`
+   - Fill in your Supabase credentials
+   - See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md) for details
+
+3. **Start development server**:
+   ```bash
+   npm run dev
+   ```
+
+4. **Run tests**:
+   ```bash
+   npm test
+   ```
+
+For more details, see [DEVELOPMENT.md](./DEVELOPMENT.md) (when created).
+
+## 🔨 Making Changes
+
+### Branch Naming
+
+Use descriptive branch names:
+- `feature/voice-reactions` - New features
+- `fix/audio-playback` - Bug fixes
+- `docs/api-documentation` - Documentation
+- `refactor/audio-player` - Code refactoring
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(scope): subject
+
+body (optional)
+
+footer (optional)
+```
+
+**Types**:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Examples**:
+```
+feat(audio): add playback speed control
+
+fix(api): resolve 404 error on clip endpoint
+
+docs(readme): update setup instructions
+```
+
+## 🔀 Pull Request Process
+
+1. **Update your fork**:
+   ```bash
+   git checkout main
+   git pull upstream main
+   ```
+
+2. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Make your changes**:
+   - Write clean, tested code
+   - Follow code style guidelines
+   - Update documentation as needed
+
+4. **Test your changes**:
+   ```bash
+   npm test
+   npm run lint
+   ```
+
+5. **Commit your changes**:
+   ```bash
+   git add .
+   git commit -m "feat(scope): your commit message"
+   ```
+
+6. **Push to your fork**:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+7. **Create a Pull Request**:
+   - Use the PR template
+   - Describe your changes clearly
+   - Link related issues
+   - Request review from maintainers
+
+### PR Checklist
+
+- [ ] Code follows style guidelines
+- [ ] Tests pass locally
+- [ ] Documentation updated
+- [ ] No console errors
+- [ ] No linting errors
+- [ ] Changes are backward compatible (if applicable)
+
+## 📝 Code Style
+
+### TypeScript/React
+
+- Use TypeScript for type safety
+- Follow React best practices
+- Use functional components with hooks
+- Prefer named exports
+- Use meaningful variable names
+
+### Formatting
+
+- Use Prettier (configured in project)
+- Run `npm run lint` before committing
+- Follow ESLint rules
+
+### File Structure
+
+```
+src/
+├── components/     # React components
+├── hooks/          # Custom React hooks
+├── lib/            # Utility functions
+├── pages/          # Page components
+└── types/          # TypeScript types
+```
+
+## 🧪 Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Writing Tests
+
+- Write tests for new features
+- Write tests for bug fixes
+- Aim for good test coverage
+- Use descriptive test names
+
+### Test Structure
+
+```typescript
+describe('ComponentName', () => {
+  it('should do something', () => {
+    // Test implementation
+  });
+});
+```
+
+## 📚 Documentation
+
+### Updating Documentation
+
+- Update relevant docs when adding features
+- Add code examples where helpful
+- Keep documentation up-to-date
+- Use clear, concise language
+
+### Documentation Files
+
+- `README.md` - Project overview
+- `API_DOCUMENTATION.md` - API reference
+- `SECURITY.md` - Security guide
+- `USER_TUTORIAL.md` - User guide
+- Feature-specific docs in `docs/`
+
+## 🐛 Reporting Bugs
+
+### Before Reporting
+
+1. Check existing issues
+2. Verify it's a bug, not a feature request
+3. Try to reproduce the issue
+
+### Bug Report Template
+
+```markdown
+**Description**
+Clear description of the bug
+
+**Steps to Reproduce**
+1. Step one
+2. Step two
+3. See error
+
+**Expected Behavior**
+What should happen
+
+**Actual Behavior**
+What actually happens
+
+**Environment**
+- OS: [e.g., Windows 10]
+- Browser: [e.g., Chrome 120]
+- Version: [e.g., 1.0.0]
+
+**Screenshots**
+If applicable
+
+**Additional Context**
+Any other relevant information
+```
+
+## 💡 Suggesting Features
+
+### Feature Request Template
+
+```markdown
+**Feature Description**
+Clear description of the feature
+
+**Use Case**
+Why is this feature needed?
+
+**Proposed Solution**
+How should it work?
+
+**Alternatives Considered**
+Other solutions you've thought about
+
+**Additional Context**
+Any other relevant information
+```
+
+## ❓ Questions?
+
+- **Documentation**: Check [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)
+- **Issues**: Open an issue on GitHub
+- **Discussions**: Use GitHub Discussions
+- **Security**: See [SECURITY.md](./SECURITY.md)
+
+## 🙏 Thank You!
+
+Your contributions make Echo Garden better for everyone. Thank you for taking the time to contribute!
+
+---
+
+**Last Updated**: 2025-01-27
+

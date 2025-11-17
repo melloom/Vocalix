@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useProfile } from "@/hooks/useProfile";
+import { useTopicFollow } from "@/hooks/useTopicFollow";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { usePagination } from "@/hooks/usePagination";
@@ -52,9 +53,9 @@ const Topic = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const { profile: viewerProfile } = useProfile();
+  const { isFollowing, toggleFollow, isToggling } = useTopicFollow(topicId || null);
 
   useEffect(() => {
     const loadTopic = async () => {
@@ -102,17 +103,7 @@ const Topic = () => {
         setRetryCount(0);
       }
 
-      // Check subscription status
-      if (viewerProfile?.id) {
-        const { data: subscriptionData } = await supabase
-          .from("topic_subscriptions")
-          .select("id")
-          .eq("profile_id", viewerProfile.id)
-          .eq("topic_id", topicId)
-          .maybeSingle();
-
-        setIsSubscribed(!!subscriptionData);
-      }
+      // Subscription status is now handled by useTopicFollow hook
 
       // Get subscriber count
       const { count } = await supabase
@@ -139,43 +130,19 @@ const Topic = () => {
     goToPage,
   } = usePagination(clips, { pageSize: 20 });
 
-  const handleSubscribe = async () => {
+  const handleFollow = () => {
     if (!viewerProfile?.id || !topicId) {
-      toast.error("Please log in to subscribe to topics");
+      toast.error("Please log in to follow topics");
       return;
     }
 
-    if (isSubscribed) {
-      // Unsubscribe
-      const { error } = await supabase
-        .from("topic_subscriptions")
-        .delete()
-        .eq("profile_id", viewerProfile.id)
-        .eq("topic_id", topicId);
-
-      if (error) {
-        toast.error("Failed to unsubscribe");
-      } else {
-        setIsSubscribed(false);
-        setSubscriberCount((prev) => Math.max(0, prev - 1));
-        toast.success("Unsubscribed from topic");
-      }
+    toggleFollow();
+    if (isFollowing) {
+      setSubscriberCount((prev) => Math.max(0, prev - 1));
+      toast.success("Unfollowed topic");
     } else {
-      // Subscribe
-      const { error } = await supabase
-        .from("topic_subscriptions")
-        .insert({
-          profile_id: viewerProfile.id,
-          topic_id: topicId,
-        });
-
-      if (error) {
-        toast.error("Failed to subscribe");
-      } else {
-        setIsSubscribed(true);
-        setSubscriberCount((prev) => prev + 1);
-        toast.success("Subscribed to topic");
-      }
+      setSubscriberCount((prev) => prev + 1);
+      toast.success("Following topic - you'll be notified of new clips");
     }
   };
 
@@ -247,20 +214,21 @@ const Topic = () => {
               </div>
               {viewerProfile && (
                 <Button
-                  variant={isSubscribed ? "default" : "outline"}
+                  variant={isFollowing ? "default" : "outline"}
                   size="sm"
-                  onClick={handleSubscribe}
+                  onClick={handleFollow}
+                  disabled={isToggling}
                   className="flex items-center gap-2"
                 >
-                  {isSubscribed ? (
+                  {isFollowing ? (
                     <>
                       <BellOff className="h-4 w-4" />
-                      Unsubscribe
+                      Unfollow
                     </>
                   ) : (
                     <>
                       <Bell className="h-4 w-4" />
-                      Subscribe
+                      Follow
                     </>
                   )}
                 </Button>

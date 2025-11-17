@@ -16,10 +16,11 @@ export const AuthGuard = ({
   requireAuth = false,
   fallback 
 }: AuthGuardProps) => {
-  const { isLoading, isInitialized, deviceId } = useAuth();
+  const { isLoading, isInitialized, userId } = useAuth();
 
   // Show loading state while auth is initializing
-  if (!isInitialized || !deviceId || isLoading) {
+  // Don't require userId - anonymous auth might fail, but we can still show the app
+  if (!isInitialized || isLoading) {
     return (
       fallback || (
         <div className="min-h-screen bg-background flex items-center justify-center">
@@ -29,6 +30,18 @@ export const AuthGuard = ({
           </div>
         </div>
       )
+    );
+  }
+
+  // If auth is required but we don't have a user, show error
+  if (requireAuth && !userId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-destructive">Authentication required</p>
+          <p className="text-muted-foreground text-sm">Please enable Anonymous Auth in Supabase Dashboard</p>
+        </div>
+      </div>
     );
   }
 

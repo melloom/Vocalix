@@ -807,7 +807,7 @@ A: You can see listen counts, but not individual listeners (privacy feature).
 A: Use the report button on any clip or profile. Our moderation team will review it.
 
 **Q: Can I block users?**
-A: Blocking feature may be available. Check Settings or contact support.
+A: Yes! You can block users from their profile page. Click the three-dot menu (⋮) next to the Follow button and select "Block User". Blocked users won't be able to see your clips or interact with you, and you won't see their content. You can manage blocked users in Settings.
 
 **Q: How do communities work?**
 A: Communities are groups around topics or interests. Join to see community-specific content and post to communities.

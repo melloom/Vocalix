@@ -94,9 +94,11 @@ export const CreateCommunityModal = ({
       onSuccess?.();
       onClose();
     } catch (error: any) {
+      // Extract error message - could be from validation or database
+      const errorMessage = error.message || "Something went wrong";
       toast({
         title: "Failed to create community",
-        description: error.message || "Something went wrong",
+        description: errorMessage,
         variant: "destructive",
       });
     }

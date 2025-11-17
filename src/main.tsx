@@ -4,6 +4,7 @@ import "./index.css";
 import { updateSupabaseDeviceHeader, initializeRpcFunctionCheck } from "@/integrations/supabase/client";
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { initializeMonitoring, captureException } from "@/lib/monitoring";
+import * as Sentry from "@sentry/react";
 
 // Initialize monitoring (Sentry) first
 initializeMonitoring();
@@ -130,8 +131,35 @@ if ("serviceWorker" in navigator) {
   }
 }
 
+// Wrap app with Sentry's ErrorBoundary for automatic error capture
 createRoot(document.getElementById("root")!).render(
-  <UploadQueueProvider>
-    <App />
-  </UploadQueueProvider>,
+  <Sentry.ErrorBoundary
+    fallback={({ error, resetError }) => (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-6 rounded-3xl space-y-4 border border-destructive">
+          <h2 className="text-xl font-semibold text-destructive">Something went wrong</h2>
+          <p className="text-sm text-muted-foreground">
+            We've been notified about this error. Please try refreshing the page.
+          </p>
+          {import.meta.env.DEV && (
+            <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48">
+              <summary className="cursor-pointer font-semibold mb-2">Error Details (Dev Only)</summary>
+              <pre className="whitespace-pre-wrap text-[10px] mt-1">{error?.toString()}</pre>
+            </details>
+          )}
+          <button
+            onClick={resetError}
+            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )}
+    showDialog={false}
+  >
+    <UploadQueueProvider>
+      <App />
+    </UploadQueueProvider>
+  </Sentry.ErrorBoundary>,
 );

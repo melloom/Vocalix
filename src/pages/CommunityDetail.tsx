@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/useProfile";
-import { useCommunity, useCommunityMembership } from "@/hooks/useCommunity";
+import { useCommunity, useCommunityMembership, useAddModerator, useRemoveModerator, useSearchUsers, useSetCommunitySuccessor, useClearCommunitySuccessor } from "@/hooks/useCommunity";
 import { useCommunityFollow } from "@/hooks/useCommunityFollow";
 import { toast } from "sonner";
 import { RecordModal } from "@/components/RecordModal";
@@ -102,6 +102,10 @@ const CommunityDetail = () => {
   const [newChatRoomName, setNewChatRoomName] = useState("");
   const [newChatRoomDescription, setNewChatRoomDescription] = useState("");
   const [liveRoomFilter, setLiveRoomFilter] = useState<"live" | "scheduled" | "newest">("live");
+  const [isManageModeratorsOpen, setIsManageModeratorsOpen] = useState(false);
+  const [moderatorSearchQuery, setModeratorSearchQuery] = useState("");
+  const [successorSearchQuery, setSuccessorSearchQuery] = useState("");
+  const [currentSuccessor, setCurrentSuccessor] = useState<any>(null);
 
   // First, get community ID from slug
   const [communityId, setCommunityId] = useState<string | null>(null);
@@ -130,6 +134,16 @@ const CommunityDetail = () => {
   const { community: communityData, isLoading: isLoadingCommunityData, error: communityError, refetch: refetchCommunity } = useCommunity(communityId);
   const { isMember, toggleMembership, isJoining, isLeaving } = useCommunityMembership(communityId);
   const { isFollowing, toggleFollow, isFollowingCommunity, isUnfollowingCommunity } = useCommunityFollow(communityId);
+  
+  // Moderator management hooks
+  const addModerator = useAddModerator(communityId);
+  const removeModerator = useRemoveModerator(communityId);
+  const { data: searchResults, isLoading: isSearchingUsers } = useSearchUsers(moderatorSearchQuery);
+  
+  // Successor management hooks
+  const setSuccessor = useSetCommunitySuccessor(communityId);
+  const clearSuccessor = useClearCommunitySuccessor(communityId);
+  const { data: successorSearchResults } = useSearchUsers(successorSearchQuery);
   
   // Live rooms and chat rooms
   const { rooms: allLiveRooms } = useCommunityLiveRooms(communityId);
@@ -254,7 +268,7 @@ const CommunityDetail = () => {
           id,
           moderator_profile_id,
           elected_at,
-          profiles (
+          profiles!moderator_profile_id (
             handle,
             emoji_avatar
           )
@@ -299,6 +313,32 @@ const CommunityDetail = () => {
       loadCreator();
     }
   }, [communityData]);
+
+  // Load current successor
+  useEffect(() => {
+    const loadSuccessor = async () => {
+      if (!communityId || !communityData?.successor_profile_id) {
+        setCurrentSuccessor(null);
+        return;
+      }
+
+      const { data: successorData, error: successorError } = await supabase
+        .from("profiles")
+        .select("id, handle, emoji_avatar")
+        .eq("id", communityData.successor_profile_id)
+        .single();
+
+      if (!successorError && successorData) {
+        setCurrentSuccessor(successorData);
+      } else {
+        setCurrentSuccessor(null);
+      }
+    };
+
+    if (communityData) {
+      loadSuccessor();
+    }
+  }, [communityId, communityData?.successor_profile_id]);
 
   // Load related communities
   useEffect(() => {
@@ -1327,38 +1367,51 @@ const CommunityDetail = () => {
             )}
 
             {/* Moderators Card */}
-            {moderators.length > 0 && (
-              <Card className="p-4 rounded-2xl">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Card className="p-4 rounded-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
                   <Shield className="w-4 h-4" />
                   Moderators
                 </h3>
-                <div className="space-y-2">
-                  {isLoadingModerators ? (
-                    <div className="space-y-2">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <Skeleton key={i} className="h-10 w-full rounded-xl" />
-                      ))}
+                {communityData?.is_creator && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsManageModeratorsOpen(true)}
+                    className="h-8 text-xs"
+                  >
+                    <Settings className="w-3 h-3 mr-1" />
+                    Manage
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {isLoadingModerators ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : moderators.length > 0 ? (
+                  moderators.map((mod) => (
+                    <div key={mod.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted/50">
+                      <span className="text-xl">{mod.profiles?.emoji_avatar || '👤'}</span>
+                      <Link
+                        to={`/profile/${mod.profiles?.handle}`}
+                        className="flex-1 text-sm font-medium hover:underline"
+                      >
+                        u/{mod.profiles?.handle || 'Unknown'}
+                      </Link>
+                      {mod.moderator_profile_id === communityData?.created_by_profile_id && (
+                        <Badge variant="default" className="text-xs">Creator</Badge>
+                      )}
                     </div>
-                  ) : (
-                    moderators.map((mod) => (
-                      <div key={mod.id} className="flex items-center gap-2 p-2 rounded-xl hover:bg-muted/50">
-                        <span className="text-xl">{mod.profiles?.emoji_avatar || '👤'}</span>
-                        <Link
-                          to={`/profile/${mod.profiles?.handle}`}
-                          className="flex-1 text-sm font-medium hover:underline"
-                        >
-                          u/{mod.profiles?.handle || 'Unknown'}
-                        </Link>
-                        {mod.moderator_profile_id === communityData.created_by_profile_id && (
-                          <Badge variant="default" className="text-xs">Creator</Badge>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card>
-            )}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No moderators yet</p>
+                )}
+              </div>
+            </Card>
 
             {/* Creator Info Card */}
             {communityData.created_by_profile_id && (
@@ -1884,6 +1937,176 @@ const CommunityDetail = () => {
                   Community settings coming soon! You can manage your community details, guidelines, and moderation settings here.
                 </p>
               </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Manage Moderators Dialog (for creators) */}
+      {communityData?.is_creator && (
+        <Dialog open={isManageModeratorsOpen} onOpenChange={setIsManageModeratorsOpen}>
+          <DialogContent className="sm:max-w-md rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Manage Moderators</DialogTitle>
+              <DialogDescription>
+                Add or remove moderators for {communityData?.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {/* Current Moderators */}
+              <div className="space-y-2">
+                <Label>Current Moderators</Label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {isLoadingModerators ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 2 }).map((_, i) => (
+                        <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                      ))}
+                    </div>
+                  ) : moderators.length > 0 ? (
+                    moderators.map((mod) => (
+                      <div key={mod.id} className="flex items-center justify-between p-2 rounded-xl bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{mod.profiles?.emoji_avatar || '👤'}</span>
+                          <div>
+                            <p className="text-sm font-medium">u/{mod.profiles?.handle || 'Unknown'}</p>
+                            {mod.moderator_profile_id === communityData?.created_by_profile_id && (
+                              <p className="text-xs text-muted-foreground">Creator</p>
+                            )}
+                          </div>
+                        </div>
+                        {mod.moderator_profile_id !== communityData?.created_by_profile_id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await removeModerator.mutateAsync(mod.moderator_profile_id);
+                                toast.success("Moderator removed");
+                                // Reload moderators
+                                const { data: moderatorsData } = await supabase
+                                  .from("community_moderators")
+                                  .select(
+                                    `
+                                    id,
+                                    moderator_profile_id,
+                                    elected_at,
+                                    profiles (
+                                      handle,
+                                      emoji_avatar
+                                    )
+                                  `
+                                  )
+                                  .eq("community_id", communityId)
+                                  .order("elected_at", { ascending: true });
+                                if (moderatorsData) {
+                                  setModerators((moderatorsData || []).map((m: any) => ({
+                                    ...m,
+                                    profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+                                  })));
+                                }
+                              } catch (error: any) {
+                                toast.error(error.message || "Failed to remove moderator");
+                              }
+                            }}
+                            disabled={removeModerator.isPending}
+                            className="h-8 text-xs text-destructive hover:text-destructive"
+                          >
+                            <UserMinus className="w-3 h-3 mr-1" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No moderators yet</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Add Moderator */}
+              <div className="space-y-2">
+                <Label>Add Moderator</Label>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Search by username..."
+                    value={moderatorSearchQuery}
+                    onChange={(e) => setModeratorSearchQuery(e.target.value)}
+                    className="rounded-2xl"
+                  />
+                  {moderatorSearchQuery.length >= 2 && (
+                    <div className="space-y-1 max-h-48 overflow-y-auto border rounded-xl p-2 bg-muted/30">
+                      {isSearchingUsers ? (
+                        <div className="space-y-2">
+                          {Array.from({ length: 3 }).map((_, i) => (
+                            <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                          ))}
+                        </div>
+                      ) : searchResults && searchResults.length > 0 ? (
+                        searchResults
+                          .filter((user) => {
+                            // Filter out users who are already moderators
+                            return !moderators.some((mod) => mod.moderator_profile_id === user.id);
+                          })
+                          .filter((user) => user.id !== communityData?.created_by_profile_id)
+                          .map((user) => (
+                            <div
+                              key={user.id}
+                              className="flex items-center justify-between p-2 rounded-xl hover:bg-muted/50 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl">{user.emoji_avatar || '👤'}</span>
+                                <p className="text-sm font-medium">u/{user.handle}</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    await addModerator.mutateAsync(user.id);
+                                    toast.success("Moderator added");
+                                    setModeratorSearchQuery("");
+                                    // Reload moderators
+                                    const { data: moderatorsData } = await supabase
+                                      .from("community_moderators")
+                                      .select(
+                                        `
+                                        id,
+                                        moderator_profile_id,
+                                        elected_at,
+                                        profiles!moderator_profile_id (
+                                          handle,
+                                          emoji_avatar
+                                        )
+                                      `
+                                      )
+                                      .eq("community_id", communityId)
+                                      .order("elected_at", { ascending: true });
+                                    if (moderatorsData) {
+                                      setModerators((moderatorsData || []).map((m: any) => ({
+                                        ...m,
+                                        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+                                      })));
+                                    }
+                                  } catch (error: any) {
+                                    toast.error(error.message || "Failed to add moderator");
+                                  }
+                                }}
+                                disabled={addModerator.isPending}
+                                className="h-8 text-xs"
+                              >
+                                <UserPlus className="w-3 h-3 mr-1" />
+                                Add
+                              </Button>
+                            </div>
+                          ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">No users found</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -60,7 +60,7 @@ export const useCommunityChatRooms = (communityId: string | null) => {
         .from('community_chat_rooms')
         .select(`
           *,
-          profiles (
+          profiles!created_by_profile_id (
             handle,
             emoji_avatar
           )
@@ -103,14 +103,14 @@ export const useChatMessages = (chatRoomId: string | null, limit: number = 50) =
         .from('community_chat_messages')
         .select(`
           *,
-          profiles (
+          profiles!profile_id (
             handle,
             emoji_avatar
           ),
           reply_to:community_chat_messages!reply_to_message_id (
             id,
             message,
-            profiles (
+            profiles!profile_id (
               handle
             )
           )
@@ -282,6 +282,55 @@ export const useCreateChatRoom = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['community-chat-rooms', variables.community_id] });
+    },
+  });
+};
+
+// Hook to set chat room successor
+export const useSetChatRoomSuccessor = (roomId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (successorProfileId: string) => {
+      if (!roomId) {
+        throw new Error('Room ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('set_chat_room_successor', {
+          p_room_id: roomId,
+          p_successor_profile_id: successorProfileId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-chat-rooms'] });
+    },
+  });
+};
+
+// Hook to clear chat room successor
+export const useClearChatRoomSuccessor = (roomId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!roomId) {
+        throw new Error('Room ID is required');
+      }
+
+      const { data, error } = await supabase
+        .rpc('clear_chat_room_successor', {
+          p_room_id: roomId,
+        });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-chat-rooms'] });
     },
   });
 };

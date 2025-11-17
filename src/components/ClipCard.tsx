@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download } from "lucide-react";
+import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logError, logWarn } from "@/lib/logger";
+import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 
 interface VoiceReaction {
   id: string;
@@ -63,6 +64,13 @@ interface Clip {
   challenge_id?: string | null;
   is_podcast?: boolean;
   trending_score?: number | null;
+  quality_score?: number | null;
+  quality_badge?: "excellent" | "good" | "fair" | null;
+  quality_metrics?: {
+    volume: number;
+    clarity: number;
+    noise_level: number;
+  } | null;
   profiles: {
     handle: string;
     emoji_avatar: string;
@@ -138,6 +146,10 @@ export const ClipCard = ({
   const profileId = localStorage.getItem("profileId");
   const isOwner = clip.profile_id === profileId;
   
+  // Offline downloads
+  const { isClipDownloaded, downloadClip, deleteDownloadedClip, isLoading: isOfflineLoading } = useOfflineDownloads();
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  
   // Global audio player
   const { currentClip, isPlaying: globalIsPlaying, progress: globalProgress, duration: globalDuration, playClip, togglePlayPause, seek: globalSeek } = useAudioPlayer();
   
@@ -196,6 +208,11 @@ export const ClipCard = ({
     
     checkSavedStatus();
   }, [clip.id, profileId]);
+
+  // Check if clip is downloaded for offline
+  useEffect(() => {
+    setIsDownloaded(isClipDownloaded(clip.id));
+  }, [clip.id, isClipDownloaded]);
 
   useEffect(() => {
     const channel = supabase
@@ -508,34 +525,56 @@ export const ClipCard = ({
       return;
     }
 
+    // If already downloaded, delete it
+    if (isDownloaded) {
+      setIsDownloading(true);
+      try {
+        const success = await deleteDownloadedClip(clip.id);
+        if (success) {
+          setIsDownloaded(false);
+          toast({
+            title: "Removed from offline",
+            description: "This clip has been removed from your offline downloads.",
+          });
+        } else {
+          throw new Error("Failed to delete downloaded clip");
+        }
+      } catch (err) {
+        logError("Error removing downloaded clip", err);
+        toast({
+          title: "Couldn't remove clip",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsDownloading(false);
+      }
+      return;
+    }
+
+    // Download for offline
     setIsDownloading(true);
     try {
-      const { data: audioData, error: audioError } = await supabase.storage
-        .from("audio")
-        .download(clip.audio_path);
+      const success = await downloadClip(
+        clip.id,
+        clip.audio_path,
+        {
+          title: clip.title || null,
+          summary: clip.summary || null,
+          duration: clip.duration_seconds,
+          profiles: clip.profiles || null,
+        }
+      );
 
-      if (audioError) throw audioError;
-      if (!audioData) throw new Error("No audio data received");
-
-      // Create a safe filename
-      const date = clip.created_at ? new Date(clip.created_at).toISOString().split("T")[0] : "unknown";
-      const safeTitle = clip.title ? clip.title.replace(/[^a-z0-9]/gi, "_").substring(0, 50) : "clip";
-      const filename = `${date}_${safeTitle}_${clip.id.substring(0, 8)}.webm`;
-
-      // Create download link
-      const url = URL.createObjectURL(audioData);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Download started",
-        description: "Your audio clip is downloading.",
-      });
+      if (success) {
+        setIsDownloaded(true);
+        toast({
+          title: "Downloaded for offline",
+          description: "This clip is now available offline.",
+        });
+      } else {
+        throw new Error("Failed to download clip");
+      }
     } catch (err) {
       logError("Error downloading clip", err);
       toast({
@@ -729,6 +768,26 @@ export const ClipCard = ({
             {clip.challenge_id && (
               <span className="ml-1 inline-block text-primary/80">• Challenge</span>
             )}
+            {clip.visibility === "private" && (
+              <span className="ml-1 inline-block text-muted-foreground" title="Private clip">
+                <Lock className="h-3 w-3 inline" />
+              </span>
+            )}
+            {clip.visibility === "followers" && (
+              <span className="ml-1 inline-block text-muted-foreground" title="Followers only">
+                <Users className="h-3 w-3 inline" />
+              </span>
+            )}
+            {clip.sign_language_video_url && (
+              <span className="ml-1 inline-block text-primary/80" title="Sign language available">
+                👋
+              </span>
+            )}
+            {clip.audio_description_url && (
+              <span className="ml-1 inline-block text-primary/80" title="Audio description available">
+                <Volume2 className="h-3 w-3 inline" />
+              </span>
+            )}
           </p>
         </div>
         <div className="text-2xl">{clip.mood_emoji}</div>
@@ -754,6 +813,31 @@ export const ClipCard = ({
         {clip.trending_score && clip.trending_score > 100 && (
           <Badge variant="default" className="w-fit bg-orange-500 hover:bg-orange-600">
             🔥 Trending
+          </Badge>
+        )}
+        {clip.quality_badge && (
+          <Badge 
+            variant="outline" 
+            className={`w-fit ${
+              clip.quality_badge === "excellent" 
+                ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-950" 
+                : clip.quality_badge === "good"
+                ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-950"
+                : "border-yellow-500 text-yellow-600 bg-yellow-50 dark:bg-yellow-950"
+            }`}
+            title={`Audio quality: ${clip.quality_score?.toFixed(1)}/10`}
+          >
+            {clip.quality_badge === "excellent" && "⭐"}
+            {clip.quality_badge === "good" && "✨"}
+            {clip.quality_badge === "fair" && "🎤"}
+            {" "}
+            {clip.quality_badge.charAt(0).toUpperCase() + clip.quality_badge.slice(1)} Quality
+          </Badge>
+        )}
+        {isDownloaded && (
+          <Badge variant="outline" className="w-fit border-primary/50 text-primary">
+            <WifiOff className="h-3 w-3 mr-1" />
+            Offline
           </Badge>
         )}
       </div>
@@ -853,6 +937,33 @@ export const ClipCard = ({
               >
                 {showCaptions ? "Hide" : "Show"} captions
               </button>
+            )}
+
+            {/* Accessibility Options */}
+            {(clip.sign_language_video_url || clip.audio_description_url) && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <p className="text-xs font-medium text-muted-foreground">Accessibility</p>
+                {clip.sign_language_video_url && (
+                  <a
+                    href={clip.sign_language_video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    👋 Sign Language Video
+                  </a>
+                )}
+                {clip.audio_description_url && (
+                  <a
+                    href={clip.audio_description_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Volume2 className="h-3 w-3" /> Audio Description
+                  </a>
+                )}
+              </div>
             )}
           </div>
 
@@ -1007,12 +1118,25 @@ export const ClipCard = ({
             variant="ghost"
             size="sm"
             onClick={handleDownload}
-            disabled={isDownloading || clip.status === "processing"}
-            className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
-            title="Download audio clip"
+            disabled={isDownloading || isOfflineLoading || clip.status === "processing"}
+            className={`h-auto px-3 py-1 rounded-full text-xs ${
+              isDownloaded
+                ? "text-primary hover:text-primary hover:bg-primary/10"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title={isDownloaded ? "Remove from offline downloads" : "Download for offline"}
           >
-            <Download className="mr-1 h-3 w-3" />
-            {isDownloading ? "Downloading..." : "Download"}
+            {isDownloaded ? (
+              <>
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                {isDownloading ? "Removing..." : "Offline"}
+              </>
+            ) : (
+              <>
+                <Download className="mr-1 h-3 w-3" />
+                {isDownloading ? "Downloading..." : "Download"}
+              </>
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -1048,7 +1172,7 @@ export const ClipCard = ({
         </div>
       </div>
 
-      <Comments clipId={clip.id} profileId={profileId} />
+      <Comments clipId={clip.id} profileId={profileId} clipCreatorId={clip.profile_id} />
 
       <ShareClipDialog
         clipId={clip.id}

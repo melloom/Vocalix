@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Share2, Copy, Check, Code } from "lucide-react";
+import { Share2, Copy, Check, Code, Twitter, Facebook, Linkedin, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 
 interface ShareClipDialogProps {
   clipId: string;
@@ -34,6 +36,7 @@ export const ShareClipDialog = ({
   const [embedCopied, setEmbedCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const { toast } = useToast();
+  const { profile } = useProfile();
 
   const shareUrl = `${window.location.origin}/clip/${clipId}`;
   const embedCode = `<iframe src="${shareUrl}" width="100%" height="400" frameborder="0" allow="autoplay"></iframe>`;
@@ -44,10 +47,39 @@ export const ShareClipDialog = ({
     }
   }, []);
 
+  const trackShare = async (shareMethod: string) => {
+    try {
+      // Detect device type
+      const userAgent = navigator.userAgent || "";
+      let deviceType = "unknown";
+      if (/mobile|android|iphone|ipad|ipod/i.test(userAgent)) {
+        deviceType = "mobile";
+      } else if (/tablet|ipad/i.test(userAgent)) {
+        deviceType = "tablet";
+      } else {
+        deviceType = "desktop";
+      }
+
+      await supabase.from("clip_shares").insert({
+        clip_id: clipId,
+        profile_id: profile?.id || null,
+        share_method: shareMethod,
+        device_type: deviceType,
+        // Geographic data would need to be obtained from a service or headers
+        country_code: null,
+        city: null,
+      });
+    } catch (error) {
+      // Silently fail - share tracking is not critical
+      console.warn("Failed to track share:", error);
+    }
+  };
+
   const copyShareLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
+      await trackShare("link");
       toast({
         title: "Link copied!",
         description: "Share this link with others",
@@ -67,6 +99,7 @@ export const ShareClipDialog = ({
     try {
       await navigator.clipboard.writeText(embedCode);
       setEmbedCopied(true);
+      await trackShare("embed");
       toast({
         title: "Embed code copied!",
         description: "Paste this code into your website",
@@ -93,6 +126,7 @@ export const ShareClipDialog = ({
 
     try {
       await (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share?.(shareData);
+      await trackShare("native");
     } catch (error) {
       // User cancelled or error occurred
       if ((error as Error).name !== "AbortError") {
@@ -104,6 +138,37 @@ export const ShareClipDialog = ({
         });
       }
     }
+  };
+
+  const shareText = clipTitle || `Voice clip by ${profileHandle || "Anonymous"}`;
+  const shareDescription = clipSummary || `Listen to this voice clip on Echo Garden`;
+
+  const shareToTwitter = () => {
+    const text = encodeURIComponent(`${shareText} - ${shareDescription}`);
+    const url = encodeURIComponent(shareUrl);
+    trackShare("twitter");
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
+  };
+
+  const shareToFacebook = () => {
+    const url = encodeURIComponent(shareUrl);
+    trackShare("facebook");
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank', 'width=550,height=420');
+  };
+
+  const shareToLinkedIn = () => {
+    const url = encodeURIComponent(shareUrl);
+    const title = encodeURIComponent(shareText);
+    const summary = encodeURIComponent(shareDescription);
+    trackShare("linkedin");
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}&title=${title}&summary=${summary}`, '_blank', 'width=550,height=420');
+  };
+
+  const shareToReddit = () => {
+    const title = encodeURIComponent(shareText);
+    const url = encodeURIComponent(shareUrl);
+    trackShare("reddit");
+    window.open(`https://reddit.com/submit?title=${title}&url=${url}`, '_blank', 'width=550,height=420');
   };
 
   return (
@@ -140,6 +205,44 @@ export const ShareClipDialog = ({
                     Copy
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Share to Platform</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={shareToTwitter}
+                className="rounded-2xl"
+                variant="outline"
+              >
+                <Twitter className="mr-2 h-4 w-4" />
+                Twitter
+              </Button>
+              <Button
+                onClick={shareToFacebook}
+                className="rounded-2xl"
+                variant="outline"
+              >
+                <Facebook className="mr-2 h-4 w-4" />
+                Facebook
+              </Button>
+              <Button
+                onClick={shareToLinkedIn}
+                className="rounded-2xl"
+                variant="outline"
+              >
+                <Linkedin className="mr-2 h-4 w-4" />
+                LinkedIn
+              </Button>
+              <Button
+                onClick={shareToReddit}
+                className="rounded-2xl"
+                variant="outline"
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Reddit
               </Button>
             </div>
           </div>

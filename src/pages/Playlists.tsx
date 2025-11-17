@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Music, Share2, Sparkles, Trash2, Edit2, Heart, Compass } from "lucide-react";
+import { ArrowLeft, Plus, Music, Share2, Sparkles, Trash2, Edit2, Heart, Compass, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -72,7 +72,7 @@ const Playlists = () => {
         // First, generate/update auto-generated playlists
         await generateAutoPlaylists(profile.id);
 
-        // Load user playlists with clip counts
+        // Load user playlists with clip counts and stats
         const { data: playlistsData, error: playlistsError } = await supabase
           .from("playlists")
           .select(
@@ -527,13 +527,23 @@ const Playlists = () => {
                                 {collection.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>{collection.clip_count || 0} clips</span>
-                              {collection.follower_count !== undefined && collection.follower_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Heart className="h-3 w-3" />
-                                  {collection.follower_count} followers
-                                </span>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                              <span className="font-medium">{collection.clip_count || 0} clips</span>
+                              {collection.is_public && (
+                                <>
+                                  {collection.follower_count !== undefined && collection.follower_count > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Heart className="h-3 w-3" />
+                                      <span className="font-medium">{collection.follower_count} {collection.follower_count === 1 ? "follower" : "followers"}</span>
+                                    </span>
+                                  )}
+                                  {collection.view_count !== undefined && collection.view_count > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="h-3 w-3" />
+                                      <span className="font-medium">{collection.view_count} {collection.view_count === 1 ? "view" : "views"}</span>
+                                    </span>
+                                  )}
+                                </>
                               )}
                               {collection.profiles && (
                                 <span>by @{collection.profiles.handle}</span>
@@ -569,13 +579,27 @@ const Playlists = () => {
                                 {playlist.description}
                               </p>
                             )}
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>{playlist.clip_count || 0} clips</span>
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                              <span className="font-medium">{playlist.clip_count || 0} clips</span>
                               {playlist.is_public && (
-                                <span className="flex items-center gap-1">
-                                  <Share2 className="h-3 w-3" />
-                                  Public
-                                </span>
+                                <>
+                                  <span className="flex items-center gap-1">
+                                    <Share2 className="h-3 w-3" />
+                                    Public
+                                  </span>
+                                  {playlist.follower_count !== undefined && playlist.follower_count > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Heart className="h-3 w-3" />
+                                      <span className="font-medium">{playlist.follower_count} {playlist.follower_count === 1 ? "follower" : "followers"}</span>
+                                    </span>
+                                  )}
+                                  {playlist.view_count !== undefined && playlist.view_count > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Eye className="h-3 w-3" />
+                                      <span className="font-medium">{playlist.view_count} {playlist.view_count === 1 ? "view" : "views"}</span>
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

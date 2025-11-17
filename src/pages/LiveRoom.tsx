@@ -451,7 +451,12 @@ const LiveRoom = () => {
           fetchRoom();
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Suppress WebSocket errors - non-critical
+        if (err && (err.message?.includes("WebSocket") || err.message?.includes("websocket"))) {
+          return;
+        }
+      });
 
     // Subscribe to participant updates
     const participantsChannel = supabase
@@ -468,7 +473,12 @@ const LiveRoom = () => {
           fetchParticipants();
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Suppress WebSocket errors - non-critical
+        if (err && (err.message?.includes("WebSocket") || err.message?.includes("websocket"))) {
+          return;
+        }
+      });
 
     return () => {
       cleanupWebRTC();

@@ -1,9 +1,21 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { AudioPlayerContext } from "@/context/AudioPlayerContext";
-import { Play, Pause, X } from "lucide-react";
+import { Play, Pause, X, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const MiniPlayer = () => {
   const context = useContext(AudioPlayerContext);
@@ -12,7 +24,8 @@ export const MiniPlayer = () => {
   // Safely handle missing context
   if (!context) return null;
   
-  const { currentClip, isPlaying, progress, duration, togglePlayPause, seek, stop } = context;
+  const { currentClip, isPlaying, progress, duration, togglePlayPause, seek, stop, playbackRate, setPlaybackRate } = context;
+  const [speedPopoverOpen, setSpeedPopoverOpen] = useState(false);
 
   if (!currentClip) return null;
 
@@ -96,6 +109,43 @@ export const MiniPlayer = () => {
               -{formatTime(remainingTime)}
             </span>
           </div>
+
+          {/* Playback Speed Selector */}
+          <Popover open={speedPopoverOpen} onOpenChange={setSpeedPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 shrink-0 text-xs"
+                title={`Playback Speed: ${playbackRate}x`}
+              >
+                <Gauge className="h-3.5 w-3.5 mr-1" />
+                <span className="hidden sm:inline">{playbackRate}x</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="end">
+              <div className="space-y-2">
+                <div className="text-xs font-medium px-2 py-1">Playback Speed</div>
+                <Select
+                  value={playbackRate.toString()}
+                  onValueChange={(value) => {
+                    setPlaybackRate(parseFloat(value));
+                    setSpeedPopoverOpen(false);
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">0.5x (Slow)</SelectItem>
+                    <SelectItem value="1">1x (Normal)</SelectItem>
+                    <SelectItem value="1.5">1.5x (Fast)</SelectItem>
+                    <SelectItem value="2">2x (Very Fast)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
 
           {/* Close Button */}
           <Button

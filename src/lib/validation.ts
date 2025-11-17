@@ -6,29 +6,60 @@ import { z } from "zod";
 
 /**
  * Sanitize string input to prevent XSS and injection attacks
+ * Enhanced version with comprehensive XSS protection
  */
 export function sanitizeInput(input: string): string {
   if (typeof input !== "string") {
     return "";
   }
   
-  // Remove potentially dangerous characters
+  // Remove potentially dangerous characters and patterns
   return input
     .trim()
     .replace(/[<>]/g, "") // Remove angle brackets
     .replace(/javascript:/gi, "") // Remove javascript: protocol
-    .replace(/on\w+=/gi, ""); // Remove event handlers
+    .replace(/vbscript:/gi, "") // Remove vbscript: protocol
+    .replace(/data:text\/html/gi, "") // Remove data: URLs with HTML
+    .replace(/on\w+\s*=/gi, "") // Remove event handlers (onclick, onerror, etc.)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "") // Remove script tags
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "") // Remove iframe tags
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "") // Remove object tags
+    .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, ""); // Remove embed tags
+}
+
+/**
+ * Reserved usernames that cannot be used
+ */
+export const RESERVED_HANDLES = [
+  'admin', 'administrator', 'mod', 'moderator', 'support', 'help',
+  'echo', 'echogarden', 'echo-garden', 'api', 'system', 'root',
+  'test', 'null', 'undefined', 'true', 'false', 'www', 'mail', 'ftp'
+];
+
+/**
+ * Check if handle is reserved (case-insensitive)
+ */
+export function isReservedHandle(handle: string): boolean {
+  const normalized = handle.toLowerCase().trim();
+  return RESERVED_HANDLES.includes(normalized);
 }
 
 /**
  * Validate and sanitize handle/username
+ * - Case-insensitive checking
+ * - Reserved username prevention
+ * - Character validation
  */
 export const handleSchema = z
   .string()
-  .min(1, "Handle cannot be empty")
+  .min(3, "Handle must be at least 3 characters")
   .max(30, "Handle must be 30 characters or less")
   .regex(/^[a-zA-Z0-9_-]+$/, "Handle can only contain letters, numbers, underscores, and hyphens")
-  .transform((val) => sanitizeInput(val));
+  .refine(
+    (val) => !isReservedHandle(val),
+    { message: "This handle is reserved and cannot be used" }
+  )
+  .transform((val) => sanitizeInput(val.toLowerCase().trim()));
 
 /**
  * Validate clip title
@@ -184,6 +215,7 @@ export function validateFileUpload(
 
 /**
  * Escape HTML to prevent XSS
+ * Enhanced with additional dangerous characters
  */
 export function escapeHtml(text: string): string {
   const map: Record<string, string> = {
@@ -191,8 +223,10 @@ export function escapeHtml(text: string): string {
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
-    "'": "&#039;",
+    "'": "&#x27;",
+    "/": "&#x2F;",
+    "`": "&#x60;",
   };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  return text.replace(/[&<>"'`\/]/g, (m) => map[m] || m);
 }
 

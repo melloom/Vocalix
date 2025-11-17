@@ -1,71 +1,29 @@
 import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { updateSupabaseDeviceHeader } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
-import { storeDeviceMetadata, isValidDeviceId, detectSuspiciousEnvironment } from "@/lib/deviceSecurity";
 import { logError, logWarn } from "@/lib/logger";
 
-const DEVICE_STORAGE_KEY = "deviceId";
-const LEGACY_DEVICE_STORAGE_KEY = "voice-note-device-id";
 const PROFILE_STORAGE_KEY = "profileId";
 
 type ProfileRow = Tables<"profiles">;
 
 interface AuthContextType {
-  deviceId: string | null;
+  userId: string | null; // Supabase auth user ID
   profileId: string | null;
   profile: ProfileRow | null;
   isLoading: boolean;
   isInitialized: boolean;
   refetchProfile: () => void;
+  signInAnonymously: () => Promise<void>;
+  deviceId: string | null; // Backward compatibility - kept for existing code
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [deviceId, setDeviceId] = useState<string | null>(() => {
-    // Initialize synchronously to prevent flicker
-    if (typeof window === "undefined") return null;
-    try {
-      let id = localStorage.getItem(DEVICE_STORAGE_KEY);
-      if (!id) {
-        const legacyId = localStorage.getItem(LEGACY_DEVICE_STORAGE_KEY);
-        if (legacyId && isValidDeviceId(legacyId)) {
-          id = legacyId;
-          localStorage.removeItem(LEGACY_DEVICE_STORAGE_KEY);
-        } else {
-          id = crypto.randomUUID();
-        }
-        localStorage.setItem(DEVICE_STORAGE_KEY, id);
-      }
-      
-      // Security: Validate device ID format
-      if (!isValidDeviceId(id)) {
-        logWarn("Invalid device ID format, generating new one");
-        id = crypto.randomUUID();
-        localStorage.setItem(DEVICE_STORAGE_KEY, id);
-      }
-      
-      // Security: Check for suspicious environment
-      const envCheck = detectSuspiciousEnvironment();
-      if (envCheck.isSuspicious) {
-        logWarn("Suspicious environment detected", envCheck.reasons);
-        // Log but don't block - let server handle it
-      }
-      
-      // Store device metadata for security tracking
-      storeDeviceMetadata(id);
-      updateSupabaseDeviceHeader(id);
-      return id;
-    } catch (error) {
-      logError("Failed to initialize device ID", error);
-      return null;
-    }
-  });
-
+  const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(() => {
-    // Initialize synchronously
     if (typeof window === "undefined") return null;
     try {
       return localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -74,67 +32,119 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   });
 
-  // Initialize immediately if we have deviceId (which is set synchronously)
-  const [isInitialized, setIsInitialized] = useState(() => {
-    // If deviceId exists, we're already initialized
-    return typeof window !== "undefined" && !!localStorage.getItem(DEVICE_STORAGE_KEY);
-  });
+  const [isInitialized, setIsInitialized] = useState(false);
   const queryClient = useQueryClient();
 
-  // Listen for profileId changes in localStorage (from other tabs/windows)
+  // Sign in anonymously
+  const signInAnonymously = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        // If anonymous auth is disabled, don't spam console - just return
+        if (error.message?.includes("Anonymous sign-ins are disabled") || error.message?.includes("disabled")) {
+          console.warn("⚠️ Anonymous Auth is not enabled in Supabase. Enable it at: https://supabase.com/dashboard/project/xgblxtopsapvacyaurcr/auth/providers");
+          return; // Don't throw - app can still work
+        }
+        throw error;
+      }
+      
+      if (data.user) {
+        setUserId(data.user.id);
+        logWarn("Signed in anonymously:", data.user.id);
+      }
+    } catch (error: any) {
+      // Only log if it's not the "disabled" error
+      if (!error?.message?.includes("Anonymous sign-ins are disabled") && !error?.message?.includes("disabled")) {
+        logError("Failed to sign in anonymously", error);
+      }
+      // Don't throw - let app continue without auth
+    }
+  };
+
+  // Initialize auth state
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === PROFILE_STORAGE_KEY) {
-        setProfileId(e.newValue);
-        if (e.newValue) {
-          queryClient.invalidateQueries({ queryKey: ["profile", deviceId] });
+    let mounted = true;
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        setUserId(session.user.id);
+        setIsInitialized(true);
+      } else {
+        // No session - try to sign in anonymously
+        // But don't block initialization if it fails (anonymous auth might not be enabled)
+        signInAnonymously().then(() => {
+          if (mounted) setIsInitialized(true);
+        }).catch(() => {
+          // Silently fail - anonymous auth might not be enabled
+          // App can still work, just won't have auth
+          if (mounted) setIsInitialized(true);
+        });
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        setUserId(session.user.id);
+      } else {
+        setUserId(null);
+        // Try to sign in anonymously again (but don't block)
+        // Only try once per minute to avoid spam
+        const lastAttempt = sessionStorage.getItem("last_anonymous_auth_attempt");
+        const now = Date.now();
+        if (!lastAttempt || (now - parseInt(lastAttempt, 10)) > 60000) {
+          sessionStorage.setItem("last_anonymous_auth_attempt", now.toString());
+          signInAnonymously().catch(() => {
+            // Silently fail - anonymous auth might not be enabled yet
+          });
         }
       }
-      if (e.key === DEVICE_STORAGE_KEY) {
-        const newDeviceId = e.newValue;
-        if (newDeviceId && newDeviceId !== deviceId) {
-          setDeviceId(newDeviceId);
-          updateSupabaseDeviceHeader(newDeviceId);
-        }
-      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
     };
+  }, []);
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [deviceId, queryClient]);
-
-  // Load profile when deviceId or profileId changes
+  // Load profile when userId changes
   const {
     data: profile,
     isLoading: isProfileLoading,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: ["profile", deviceId, profileId],
+    queryKey: ["profile", userId, profileId],
     queryFn: async () => {
-      if (!deviceId) return null;
+      if (!userId) return null;
 
-      // First try to get profile by deviceId
-      const { data: deviceProfile, error: deviceError } = await supabase
+      // Try to get profile by auth_user_id first (new way)
+      const { data: authProfile, error: authError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("device_id", deviceId)
+        .eq("auth_user_id", userId)
         .maybeSingle();
 
-      if (deviceError && deviceError.code !== "PGRST116") {
-        // PGRST116 is "not found" which is fine
-        logError("Error loading profile by device", deviceError);
+      if (authError && authError.code !== "PGRST116") {
+        logError("Error loading profile by auth_user_id", authError);
       }
 
-      if (deviceProfile) {
-        const profileIdFromDb = deviceProfile.id;
+      if (authProfile) {
+        const profileIdFromDb = authProfile.id;
         if (profileIdFromDb !== profileId) {
           localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDb);
           setProfileId(profileIdFromDb);
         }
-        return deviceProfile as ProfileRow;
+        return authProfile as ProfileRow;
       }
 
-      // If profileId exists but no device match, try loading by profileId
+      // Fallback: Try by profileId if it exists (backward compatibility)
       if (profileId) {
         const { data: idProfile, error: idError } = await supabase
           .from("profiles")
@@ -147,17 +157,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (idProfile) {
+          // Link this profile to the auth user if not already linked
+          if (!idProfile.auth_user_id && userId) {
+            await supabase
+              .from("profiles")
+              .update({ auth_user_id: userId })
+              .eq("id", profileId);
+          }
           return idProfile as ProfileRow;
         }
       }
 
       return null;
     },
-    enabled: !!deviceId && isInitialized,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes (as per performance optimization requirements)
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    enabled: !!userId && isInitialized,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 1,
-    // Don't refetch if we have a profileId in localStorage - it means we should have a profile
     refetchOnMount: false,
   });
 
@@ -171,7 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logError("Failed to save profileId", error);
       }
     } else if (!profile && profileId) {
-      // Profile not found but profileId exists - clear it
+      // Profile not found - clear it
       setProfileId(null);
       try {
         localStorage.removeItem(PROFILE_STORAGE_KEY);
@@ -181,26 +197,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [profile, profileId]);
 
-  // Ensure initialized state is set when deviceId is available
+  // Listen for profileId changes in localStorage (from other tabs/windows)
   useEffect(() => {
-    if (deviceId && !isInitialized) {
-      setIsInitialized(true);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === PROFILE_STORAGE_KEY) {
+        setProfileId(e.newValue);
+        if (e.newValue) {
+          queryClient.invalidateQueries({ queryKey: ["profile", userId] });
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [userId, queryClient]);
+
+  // Backward compatibility: Get deviceId from localStorage if it exists
+  const deviceId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem("deviceId");
+    } catch {
+      return null;
     }
-  }, [deviceId, isInitialized]);
+  }, []);
 
   const value = useMemo(
     () => ({
-      deviceId,
+      userId,
       profileId: profile?.id ?? profileId,
       profile: profile ?? null,
       isLoading: !isInitialized || isProfileLoading,
       isInitialized,
+      deviceId, // Backward compatibility
       refetchProfile: () => {
-        queryClient.invalidateQueries({ queryKey: ["profile", deviceId, profileId] });
+        queryClient.invalidateQueries({ queryKey: ["profile", userId, profileId] });
         refetchProfile();
       },
+      signInAnonymously,
     }),
-    [deviceId, profileId, profile, isInitialized, isProfileLoading, queryClient, refetchProfile]
+    [userId, profileId, profile, isInitialized, isProfileLoading, deviceId, queryClient, refetchProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -213,4 +249,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

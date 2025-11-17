@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Zap, Bookmark, UserPlus, UserMinus, Trophy, Award, Sparkles } from "lucide-react";
+import { ArrowLeft, Zap, Bookmark, UserPlus, UserMinus, Trophy, Award, Sparkles, Users, Ban, MoreVertical, Flag, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,30 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useProfile } from "@/hooks/useProfile";
-import { useFollow, useFollowerCount, useFollowingCount } from "@/hooks/useFollow";
+import { useFollow, useFollowerCount, useFollowingCount, useMutualFollows } from "@/hooks/useFollow";
+import { useBlock } from "@/hooks/useBlock";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { usePagination } from "@/hooks/usePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
+import { ReportProfileDialog } from "@/components/ReportProfileDialog";
 
 interface ProfileMetrics {
   clipCount: number;
@@ -160,10 +180,14 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showUnblockDialog, setShowUnblockDialog] = useState(false);
   const { profile: viewerProfile } = useProfile();
   const { isFollowing, toggleFollow, isFollowingUser, isUnfollowingUser } = useFollow(profile?.id ?? null);
   const { count: followerCount } = useFollowerCount(profile?.id ?? null);
   const { count: followingCount } = useFollowingCount(profile?.id ?? null);
+  const { mutualFollows, isLoading: isLoadingMutualFollows } = useMutualFollows(profile?.id ?? null);
+  const { isBlocked, toggleBlock, isBlocking, isUnblocking } = useBlock(profile?.id ?? null);
 
   const metrics = useMemo(() => aggregateMetrics(clips), [clips]);
   const isOwnProfile = viewerProfile?.id === profile?.id;
@@ -340,13 +364,23 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to="/">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Profile</h1>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Profile</h1>
+          </div>
+          {isOwnProfile && (
+            <Button variant="outline" size="sm" asChild className="rounded-2xl">
+              <Link to="/analytics">
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analytics
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -363,12 +397,12 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Follow button - only show if not own profile */}
+          {/* Follow button and Block menu - only show if not own profile */}
           {!isOwnProfile && viewerProfile && (
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-2">
               <Button
                 onClick={toggleFollow}
-                disabled={isFollowingUser || isUnfollowingUser}
+                disabled={isFollowingUser || isUnfollowingUser || isBlocked}
                 variant={isFollowing ? "outline" : "default"}
                 size="lg"
                 className="rounded-full px-6"
@@ -385,6 +419,49 @@ const Profile = () => {
                   </>
                 )}
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="lg" className="rounded-full px-3">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-2xl">
+                  {!isOwnProfile && (
+                    <ReportProfileDialog
+                      profileId={profile.id}
+                      profileHandle={profile.handle}
+                      trigger={
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <Flag className="mr-2 h-4 w-4" />
+                          Report Profile
+                        </DropdownMenuItem>
+                      }
+                    />
+                  )}
+                  {!isOwnProfile && (
+                    <DropdownMenuSeparator />
+                  )}
+                  {isBlocked ? (
+                    <DropdownMenuItem
+                      onClick={() => setShowUnblockDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Ban className="mr-2 h-4 w-4" />
+                      Unblock User
+                    </DropdownMenuItem>
+                  ) : (
+                    !isOwnProfile && (
+                      <DropdownMenuItem
+                        onClick={() => setShowBlockDialog(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Ban className="mr-2 h-4 w-4" />
+                        Block User
+                      </DropdownMenuItem>
+                    )
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
@@ -402,6 +479,30 @@ const Profile = () => {
               <p className="text-2xl font-semibold">{followingCount}</p>
             </Card>
           </div>
+
+          {/* Mutual Follows Section */}
+          {!isOwnProfile && mutualFollows.length > 0 && (
+            <Card className="p-4 rounded-3xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-semibold">
+                  {mutualFollows.length} {mutualFollows.length === 1 ? "mutual follow" : "mutual follows"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {mutualFollows.map((mutual) => (
+                  <Link
+                    key={mutual.id}
+                    to={`/profile/${mutual.handle}`}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                  >
+                    <span className="text-sm">{mutual.emoji_avatar}</span>
+                    <span className="text-xs font-medium">@{mutual.handle}</span>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Reputation/Karma Section */}
           {profile.reputation !== null && (
@@ -688,6 +789,66 @@ const Profile = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Block Confirmation Dialog */}
+      <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to block @{profile?.handle}? You won't see their clips, and they won't be able to interact with your content. You can unblock them later in Settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  await toggleBlock();
+                  setShowBlockDialog(false);
+                  toast.success("User blocked");
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to block user");
+                }
+              }}
+              disabled={isBlocking}
+              className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBlocking ? "Blocking..." : "Block"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unblock Confirmation Dialog */}
+      <AlertDialog open={showUnblockDialog} onOpenChange={setShowUnblockDialog}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unblock User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to unblock @{profile?.handle}? You'll be able to see their clips again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                try {
+                  await toggleBlock();
+                  setShowUnblockDialog(false);
+                  toast.success("User unblocked");
+                } catch (error: any) {
+                  toast.error(error.message || "Failed to unblock user");
+                }
+              }}
+              disabled={isUnblocking}
+              className="rounded-2xl"
+            >
+              {isUnblocking ? "Unblocking..." : "Unblock"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

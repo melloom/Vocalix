@@ -68,6 +68,53 @@ export const useProfile = () => {
     mutationFn: async (updates: TablesUpdate<'profiles'>) => {
       if (!deviceId) throw new Error('No device ID');
 
+      // Use rate-limited profile update function for security
+      // Convert updates to JSONB format expected by the function
+      const updatesJsonb: Record<string, any> = {};
+      
+      if (updates.emoji_avatar !== undefined) {
+        updatesJsonb.emoji_avatar = updates.emoji_avatar;
+      }
+      if (updates.bio !== undefined) {
+        updatesJsonb.bio = updates.bio;
+      }
+      if (updates.default_captions !== undefined) {
+        updatesJsonb.default_captions = updates.default_captions;
+      }
+
+      // If only handle is being updated, use change_pseudonym function instead
+      if (updates.handle !== undefined && Object.keys(updatesJsonb).length === 0) {
+        const { data, error } = await supabase
+          .rpc('change_pseudonym', { new_handle: updates.handle });
+
+        if (error) throw error;
+        if (!data) throw new Error('Profile not found');
+
+        // Refetch profile to get updated data
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('device_id', deviceId)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+        if (!profileData) throw new Error('Profile not found');
+
+        return profileData as ProfileRow;
+      }
+
+      // Use rate-limited update function for other fields
+      if (Object.keys(updatesJsonb).length > 0) {
+        const { data, error } = await supabase
+          .rpc('update_profile_with_rate_limit', { p_updates: updatesJsonb });
+
+        if (error) throw error;
+        if (!data) throw new Error('Profile not found');
+
+        return data as ProfileRow;
+      }
+
+      // Fallback to direct update if no rate-limited fields are being updated
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)

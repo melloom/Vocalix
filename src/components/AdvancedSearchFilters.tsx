@@ -20,6 +20,8 @@ export interface SearchFilters {
   dateTo: Date | null;
   city: string | null;
   topicId: string | null;
+  qualityBadge: "excellent" | "good" | "fair" | null;
+  emotion: "joy" | "sadness" | "anger" | "fear" | "surprise" | "disgust" | "neutral" | "excited" | "calm" | "frustrated" | "happy" | "melancholic" | null;
   searchQuery: string;
 }
 
@@ -69,6 +71,8 @@ export const AdvancedSearchFilters = ({
       dateTo: null,
       city: null,
       topicId: null,
+      qualityBadge: null,
+      emotion: null,
       searchQuery: filters.searchQuery, // Keep search query
     });
   };
@@ -80,7 +84,9 @@ export const AdvancedSearchFilters = ({
     filters.dateFrom !== null ||
     filters.dateTo !== null ||
     filters.city !== null ||
-    filters.topicId !== null;
+    filters.topicId !== null ||
+    filters.qualityBadge !== null ||
+    filters.emotion !== null;
 
   const handleSaveSearch = () => {
     if (saveSearchName.trim() && onSaveSearch) {
@@ -387,6 +393,83 @@ export const AdvancedSearchFilters = ({
                 </Select>
               </div>
             )}
+
+            {/* Quality Badge Filter */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Audio Quality</Label>
+                {filters.qualityBadge && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => clearFilter("qualityBadge")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Select
+                value={filters.qualityBadge || ""}
+                onValueChange={(value) => updateFilter("qualityBadge", (value || null) as "excellent" | "good" | "fair" | null)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Any quality" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any quality</SelectItem>
+                  <SelectItem value="excellent">
+                    ⭐ Excellent (8.0+)
+                  </SelectItem>
+                  <SelectItem value="good">
+                    ✨ Good (6.0-7.9)
+                  </SelectItem>
+                  <SelectItem value="fair">
+                    🎤 Fair (4.0-5.9)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Emotion Filter */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Emotion</Label>
+                {filters.emotion && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => clearFilter("emotion")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Select
+                value={filters.emotion || ""}
+                onValueChange={(value) => updateFilter("emotion", (value || null) as typeof filters.emotion)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Any emotion" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any emotion</SelectItem>
+                  <SelectItem value="joy">😊 Joy</SelectItem>
+                  <SelectItem value="happy">😄 Happy</SelectItem>
+                  <SelectItem value="excited">🎉 Excited</SelectItem>
+                  <SelectItem value="calm">😌 Calm</SelectItem>
+                  <SelectItem value="neutral">😐 Neutral</SelectItem>
+                  <SelectItem value="sadness">😢 Sadness</SelectItem>
+                  <SelectItem value="melancholic">😔 Melancholic</SelectItem>
+                  <SelectItem value="anger">😠 Anger</SelectItem>
+                  <SelectItem value="frustrated">😤 Frustrated</SelectItem>
+                  <SelectItem value="fear">😨 Fear</SelectItem>
+                  <SelectItem value="surprise">😲 Surprise</SelectItem>
+                  <SelectItem value="disgust">🤢 Disgust</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Save Search */}
             {onSaveSearch && hasActiveFilters && (

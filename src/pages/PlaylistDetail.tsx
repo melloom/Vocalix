@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Share2, Plus, Trash2, X, Heart, Eye, Users } from "lucide-react";
+import { ArrowLeft, Share2, Plus, Trash2, X, Heart, Eye, Users, UserPlus, UserMinus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,11 @@ const PlaylistDetail = () => {
   const [isAddClipsDialogOpen, setIsAddClipsDialogOpen] = useState(false);
   const [savedClips, setSavedClips] = useState<Clip[]>([]);
   const [isLoadingSavedClips, setIsLoadingSavedClips] = useState(false);
+  const [isCollaboratorsDialogOpen, setIsCollaboratorsDialogOpen] = useState(false);
+  const [collaborators, setCollaborators] = useState<any[]>([]);
+  const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(false);
+  const [inviteHandle, setInviteHandle] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
   const { toast } = useToast();
   const { isFollowing, toggleFollow, isToggling } = useCollectionFollow(playlist?.id || null);
   const trackView = useTrackCollectionView();
@@ -111,7 +116,8 @@ const PlaylistDetail = () => {
             profiles (
               handle,
               emoji_avatar
-            )
+            ),
+            playlist_clips(count)
           `,
           )
           .eq("id", playlistId)
@@ -129,7 +135,8 @@ const PlaylistDetail = () => {
               profiles (
                 handle,
                 emoji_avatar
-              )
+              ),
+              playlist_clips(count)
             `,
             )
             .eq("share_token", playlistId)
@@ -281,9 +288,29 @@ const PlaylistDetail = () => {
     navigator.clipboard.writeText(shareUrl);
     toast({
       title: "Link copied!",
-      description: "Share this playlist with others",
+      description: "Share this collection with others",
     });
     setIsShareDialogOpen(false);
+  };
+
+  const handleNativeShare = async () => {
+    if (!playlist?.share_token) return;
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: playlist.name,
+          text: playlist.description || `Check out this collection: ${playlist.name}`,
+          url: `${window.location.origin}/playlist/${playlist.share_token}`,
+        });
+        setIsShareDialogOpen(false);
+      } catch (error: any) {
+        // User cancelled or error occurred
+        if (error.name !== "AbortError") {
+          logError("Failed to share", error);
+        }
+      }
+    }
   };
 
   const loadSavedClips = async () => {
@@ -387,6 +414,130 @@ const PlaylistDetail = () => {
   };
 
   const isOwner = profile && playlist && playlist.profile_id === profile.id;
+  
+  // Check if user can edit (owner or editor collaborator)
+  const canEdit = async () => {
+    if (!profile || !playlist) return false;
+    if (isOwner) return true;
+    
+    const { data } = await supabase.rpc('can_edit_playlist', {
+      playlist_id_param: playlist.id,
+      profile_id_param: profile.id,
+    });
+    return data || false;
+  };
+
+  const loadCollaborators = async () => {
+    if (!playlist?.id) return;
+    
+    setIsLoadingCollaborators(true);
+    try {
+      const { data, error } = await supabase.rpc('get_playlist_collaborators', {
+        playlist_id_param: playlist.id,
+      });
+      
+      if (error) throw error;
+      setCollaborators(data || []);
+    } catch (err) {
+      logError('Error loading collaborators', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load collaborators',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingCollaborators(false);
+    }
+  };
+
+  const handleInviteCollaborator = async () => {
+    if (!playlist || !profile || !inviteHandle.trim()) return;
+    
+    setIsInviting(true);
+    try {
+      // Find user by handle
+      const { data: targetProfile, error: findError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('handle', inviteHandle.trim())
+        .single();
+      
+      if (findError || !targetProfile) {
+        toast({
+          title: 'User not found',
+          description: `No user found with handle @${inviteHandle.trim()}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (targetProfile.id === profile.id) {
+        toast({
+          title: 'Error',
+          description: 'You cannot invite yourself',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Add collaborator
+      const { error: inviteError } = await supabase
+        .from('playlist_collaborators')
+        .insert({
+          playlist_id: playlist.id,
+          profile_id: targetProfile.id,
+          role: 'editor',
+          invited_by: profile.id,
+        });
+      
+      if (inviteError) throw inviteError;
+      
+      toast({
+        title: 'Success',
+        description: `@${inviteHandle.trim()} has been added as a collaborator`,
+      });
+      
+      setInviteHandle('');
+      await loadCollaborators();
+    } catch (err) {
+      logError('Error inviting collaborator', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to invite collaborator',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  const handleRemoveCollaborator = async (collaboratorId: string) => {
+    if (!playlist) return;
+    
+    try {
+      const { error } = await supabase
+        .from('playlist_collaborators')
+        .delete()
+        .eq('playlist_id', playlist.id)
+        .eq('profile_id', collaboratorId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Success',
+        description: 'Collaborator removed',
+      });
+      
+      await loadCollaborators();
+    } catch (err) {
+      logError('Error removing collaborator', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove collaborator',
+        variant: 'destructive',
+      });
+    }
+  };
 
   if (isProfileLoading || isLoading) {
     return (
@@ -460,22 +611,26 @@ const PlaylistDetail = () => {
                 )}
               </div>
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    <span>{clips.length} {clips.length === 1 ? "clip" : "clips"}</span>
+                    <span className="font-medium">{clips.length} {clips.length === 1 ? "clip" : "clips"}</span>
                   </div>
-                  {playlist.follower_count !== undefined && playlist.follower_count > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-4 w-4" />
-                      <span>{playlist.follower_count} {playlist.follower_count === 1 ? "follower" : "followers"}</span>
-                    </div>
-                  )}
-                  {playlist.view_count !== undefined && playlist.view_count > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      <span>{playlist.view_count} {playlist.view_count === 1 ? "view" : "views"}</span>
-                    </div>
+                  {playlist.is_public && (
+                    <>
+                      {playlist.follower_count !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          <span className="font-medium">{playlist.follower_count || 0} {playlist.follower_count === 1 ? "follower" : "followers"}</span>
+                        </div>
+                      )}
+                      {playlist.view_count !== undefined && (
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          <span className="font-medium">{playlist.view_count || 0} {playlist.view_count === 1 ? "view" : "views"}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {playlist.profiles && (
                     <span>
@@ -498,6 +653,18 @@ const PlaylistDetail = () => {
                   )}
                   {isOwner && (
                     <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsCollaboratorsDialogOpen(true);
+                          loadCollaborators();
+                        }}
+                        className="rounded-2xl"
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Collaborators
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -562,27 +729,39 @@ const PlaylistDetail = () => {
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle>Share Playlist</DialogTitle>
+            <DialogTitle>Share Collection</DialogTitle>
             <DialogDescription>
               {isPublic
-                ? "Anyone with the link can view this playlist"
-                : "Make the playlist public to share it"}
+                ? "Anyone with the link can view this collection"
+                : "Make the collection public to share it"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {isPublic && playlist.share_token ? (
-              <div className="space-y-2">
-                <Label>Share Link</Label>
-                <div className="flex gap-2">
-                  <input
-                    readOnly
-                    value={`${window.location.origin}/playlist/${playlist.share_token}`}
-                    className="flex-1 rounded-2xl border border-input bg-background px-3 py-2 text-sm"
-                  />
-                  <Button onClick={copyShareLink} className="rounded-2xl">
-                    Copy
-                  </Button>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Share Link</Label>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={`${window.location.origin}/playlist/${playlist.share_token}`}
+                      className="flex-1 rounded-2xl border border-input bg-background px-3 py-2 text-sm"
+                    />
+                    <Button onClick={copyShareLink} className="rounded-2xl">
+                      Copy
+                    </Button>
+                  </div>
                 </div>
+                {typeof navigator !== "undefined" && "share" in navigator && (
+                  <Button
+                    onClick={handleNativeShare}
+                    variant="outline"
+                    className="w-full rounded-2xl"
+                  >
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share via...
+                  </Button>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -692,6 +871,92 @@ const PlaylistDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isCollaboratorsDialogOpen} onOpenChange={setIsCollaboratorsDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Collaborators</DialogTitle>
+            <DialogDescription>
+              Invite others to help manage this playlist
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Invite by Handle</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="@username"
+                  value={inviteHandle}
+                  onChange={(e) => setInviteHandle(e.target.value)}
+                  className="rounded-2xl"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isInviting && inviteHandle.trim()) {
+                      handleInviteCollaborator();
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleInviteCollaborator}
+                  disabled={isInviting || !inviteHandle.trim()}
+                  className="rounded-2xl"
+                >
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Current Collaborators</Label>
+              {isLoadingCollaborators ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full rounded-2xl" />
+                  ))}
+                </div>
+              ) : collaborators.length === 0 ? (
+                <Card className="p-4 rounded-2xl text-center text-muted-foreground text-sm">
+                  No collaborators yet
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {collaborators.map((collab) => (
+                    <Card key={collab.profile_id} className="p-3 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl">{collab.emoji_avatar}</div>
+                          <div>
+                            <p className="font-semibold text-sm">@{collab.handle}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{collab.role}</p>
+                          </div>
+                        </div>
+                        {isOwner && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => handleRemoveCollaborator(collab.profile_id)}
+                          >
+                            <UserMinus className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCollaboratorsDialogOpen(false)}
+              className="rounded-2xl"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

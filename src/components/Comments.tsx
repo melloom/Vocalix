@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageCircle, Send, MoreVertical, Edit2, Trash2, Reply } from "lucide-react";
+import { MessageCircle, Send, MoreVertical, Edit2, Trash2, Reply, Mic, Play, Pause, Smile, ArrowUpDown, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,16 +30,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
+import { VoiceReactionRecorder } from "./VoiceReactionRecorder";
+import { VoiceReactionPlayer } from "./VoiceReactionPlayer";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Comment {
   id: string;
   clip_id: string;
   profile_id: string | null;
   parent_comment_id: string | null;
-  content: string;
+  content: string | null;
+  audio_path: string | null;
+  duration_seconds: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  summary: string | null;
+  reactions: Record<string, number>;
   profiles: {
     handle: string;
     emoji_avatar: string;
@@ -39,12 +54,30 @@ interface Comment {
   reply_count?: number;
 }
 
+interface CommentVoiceReaction {
+  id: string;
+  comment_id: string;
+  profile_id: string | null;
+  audio_path: string;
+  duration_seconds: number;
+  created_at: string;
+  profiles?: {
+    handle: string;
+    emoji_avatar: string;
+  } | null;
+}
+
+type SortOption = "time" | "relevance" | "reactions" | "voice_quality";
+
 interface CommentsProps {
   clipId: string;
   profileId?: string | null;
+  clipCreatorId?: string | null;
 }
 
-export const Comments = ({ clipId, profileId }: CommentsProps) => {
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "👏", "🎉", "💯", "✨"];
+
+export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -56,14 +89,21 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("time");
+  // Voice comment state (for future implementation)
+  // const [isVoiceCommentOpen, setIsVoiceCommentOpen] = useState(false);
+  // const [voiceCommentParentId, setVoiceCommentParentId] = useState<string | null>(null);
+  const [commentReactions, setCommentReactions] = useState<Record<string, Record<string, number>>>({});
+  const [commentVoiceReactions, setCommentVoiceReactions] = useState<Record<string, CommentVoiceReaction[]>>({});
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
 
-  // Fetch comments
+  // Fetch comments with sorting
   const fetchComments = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("comments")
         .select(
           `
@@ -76,14 +116,35 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
         )
         .eq("clip_id", clipId)
         .is("parent_comment_id", null)
-        .order("created_at", { ascending: true });
+        .is("deleted_at", null);
+
+      // Apply sorting
+      switch (sortBy) {
+        case "time":
+          query = query.order("created_at", { ascending: true });
+          break;
+        case "relevance":
+          // For relevance, we'll sort by reactions count + reply count
+          query = query.order("created_at", { ascending: false });
+          break;
+        case "reactions":
+          // Sort by reactions JSONB (will need to handle in JS)
+          query = query.order("created_at", { ascending: false });
+          break;
+        case "voice_quality":
+          // Sort by duration (longer voice comments might indicate more thought)
+          query = query.order("duration_seconds", { ascending: false, nullsLast: true });
+          break;
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      // Fetch reply counts for each comment
-      const commentsWithReplies = await Promise.all(
+      // Fetch reply counts and reactions for each comment
+      const commentsWithData = await Promise.all(
         (data || []).map(async (comment: any) => {
-          const { data: replyData, error: replyError } = await supabase
+          const { data: replyData } = await supabase
             .from("comments")
             .select("id", { count: "exact", head: true })
             .eq("parent_comment_id", comment.id)
@@ -93,15 +154,80 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
             ? comment.profiles[0]
             : comment.profiles;
 
+          // Fetch reactions
+          const { data: reactionData } = await supabase
+            .from("comment_reactions")
+            .select("emoji")
+            .eq("comment_id", comment.id);
+
+          const reactions: Record<string, number> = {};
+          if (reactionData) {
+            for (const row of reactionData) {
+              reactions[row.emoji] = (reactions[row.emoji] || 0) + 1;
+            }
+          }
+
+          // Fetch voice reactions
+          const { data: voiceReactionData } = await supabase
+            .from("comment_voice_reactions")
+            .select(
+              `
+              *,
+              profiles (
+                handle,
+                emoji_avatar
+              )
+            `
+            )
+            .eq("comment_id", comment.id)
+            .order("created_at", { ascending: false });
+
+          const voiceReactions: CommentVoiceReaction[] = (voiceReactionData || []).map((vr: any) => ({
+            id: vr.id,
+            comment_id: vr.comment_id,
+            profile_id: vr.profile_id,
+            audio_path: vr.audio_path,
+            duration_seconds: vr.duration_seconds,
+            created_at: vr.created_at,
+            profiles: Array.isArray(vr.profiles) ? vr.profiles[0] : vr.profiles,
+          }));
+
           return {
             ...comment,
             profiles: profileData || null,
-            reply_count: replyError ? 0 : (replyData?.length || 0),
+            reply_count: replyData?.length || 0,
+            reactions: comment.reactions || reactions,
           };
         }),
       );
 
-      setComments(commentsWithReplies);
+      // Sort by reactions if needed
+      if (sortBy === "reactions") {
+        commentsWithData.sort((a, b) => {
+          const aCount = Object.values(a.reactions || {}).reduce((sum, count) => sum + count, 0);
+          const bCount = Object.values(b.reactions || {}).reduce((sum, count) => sum + count, 0);
+          return bCount - aCount;
+        });
+      } else if (sortBy === "relevance") {
+        commentsWithData.sort((a, b) => {
+          const aScore = (Object.values(a.reactions || {}).reduce((sum, count) => sum + count, 0) * 1) +
+            (a.reply_count || 0) * 1.5;
+          const bScore = (Object.values(b.reactions || {}).reduce((sum, count) => sum + count, 0) * 1) +
+            (b.reply_count || 0) * 1.5;
+          return bScore - aScore;
+        });
+      }
+
+      setComments(commentsWithData);
+
+      // Store reactions and voice reactions separately
+      const reactionsMap: Record<string, Record<string, number>> = {};
+      const voiceReactionsMap: Record<string, CommentVoiceReaction[]> = {};
+      for (const comment of commentsWithData) {
+        reactionsMap[comment.id] = comment.reactions || {};
+        // Voice reactions will be loaded per comment when needed
+      }
+      setCommentReactions(reactionsMap);
     } catch (error) {
       console.error("Error fetching comments:", error);
       toast({
@@ -111,6 +237,44 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch voice reactions for a comment
+  const fetchCommentVoiceReactions = async (commentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("comment_voice_reactions")
+        .select(
+          `
+          *,
+          profiles (
+            handle,
+            emoji_avatar
+          )
+        `
+        )
+        .eq("comment_id", commentId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const voiceReactions: CommentVoiceReaction[] = (data || []).map((vr: any) => ({
+        id: vr.id,
+        comment_id: vr.comment_id,
+        profile_id: vr.profile_id,
+        audio_path: vr.audio_path,
+        duration_seconds: vr.duration_seconds,
+        created_at: vr.created_at,
+        profiles: Array.isArray(vr.profiles) ? vr.profiles[0] : vr.profiles,
+      }));
+
+      setCommentVoiceReactions((prev) => ({
+        ...prev,
+        [commentId]: voiceReactions,
+      }));
+    } catch (error) {
+      console.error("Error fetching voice reactions:", error);
     }
   };
 
@@ -129,6 +293,7 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
         `,
         )
         .eq("parent_comment_id", commentId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
@@ -140,6 +305,7 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
         return {
           ...comment,
           profiles: profileData || null,
+          reactions: comment.reactions || {},
         };
       });
     } catch (error) {
@@ -153,9 +319,9 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
       fetchComments();
       getCommentCount().then(setCommentCount);
     }
-  }, [clipId, isExpanded]);
+  }, [clipId, isExpanded, sortBy]);
 
-  // Subscribe to new comments
+  // Subscribe to new comments and reactions
   useEffect(() => {
     if (!isExpanded) return;
 
@@ -185,6 +351,28 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
           await fetchComments();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "comment_reactions",
+        },
+        async () => {
+          await fetchComments();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "comment_reactions",
+        },
+        async () => {
+          await fetchComments();
+        },
+      )
       .subscribe();
 
     return () => {
@@ -207,7 +395,6 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
   };
 
   const [commentCount, setCommentCount] = useState(0);
-
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !profileId || isSubmitting) return;
@@ -241,6 +428,10 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
       setIsSubmitting(false);
     }
   };
+
+  // Voice comments will be handled via a custom recorder component (to be created)
+  // For now, users can add text comments and voice reactions
+  // TODO: Create VoiceCommentRecorder component (similar to VoiceReactionRecorder but allows up to 30s)
 
   const handleSubmitReply = async (parentCommentId: string) => {
     if (!replyContent.trim() || !profileId || isSubmitting) return;
@@ -340,6 +531,76 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
     }
   };
 
+  const handleReaction = async (commentId: string, emoji: string) => {
+    if (!profileId) {
+      toast({
+        title: "Sign in required",
+        description: "Please complete onboarding to react.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const deviceId = localStorage.getItem("deviceId");
+      const { data, error } = await supabase.functions.invoke("react-to-comment", {
+        body: { commentId, emoji },
+        headers: deviceId ? { "x-device-id": deviceId } : undefined,
+      });
+
+      if (error) throw error;
+
+      if (data?.reactions) {
+        setCommentReactions((prev) => ({
+          ...prev,
+          [commentId]: data.reactions as Record<string, number>,
+        }));
+        await fetchComments();
+      }
+    } catch (err: any) {
+      console.error("Error reacting to comment:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to react",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleVoiceReaction = async (commentId: string, audioBase64: string, audioType: string, durationSeconds: number) => {
+    if (!profileId) return;
+
+    try {
+      const deviceId = localStorage.getItem("deviceId");
+      const { data, error } = await supabase.functions.invoke("add-comment-voice-reaction", {
+        body: {
+          commentId,
+          audioBase64,
+          audioType,
+          durationSeconds,
+        },
+        headers: deviceId ? { "x-device-id": deviceId } : undefined,
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        await fetchCommentVoiceReactions(commentId);
+        toast({
+          title: "Success",
+          description: "Voice reaction added",
+        });
+      }
+    } catch (err: any) {
+      console.error("Error adding voice reaction:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to add voice reaction",
+        variant: "destructive",
+      });
+    }
+  };
+
   const CommentItem = ({
     comment,
     depth = 0,
@@ -350,7 +611,18 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
     const [replies, setReplies] = useState<Comment[]>([]);
     const [showReplies, setShowReplies] = useState(false);
     const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+    const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [showVoiceReactions, setShowVoiceReactions] = useState(false);
+    const [isVoiceReactionOpen, setIsVoiceReactionOpen] = useState(false);
     const isOwner = comment.profile_id === profileId;
+    const isClipCreator = clipCreatorId === profileId;
+    const canModerate = isOwner || isClipCreator;
+    const reactions = commentReactions[comment.id] || comment.reactions || {};
+    const voiceReactions = commentVoiceReactions[comment.id] || [];
+    const { profile } = useProfile();
+    // Get playback speed from user profile (default to 1.0)
+    const playbackSpeed = profile?.playback_speed ? Number(profile.playback_speed) : 1.0;
 
     const loadReplies = async () => {
       if (showReplies || replies.length > 0) {
@@ -365,8 +637,77 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
       setIsLoadingReplies(false);
     };
 
+    const handlePlayAudio = async () => {
+      if (!comment.audio_path) return;
+
+      if (isPlayingAudio && audioRefs.current[comment.id]) {
+        audioRefs.current[comment.id].pause();
+        setIsPlayingAudio(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.storage
+          .from("audio")
+          .createSignedUrl(comment.audio_path, 3600);
+
+        if (error) throw error;
+        if (!data?.signedUrl) throw new Error("Failed to get signed URL");
+
+        const audio = new Audio(data.signedUrl);
+        audioRefs.current[comment.id] = audio;
+        // Apply user's playback speed preference
+        audio.playbackRate = playbackSpeed;
+
+        audio.onended = () => {
+          setIsPlayingAudio(false);
+        };
+
+        audio.onerror = () => {
+          setIsPlayingAudio(false);
+          toast({
+            title: "Error",
+            description: "Failed to play audio",
+            variant: "destructive",
+          });
+        };
+
+        await audio.play();
+        setIsPlayingAudio(true);
+        setAudioUrl(data.signedUrl);
+      } catch (error) {
+        console.error("Error playing audio:", error);
+        toast({
+          title: "Error",
+          description: "Failed to play audio",
+          variant: "destructive",
+        });
+      }
+    };
+
+    useEffect(() => {
+      return () => {
+        if (audioRefs.current[comment.id]) {
+          audioRefs.current[comment.id].pause();
+          delete audioRefs.current[comment.id];
+        }
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+      };
+    }, [comment.id, audioUrl]);
+
+    // Update playback speed when profile changes
+    useEffect(() => {
+      if (audioRefs.current[comment.id]) {
+        audioRefs.current[comment.id].playbackRate = playbackSpeed;
+      }
+    }, [playbackSpeed, comment.id]);
+
+    const totalReactions = Object.values(reactions).reduce((sum, count) => sum + count, 0);
+
     return (
-      <div className={`space-y-2 ${depth > 0 ? "ml-6 border-l-2 border-muted pl-4" : ""}`}>
+      <div className={`space-y-2 ${depth > 0 ? "ml-8 border-l-2 border-primary/20 pl-4" : ""}`}>
         <Card className="p-3 rounded-2xl">
           <div className="flex items-start gap-3">
             <div className="text-2xl flex-shrink-0">
@@ -385,7 +726,39 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
                 {comment.updated_at !== comment.created_at && (
                   <span className="text-xs text-muted-foreground">(edited)</span>
                 )}
+                {comment.summary && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Summary available
+                  </span>
+                )}
               </div>
+              
+              {/* Voice comment player */}
+              {comment.audio_path && (
+                <div className="mb-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlayAudio}
+                    className="rounded-xl"
+                  >
+                    {isPlayingAudio ? (
+                      <>
+                        <Pause className="mr-2 h-3 w-3" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-3 w-3" />
+                        Play {comment.duration_seconds ? `${Math.round(comment.duration_seconds)}s` : ""}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Text content */}
               {editingCommentId === comment.id ? (
                 <div className="space-y-2">
                   <Textarea
@@ -418,10 +791,81 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm whitespace-pre-wrap break-words">
-                  {comment.content}
-                </p>
+                comment.content && (
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {comment.content}
+                  </p>
+                )
               )}
+
+              {/* Comment summary */}
+              {comment.summary && (
+                <div className="mt-2 p-2 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                  <Sparkles className="h-3 w-3 inline mr-1" />
+                  {comment.summary}
+                </div>
+              )}
+
+              {/* Reactions */}
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {REACTION_EMOJIS.map((emoji) => {
+                  const count = reactions[emoji] || 0;
+                  const hasReacted = count > 0;
+                  return (
+                    <Button
+                      key={emoji}
+                      variant={hasReacted ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => handleReaction(comment.id, emoji)}
+                      className="h-auto px-2 py-1 text-xs rounded-full"
+                    >
+                      {emoji} {count > 0 && <span className="ml-1">{count}</span>}
+                    </Button>
+                  );
+                })}
+                {profileId && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsVoiceReactionOpen(true);
+                      }}
+                      className="h-auto px-2 py-1 text-xs rounded-full"
+                    >
+                      <Mic className="h-3 w-3 mr-1" />
+                      Voice
+                    </Button>
+                    {voiceReactions.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (voiceReactions.length === 0) {
+                            fetchCommentVoiceReactions(comment.id);
+                          }
+                          setShowVoiceReactions(!showVoiceReactions);
+                        }}
+                        className="h-auto px-2 py-1 text-xs rounded-full"
+                      >
+                        <Mic className="h-3 w-3 mr-1" />
+                        {voiceReactions.length} voice {voiceReactions.length === 1 ? "reaction" : "reactions"}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Voice reactions list */}
+              {showVoiceReactions && voiceReactions.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {voiceReactions.map((vr) => (
+                    <VoiceReactionPlayer key={vr.id} voiceReaction={vr} />
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
               <div className="flex items-center gap-3 mt-2">
                 {!isOwner && profileId && (
                   <Button
@@ -449,7 +893,7 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
                     {comment.reply_count === 1 ? "reply" : "replies"}
                   </Button>
                 )}
-                {isOwner && editingCommentId !== comment.id && (
+                {canModerate && editingCommentId !== comment.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -461,27 +905,34 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-xl">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditingCommentId(comment.id);
-                          setEditContent(comment.content);
-                        }}
-                        className="rounded-lg"
-                      >
-                        <Edit2 className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
+                      {isOwner && (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setEditingCommentId(comment.id);
+                              setEditContent(comment.content || "");
+                            }}
+                            className="rounded-lg"
+                          >
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
                       <DropdownMenuItem
                         onClick={() => setDeleteCommentId(comment.id)}
                         className="text-destructive rounded-lg"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        {isClipCreator && !isOwner ? "Moderate" : "Delete"}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
               </div>
+
+              {/* Reply form */}
               {replyingTo === comment.id && (
                 <div className="mt-3 space-y-2">
                   <Textarea
@@ -513,6 +964,21 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
                     >
                       Cancel
                     </Button>
+                    {/* Voice replies feature - coming soon */}
+                    {/* {profileId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setVoiceCommentParentId(comment.id);
+                          setIsVoiceCommentOpen(true);
+                        }}
+                        className="rounded-xl"
+                      >
+                        <Mic className="mr-2 h-3 w-3" />
+                        Voice Reply
+                      </Button>
+                    )} */}
                   </div>
                 </div>
               )}
@@ -526,6 +992,18 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
             ))}
           </div>
         )}
+
+        {/* Voice reaction recorder for this comment */}
+        <VoiceReactionRecorder
+          clipId={clipId}
+          isOpen={isVoiceReactionOpen}
+          onClose={() => setIsVoiceReactionOpen(false)}
+          onSuccess={async () => {
+            // Refresh voice reactions after adding
+            await fetchCommentVoiceReactions(comment.id);
+            setIsVoiceReactionOpen(false);
+          }}
+        />
       </div>
     );
   };
@@ -552,39 +1030,72 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
           <MessageCircle className="h-4 w-4" />
           Comments {commentCount > 0 && `(${commentCount})`}
         </h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsExpanded(false)}
-          className="h-auto px-2 py-1 text-xs rounded-full"
-        >
-          Hide
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+            <SelectTrigger className="h-8 w-[140px] rounded-xl text-xs">
+              <ArrowUpDown className="h-3 w-3 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="time">Sort by Time</SelectItem>
+              <SelectItem value="relevance">Sort by Relevance</SelectItem>
+              <SelectItem value="reactions">Sort by Reactions</SelectItem>
+              <SelectItem value="voice_quality">Sort by Voice Quality</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsExpanded(false)}
+            className="h-auto px-2 py-1 text-xs rounded-full"
+          >
+            Hide
+          </Button>
+        </div>
       </div>
 
       {profileId && (
         <Card className="p-4 rounded-2xl">
-          <Textarea
-            ref={textareaRef}
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Add a comment..."
-            className="min-h-[100px] rounded-xl mb-3"
-            maxLength={1000}
-          />
+          <div className="flex gap-2 mb-3">
+            <Textarea
+              ref={textareaRef}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="min-h-[100px] rounded-xl flex-1"
+              maxLength={1000}
+            />
+          </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-              {newComment.length}/1000
-            </span>
-            <Button
-              onClick={handleSubmitComment}
-              disabled={!newComment.trim() || isSubmitting}
-              size="sm"
-              className="rounded-xl"
-            >
-              <Send className="mr-2 h-3 w-3" />
-              {isSubmitting ? "Posting..." : "Post"}
-            </Button>
+            <div className="flex gap-2">
+              {/* Voice comments feature - coming soon */}
+              {/* <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setVoiceCommentParentId(null);
+                  setIsVoiceCommentOpen(true);
+                }}
+                className="rounded-xl"
+              >
+                <Mic className="mr-2 h-3 w-3" />
+                Voice Comment
+              </Button> */}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {newComment.length}/1000
+              </span>
+              <Button
+                onClick={handleSubmitComment}
+                disabled={!newComment.trim() || isSubmitting}
+                size="sm"
+                className="rounded-xl"
+              >
+                <Send className="mr-2 h-3 w-3" />
+                {isSubmitting ? "Posting..." : "Post"}
+              </Button>
+            </div>
           </div>
         </Card>
       )}
@@ -616,6 +1127,10 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
         </div>
       )}
 
+      {/* Voice comment recorder - Note: VoiceReactionRecorder is for 3-5s reactions, not full comments */}
+      {/* For now, voice comments should be added via the edge function directly */}
+      {/* TODO: Create a VoiceCommentRecorder component that allows up to 30 seconds */}
+
       <AlertDialog
         open={deleteCommentId !== null}
         onOpenChange={(open) => !open && setDeleteCommentId(null)}
@@ -642,4 +1157,3 @@ export const Comments = ({ clipId, profileId }: CommentsProps) => {
     </div>
   );
 };
-

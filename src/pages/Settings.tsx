@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -29,17 +36,60 @@ import { CityOptInDialog } from "@/components/CityOptInDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useProfile } from "@/hooks/useProfile";
 import { useDevices } from "@/hooks/useDevices";
+import { useBlockedUsers, useBlock } from "@/hooks/useBlock";
+import { useSessions } from "@/hooks/useSessions";
+import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
+import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
+import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
+import { formatFileSize } from "@/utils/offlineStorage";
 
 const CHANGE_WINDOW_DAYS = 7;
+
+// Component for individual blocked user item
+const BlockedUserItem = ({ block, onUnblock }: { block: any; onUnblock: () => void }) => {
+  const { toggleBlock, isUnblocking } = useBlock(block.blocked_id);
+
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">{block.profile?.emoji_avatar || '👤'}</span>
+        <div>
+          <p className="font-medium">u/{block.profile?.handle || 'Unknown'}</p>
+          <p className="text-xs text-muted-foreground">
+            Blocked {formatDistanceToNow(new Date(block.created_at), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={async () => {
+          try {
+            await toggleBlock();
+            toast.success("User unblocked");
+            onUnblock();
+          } catch (error: any) {
+            toast.error(error.message || "Failed to unblock user");
+          }
+        }}
+        disabled={isUnblocking}
+        className="rounded-xl"
+      >
+        <UserMinus className="h-4 w-4 mr-2" />
+        {isUnblocking ? "Unblocking..." : "Unblock"}
+      </Button>
+    </div>
+  );
+};
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -48,6 +98,8 @@ const Settings = () => {
   const { profile, isLoading, updateProfile, isUpdating, refetch } = useProfile();
   const { deviceId, profileId } = useAuth();
   const { devices, isLoading: isLoadingDevices, revokeDevice, isRevoking, clearSuspiciousFlag, isClearingSuspicious, refetch: refetchDevices, error: devicesError } = useDevices();
+  const { blockedUsers, isLoading: isLoadingBlockedUsers, refetch: refetchBlockedUsers } = useBlockedUsers();
+  const { sessions, isLoading: isLoadingSessions, revokeSession, isRevoking: isRevokingSession, revokeAllSessions, isRevokingAll: isRevokingAllSessions, refetch: refetchSessions } = useSessions();
   // Safely get push notification state with defaults
   const pushNotifications = usePushNotifications();
   const isPushSupported = pushNotifications?.isSupported ?? false;
@@ -62,6 +114,9 @@ const Settings = () => {
   const [tapToRecordEnabled, setTapToRecordEnabled] = useState(false);
   const [topicAlertsEnabled, setTopicAlertsEnabled] = useState(true);
   const [matureFilterEnabled, setMatureFilterEnabled] = useState(true);
+  const [digestEnabled, setDigestEnabled] = useState(false);
+  const [digestFrequency, setDigestFrequency] = useState<'never' | 'daily' | 'weekly'>('daily');
+  const [digestEmail, setDigestEmail] = useState("");
   const [isHandleDialogOpen, setIsHandleDialogOpen] = useState(false);
   const [pendingHandle, setPendingHandle] = useState("");
   const [isSavingHandle, setIsSavingHandle] = useState(false);
@@ -74,6 +129,9 @@ const Settings = () => {
   const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isExportingAudio, setIsExportingAudio] = useState(false);
+  const [downloadedClipsList, setDownloadedClipsList] = useState<any[]>([]);
+  const [isLoadingDownloads, setIsLoadingDownloads] = useState(false);
+  const { getAllDownloadedClips, deleteDownloadedClip, clearAll, storageUsedFormatted } = useOfflineDownloads();
 
   // Auto-update device user_agent when Settings page loads
   useEffect(() => {
@@ -139,6 +197,12 @@ const Settings = () => {
       setTapToRecordEnabled(profile.tap_to_record ?? false);
       setTopicAlertsEnabled(profile.notify_new_topics);
       setMatureFilterEnabled(profile.filter_mature_content);
+      // @ts-ignore - digest fields exist but not in generated types
+      setDigestEnabled(profile.digest_enabled ?? false);
+      // @ts-ignore
+      setDigestFrequency(profile.digest_frequency ?? 'daily');
+      // @ts-ignore
+      setDigestEmail(profile.email ?? "");
     }
   }, [profile]);
 
@@ -253,13 +317,86 @@ const Settings = () => {
         title: checked ? "Notifications on" : "Notifications off",
         description: checked
           ? "We'll remind you when new daily topics drop."
-          : "We’ll stop sending topic notifications.",
+          : "We'll stop sending topic notifications.",
       });
     } catch (error) {
       logError("Failed to update notification preference", error);
       setTopicAlertsEnabled((prev) => !prev);
       toast({
         title: "Couldn't update notifications",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDigestToggle = async (checked: boolean) => {
+    setDigestEnabled(checked);
+    try {
+      // @ts-ignore - digest fields exist but not in generated types
+      await updateProfile({ 
+        digest_enabled: checked,
+        digest_frequency: checked ? digestFrequency : 'never'
+      });
+      toast({
+        title: checked ? "Daily digest enabled" : "Daily digest disabled",
+        description: checked
+          ? "You'll receive email digests with the best clips from topics you follow."
+          : "You won't receive email digests anymore.",
+      });
+    } catch (error) {
+      logError("Failed to update digest preference", error);
+      setDigestEnabled((prev) => !prev);
+      toast({
+        title: "Couldn't update digest preference",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDigestFrequencyChange = async (frequency: 'never' | 'daily' | 'weekly') => {
+    setDigestFrequency(frequency);
+    try {
+      // @ts-ignore - digest fields exist but not in generated types
+      await updateProfile({ 
+        digest_frequency: frequency,
+        digest_enabled: frequency !== 'never'
+      });
+      if (frequency !== 'never') {
+        setDigestEnabled(true);
+      }
+      toast({
+        title: "Digest frequency updated",
+        description: frequency === 'never' 
+          ? "Digests disabled."
+          : `You'll receive ${frequency} email digests with the best clips.`,
+      });
+    } catch (error) {
+      logError("Failed to update digest frequency", error);
+      toast({
+        title: "Couldn't update digest frequency",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDigestEmailChange = async (email: string) => {
+    setDigestEmail(email);
+    try {
+      // @ts-ignore - email field exists but not in generated types
+      await updateProfile({ email: email.trim() || null });
+      if (email.trim()) {
+        toast({
+          title: "Email updated",
+          description: "Your digest email has been saved.",
+        });
+      }
+    } catch (error) {
+      logError("Failed to update email", error);
+      toast({
+        title: "Couldn't update email",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -848,21 +985,90 @@ const Settings = () => {
     });
   };
 
+  // Load downloaded clips list
+  useEffect(() => {
+    const loadDownloads = async () => {
+      setIsLoadingDownloads(true);
+      try {
+        const clips = await getAllDownloadedClips();
+        setDownloadedClipsList(clips);
+      } catch (error) {
+        logError("Error loading downloaded clips", error);
+      } finally {
+        setIsLoadingDownloads(false);
+      }
+    };
+    loadDownloads();
+  }, [getAllDownloadedClips]);
+
+  const handleDeleteDownloadedClip = async (clipId: string) => {
+    try {
+      const success = await deleteDownloadedClip(clipId);
+      if (success) {
+        setDownloadedClipsList((prev) => prev.filter((clip) => clip.clipId !== clipId));
+        toast({
+          title: "Removed from offline",
+          description: "The clip has been removed from your offline downloads.",
+        });
+      }
+    } catch (error) {
+      logError("Error deleting downloaded clip", error);
+      toast({
+        title: "Couldn't remove clip",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleClearAllDownloads = async () => {
+    try {
+      const success = await clearAll();
+      if (success) {
+        setDownloadedClipsList([]);
+        toast({
+          title: "All downloads cleared",
+          description: "All offline clips have been removed.",
+        });
+      }
+    } catch (error) {
+      logError("Error clearing downloads", error);
+      toast({
+        title: "Couldn't clear downloads",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
       const { error } = await supabase.rpc("purge_account");
       if (error) throw error;
 
+      // Stop session monitoring
+      stopSessionMonitoring();
+
+      // Clear all auth-related localStorage
       localStorage.removeItem("profileId");
+      localStorage.removeItem("deviceId");
+      localStorage.removeItem("voice-note-device-id"); // Legacy device ID
+
+      // Clear all queries
       queryClient.removeQueries({ queryKey: ["profile"] });
+      queryClient.clear(); // Clear all cached data
 
       toast({
         title: "Account deleted",
         description: "Thanks for trying Echo Garden. You're welcome back anytime.",
       });
 
-      navigate("/", { replace: true });
+      // Force a full page reload to completely reset the app state
+      // This ensures all context, state, and cookies are properly cleared
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1000); // Small delay to show the toast message
     } catch (error) {
       logError("Failed to delete account", error);
       toast({
@@ -870,7 +1076,6 @@ const Settings = () => {
         description: "Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsDeleting(false);
     }
   };
@@ -1039,6 +1244,58 @@ const Settings = () => {
               )}
             </div>
 
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1">
+                <p className="font-medium">Email digest</p>
+                <p className="text-sm text-muted-foreground">
+                  Get a daily or weekly email with the best clips from topics you follow.
+                </p>
+                {digestEnabled && (
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <Label htmlFor="digest-email" className="text-xs text-muted-foreground">
+                        Email address
+                      </Label>
+                      <Input
+                        id="digest-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={digestEmail}
+                        onChange={(e) => handleDigestEmailChange(e.target.value)}
+                        className="mt-1 rounded-2xl"
+                        disabled={isUpdating}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
+                        Frequency
+                      </Label>
+                      <Select
+                        value={digestFrequency}
+                        onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
+                        disabled={isUpdating}
+                      >
+                        <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="never">Never</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Switch
+                checked={digestEnabled}
+                onCheckedChange={handleDigestToggle}
+                disabled={isUpdating}
+                aria-label="Toggle email digest"
+              />
+            </div>
+
             <div className="flex items-center justify-between gap-6">
               <div>
                 <p className="font-medium">Filter mature content</p>
@@ -1084,6 +1341,40 @@ const Settings = () => {
                   </Button>
                 )}
               </div>
+            </div>
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Blocked Users</h2>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Users you've blocked won't be able to see your clips or interact with you. You won't see their content either.
+              </p>
+              {isLoadingBlockedUsers ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : blockedUsers.length > 0 ? (
+                <div className="space-y-2">
+                  {blockedUsers.map((block) => (
+                      <BlockedUserItem
+                        key={block.id}
+                        block={block}
+                        onUnblock={refetchBlockedUsers}
+                      />
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Ban className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No blocked users</p>
+                  <p className="text-xs mt-1">You can block users from their profile page</p>
+                </div>
+              )}
             </div>
           </Card>
         </section>
@@ -1734,6 +2025,339 @@ const Settings = () => {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Active Sessions</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={refetchSessions}
+              disabled={isLoadingSessions}
+              className="rounded-2xl"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSessions ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                View and manage your active login sessions across different browsers and devices. You can revoke any session to sign out from that browser or device.
+              </p>
+            </div>
+            {isLoadingSessions ? (
+              <div className="space-y-2">
+                <div className="h-20 rounded-xl bg-muted animate-pulse" />
+                <div className="h-20 rounded-xl bg-muted animate-pulse" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No active sessions</p>
+                <p className="text-xs mt-1">Sessions will appear here when you log in from different browsers</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sessions.length > 1 && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                    <p className="text-sm font-medium">
+                      {sessions.length} active {sessions.length === 1 ? "session" : "sessions"}
+                    </p>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
+                          disabled={isRevokingAllSessions}
+                        >
+                          {isRevokingAllSessions ? "Revoking..." : "Revoke All Others"}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-3xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Revoke all other sessions?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will sign out all other sessions ({sessions.length - 1} session{sessions.length - 1 !== 1 ? 's' : ''}) and prevent them from accessing your account. You'll stay signed in on this browser.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={async () => {
+                              try {
+                                await revokeAllSessions();
+                                toast({
+                                  title: "Sessions revoked",
+                                  description: "All other sessions have been signed out.",
+                                });
+                              } catch (error) {
+                                logError("Failed to revoke all sessions", error);
+                                toast({
+                                  title: "Couldn't revoke sessions",
+                                  description: "Please try again.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            Revoke All Others
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+                {sessions.map((session) => {
+                  const isCurrentSession = session.device_id === deviceId;
+                  const lastAccessed = formatDistanceToNow(new Date(session.last_accessed_at), { addSuffix: true });
+                  const created = formatDistanceToNow(new Date(session.created_at), { addSuffix: true });
+                  const expires = formatDistanceToNow(new Date(session.expires_at), { addSuffix: true });
+
+                  // Parse user agent
+                  const userAgent = session.user_agent || "Unknown";
+                  const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/i);
+                  const browserName = browserMatch ? browserMatch[1] : "Browser";
+                  const browserVersion = browserMatch ? browserMatch[2] : null;
+                  
+                  // Detect device type from user agent
+                  const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent);
+                  const isTablet = /iPad|Tablet/i.test(userAgent);
+                  const deviceType = isMobile ? "Mobile" : isTablet ? "Tablet" : "Desktop";
+
+                  // Format IP address (mask for privacy)
+                  const formatIP = (ip: string | null) => {
+                    if (!ip) return "Unknown";
+                    if (ip.includes(":")) {
+                      // IPv6
+                      const parts = ip.split(":");
+                      if (parts.length > 4) {
+                        return `${parts[0]}:${parts[1]}:xxxx:xxxx`;
+                      }
+                      return ip;
+                    }
+                    // IPv4 - mask last octet
+                    const parts = ip.split(".");
+                    if (parts.length === 4) {
+                      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+                    }
+                    return ip;
+                  };
+
+                  return (
+                    <div
+                      key={session.id}
+                      className={`rounded-2xl border p-4 space-y-3 ${
+                        isCurrentSession
+                          ? "border-primary/50 bg-primary/5"
+                          : "border-border/60 bg-card/80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div
+                            className={`p-2 rounded-xl flex-shrink-0 ${
+                              isCurrentSession ? "bg-primary/10" : "bg-muted"
+                            }`}
+                          >
+                            <Monitor className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <p className="font-medium truncate">
+                                {browserName} {browserVersion && `v${browserVersion}`} {deviceType}
+                              </p>
+                              {isCurrentSession && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary flex-shrink-0">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  This session
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Session Details */}
+                            <div className="space-y-2 text-sm">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-muted-foreground text-xs mb-0.5">Last accessed</p>
+                                  <p className="font-medium">{lastAccessed}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground text-xs mb-0.5">Created</p>
+                                  <p className="font-medium">{created}</p>
+                                </div>
+                                {session.ip_address && (
+                                  <div>
+                                    <p className="text-muted-foreground text-xs mb-0.5">Location</p>
+                                    <p className="font-medium">{formatIP(session.ip_address)}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-muted-foreground text-xs mb-0.5">Expires</p>
+                                  <p className="font-medium">{expires}</p>
+                                </div>
+                              </div>
+                              
+                              {/* Session ID (truncated) */}
+                              {session.device_id && (
+                                <div className="pt-2 border-t border-border/60">
+                                  <p className="text-muted-foreground text-xs mb-0.5">Device ID</p>
+                                  <p className="font-mono text-xs text-muted-foreground break-all">
+                                    {session.device_id.slice(0, 8)}...{session.device_id.slice(-4)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Revoke Button - Show for all non-current sessions */}
+                        {!isCurrentSession && (
+                          <div className="flex-shrink-0">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
+                                  disabled={isRevokingSession}
+                                >
+                                  Revoke
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent className="rounded-3xl">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Revoke this session?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    <div className="space-y-2 mt-2">
+                                      <p>This will sign out this session and prevent it from accessing your account.</p>
+                                      <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
+                                        <p><strong>Browser:</strong> {browserName} {deviceType}</p>
+                                        <p><strong>Last accessed:</strong> {lastAccessed}</p>
+                                        {session.ip_address && <p><strong>Location:</strong> {formatIP(session.ip_address)}</p>}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
+                                    </div>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={async () => {
+                                      try {
+                                        await revokeSession(session.id);
+                                        toast({
+                                          title: "Session revoked",
+                                          description: `${browserName} ${deviceType} has been signed out.`,
+                                        });
+                                      } catch (error) {
+                                        logError("Failed to revoke session", error);
+                                        toast({
+                                          title: "Couldn't revoke session",
+                                          description: "Please try again.",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Revoke Session
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Offline Downloads</h2>
+          <Card className="p-6 rounded-3xl space-y-4">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Offline storage</p>
+                <p className="text-sm text-muted-foreground">
+                  {downloadedClipsList.length > 0
+                    ? `${downloadedClipsList.length} clip${downloadedClipsList.length > 1 ? "s" : ""} downloaded (${storageUsedFormatted})`
+                    : "No clips downloaded for offline playback"}
+                </p>
+              </div>
+              {downloadedClipsList.length > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="rounded-2xl" size="sm">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Clear All
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-3xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Clear all offline downloads?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will remove all {downloadedClipsList.length} downloaded clip{downloadedClipsList.length > 1 ? "s" : ""} from your device. This cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleClearAllDownloads}
+                        className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Clear All
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+
+            {isLoadingDownloads ? (
+              <div className="space-y-2">
+                <div className="h-16 rounded-xl bg-muted animate-pulse" />
+                <div className="h-16 rounded-xl bg-muted animate-pulse" />
+              </div>
+            ) : downloadedClipsList.length > 0 ? (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {downloadedClipsList.map((clip) => (
+                  <div
+                    key={clip.clipId}
+                    className="flex items-center justify-between gap-4 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{clip.title || "Untitled Clip"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {clip.profiles?.handle || "Anonymous"} • {formatFileSize(clip.fileSize)} • Downloaded {formatDistanceToNow(new Date(clip.downloadedAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteDownloadedClip(clip.clipId)}
+                      className="rounded-xl"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <WifiOff className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No offline downloads yet</p>
+                <p className="text-xs mt-1">Download clips from the feed to listen offline</p>
               </div>
             )}
           </Card>

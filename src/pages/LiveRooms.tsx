@@ -16,6 +16,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
 import { logError } from "@/lib/logger";
 
+// LiveRooms component for displaying and managing live audio rooms
 interface LiveRoom {
   id: string;
   title: string;
@@ -122,11 +123,17 @@ const LiveRooms = () => {
           fetchRooms();
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Suppress WebSocket errors - non-critical
+        if (err && (err.message?.includes("WebSocket") || err.message?.includes("websocket"))) {
+          return;
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryCount]);
 
   const handleRetry = () => {

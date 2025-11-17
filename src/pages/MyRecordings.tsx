@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Trophy, Flame, TrendingUp, Users, Target, Award, Star, Zap, BarChart3, Calendar, Clock, Sparkles, Crown, TrendingDown } from "lucide-react";
+import { ArrowLeft, Trophy, Flame, TrendingUp, Users, Target, Award, Star, Zap, BarChart3, Calendar, Clock, Sparkles, Crown, TrendingDown, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useProfile } from "@/hooks/useProfile";
 import { usePagination } from "@/hooks/usePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
 import { logError } from "@/lib/logger";
+import { useToast } from "@/hooks/use-toast";
+import { ClipAnalyticsDialog } from "@/components/ClipAnalyticsDialog";
 
 interface ProfileMetrics {
   clipCount: number;
@@ -88,8 +93,13 @@ interface Clip {
   title: string | null;
   tags: string[] | null;
   completion_rate?: number | null;
+  quality_score?: number | null;
+  trending_score?: number | null;
+  reply_count?: number;
+  remix_count?: number;
   community_id?: string | null;
   challenge_id?: string | null;
+  scheduled_for?: string | null;
   profiles: {
     handle: string;
     emoji_avatar: string;
@@ -129,6 +139,12 @@ const MyRecordings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [editingClip, setEditingClip] = useState<Clip | null>(null);
+  const [editScheduledTime, setEditScheduledTime] = useState("");
+  const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
+  const [analyticsClip, setAnalyticsClip] = useState<Clip | null>(null);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const { toast } = useToast();
 
   const [freshProfileData, setFreshProfileData] = useState<{
     current_streak_days: number;
@@ -366,6 +382,108 @@ const MyRecordings = () => {
     setRetryCount((prev) => prev + 1);
   };
 
+  const handleEditSchedule = (clip: Clip) => {
+    if (clip.scheduled_for) {
+      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
+      const date = new Date(clip.scheduled_for);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      setEditScheduledTime(`${year}-${month}-${day}T${hours}:${minutes}`);
+      setEditingClip(clip);
+    }
+  };
+
+  const handleUpdateSchedule = async () => {
+    if (!editingClip || !editScheduledTime) return;
+
+    try {
+      setIsUpdatingSchedule(true);
+      
+      // Validate that the scheduled time is in the future (compare local time)
+      const scheduledDate = new Date(editScheduledTime);
+      if (scheduledDate.getTime() <= Date.now()) {
+        toast({
+          title: "Invalid time",
+          description: "Scheduled time must be in the future.",
+          variant: "destructive",
+        });
+        setIsUpdatingSchedule(false);
+        return;
+      }
+      
+      // Convert datetime-local to ISO string for storage
+      const scheduledFor = scheduledDate.toISOString();
+
+      // Validate scheduled post using can_schedule_post function
+      if (profile?.id) {
+        try {
+          const { data: canSchedule, error: scheduleError } = await supabase
+            .rpc('can_schedule_post', {
+              profile_id_param: profile.id,
+              scheduled_for_param: scheduledFor,
+            });
+
+          if (scheduleError) throw scheduleError;
+          if (!canSchedule || canSchedule.length === 0 || !canSchedule[0].can_schedule) {
+            throw new Error(canSchedule?.[0]?.reason || 'Cannot schedule post at this time');
+          }
+        } catch (error: any) {
+          setIsUpdatingSchedule(false);
+          toast({
+            title: "Cannot schedule post",
+            description: error.message || "Please check the scheduled time and limits.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from("clips")
+        .update({ scheduled_for: scheduledFor })
+        .eq("id", editingClip.id)
+        .eq("profile_id", profile?.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      setClips((prevClips) =>
+        prevClips.map((clip) =>
+          clip.id === editingClip.id
+            ? { ...clip, scheduled_for: scheduledFor }
+            : clip
+        )
+      );
+
+      toast({
+        title: "Schedule updated! 📅",
+        description: "Your post's scheduled time has been updated.",
+      });
+
+      setEditingClip(null);
+      setEditScheduledTime("");
+    } catch (err: any) {
+      logError("Failed to update schedule", err);
+      toast({
+        title: "Failed to update schedule",
+        description: err?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingSchedule(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingClip(null);
+    setEditScheduledTime("");
+  };
+
   const {
     paginatedData: paginatedClips,
     currentPage,
@@ -432,13 +550,21 @@ const MyRecordings = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to="/">
-              <ArrowLeft className="h-5 w-5" />
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">My Profile</h1>
+          </div>
+          <Button variant="outline" size="sm" asChild className="rounded-2xl">
+            <Link to="/analytics">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold">My Profile</h1>
         </div>
       </header>
 
@@ -561,7 +687,7 @@ const MyRecordings = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="badges" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-5 rounded-2xl">
             <TabsTrigger value="badges" className="rounded-xl">
               <Trophy className="h-4 w-4 mr-2" />
               Badges
@@ -570,9 +696,17 @@ const MyRecordings = () => {
               <Target className="h-4 w-4 mr-2" />
               Progress
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-xl">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
             <TabsTrigger value="recordings" className="rounded-xl">
               <Calendar className="h-4 w-4 mr-2" />
               Recordings
+            </TabsTrigger>
+            <TabsTrigger value="scheduled" className="rounded-xl">
+              <Clock className="h-4 w-4 mr-2" />
+              Scheduled
             </TabsTrigger>
           </TabsList>
 
@@ -702,6 +836,100 @@ const MyRecordings = () => {
             </Card>
           </TabsContent>
 
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6 mt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Clip Analytics</h3>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>Click any clip to view detailed analytics</span>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <CardSkeleton key={`analytics-skeleton-${index}`} showAvatar={true} showActions={true} lines={2} />
+                ))}
+              </div>
+            ) : error ? (
+              <ErrorDisplay
+                title="Failed to load recordings"
+                message={error}
+                onRetry={handleRetry}
+                variant="card"
+              />
+            ) : clips.filter(c => c.status === 'live').length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-4">No published clips yet.</p>
+                <Button asChild className="rounded-2xl">
+                  <Link to="/">Start Recording</Link>
+                </Button>
+              </Card>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {clips
+                    .filter(c => c.status === 'live')
+                    .map((clip) => (
+                      <Card 
+                        key={clip.id} 
+                        className="p-4 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => {
+                          setAnalyticsClip(clip);
+                          setIsAnalyticsOpen(true);
+                        }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1">
+                            <ClipCard
+                              clip={clip}
+                              captionsDefault={profile.default_captions ?? true}
+                            />
+                          </div>
+                          <div className="flex flex-col items-end gap-2 min-w-[120px]">
+                            <div className="text-right space-y-1">
+                              <div className="text-sm text-muted-foreground">Listens</div>
+                              <div className="text-lg font-bold">{clip.listens_count.toLocaleString()}</div>
+                              {clip.completion_rate != null && (
+                                <>
+                                  <div className="text-sm text-muted-foreground">Completion</div>
+                                  <div className="text-lg font-bold">
+                                    {(clip.completion_rate * 100).toFixed(1)}%
+                                  </div>
+                                </>
+                              )}
+                              {clip.quality_score != null && (
+                                <>
+                                  <div className="text-sm text-muted-foreground">Quality</div>
+                                  <div className="text-lg font-bold">
+                                    {clip.quality_score.toFixed(1)}/10
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAnalyticsClip(clip);
+                                setIsAnalyticsOpen(true);
+                              }}
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              View Analytics
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
+
           {/* Recordings Tab */}
           <TabsContent value="recordings" className="space-y-6 mt-6">
             <div className="flex items-center justify-between">
@@ -761,7 +989,155 @@ const MyRecordings = () => {
               </>
             )}
           </TabsContent>
+
+          {/* Scheduled Tab */}
+          <TabsContent value="scheduled" className="space-y-6 mt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Scheduled Posts</h3>
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span>{clips.filter(c => c.status === 'draft' && c.scheduled_for).length} scheduled</span>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <CardSkeleton key={`scheduled-skeleton-${index}`} showAvatar={true} showActions={true} lines={2} />
+                ))}
+              </div>
+            ) : error ? (
+              <ErrorDisplay
+                title="Failed to load scheduled posts"
+                message={error}
+                onRetry={handleRetry}
+                variant="card"
+              />
+            ) : clips.filter(c => c.status === 'draft' && c.scheduled_for).length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center">
+                <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground mb-4">No scheduled posts yet.</p>
+                <Button asChild className="rounded-2xl">
+                  <Link to="/">Schedule a Post</Link>
+                </Button>
+              </Card>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {clips
+                    .filter(c => c.status === 'draft' && c.scheduled_for)
+                    .sort((a, b) => {
+                      const aTime = a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0;
+                      const bTime = b.scheduled_for ? new Date(b.scheduled_for).getTime() : 0;
+                      return aTime - bTime;
+                    })
+                    .map((clip) => (
+                      <Card key={clip.id} className="p-4 rounded-2xl border-2 border-primary/20">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1">
+                            <ClipCard
+                              clip={clip}
+                              captionsDefault={profile.default_captions ?? true}
+                            />
+                          </div>
+                          <div className="flex flex-col items-end gap-2 min-w-[200px]">
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Scheduled
+                            </Badge>
+                            {clip.scheduled_for && (
+                              <div className="text-sm text-muted-foreground text-right">
+                                <div className="font-semibold">
+                                  {new Date(clip.scheduled_for).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </div>
+                                <div>
+                                  {new Date(clip.scheduled_for).toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true
+                                  })}
+                                </div>
+                                <div className="text-xs mt-1">
+                                  {new Date(clip.scheduled_for).getTime() > Date.now() 
+                                    ? `In ${Math.ceil((new Date(clip.scheduled_for).getTime() - Date.now()) / (1000 * 60 * 60))} hours`
+                                    : 'Ready to publish'
+                                  }
+                                </div>
+                              </div>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditSchedule(clip)}
+                              className="mt-2 rounded-xl"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                </div>
+              </>
+            )}
+          </TabsContent>
         </Tabs>
+
+        {/* Edit Schedule Dialog */}
+        <Dialog open={!!editingClip} onOpenChange={(open) => !open && handleCancelEdit()}>
+          <DialogContent className="rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Edit Scheduled Time</DialogTitle>
+              <DialogDescription>
+                Update when this post should be published.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="scheduled-time">Scheduled Date & Time</Label>
+                <Input
+                  id="scheduled-time"
+                  type="datetime-local"
+                  value={editScheduledTime}
+                  onChange={(e) => setEditScheduledTime(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="rounded-xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Select a date and time in the future for when this post should be published.
+                </p>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={isUpdatingSchedule}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateSchedule}
+                  disabled={!editScheduledTime || isUpdatingSchedule}
+                  className="rounded-xl"
+                >
+                  {isUpdatingSchedule ? "Updating..." : "Update Schedule"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Analytics Dialog */}
+        <ClipAnalyticsDialog
+          clip={analyticsClip}
+          open={isAnalyticsOpen}
+          onOpenChange={setIsAnalyticsOpen}
+        />
       </main>
     </div>
   );

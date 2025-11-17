@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useCollectionFollow } from "@/hooks/useCollectionFollow";
 import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Collection {
   id: string;
@@ -40,6 +41,7 @@ const CollectionsDiscovery = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("trending");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const loadCollections = async () => {
@@ -146,11 +148,15 @@ const CollectionsDiscovery = () => {
 
         if (error) throw error;
 
-        toast({
-          title: "Following",
-          description: "You're now following this collection",
-        });
+      toast({
+        title: "Following",
+        description: "You're now following this collection",
+      });
       }
+
+      // Invalidate queries to refresh stats
+      queryClient.invalidateQueries({ queryKey: ['playlist', collectionId] });
+      queryClient.invalidateQueries({ queryKey: ['followed-collections', profile.id] });
 
       // Reload collections to update follow counts
       const { data } = await supabase
@@ -309,18 +315,18 @@ const CollectionCard = ({ collection, currentProfileId, onFollow }: CollectionCa
             <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1">
                 <Users className="h-3 w-3" />
-                <span>{collection.clip_count || 0} clips</span>
+                <span className="font-medium">{collection.clip_count || 0} clips</span>
               </div>
-              {collection.follower_count !== undefined && collection.follower_count > 0 && (
+              {collection.follower_count !== undefined && (
                 <div className="flex items-center gap-1">
                   <Heart className="h-3 w-3" />
-                  <span>{collection.follower_count} followers</span>
+                  <span className="font-medium">{collection.follower_count || 0} {collection.follower_count === 1 ? "follower" : "followers"}</span>
                 </div>
               )}
-              {collection.view_count !== undefined && collection.view_count > 0 && (
+              {collection.view_count !== undefined && (
                 <div className="flex items-center gap-1">
                   <Eye className="h-3 w-3" />
-                  <span>{collection.view_count} views</span>
+                  <span className="font-medium">{collection.view_count || 0} {collection.view_count === 1 ? "view" : "views"}</span>
                 </div>
               )}
               {collection.profiles && (

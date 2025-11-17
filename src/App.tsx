@@ -13,28 +13,58 @@ import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Lazy load routes for code splitting
-const Index = lazy(() => import("./pages/Index"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Admin = lazy(() => import("./pages/Admin"));
-const Settings = lazy(() => import("./pages/Settings"));
-const LoginLink = lazy(() => import("./pages/LoginLink"));
-const MyRecordings = lazy(() => import("./pages/MyRecordings"));
-const Topic = lazy(() => import("./pages/Topic"));
-const SavedClips = lazy(() => import("./pages/SavedClips"));
-const Playlists = lazy(() => import("./pages/Playlists"));
-const PlaylistDetail = lazy(() => import("./pages/PlaylistDetail"));
-const CollectionsDiscovery = lazy(() => import("./pages/CollectionsDiscovery"));
-const Following = lazy(() => import("./pages/Following"));
-const Activity = lazy(() => import("./pages/Activity"));
-const Challenges = lazy(() => import("./pages/Challenges"));
-const Hashtag = lazy(() => import("./pages/Hashtag"));
-const ClipDetail = lazy(() => import("./pages/ClipDetail"));
-const Communities = lazy(() => import("./pages/Communities"));
-const CommunityDetail = lazy(() => import("./pages/CommunityDetail"));
-const LiveRooms = lazy(() => import("./pages/LiveRooms"));
-const LiveRoom = lazy(() => import("./pages/LiveRoom"));
+// Helper function to retry lazy imports on failure
+const retryLazyImport = (importFn: () => Promise<any>, retries = 2) => {
+  return lazy(() => {
+    return new Promise((resolve, reject) => {
+      let attempt = 0;
+      
+      const tryImport = async () => {
+        try {
+          const module = await importFn();
+          resolve(module);
+        } catch (error: any) {
+          attempt++;
+          if (attempt < retries) {
+            console.warn(`Retrying module load (attempt ${attempt}/${retries})...`);
+            setTimeout(tryImport, 300 * attempt);
+          } else {
+            console.error("Failed to load module after retries:", error);
+            reject(error);
+          }
+        }
+      };
+      
+      tryImport();
+    });
+  });
+};
+
+// Lazy load routes for code splitting with retry mechanism
+const Index = retryLazyImport(() => import("./pages/Index"));
+const NotFound = retryLazyImport(() => import("./pages/NotFound"));
+const Profile = retryLazyImport(() => import("./pages/Profile"));
+const Admin = retryLazyImport(() => import("./pages/Admin"));
+const Settings = retryLazyImport(() => import("./pages/Settings"));
+const LoginLink = retryLazyImport(() => import("./pages/LoginLink"));
+const MyRecordings = retryLazyImport(() => import("./pages/MyRecordings"));
+const Topic = retryLazyImport(() => import("./pages/Topic"));
+const SavedClips = retryLazyImport(() => import("./pages/SavedClips"));
+const Playlists = retryLazyImport(() => import("./pages/Playlists"));
+const PlaylistDetail = retryLazyImport(() => import("./pages/PlaylistDetail"));
+const CollectionsDiscovery = retryLazyImport(() => import("./pages/CollectionsDiscovery"));
+const Following = retryLazyImport(() => import("./pages/Following"));
+const Activity = retryLazyImport(() => import("./pages/Activity"));
+const Challenges = retryLazyImport(() => import("./pages/Challenges"));
+const Hashtag = retryLazyImport(() => import("./pages/Hashtag"));
+const ClipDetail = retryLazyImport(() => import("./pages/ClipDetail"));
+const Communities = retryLazyImport(() => import("./pages/Communities"));
+const CommunityDetail = retryLazyImport(() => import("./pages/CommunityDetail"));
+const LiveRooms = retryLazyImport(() => import("./pages/LiveRooms"));
+const LiveRoom = retryLazyImport(() => import("./pages/LiveRoom"));
+const Embed = retryLazyImport(() => import("./pages/Embed"));
+const DirectMessages = retryLazyImport(() => import("./pages/DirectMessages"));
+const Analytics = retryLazyImport(() => import("./pages/Analytics"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -61,18 +91,25 @@ const queryClient = new QueryClient({
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <ThemeProvider 
+        attribute="class" 
+        defaultTheme="light" 
+        enableSystem={false}
+        storageKey="echo-garden-theme"
+        enableColorScheme={false}
+      >
         <AuthProvider>
           <UploadQueueProvider>
             <TooltipProvider>
               <Toaster />
               <Sonner />
               <OfflineIndicator />
-              <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+              <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: false }}>
               <ErrorBoundary>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     <Route path="/login-link" element={<LoginLink />} />
+                    <Route path="/embed/:clipId" element={<Embed />} />
                     <Route element={<AuthenticatedLayout />}>
                       <Route path="/" element={<Index />} />
                       <Route path="/profile/:handle" element={<Profile />} />
@@ -92,6 +129,9 @@ const App = () => (
                       <Route path="/community/:slug" element={<CommunityDetail />} />
                       <Route path="/live-rooms" element={<LiveRooms />} />
                       <Route path="/live-room/:id" element={<LiveRoom />} />
+                      <Route path="/messages" element={<DirectMessages />} />
+                      <Route path="/messages/:userId" element={<DirectMessages />} />
+                      <Route path="/analytics" element={<Analytics />} />
                       <Route path="/admin" element={<Admin />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />

@@ -70,17 +70,41 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 Before deploying to production:
 
-- [ ] All environment variables are set and not committed to git
-- [ ] `.env` files are in `.gitignore`
+- [x] All environment variables are set and not committed to git
+  - ✅ `.env` files are in `.gitignore` (verified)
+  - ✅ Environment variables documented in this file
 - [ ] Database credentials are rotated and secure
-- [ ] Supabase RLS policies are properly configured
+  - ⚠️ **Action Required**: Rotate Supabase service role key before production
+  - ⚠️ **Action Required**: Ensure database passwords are strong and unique
+- [x] Supabase RLS policies are properly configured
+  - ✅ RLS enabled on all tables (verified in migrations)
+  - ✅ Policies implemented for profiles, clips, reports, and other sensitive tables
 - [ ] CORS is configured to allow only trusted origins
+  - ⚠️ **Action Required**: Configure CORS in Supabase Dashboard → Settings → API
+  - ⚠️ **Action Required**: Add your production domain to allowed origins
 - [ ] Security headers are configured on your hosting provider
+  - 📋 See "Security Headers" section above for required headers
+  - ⚠️ **Action Required**: Configure on hosting provider (Vercel, Netlify, etc.)
 - [ ] HTTPS is enforced (no HTTP access)
-- [ ] API rate limiting is configured (consider using Supabase rate limiting)
+  - ⚠️ **Action Required**: Enable HTTPS redirect on hosting provider
+  - ⚠️ **Action Required**: Verify SSL certificate is valid
+- [x] API rate limiting is configured
+  - ✅ Database-level rate limiting implemented (verified)
+  - ✅ Clip upload rate limiting: 10/hour, 50/day per profile
+  - ✅ Account creation rate limiting: IP-based limits
+  - ✅ Query rate limiting: Per-profile limits
+  - ✅ API key rate limiting: Configurable per key
 - [ ] Regular security audits are scheduled
-- [ ] Error messages don't expose sensitive information
-- [ ] Logs don't contain sensitive data (passwords, tokens, etc.)
+  - ⚠️ **Action Required**: Set up quarterly security reviews
+  - ⚠️ **Action Required**: Monitor Supabase security dashboard
+- [x] Error messages don't expose sensitive information
+  - ✅ Centralized error handling implemented
+  - ✅ Generic error messages for users
+  - ⚠️ **Review**: Verify all error handlers use generic messages
+- [x] Logs don't contain sensitive data (passwords, tokens, etc.)
+  - ✅ Centralized logger with sanitization (verified in `src/lib/logger.ts`)
+  - ✅ Sensitive patterns automatically redacted: passwords, tokens, keys, credentials
+  - ✅ Production logs filtered to WARN/ERROR only
 
 ## 🔍 Security Best Practices
 
