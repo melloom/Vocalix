@@ -125,10 +125,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!userId) return null;
 
       // Try to get profile by auth_user_id first (new way)
+      // Note: auth_user_id may not be in TypeScript types yet, but exists in DB
       const { data: authProfile, error: authError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("auth_user_id", userId)
+        .eq("auth_user_id" as any, userId)
         .maybeSingle();
 
       if (authError && authError.code !== "PGRST116") {
@@ -158,10 +159,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (idProfile) {
           // Link this profile to the auth user if not already linked
-          if (!idProfile.auth_user_id && userId) {
+          // Note: auth_user_id may not be in TypeScript types yet, but exists in DB
+          const profileWithAuth = idProfile as any;
+          if (!profileWithAuth.auth_user_id && userId) {
             await supabase
               .from("profiles")
-              .update({ auth_user_id: userId })
+              .update({ auth_user_id: userId } as any)
               .eq("id", profileId);
           }
           return idProfile as ProfileRow;

@@ -777,7 +777,7 @@ const Admin = () => {
       try {
         const deviceId = localStorage.getItem("deviceId");
         const { error } = await supabase.functions.invoke("admin-review", {
-          body: { action: "handleProfileReport", reportId, action, banDuration, warningMessage },
+          body: { type: "handleProfileReport", reportId, action, banDuration, warningMessage },
           headers: deviceId ? { "x-device-id": deviceId } : undefined,
         });
 
