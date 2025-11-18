@@ -269,6 +269,7 @@ const Index = () => {
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: SearchFilters }>>([]);
   const [showTutorial, setShowTutorial] = useState(false);
   const [searchResults, setSearchResults] = useState<string[]>([]); // Clip IDs from database search
+  const [searchedTopics, setSearchedTopics] = useState<Topic[]>([]); // Topics from database search
   const [isSearchingDatabase, setIsSearchingDatabase] = useState(false);
   const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
@@ -1271,12 +1272,18 @@ const Index = () => {
   const normalizedQuery = debouncedSearchQuery.trim().toLowerCase();
 
   const filteredTopics = useMemo(() => {
+    // If we have database search results, use those
+    if (normalizedQuery && searchedTopics.length > 0) {
+      return searchedTopics;
+    }
+    
+    // Otherwise, filter from allTopics (todayTopic + recentTopics)
     if (!normalizedQuery) return allTopics;
     return allTopics.filter((topic) => {
       const haystack = `${topic.title} ${topic.description ?? ""}`.toLowerCase();
       return haystack.includes(normalizedQuery);
     });
-  }, [allTopics, normalizedQuery]);
+  }, [allTopics, normalizedQuery, searchedTopics]);
 
   // Enhanced search: Use database search when query exists, otherwise use client-side filtering
   const filteredClips = useMemo(() => {
@@ -1331,12 +1338,14 @@ const Index = () => {
       // Only use database search if we have a query or filters
       if (!hasQuery && !hasFilters) {
         setSearchResults([]);
+        setSearchedTopics([]);
         setIsSearchingDatabase(false);
         return;
       }
 
       setIsSearchingDatabase(true);
       try {
+        // Search clips
         const result = await search.searchClips.mutateAsync({
           searchText: hasQuery ? debouncedSearchQuery : undefined,
           filters: hasFilters ? advancedFilters : undefined,
@@ -1345,6 +1354,28 @@ const Index = () => {
 
         const clipIds = result.map((r) => r.clip_id);
         setSearchResults(clipIds);
+
+        // Search topics if we have a query
+        if (hasQuery) {
+          const query = debouncedSearchQuery.trim();
+          const { data: topicsData, error: topicsError } = await supabase
+            .from('topics')
+            .select('*')
+            .eq('is_active', true)
+            .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+            .order('trending_score', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (!topicsError && topicsData) {
+            setSearchedTopics(topicsData as Topic[]);
+          } else {
+            console.error("Error searching topics:", topicsError);
+            setSearchedTopics([]);
+          }
+        } else {
+          setSearchedTopics([]);
+        }
 
         // Save to search history if we have a query
         if (hasQuery && profileId) {
@@ -1358,6 +1389,7 @@ const Index = () => {
       } catch (error) {
         console.error("Error performing search:", error);
         setSearchResults([]);
+        setSearchedTopics([]);
       } finally {
         setIsSearchingDatabase(false);
       }
@@ -2785,9 +2817,14 @@ const Index = () => {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {filteredTopics.map((topic) => (
-                    <div
+                    <Link
                       key={topic.id}
-                      className="rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg"
+                      to={`/topic/${topic.id}`}
+                      onClick={() => {
+                        setShowSuggestions(false);
+                        setSearchQuery("");
+                      }}
+                      className="block rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg cursor-pointer"
                     >
                       <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
                         {new Date(topic.date).toLocaleDateString(undefined, {
@@ -2804,7 +2841,7 @@ const Index = () => {
                         </span>
                         <span>{topicMetrics[topic.id]?.listens ?? 0} listens</span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </section>
@@ -3071,16 +3108,26 @@ const Index = () => {
             <div className="space-y-4">
               {visibleClips.map((clip, index) => (
                 <div key={clip.id} data-tutorial={index === 0 ? "clip-card" : undefined}>
-                  <ClipCard
-                    clip={clip}
-                    captionsDefault={profile?.default_captions ?? true}
-                    highlightQuery={normalizedQuery}
-                    onReply={handleReply}
-                    onRemix={handleRemix}
-                    onContinueChain={handleContinueChain}
-                    showReplyButton={true}
-                    viewMode={viewMode}
-                  />
+                  <div 
+                    className={isSearching ? "cursor-pointer" : ""}
+                    onClick={(e) => {
+                      // Only navigate if clicking on the card itself, not on buttons/interactive elements
+                      if (isSearching && (e.target as HTMLElement).closest('button, a, [role="button"]') === null) {
+                        navigate(`/clip/${clip.id}`);
+                      }
+                    }}
+                  >
+                    <ClipCard
+                      clip={clip}
+                      captionsDefault={profile?.default_captions ?? true}
+                      highlightQuery={normalizedQuery}
+                      onReply={handleReply}
+                      onRemix={handleRemix}
+                      onContinueChain={handleContinueChain}
+                      showReplyButton={true}
+                      viewMode={viewMode}
+                    />
+                  </div>
                   {clip.reply_count && clip.reply_count > 0 && viewMode === "list" && (
                     <ThreadView
                       parentClip={clip}

@@ -100,15 +100,24 @@ export default function AllTopics() {
   // Filter by search query
   const filteredTopics = useMemo(() => {
     if (!topics) return [];
-    if (!searchQuery.trim()) return topics;
+    const trimmedQuery = searchQuery.trim();
+    if (!trimmedQuery) return topics;
 
-    const query = searchQuery.toLowerCase();
+    const query = trimmedQuery.toLowerCase();
+    const queryWords = query.split(/\s+/).filter(word => word.length > 0);
+    
     return topics.filter((topic) => {
-      const titleMatch = topic.title.toLowerCase().includes(query);
-      const descMatch = topic.description?.toLowerCase().includes(query);
-      const communityMatch = topic.communities?.name.toLowerCase().includes(query);
-      const userMatch = topic.profiles?.handle.toLowerCase().includes(query);
-      return titleMatch || descMatch || communityMatch || userMatch;
+      // Build searchable text from all fields
+      const searchableText = [
+        topic.title?.toLowerCase() ?? '',
+        topic.description?.toLowerCase() ?? '',
+        topic.communities?.name?.toLowerCase() ?? '',
+        topic.profiles?.handle?.toLowerCase() ?? '',
+      ].join(' ');
+
+      // Check if all query words are found in the searchable text
+      // This allows for more flexible matching (e.g., "tech news" matches "technology news")
+      return queryWords.every(word => searchableText.includes(word));
     });
   }, [topics, searchQuery]);
 
