@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Music, Heart, Eye, Users, TrendingUp, Clock } from "lucide-react";
+import { Search, Music, Heart, Eye, Users, TrendingUp, Clock, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useProfile } from "@/hooks/useProfile";
 import { useCollectionFollow } from "@/hooks/useCollectionFollow";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +24,9 @@ interface Collection {
   follower_count?: number;
   view_count?: number;
   clip_count?: number;
+  category?: string;
+  trending_score?: number;
+  recommendation_reason?: string;
   created_at: string;
   updated_at: string;
   profiles?: {
@@ -31,7 +35,7 @@ interface Collection {
   };
 }
 
-type SortOption = "trending" | "newest" | "popular" | "most_followed";
+type SortOption = "trending" | "newest" | "popular" | "most_followed" | "recommended";
 
 const CollectionsDiscovery = () => {
   const { profile } = useProfile();
@@ -49,60 +53,187 @@ const CollectionsDiscovery = () => {
       setError(null);
 
       try {
-        let query = supabase
-          .from("playlists")
-          .select(
-            `
-            *,
-            profiles (
-              handle,
-              emoji_avatar
-            ),
-            playlist_clips(count)
-          `,
-          )
-          .eq("is_public", true)
-          .eq("is_auto_generated", false);
+        let data: any[] = [];
 
-        // Apply search filter
-        if (searchQuery.trim()) {
-          query = query.or(
-            `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`,
+        if (sortBy === "trending") {
+          // Use trending function for better algorithm
+          const { data: trendingData, error: trendingError } = await supabase.rpc(
+            "get_trending_collections",
+            {
+              p_category: null,
+              p_limit: 50,
+            }
           );
-        }
 
-        // Apply sorting
-        switch (sortBy) {
-          case "newest":
-            query = query.order("created_at", { ascending: false });
-            break;
-          case "popular":
-            query = query.order("view_count", { ascending: false });
-            break;
-          case "most_followed":
-            query = query.order("follower_count", { ascending: false });
-            break;
-          case "trending":
-          default:
-            // Trending: combination of followers, views, and recency
-            query = query.order("updated_at", { ascending: false });
-            break;
-        }
+          if (trendingError) {
+            logError("Error loading trending collections", trendingError);
+            // Fallback to regular query
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from("playlists")
+              .select(
+                `
+                *,
+                profiles (
+                  handle,
+                  emoji_avatar
+                ),
+                playlist_clips(count)
+              `,
+              )
+              .eq("is_public", true)
+              .eq("is_auto_generated", false)
+              .order("trending_score", { ascending: false })
+              .limit(50);
 
-        const { data, error: collectionsError } = await query.limit(50);
+            if (!fallbackError && fallbackData) {
+              data = fallbackData;
+            }
+          } else if (trendingData) {
+            // Transform trending data to match collection format
+            data = await Promise.all(
+              trendingData.map(async (item: any) => {
+                const { data: playlistData } = await supabase
+                  .from("playlists")
+                  .select(
+                    `
+                    *,
+                    profiles (
+                      handle,
+                      emoji_avatar
+                    ),
+                    playlist_clips(count)
+                  `,
+                  )
+                  .eq("id", item.playlist_id)
+                  .single();
 
-        if (collectionsError) {
-          setError("Couldn't load collections");
-          logError("Error loading collections", collectionsError);
+                return {
+                  ...(playlistData || {}),
+                  follower_count: item.follower_count,
+                  clip_count: item.clip_count,
+                  view_count: item.view_count,
+                  trending_score: item.trending_score,
+                };
+              })
+            );
+          }
+        } else if (sortBy === "recommended" && profile?.id) {
+          // Use recommended function for personalized recommendations
+          const { data: recommendedData, error: recommendedError } = await supabase.rpc(
+            "get_recommended_collections",
+            {
+              p_profile_id: profile.id,
+              p_limit: 50,
+            }
+          );
+
+          if (recommendedError) {
+            logError("Error loading recommended collections", recommendedError);
+            data = [];
+          } else if (recommendedData) {
+            // Transform recommended data to match collection format
+            data = await Promise.all(
+              recommendedData.map(async (item: any) => {
+                const { data: playlistData } = await supabase
+                  .from("playlists")
+                  .select(
+                    `
+                    *,
+                    profiles (
+                      handle,
+                      emoji_avatar
+                    ),
+                    playlist_clips(count)
+                  `,
+                  )
+                  .eq("id", item.playlist_id)
+                  .single();
+
+                return {
+                  ...(playlistData || {}),
+                  category: item.category,
+                  trending_score: item.trending_score,
+                  recommendation_reason: item.recommendation_reason,
+                };
+              })
+            );
+          }
         } else {
-          const collectionsWithCounts = (data || []).map((collection: any) => ({
-            ...collection,
-            clip_count: Array.isArray(collection.playlist_clips)
-              ? collection.playlist_clips[0]?.count || 0
-              : 0,
-          }));
-          setCollections(collectionsWithCounts);
+          // Use regular query for other sort options
+          let query = supabase
+            .from("playlists")
+            .select(
+              `
+              *,
+              profiles (
+                handle,
+                emoji_avatar
+              ),
+              playlist_clips(count)
+            `,
+            )
+            .eq("is_public", true)
+            .eq("is_auto_generated", false);
+
+          // Apply search filter
+          if (searchQuery.trim()) {
+            query = query.or(
+              `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`,
+            );
+          }
+
+          // Apply sorting
+          switch (sortBy) {
+            case "newest":
+              query = query.order("created_at", { ascending: false });
+              break;
+            case "popular":
+              query = query.order("view_count", { ascending: false });
+              break;
+            case "most_followed":
+              // Get follower counts for sorting
+              const { data: followerData } = await supabase
+                .from("collection_follows")
+                .select("playlist_id");
+
+              const followerCounts: Record<string, number> = {};
+              if (followerData) {
+                followerData.forEach((follow: any) => {
+                  followerCounts[follow.playlist_id] = (followerCounts[follow.playlist_id] || 0) + 1;
+                });
+              }
+
+              const { data: allPlaylists } = await query.order("created_at", { ascending: false });
+              if (allPlaylists) {
+                data = allPlaylists.sort((a, b) => {
+                  const aCount = followerCounts[a.id] || 0;
+                  const bCount = followerCounts[b.id] || 0;
+                  return bCount - aCount;
+                });
+              }
+              break;
+            default:
+              query = query.order("updated_at", { ascending: false });
+              break;
+          }
+
+          if (sortBy !== "most_followed") {
+            const { data: queryData, error: queryError } = await query.limit(50);
+            if (queryError) {
+              throw queryError;
+            }
+            data = queryData || [];
+          }
         }
+
+        const collectionsWithCounts = data.map((collection: any) => ({
+          ...collection,
+          clip_count: Array.isArray(collection.playlist_clips)
+            ? collection.playlist_clips[0]?.count || collection.clip_count || 0
+            : collection.clip_count || 0,
+        }));
+
+        setCollections(collectionsWithCounts);
       } catch (err) {
         setError("Couldn't load collections");
         logError("Error loading collections", err);
@@ -212,6 +343,17 @@ const CollectionsDiscovery = () => {
             </div>
           </div>
           <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+            {profile?.id && (
+              <Button
+                variant={sortBy === "recommended" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSortBy("recommended")}
+                className="rounded-2xl whitespace-nowrap"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Recommended
+              </Button>
+            )}
             <Button
               variant={sortBy === "trending" ? "default" : "outline"}
               size="sm"
@@ -313,6 +455,16 @@ const CollectionCard = ({ collection, currentProfileId, onFollow }: CollectionCa
               </p>
             )}
             <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+              {collection.category && (
+                <Badge variant="outline" className="text-xs">
+                  {collection.category}
+                </Badge>
+              )}
+              {collection.recommendation_reason && (
+                <Badge variant="secondary" className="text-xs">
+                  {collection.recommendation_reason}
+                </Badge>
+              )}
               <div className="flex items-center gap-1">
                 <Users className="h-3 w-3" />
                 <span className="font-medium">{collection.clip_count || 0} clips</span>

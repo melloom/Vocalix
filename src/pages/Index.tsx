@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -22,9 +22,12 @@ import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 import { ClipCard } from "@/components/ClipCard";
 import { RecordModal } from "@/components/RecordModal";
+import { RemixModal } from "@/components/RemixModal";
 import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { ThreadView } from "@/components/ThreadView";
 import { ChainView } from "@/components/ChainView";
+import { CommunityRecommendationsSidebar } from "@/components/CommunityRecommendationsSidebar";
+import { LeftSidebar } from "@/components/LeftSidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CityOptInDialog } from "@/components/CityOptInDialog";
@@ -32,6 +35,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ViewModeToggle } from "@/components/ViewModeToggle";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { useTheme } from "next-themes";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useFollow } from "@/hooks/useFollow";
 import { useBlockedUsers } from "@/hooks/useBlock";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
@@ -42,6 +46,7 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { BackToTop } from "@/components/BackToTop";
 import { useSearch } from "@/hooks/useSearch";
 import { SearchSuggestions } from "@/components/SearchSuggestions";
+import { usePersonalizedFeed } from "@/hooks/usePersonalizedFeed";
 
 interface Topic {
   id: string;
@@ -54,6 +59,23 @@ interface Topic {
 interface TopicMetrics {
   posts: number;
   listens: number;
+}
+
+interface SpotlightQuestion {
+  id: string;
+  topic_id: string;
+  profile_id: string | null;
+  content: string;
+  is_question: boolean;
+  is_answered: boolean;
+  upvotes_count: number;
+  replies_count: number;
+  spotlight_score: number;
+  created_at: string;
+  topic_title: string;
+  topic_description: string;
+  profile_handle: string | null;
+  profile_emoji_avatar: string | null;
 }
 
 type ModerationData = {
@@ -198,23 +220,25 @@ const Index = () => {
   const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
+  const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestion | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [topicMetrics, setTopicMetrics] = useState<Record<string, TopicMetrics>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending">("hot");
+  const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you">("hot");
   const [topTimePeriod, setTopTimePeriod] = useState<"all" | "week" | "month">("all");
   const [cityFilter, setCityFilter] = useState<"global" | "local">("global");
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [moodFilter, setMoodFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [isCityDialogOpen, setIsCityDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [replyingToClipId, setReplyingToClipId] = useState<string | null>(null);
   const [replyingToClip, setReplyingToClip] = useState<{ id: string; handle: string; summary?: string | null } | null>(null);
   const [remixingFromClipId, setRemixingFromClipId] = useState<string | null>(null);
-  const [remixingFromClip, setRemixingFromClip] = useState<{ id: string; handle: string; summary?: string | null } | null>(null);
+  const [remixingFromClip, setRemixingFromClip] = useState<Clip | null>(null);
   const [continuingChainId, setContinuingChainId] = useState<string | null>(null);
   const [continuingChain, setContinuingChain] = useState<{ id: string; title?: string | null } | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "compact">("list");
@@ -231,7 +255,7 @@ const Index = () => {
   const [isLoadingSimilarVoices, setIsLoadingSimilarVoices] = useState(false);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [advancedFilters, setAdvancedFilters] = useState<SearchFilters>({
-    moodEmoji: null,
+    moodEmoji: null, // Keep for backward compatibility but use categoryFilter instead
     durationMin: null,
     durationMax: null,
     dateFrom: null,
@@ -246,10 +270,14 @@ const Index = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [searchResults, setSearchResults] = useState<string[]>([]); // Clip IDs from database search
   const [isSearchingDatabase, setIsSearchingDatabase] = useState(false);
+  const [isShortcutsDialogOpen, setIsShortcutsDialogOpen] = useState(false);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
+  
+  // Personalized feed
+  const { personalizedClips, isLoading: isLoadingPersonalized, error: personalizedError } = usePersonalizedFeed(100);
 
   const topicIdsRef = useRef<string[]>([]);
   const topicsRef = useRef<Topic[]>([]);
@@ -383,6 +411,34 @@ const Index = () => {
     [applyTopicCuration, fetchTopicMetrics],
   );
 
+  const fetchSpotlightQuestion = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_spotlight_question');
+      
+      if (error) {
+        // If function doesn't exist yet or RLS issue, silently fail and use topic
+        console.warn("Could not fetch spotlight question:", error);
+        setSpotlightQuestion(null);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const question = data[0] as SpotlightQuestion;
+        // Only show spotlight question if it has good engagement (at least 2 upvotes or 3 replies)
+        if (question.upvotes_count >= 2 || question.replies_count >= 3) {
+          setSpotlightQuestion(question);
+        } else {
+          setSpotlightQuestion(null);
+        }
+      } else {
+        setSpotlightQuestion(null);
+      }
+    } catch (error) {
+      console.warn("Error fetching spotlight question:", error);
+      setSpotlightQuestion(null);
+    }
+  }, []);
+
   const toastRef = useRef(toast);
   useEffect(() => {
     toastRef.current = toast;
@@ -435,6 +491,9 @@ const Index = () => {
       const metrics = await fetchTopicMetrics(topicIds);
       setTopicMetrics(metrics);
       applyTopicCuration(activeTopics, metrics);
+
+      // Fetch spotlight question (best/most engaging question)
+      await fetchSpotlightQuestion();
 
       // First, get all clips (including replies) to calculate reply counts
       const { data: allClipsData, error: allClipsError } = await supabase
@@ -836,6 +895,33 @@ const Index = () => {
   );
 
   const displayClips = useMemo(() => {
+    // If "For You" mode, use personalized clips
+    if (sortMode === "for_you") {
+      if (isLoadingPersonalized) {
+        return [];
+      }
+      // Filter personalized clips the same way as regular clips
+      let filtered = personalizedClips as Clip[];
+      
+      // Filter out blocked users
+      if (blockedUserIds.size > 0) {
+        filtered = filtered.filter((clip) => !clip.profile_id || !blockedUserIds.has(clip.profile_id));
+      }
+      
+      // Apply filters
+      const topicFilter = advancedFilters.topicId || selectedTopicId;
+      if (topicFilter) {
+        filtered = filtered.filter((clip) => clip.topic_id === topicFilter);
+      }
+      
+      if (advancedFilters.moodEmoji) {
+        filtered = filtered.filter((clip) => clip.mood_emoji === advancedFilters.moodEmoji);
+      }
+      
+      // Return sorted by combined_score (already sorted by the hook)
+      return filtered;
+    }
+    
     const now = Date.now();
     let filtered = clips;
 
@@ -864,9 +950,94 @@ const Index = () => {
       filtered = filtered.filter((clip) => clip.topic_id === topicFilter);
     }
 
-    // Mood emoji filter
+    // Mood emoji filter (legacy support)
     if (advancedFilters.moodEmoji) {
       filtered = filtered.filter((clip) => clip.mood_emoji === advancedFilters.moodEmoji);
+    }
+
+    // Category filter (new professional system)
+    if (categoryFilter) {
+      // Map category to tags or content patterns
+      const categoryPatterns: Record<string, (clip: Clip) => boolean> = {
+        discussion: (clip) => 
+          (clip.captions?.toLowerCase().includes('discuss') || 
+           clip.captions?.toLowerCase().includes('talk') ||
+           clip.captions?.toLowerCase().includes('conversation')) ?? false,
+        story: (clip) => 
+          (clip.captions?.toLowerCase().includes('story') || 
+           clip.captions?.toLowerCase().includes('narrative') ||
+           clip.captions?.toLowerCase().includes('tale')) ?? false,
+        opinion: (clip) => 
+          (clip.captions?.toLowerCase().includes('think') || 
+           clip.captions?.toLowerCase().includes('opinion') ||
+           clip.captions?.toLowerCase().includes('believe') ||
+           clip.captions?.toLowerCase().includes('feel')) ?? false,
+        question: (clip) => 
+          (clip.captions?.includes('?') || 
+           clip.captions?.toLowerCase().includes('question') ||
+           clip.captions?.toLowerCase().includes('ask') ||
+           clip.captions?.toLowerCase().includes('wonder')) ?? false,
+        tutorial: (clip) => 
+          (clip.captions?.toLowerCase().includes('how to') || 
+           clip.captions?.toLowerCase().includes('tutorial') ||
+           clip.captions?.toLowerCase().includes('guide') ||
+           clip.captions?.toLowerCase().includes('learn')) ?? false,
+        news: (clip) => 
+          (clip.captions?.toLowerCase().includes('news') || 
+           clip.captions?.toLowerCase().includes('update') ||
+           clip.captions?.toLowerCase().includes('announcement')) ?? false,
+        entertainment: (clip) => 
+          (clip.captions?.toLowerCase().includes('entertainment') || 
+           clip.captions?.toLowerCase().includes('fun') ||
+           clip.captions?.toLowerCase().includes('enjoy')) ?? false,
+        music: (clip) => 
+          (clip.captions?.toLowerCase().includes('music') || 
+           clip.captions?.toLowerCase().includes('song') ||
+           clip.captions?.toLowerCase().includes('melody') ||
+           clip.tags?.some(tag => tag.toLowerCase().includes('music'))) ?? false,
+        sports: (clip) => 
+          (clip.captions?.toLowerCase().includes('sport') || 
+           clip.captions?.toLowerCase().includes('game') ||
+           clip.captions?.toLowerCase().includes('team') ||
+           clip.tags?.some(tag => tag.toLowerCase().includes('sport'))) ?? false,
+        tech: (clip) => 
+          (clip.captions?.toLowerCase().includes('tech') || 
+           clip.captions?.toLowerCase().includes('technology') ||
+           clip.captions?.toLowerCase().includes('software') ||
+           clip.captions?.toLowerCase().includes('app') ||
+           clip.tags?.some(tag => tag.toLowerCase().includes('tech'))) ?? false,
+        business: (clip) => 
+          (clip.captions?.toLowerCase().includes('business') || 
+           clip.captions?.toLowerCase().includes('work') ||
+           clip.captions?.toLowerCase().includes('career') ||
+           clip.captions?.toLowerCase().includes('company')) ?? false,
+        health: (clip) => 
+          (clip.captions?.toLowerCase().includes('health') || 
+           clip.captions?.toLowerCase().includes('wellness') ||
+           clip.captions?.toLowerCase().includes('fitness') ||
+           clip.captions?.toLowerCase().includes('medical')) ?? false,
+        education: (clip) => 
+          (clip.captions?.toLowerCase().includes('education') || 
+           clip.captions?.toLowerCase().includes('learn') ||
+           clip.captions?.toLowerCase().includes('study') ||
+           clip.captions?.toLowerCase().includes('teach')) ?? false,
+        comedy: (clip) => 
+          (clip.captions?.toLowerCase().includes('funny') || 
+           clip.captions?.toLowerCase().includes('comedy') ||
+           clip.captions?.toLowerCase().includes('joke') ||
+           clip.captions?.toLowerCase().includes('laugh') ||
+           clip.mood_emoji === '😂') ?? false,
+        inspiration: (clip) => 
+          (clip.captions?.toLowerCase().includes('inspire') || 
+           clip.captions?.toLowerCase().includes('motivate') ||
+           clip.captions?.toLowerCase().includes('encourage') ||
+           clip.captions?.toLowerCase().includes('uplift')) ?? false,
+      };
+
+      const pattern = categoryPatterns[categoryFilter];
+      if (pattern) {
+        filtered = filtered.filter(pattern);
+      }
     }
 
     // Duration range filter
@@ -1065,7 +1236,7 @@ const Index = () => {
       .filter((entry): entry is { clip: Clip; score: number } => entry !== null)
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.clip);
-  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters, blockedUserIds]);
+  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters, blockedUserIds, personalizedClips, isLoadingPersonalized]);
 
   const allTopics = useMemo(() => {
     const list: Topic[] = [];
@@ -1639,12 +1810,8 @@ const Index = () => {
     const clip = clips.find((c) => c.id === clipId);
     if (clip) {
       setRemixingFromClipId(clipId);
-      setRemixingFromClip({
-        id: clip.id,
-        handle: clip.profiles?.handle || "Anonymous",
-        summary: clip.summary || null,
-      });
-      setIsRecordModalOpen(true);
+      setRemixingFromClip(clip);
+      setIsRemixModalOpen(true);
     }
   }, [clips]);
 
@@ -1710,6 +1877,15 @@ const Index = () => {
     loadDataRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Refresh spotlight question periodically (every 2 minutes) to catch new engagement
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchSpotlightQuestion();
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [fetchSpotlightQuestion]);
 
   // Check for new daily topic when date changes (e.g., page open overnight)
   useEffect(() => {
@@ -1873,49 +2049,37 @@ const Index = () => {
   }, [location.search, location.pathname]);
 
   // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in inputs or textareas
-      const target = event.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        // Allow Escape to clear search
-        if (event.key === "Escape" && searchInputRef.current === target) {
-          setSearchQuery("");
-        }
-        return;
-      }
-
-      // Focus search with /
-      if (event.key === "/") {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-
-      // New recording with n
-      if (event.key === "n" && !event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        setIsRecordModalOpen(true);
-        return;
-      }
-
-      // Toggle dark mode with d
-      if (event.key === "d" && !event.ctrlKey && !event.metaKey) {
-        event.preventDefault();
-        startTransition(() => {
-          setTheme(theme === "dark" ? "light" : "dark");
-        });
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [theme, setTheme]);
+  useKeyboardShortcuts({
+    onFocusSearch: () => {
+      searchInputRef.current?.focus();
+    },
+    onNewRecording: () => {
+      setIsRecordModalOpen(true);
+    },
+    onToggleTheme: () => {
+      startTransition(() => {
+        setTheme(theme === "dark" ? "light" : "dark");
+      });
+    },
+    onGoHome: () => {
+      navigate("/");
+      setSortMode("hot");
+    },
+    onGoTrending: () => {
+      navigate("/");
+      setSortMode("trending");
+    },
+    onGoForYou: () => {
+      navigate("/");
+      setSortMode("for_you");
+    },
+    onGoSaved: () => {
+      navigate("/saved");
+    },
+    onShowShortcuts: () => {
+      setIsShortcutsDialogOpen(true);
+    },
+  });
 
   useEffect(() => {
     if (!profile?.consent_city) {
@@ -1950,7 +2114,7 @@ const Index = () => {
   // Reset displayed clips count when filters change
   useEffect(() => {
     setDisplayedClipsCount(20);
-  }, [sortMode, topTimePeriod, cityFilter, selectedTopicId, moodFilter]);
+  }, [sortMode, topTimePeriod, cityFilter, selectedTopicId, categoryFilter]);
 
   // Prefetch audio for next clips when user scrolls
   useEffect(() => {
@@ -1964,7 +2128,7 @@ const Index = () => {
       try {
         const { data } = await supabase.storage
           .from("audio")
-          .createSignedUrl(clip.audio_path, 3600);
+          .createSignedUrl(clip.audio_path, 86400); // 24 hours for better CDN caching
         
         if (data?.signedUrl) {
           // Prefetch using link tag for browser caching
@@ -2103,12 +2267,15 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold">Echo Garden</h1>
             <div className="flex items-center gap-2" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
               <ThemeToggle />
-              <KeyboardShortcutsDialog />
+              <KeyboardShortcutsDialog 
+                open={isShortcutsDialogOpen}
+                onOpenChange={setIsShortcutsDialogOpen}
+              />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full" asChild>
@@ -2131,6 +2298,18 @@ const Index = () => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Communities - Discover and join themed groups</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/leaderboards" aria-label="Leaderboards">
+                      <Trophy className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Leaderboards - See top creators, listeners, and more</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -2374,7 +2553,15 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Sidebar - Hidden on mobile, visible on large screens */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <LeftSidebar />
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-6 space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div data-tutorial="view-mode">
@@ -2456,6 +2643,23 @@ const Index = () => {
                   <p>Trending - Algorithm picks based on quality and engagement</p>
                 </TooltipContent>
               </Tooltip>
+              {profile?.id && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="rounded-full px-4"
+                      variant={sortMode === "for_you" ? "default" : "ghost"}
+                      onClick={() => setSortMode("for_you")}
+                    >
+                      For You
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>For You - Personalized feed based on your interests and listening history</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
             {sortMode === "top" && (
               <Tooltip>
@@ -2513,52 +2717,43 @@ const Index = () => {
               </Tooltip>
             </div>
           )}
-          <div className="flex bg-muted/60 rounded-full p-1 gap-1" data-tutorial="filters">
-            <Tooltip>
-              <TooltipTrigger asChild>
+          <div className="flex items-center gap-2 flex-wrap" data-tutorial="filters">
+            <Select value={categoryFilter || "all"} onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}>
+              <SelectTrigger className="w-[200px] h-9">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="discussion">Discussion</SelectItem>
+                <SelectItem value="story">Story</SelectItem>
+                <SelectItem value="opinion">Opinion</SelectItem>
+                <SelectItem value="question">Question</SelectItem>
+                <SelectItem value="tutorial">Tutorial</SelectItem>
+                <SelectItem value="news">News</SelectItem>
+                <SelectItem value="entertainment">Entertainment</SelectItem>
+                <SelectItem value="music">Music</SelectItem>
+                <SelectItem value="sports">Sports</SelectItem>
+                <SelectItem value="tech">Technology</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+                <SelectItem value="health">Health & Wellness</SelectItem>
+                <SelectItem value="education">Education</SelectItem>
+                <SelectItem value="comedy">Comedy</SelectItem>
+                <SelectItem value="inspiration">Inspiration</SelectItem>
+              </SelectContent>
+            </Select>
+            {categoryFilter && (
+              <Badge variant="secondary" className="gap-2 px-3 py-1.5">
+                <span className="text-xs font-medium capitalize">{categoryFilter.replace('_', ' ')}</span>
                 <Button
+                  variant="ghost"
                   size="sm"
-                  className="rounded-full px-3"
-                  variant={moodFilter === null ? "default" : "ghost"}
-                  onClick={() => setMoodFilter(null)}
+                  className="h-4 w-4 p-0 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setCategoryFilter(null)}
                 >
-                  All moods
+                  <X className="h-3 w-3" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Show clips with any mood or reaction</p>
-              </TooltipContent>
-            </Tooltip>
-            {["😊", "🔥", "❤️", "🙏", "😔", "😂", "😮", "🧘", "💡"].map((emoji) => {
-              const moodLabels: Record<string, string> = {
-                "😊": "Happy",
-                "🔥": "Fire/Exciting",
-                "❤️": "Love",
-                "🙏": "Grateful",
-                "😔": "Sad",
-                "😂": "Funny",
-                "😮": "Surprised",
-                "🧘": "Calm/Peaceful",
-                "💡": "Insightful"
-              };
-              return (
-                <Tooltip key={emoji}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      className="rounded-full px-3 text-lg"
-                      variant={moodFilter === emoji ? "default" : "ghost"}
-                      onClick={() => setMoodFilter(moodFilter === emoji ? null : emoji)}
-                    >
-                      {emoji}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Filter by {moodLabels[emoji] || emoji} reactions</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -2617,75 +2812,129 @@ const Index = () => {
           </>
         )}
 
-        {!isSearching && todayTopic && (
+        {!isSearching && (spotlightQuestion || todayTopic) && (
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl p-8 text-center space-y-3" data-tutorial="today-topic">
               <p className="text-sm text-muted-foreground uppercase tracking-wide">
                 Garden Spotlight
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-                <Tooltip>
-                  <TooltipTrigger asChild>
+              
+              {spotlightQuestion ? (
+                // Show spotlight question when we have a good one
+                <>
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+                    <Badge variant="default" className="rounded-full px-3 py-1 bg-primary">
+                      🔥 Hot Question
+                    </Badge>
+                    {spotlightQuestion.is_answered && (
+                      <Badge variant="secondary" className="rounded-full px-3 py-1">
+                        ✓ Answered
+                      </Badge>
+                    )}
+                    {!spotlightQuestion.is_answered && (
+                      <Badge variant="outline" className="rounded-full px-3 py-1 border-orange-500 text-orange-600 dark:text-orange-400">
+                        💭 Need Answers
+                      </Badge>
+                    )}
+                  </div>
+                  <Link to={`/topic/${spotlightQuestion.topic_id}`} className="block">
+                    <p className="text-sm text-muted-foreground mb-2 hover:underline">
+                      {spotlightQuestion.topic_title}
+                    </p>
+                  </Link>
+                  <h2 className="text-2xl font-bold mb-3">{spotlightQuestion.content}</h2>
+                  {spotlightQuestion.profile_handle && (
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Asked by @{spotlightQuestion.profile_handle} {spotlightQuestion.profile_emoji_avatar}
+                    </p>
+                  )}
+                  <div className="flex justify-center gap-4 text-sm text-muted-foreground mb-4">
+                    <span className="flex items-center gap-1">
+                      <span className="font-semibold text-foreground">{spotlightQuestion.upvotes_count}</span>
+                      {spotlightQuestion.upvotes_count === 1 ? 'upvote' : 'upvotes'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="font-semibold text-foreground">{spotlightQuestion.replies_count}</span>
+                      {spotlightQuestion.replies_count === 1 ? 'reply' : 'replies'}
+                    </span>
+                  </div>
+                  <Link to={`/topic/${spotlightQuestion.topic_id}`}>
                     <Button
-                      variant={selectedTopicId === todayTopic.id ? "default" : "secondary"}
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => handleTopicToggle(todayTopic.id)}
+                      size="lg"
+                      className="mt-2 h-14 px-8 rounded-2xl"
                     >
-                      {selectedTopicId === todayTopic.id ? "Focused on this topic" : "Focus this topic"}
+                      Join the Discussion
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{selectedTopicId === todayTopic.id ? "Click to show all topics" : "Show only clips about today's topic"}</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Badge variant="secondary" className="rounded-full px-3 py-1">
-                  {topicMetrics[todayTopic.id]?.listens ?? 0} listeners tuned in
-                </Badge>
-              </div>
-              <Link to={`/topic/${todayTopic.id}`} className="block">
-                <h2 className="text-3xl font-bold hover:underline">{todayTopic.title}</h2>
-              </Link>
-              <p className="text-muted-foreground">{todayTopic.description}</p>
-              <div className="flex justify-center gap-4 text-sm text-muted-foreground">
-                <span>
-                  {topicMetrics[todayTopic.id]?.posts ?? 0}{" "}
-                  {topicMetrics[todayTopic.id]?.posts === 1 ? "voice" : "voices"}
-                </span>
-                <span>
-                  {topicMetrics[todayTopic.id]?.listens ?? 0} listens
-                </span>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    onClick={() => setIsRecordModalOpen(true)}
-                    size="lg"
-                    className="mt-4 h-14 px-8 rounded-2xl"
-                  >
-                    <Mic className="mr-2 h-5 w-5" />
-                    Share your voice
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Record a 30-second voice clip about today's topic (or press 'n' key)</p>
-                </TooltipContent>
-              </Tooltip>
-              {promptSeeds.length > 0 && (
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {promptSeeds.map((seed, index) => (
-                    <Button
-                      key={`${seed}-${index}`}
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full text-xs"
-                      onClick={() => setSearchQuery(seed)}
-                    >
-                      {seed}
-                    </Button>
-                  ))}
-                </div>
-              )}
+                  </Link>
+                </>
+              ) : todayTopic ? (
+                // Fall back to topic spotlight when no good question
+                <>
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTopicId === todayTopic.id ? "default" : "secondary"}
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => handleTopicToggle(todayTopic.id)}
+                        >
+                          {selectedTopicId === todayTopic.id ? "Focused on this topic" : "Focus this topic"}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{selectedTopicId === todayTopic.id ? "Click to show all topics" : "Show only clips about today's topic"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Badge variant="secondary" className="rounded-full px-3 py-1">
+                      {topicMetrics[todayTopic.id]?.listens ?? 0} listeners tuned in
+                    </Badge>
+                  </div>
+                  <Link to={`/topic/${todayTopic.id}`} className="block">
+                    <h2 className="text-3xl font-bold hover:underline">{todayTopic.title}</h2>
+                  </Link>
+                  <p className="text-muted-foreground">{todayTopic.description}</p>
+                  <div className="flex justify-center gap-4 text-sm text-muted-foreground">
+                    <span>
+                      {topicMetrics[todayTopic.id]?.posts ?? 0}{" "}
+                      {topicMetrics[todayTopic.id]?.posts === 1 ? "voice" : "voices"}
+                    </span>
+                    <span>
+                      {topicMetrics[todayTopic.id]?.listens ?? 0} listens
+                    </span>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setIsRecordModalOpen(true)}
+                        size="lg"
+                        className="mt-4 h-14 px-8 rounded-2xl"
+                      >
+                        <Mic className="mr-2 h-5 w-5" />
+                        Share your voice
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Record a 30-second voice clip about today's topic (or press 'n' key)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  {promptSeeds.length > 0 && (
+                    <div className="mt-4 flex flex-wrap justify-center gap-2">
+                      {promptSeeds.map((seed, index) => (
+                        <Button
+                          key={`${seed}-${index}`}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full text-xs"
+                          onClick={() => setSearchQuery(seed)}
+                        >
+                          {seed}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null}
             </div>
 
             {recentTopics.length > 0 && (
@@ -2778,15 +3027,24 @@ const Index = () => {
             <h3 className="text-lg font-semibold">{clipCountLabel}</h3>
           </div>
 
-          {visibleClips.length === 0 && !isLoading && (
+          {visibleClips.length === 0 && !isLoading && !(sortMode === "for_you" && isLoadingPersonalized) && (
             <div className="text-center py-12 space-y-3">
               {isSearching ? (
                 <>
                   <p className="text-xl text-muted-foreground">
-                    No voices match “{searchQuery.trim()}”
+                    No voices match "{searchQuery.trim()}"
                   </p>
                   <p className="text-sm text-muted-foreground/80">
                     Try a different keyword or reset the filters.
+                  </p>
+                </>
+              ) : sortMode === "for_you" ? (
+                <>
+                  <p className="text-xl text-muted-foreground">
+                    Your personalized feed is empty
+                  </p>
+                  <p className="text-sm text-muted-foreground/80">
+                    Follow topics and creators, or listen to clips to get personalized recommendations
                   </p>
                 </>
               ) : (
@@ -2807,7 +3065,7 @@ const Index = () => {
             </div>
           )}
 
-          {isLoading ? (
+          {(isLoading || (sortMode === "for_you" && isLoadingPersonalized)) ? (
             <ClipListSkeleton count={3} compact={viewMode === "compact"} />
           ) : (
             <div className="space-y-4">
@@ -2856,6 +3114,13 @@ const Index = () => {
             </div>
           )}
         </div>
+          </div>
+
+          {/* Right Sidebar - Hidden on mobile, visible on large screens */}
+          <aside className="hidden lg:block lg:col-span-3">
+            <CommunityRecommendationsSidebar />
+          </aside>
+        </div>
       </main>
 
       <div data-tutorial="record-button" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
@@ -2899,13 +3164,31 @@ const Index = () => {
         profileConsentCity={profile?.consent_city ?? false}
         tapToRecordPreferred={profile?.tap_to_record ?? false}
         parentClipId={replyingToClipId}
-        remixOfClipId={remixingFromClipId}
         chainId={continuingChainId}
         onOpenBulkUpload={() => setIsBulkUploadModalOpen(true)}
         replyingTo={replyingToClip}
-        remixingFrom={remixingFromClip}
         continuingChain={continuingChain}
       />
+
+      {remixingFromClipId && remixingFromClip && (
+        <RemixModal
+          isOpen={isRemixModalOpen}
+          onClose={() => {
+            setIsRemixModalOpen(false);
+            setRemixingFromClipId(null);
+            setRemixingFromClip(null);
+          }}
+          onSuccess={loadData}
+          originalClipId={remixingFromClipId}
+          originalClip={{
+            id: remixingFromClip.id,
+            audio_path: remixingFromClip.audio_path,
+            title: remixingFromClip.title,
+            summary: remixingFromClip.summary,
+            profiles: remixingFromClip.profiles,
+          }}
+        />
+      )}
 
       <BulkUploadModal
         isOpen={isBulkUploadModalOpen}

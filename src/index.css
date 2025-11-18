@@ -147,6 +147,15 @@ All colors MUST be HSL.
   .glass-surface {
     @apply bg-card/80 backdrop-blur-lg supports-[backdrop-filter]:bg-card/70 border border-border/60;
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer components {

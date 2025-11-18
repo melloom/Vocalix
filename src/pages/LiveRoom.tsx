@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { logError, logInfo } from "@/lib/logger";
+import { AMAQuestions } from "@/components/AMAQuestions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +61,9 @@ interface LiveRoom {
   recording_enabled: boolean;
   transcription_enabled: boolean;
   started_at: string | null;
+  is_ama?: boolean;
+  ama_question_submission_enabled?: boolean;
+  ama_question_deadline?: string | null;
   profiles?: {
     handle: string;
     emoji_avatar: string;
@@ -738,6 +742,18 @@ const LiveRoom = () => {
                     </div>
                   )}
                 </div>
+              </Card>
+            )}
+
+            {room.is_ama && (
+              <Card className="p-6 rounded-3xl">
+                <h3 className="font-semibold mb-4">AMA Questions</h3>
+                <AMAQuestions
+                  roomId={room.id}
+                  isHost={isHost}
+                  questionDeadline={room.ama_question_deadline}
+                  questionSubmissionEnabled={room.ama_question_submission_enabled}
+                />
               </Card>
             )}
           </div>

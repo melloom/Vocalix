@@ -25,31 +25,26 @@ export const usePrefetchClips = (
       if (prefetchedRef.current.has(clip.id) || !clip.audio_path) return;
 
       try {
-        // Create signed URL
-        const { data, error } = await supabase.storage
-          .from("audio")
-          .createSignedUrl(clip.audio_path, 3600);
+        // Get CDN-optimized audio URL
+        const { getAudioUrl } = await import("@/utils/audioUrl");
+        const audioUrl = await getAudioUrl(clip.audio_path, {
+          clipId: clip.id,
+          expiresIn: 86400, // 24 hours for better CDN caching
+        });
 
-        if (error) {
-          console.debug("Failed to prefetch audio:", error);
-          return;
-        }
+        // Prefetch using link tag for browser caching
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.as = "audio";
+        link.href = audioUrl;
+        document.head.appendChild(link);
 
-        if (data?.signedUrl) {
-          // Prefetch using link tag for browser caching
-          const link = document.createElement("link");
-          link.rel = "prefetch";
-          link.as = "audio";
-          link.href = data.signedUrl;
-          document.head.appendChild(link);
+        // Also prefetch using fetch for service worker caching
+        fetch(audioUrl, { method: "GET", cache: "force-cache" }).catch(() => {
+          // Silently fail - prefetching is optional
+        });
 
-          // Also prefetch using fetch for service worker caching
-          fetch(data.signedUrl, { method: "GET", cache: "force-cache" }).catch(() => {
-            // Silently fail - prefetching is optional
-          });
-
-          prefetchedRef.current.add(clip.id);
-        }
+        prefetchedRef.current.add(clip.id);
       } catch (error) {
         // Silently fail - prefetching is optional
         console.debug("Error prefetching audio:", error);

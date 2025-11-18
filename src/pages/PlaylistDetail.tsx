@@ -96,19 +96,37 @@ const PlaylistDetail = () => {
   const { isFollowing, toggleFollow, isToggling } = useCollectionFollow(playlist?.id || null);
   const trackView = useTrackCollectionView();
 
-  useEffect(() => {
-    const loadPlaylist = async () => {
-      if (!playlistId) {
-        setIsLoading(false);
-        return;
-      }
+  const loadPlaylist = async () => {
+    if (!playlistId) {
+      setIsLoading(false);
+      return;
+    }
 
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        // Try to load by ID first (for owned playlists)
-        let query = supabase
+    try {
+      // Try to load by ID first (for owned playlists)
+      let query = supabase
+        .from("playlists")
+        .select(
+          `
+          *,
+          profiles (
+            handle,
+            emoji_avatar
+          ),
+          playlist_clips(count)
+        `,
+        )
+        .eq("id", playlistId)
+        .single();
+
+      let { data: playlistData, error: playlistError } = await query;
+
+      // If not found, try loading by share_token (for shared playlists)
+      if (playlistError && playlistId.length > 36) {
+        const { data, error } = await supabase
           .from("playlists")
           .select(
             `
@@ -120,85 +138,143 @@ const PlaylistDetail = () => {
             playlist_clips(count)
           `,
           )
-          .eq("id", playlistId)
+          .eq("share_token", playlistId)
           .single();
 
-        let { data: playlistData, error: playlistError } = await query;
+        if (!error && data) {
+          playlistData = data;
+          playlistError = null;
+        }
+      }
 
-        // If not found, try loading by share_token (for shared playlists)
-        if (playlistError && playlistId.length > 36) {
-          const { data, error } = await supabase
-            .from("playlists")
-            .select(
-              `
-              *,
-              profiles (
-                handle,
-                emoji_avatar
-              ),
-              playlist_clips(count)
-            `,
+      if (playlistError || !playlistData) {
+        setError("Playlist not found");
+        setIsLoading(false);
+        return;
+      }
+
+      setPlaylist(playlistData);
+      setIsPublic(playlistData.is_public);
+
+      // Load clips in playlist
+      const { data: clipsData, error: clipsError } = await supabase
+        .from("playlist_clips")
+        .select(
+          `
+          clip_id,
+          position,
+          clips (
+            *,
+            profiles (
+              handle,
+              emoji_avatar
             )
-            .eq("share_token", playlistId)
-            .single();
+          )
+        `,
+        )
+        .eq("playlist_id", playlistData.id)
+        .order("position", { ascending: true });
 
-          if (!error && data) {
-            playlistData = data;
-            playlistError = null;
+      if (clipsError) {
+        setError("Couldn't load clips");
+        logError("Error loading clips", clipsError);
+      } else {
+        const transformedClips = (clipsData || [])
+          .map((item: any) => {
+            const clip = Array.isArray(item.clips) ? item.clips[0] : item.clips;
+            return clip as Clip | null;
+          })
+          .filter((clip): clip is Clip => clip !== null && clip !== undefined && clip.status === "live");
+
+        setClips(transformedClips);
+      }
+    } catch (err) {
+      setError("Couldn't load playlist");
+      logError("Error loading playlist", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPlaylist();
+
+    // Real-time subscription for playlist updates
+    if (!playlistId) return;
+
+    const channel = supabase
+      .channel(`playlist-${playlistId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "playlist_clips",
+          filter: `playlist_id=eq.${playlistId}`,
+        },
+        async (payload) => {
+          // Reload clips when new clip is added
+          loadPlaylist();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "playlist_clips",
+          filter: `playlist_id=eq.${playlistId}`,
+        },
+        async (payload) => {
+          // Reload clips when clip is removed
+          loadPlaylist();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "playlists",
+          filter: `id=eq.${playlistId}`,
+        },
+        async (payload) => {
+          // Reload playlist when updated
+          loadPlaylist();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "playlist_collaborators",
+          filter: `playlist_id=eq.${playlistId}`,
+        },
+        async (payload) => {
+          // Reload collaborators when changed
+          if (isCollaboratorsDialogOpen) {
+            // Reload collaborators list if dialog is open
+            const { data } = await supabase.rpc("get_playlist_collaborators", {
+              playlist_id_param: playlistId,
+            });
+            if (data) {
+              setCollaborators(data);
+            }
           }
         }
-
-        if (playlistError || !playlistData) {
-          setError("Playlist not found");
-          setIsLoading(false);
+      )
+      .subscribe((status, err) => {
+        if (err && (err.message?.includes("WebSocket") || err.message?.includes("websocket"))) {
+          // Suppress WebSocket errors - non-critical
           return;
         }
+      });
 
-        setPlaylist(playlistData);
-        setIsPublic(playlistData.is_public);
-
-        // Load clips in playlist
-        const { data: clipsData, error: clipsError } = await supabase
-          .from("playlist_clips")
-          .select(
-            `
-            clip_id,
-            position,
-            clips (
-              *,
-              profiles (
-                handle,
-                emoji_avatar
-              )
-            )
-          `,
-          )
-          .eq("playlist_id", playlistData.id)
-          .order("position", { ascending: true });
-
-        if (clipsError) {
-          setError("Couldn't load clips");
-          logError("Error loading clips", clipsError);
-        } else {
-          const transformedClips = (clipsData || [])
-            .map((item: any) => {
-              const clip = Array.isArray(item.clips) ? item.clips[0] : item.clips;
-              return clip as Clip | null;
-            })
-            .filter((clip): clip is Clip => clip !== null && clip !== undefined && clip.status === "live");
-
-          setClips(transformedClips);
-        }
-      } catch (err) {
-        setError("Couldn't load playlist");
-        logError("Error loading playlist", err);
-      } finally {
-        setIsLoading(false);
-      }
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    loadPlaylist();
-  }, [playlistId, profile?.id]);
+  }, [playlistId, profile?.id, isCollaboratorsDialogOpen]);
 
   // Track view when playlist is loaded and is public
   useEffect(() => {

@@ -41,6 +41,8 @@ export const CreateRoomModal = ({
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAMA, setIsAMA] = useState(false);
+  const [amaQuestionDeadline, setAmaQuestionDeadline] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,12 +99,22 @@ export const CreateRoomModal = ({
         max_speakers: maxSpeakers,
         max_listeners: maxListeners,
         status: isScheduled && scheduledTime ? "scheduled" : "live",
+        is_ama: isAMA,
+        ama_host_profile_id: isAMA ? profile.id : null,
+        ama_question_submission_enabled: isAMA,
       };
 
       if (isScheduled && scheduledTime) {
         roomData.scheduled_start_time = new Date(scheduledTime).toISOString();
+        if (isAMA) {
+          roomData.ama_scheduled_start_time = new Date(scheduledTime).toISOString();
+        }
       } else {
         roomData.started_at = new Date().toISOString();
+      }
+
+      if (isAMA && amaQuestionDeadline) {
+        roomData.ama_question_deadline = new Date(amaQuestionDeadline).toISOString();
       }
 
       const { data, error } = await supabase
@@ -188,6 +200,22 @@ export const CreateRoomModal = ({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
+              <Label htmlFor="ama">AMA (Ask Me Anything)</Label>
+              <Switch
+                id="ama"
+                checked={isAMA}
+                onCheckedChange={setIsAMA}
+              />
+            </div>
+            {isAMA && (
+              <p className="text-sm text-muted-foreground">
+                Allow users to submit audio questions for you to answer
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <Label htmlFor="scheduled">Schedule for later</Label>
               <Switch
                 id="scheduled"
@@ -196,12 +224,25 @@ export const CreateRoomModal = ({
               />
             </div>
             {isScheduled && (
-              <Input
-                type="datetime-local"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                min={new Date().toISOString().slice(0, 16)}
-              />
+              <>
+                <Input
+                  type="datetime-local"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  placeholder="Room start time"
+                />
+                {isAMA && (
+                  <Input
+                    type="datetime-local"
+                    value={amaQuestionDeadline}
+                    onChange={(e) => setAmaQuestionDeadline(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    max={scheduledTime || undefined}
+                    placeholder="Question submission deadline"
+                  />
+                )}
+              </>
             )}
           </div>
 

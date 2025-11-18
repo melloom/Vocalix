@@ -15,6 +15,7 @@ interface EnqueueUploadOptions {
   consentCity?: boolean;
   contentRating: "general" | "sensitive";
   title?: string | null;
+  caption?: string | null;
   tags?: string[];
   category?: string;
   parentClipId?: string | null;
@@ -28,6 +29,8 @@ interface EnqueueUploadOptions {
   visibility?: "public" | "followers" | "private";
   signLanguageUrl?: string | null;
   audioDescriptionUrl?: string | null;
+  seriesId?: string | null;
+  episodeNumber?: number | null;
 }
 
 interface UploadQueueItem {
@@ -44,6 +47,7 @@ interface UploadQueueItem {
   consentCity?: boolean;
   contentRating: "general" | "sensitive";
   title?: string | null;
+  caption?: string | null;
   tags?: string[];
   category?: string;
   parentClipId?: string | null;
@@ -55,6 +59,8 @@ interface UploadQueueItem {
   visibility?: "public" | "followers" | "private";
   signLanguageUrl?: string | null;
   audioDescriptionUrl?: string | null;
+  seriesId?: string | null;
+  episodeNumber?: number | null;
 }
 
 interface UploadQueueContextValue {
@@ -157,6 +163,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       consentCity,
       contentRating,
       title,
+      caption,
       tags,
       category,
       parentClipId,
@@ -195,6 +202,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
             city: consentCity ? city : null,
             content_rating: contentRating,
             title: title?.trim() ? title.trim() : null,
+            captions: caption?.trim() ? caption.trim() : null,
             tags: tags && tags.length > 0 ? tags : null,
             category: category || null,
             parent_clip_id: parentClipId ?? null,
@@ -208,6 +216,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
             is_private: visibility === "private",
             sign_language_video_url: signLanguageUrl || null,
             audio_description_url: audioDescriptionUrl || null,
+            series_id: seriesId || null,
+            episode_number: episodeNumber || null,
           })
           .select()
           .single();
@@ -250,6 +260,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       consentCity,
       contentRating,
       title,
+      caption,
       tags,
       category,
       parentClipId,
@@ -263,6 +274,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       visibility,
       signLanguageUrl,
       audioDescriptionUrl,
+      seriesId,
+      episodeNumber,
     }: EnqueueUploadOptions) => {
       // If saving as draft, use saveDraft instead
       if (saveAsDraft) {
@@ -278,6 +291,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           consentCity,
           contentRating,
           title,
+          caption,
           tags,
           category,
           parentClipId,
@@ -287,6 +301,11 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           communityId,
           isPodcast,
           scheduledFor,
+          visibility,
+          signLanguageUrl,
+          audioDescriptionUrl,
+          seriesId,
+          episodeNumber,
         });
         return;
       }
@@ -338,6 +357,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
         consentCity,
         contentRating,
         title: title?.trim() ? title.trim() : undefined,
+        caption: caption?.trim() ? caption.trim() : undefined,
         tags: tags?.length ? tags : undefined,
         category: category || undefined,
         parentClipId: parentClipId || undefined,
@@ -349,6 +369,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
         visibility: visibility || "public",
         signLanguageUrl: signLanguageUrl || undefined,
         audioDescriptionUrl: audioDescriptionUrl || undefined,
+        seriesId: seriesId || undefined,
+        episodeNumber: episodeNumber || undefined,
       };
 
       setQueue((prev) => {
@@ -412,6 +434,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           city: item.consentCity ? item.city : null,
           content_rating: item.contentRating,
           title: item.title ?? null,
+          captions: item.caption ?? null,
           tags: item.tags && item.tags.length > 0 ? item.tags : null,
           category: item.category || null,
           parent_clip_id: item.parentClipId ?? null,
@@ -424,6 +447,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           is_private: item.visibility === "private",
           sign_language_video_url: item.signLanguageUrl || null,
           audio_description_url: item.audioDescriptionUrl || null,
+          series_id: item.seriesId ?? null,
+          episode_number: item.episodeNumber ?? null,
         })
         .select()
         .single();

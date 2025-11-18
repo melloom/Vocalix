@@ -82,6 +82,14 @@ Set these in Supabase Dashboard → Project Settings → Edge Functions → Secr
 - **Required**: Yes (for daily digest)
 - **Security**: ⚠️ **SECRET** - Never expose!
 
+#### `ELEVENLABS_API_KEY`
+- **Description**: ElevenLabs API key for voice cloning (accessibility feature)
+- **Example**: `sk_...`
+- **Required**: No (optional, for voice cloning feature)
+- **Where to Get**: [ElevenLabs Dashboard](https://elevenlabs.io/app/settings/api-keys)
+- **Security**: ⚠️ **SECRET** - Never expose!
+- **Note**: Voice cloning will be disabled if this key is not set
+
 #### `SENTRY_DSN`
 - **Description**: Sentry DSN for error tracking (Edge Functions)
 - **Example**: `https://abc123@o123456.ingest.sentry.io/123456`
@@ -167,6 +175,7 @@ These must stay server-side:
 - `SUPABASE_SERVICE_ROLE_KEY` ⚠️
 - `OPENAI_API_KEY` ⚠️
 - `RESEND_API_KEY` ⚠️
+- `ELEVENLABS_API_KEY` ⚠️
 
 ### Best Practices
 

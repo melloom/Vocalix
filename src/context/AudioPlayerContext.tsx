@@ -238,8 +238,34 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
     const handleTimeUpdate = () => {
       if (!isNaN(audio.duration) && audio.duration > 0) {
-        setProgress((audio.currentTime / audio.duration) * 100);
+        const currentProgress = (audio.currentTime / audio.duration) * 100;
+        setProgress(currentProgress);
         setDuration(audio.duration);
+
+        // Sync listening progress to cloud (debounced)
+        if (currentClip?.id && profile?.id) {
+          // Only sync every 5 seconds to avoid too many requests
+          if (!saveTimeoutRef.current) {
+            saveTimeoutRef.current = setTimeout(async () => {
+              try {
+                const { syncListeningProgress } = await import("@/utils/offlineSync");
+                const deviceId = localStorage.getItem("deviceId");
+                await syncListeningProgress(
+                  profile.id,
+                  currentClip.id,
+                  audio.currentTime,
+                  currentProgress,
+                  deviceId || null
+                );
+              } catch (error) {
+                // Silent failure - progress sync is non-critical
+                logWarn("Failed to sync listening progress", error);
+              } finally {
+                saveTimeoutRef.current = null;
+              }
+            }, 5000); // Sync every 5 seconds
+          }
+        }
 
         // Update Media Session position state
         if ("mediaSession" in navigator && navigator.mediaSession.setPositionState) {
@@ -362,15 +388,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           urlToUse = URL.createObjectURL(audioBlob);
           setAudioUrl(urlToUse);
         } else {
-          // Load from Supabase
-          const { data, error } = await supabase.storage
-            .from("audio")
-            .createSignedUrl(clip.audio_path, 3600); // 1 hour expiry
-
-          if (error) throw error;
-          if (!data?.signedUrl) throw new Error("Failed to get signed URL");
-
-          urlToUse = data.signedUrl;
+          // Load from Supabase Storage CDN
+          const { getAudioUrl } = await import("@/utils/audioUrl");
+          urlToUse = await getAudioUrl(clip.audio_path, {
+            checkOffline: false, // Already checked above
+            clipId: clip.id,
+            expiresIn: 86400, // 24 hours for better CDN caching
+          });
           setAudioUrl(urlToUse);
         }
       }

@@ -55,15 +55,13 @@ export const VoiceReactionPlayer = ({ voiceReaction }: VoiceReactionPlayerProps)
     if (!audioUrl) {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase.storage
-          .from("audio")
-          .createSignedUrl(voiceReaction.audio_path, 3600); // 1 hour expiry
+        const { getAudioUrl } = await import("@/utils/audioUrl");
+        const audioUrl = await getAudioUrl(voiceReaction.audio_path, {
+          expiresIn: 86400, // 24 hours for better CDN caching
+        });
 
-        if (error) throw error;
-        if (!data?.signedUrl) throw new Error("Failed to get signed URL");
-
-        setAudioUrl(data.signedUrl);
-        const audio = new Audio(data.signedUrl);
+        setAudioUrl(audioUrl);
+        const audio = new Audio(audioUrl);
         audioRef.current = audio;
         // Apply user's playback speed preference
         audio.playbackRate = playbackSpeed;

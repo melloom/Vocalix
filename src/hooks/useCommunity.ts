@@ -503,3 +503,51 @@ export const useClearCommunitySuccessor = (communityId: string | null) => {
   });
 };
 
+// Hook to check if user has a specific permission in a community
+export const useCommunityPermission = (communityId: string | null, permission: string) => {
+  const { profile } = useProfile();
+
+  return useQuery({
+    queryKey: ['community-permission', communityId, profile?.id, permission],
+    queryFn: async () => {
+      if (!communityId || !profile?.id) return false;
+
+      const { data, error } = await supabase
+        .rpc('moderator_has_permission', {
+          p_community_id: communityId,
+          p_profile_id: profile.id,
+          p_permission: permission,
+        });
+
+      if (error) throw error;
+      return data || false;
+    },
+    enabled: !!communityId && !!profile?.id,
+  });
+};
+
+// Hook to update moderator permissions
+export const useUpdateModeratorPermissions = (communityId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ moderatorId, permissions }: { moderatorId: string; permissions: Record<string, boolean> }) => {
+      if (!communityId) {
+        throw new Error('Community ID is required');
+      }
+
+      const { error } = await supabase
+        .from('community_moderators')
+        .update({ permissions })
+        .eq('id', moderatorId)
+        .eq('community_id', communityId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community-moderators', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+    },
+  });
+};
+

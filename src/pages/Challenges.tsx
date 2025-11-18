@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Calendar, Users, Bell, BellOff } from "lucide-react";
+import { ArrowLeft, Trophy, Calendar, Users, Bell, BellOff, Award, TrendingUp, Flame, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProfile } from "@/hooks/useProfile";
 import { useChallengeFollow } from "@/hooks/useChallengeFollow";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { logError } from "@/lib/logger";
 
 interface Challenge {
   id: string;
@@ -21,6 +23,12 @@ interface Challenge {
   end_date: string | null;
   is_active: boolean;
   created_at: string;
+  is_auto_generated?: boolean;
+  challenge_type?: string;
+  challenge_template?: string;
+  leaderboard_enabled?: boolean;
+  reward_points?: number;
+  criteria?: Record<string, any>;
   topics: {
     id: string;
     title: string;
@@ -60,10 +68,39 @@ const Challenges = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingClips, setIsLoadingClips] = useState(false);
   const [followerCounts, setFollowerCounts] = useState<Record<string, number>>({});
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [activeTab, setActiveTab] = useState<"clips" | "leaderboard">("clips");
+  const [userStreak, setUserStreak] = useState<{ current: number; longest: number } | null>(null);
+  const [challengeProgress, setChallengeProgress] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const loadChallenges = async () => {
       try {
+        // Generate daily challenges (multiple types)
+        try {
+          await supabase.rpc("generate_daily_challenges");
+        } catch (err) {
+          // Ignore errors - daily challenges might already exist or no topic available
+          console.debug("Daily challenge generation:", err);
+        }
+
+        // Load user streak if logged in
+        if (viewerProfile?.id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("current_streak_days, longest_streak_days")
+            .eq("id", viewerProfile.id)
+            .single();
+          
+          if (profileData) {
+            setUserStreak({
+              current: profileData.current_streak_days || 0,
+              longest: profileData.longest_streak_days || 0,
+            });
+          }
+        }
+
         const { data, error } = await supabase
           .from("challenges")
           .select(
@@ -106,7 +143,7 @@ const Challenges = () => {
           setFollowerCounts(counts);
         }
       } catch (error) {
-        console.error("Error loading challenges:", error);
+        logError("Error loading challenges", error);
       } finally {
         setIsLoading(false);
       }
@@ -153,9 +190,49 @@ const Challenges = () => {
     }
   };
 
-  const handleChallengeSelect = (challenge: Challenge) => {
+  const loadChallengeLeaderboard = async (challengeId: string) => {
+    setIsLoadingLeaderboard(true);
+    try {
+      const { data, error } = await supabase.rpc("get_challenge_leaderboard", {
+        p_challenge_id: challengeId,
+        p_limit: 20,
+      });
+
+      if (error) throw error;
+      setLeaderboard(data || []);
+    } catch (error) {
+      logError("Error loading leaderboard", error);
+      setLeaderboard([]);
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  };
+
+  const handleChallengeSelect = async (challenge: Challenge) => {
     setSelectedChallenge(challenge);
+    setActiveTab("clips");
     loadChallengeClips(challenge.id);
+    if (challenge.leaderboard_enabled !== false) {
+      loadChallengeLeaderboard(challenge.id);
+    }
+
+    // Load challenge progress if user is logged in
+    if (viewerProfile?.id) {
+      try {
+        const { data, error } = await supabase.rpc("check_challenge_progress", {
+          p_challenge_id: challenge.id,
+          p_profile_id: viewerProfile.id,
+        });
+        if (!error && data) {
+          setChallengeProgress((prev) => ({
+            ...prev,
+            [challenge.id]: data,
+          }));
+        }
+      } catch (err) {
+        console.error("Error loading challenge progress:", err);
+      }
+    }
   };
 
   const isChallengeActive = (challenge: Challenge) => {
@@ -168,11 +245,19 @@ const Challenges = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-bold">Voice Challenges</h1>
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">Voice Challenges</h1>
+          </div>
+          {userStreak && userStreak.current > 0 && (
+            <Badge variant="default" className="gap-1.5">
+              <Flame className="h-4 w-4" />
+              <span>{userStreak.current} day streak</span>
+            </Badge>
+          )}
         </div>
       </header>
 
@@ -193,6 +278,7 @@ const Challenges = () => {
                   isSelected={selectedChallenge?.id === challenge.id}
                   onSelect={() => handleChallengeSelect(challenge)}
                   followerCount={followerCounts[challenge.id] || 0}
+                  progress={challengeProgress[challenge.id]}
                 />
               ))}
             </div>
@@ -201,7 +287,7 @@ const Challenges = () => {
               <div className="space-y-4 mt-8">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">
-                    Challenge Responses ({clips.length})
+                    {selectedChallenge.title}
                   </h2>
                   <Button
                     variant="outline"
@@ -212,25 +298,84 @@ const Challenges = () => {
                   </Button>
                 </div>
 
-                {isLoadingClips ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-32 w-full rounded-2xl" />
-                    ))}
-                  </div>
-                ) : clips.length === 0 ? (
-                  <Card className="p-6 rounded-3xl text-center text-muted-foreground">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No responses yet for this challenge.</p>
-                    <p className="text-sm mt-2">Be the first to participate!</p>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {clips.map((clip) => (
-                      <ClipCard key={clip.id} clip={clip} captionsDefault={false} />
-                    ))}
-                  </div>
-                )}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "clips" | "leaderboard")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="clips">Clips ({clips.length})</TabsTrigger>
+                    <TabsTrigger value="leaderboard" disabled={selectedChallenge.leaderboard_enabled === false}>
+                      Leaderboard
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="clips" className="space-y-4">
+                    {isLoadingClips ? (
+                      <div className="space-y-4">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+                        ))}
+                      </div>
+                    ) : clips.length === 0 ? (
+                      <Card className="p-6 rounded-3xl text-center text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No responses yet for this challenge.</p>
+                        <p className="text-sm mt-2">Be the first to participate!</p>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4">
+                        {clips.map((clip) => (
+                          <ClipCard key={clip.id} clip={clip} captionsDefault={false} />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="leaderboard" className="space-y-4">
+                    {isLoadingLeaderboard ? (
+                      <div className="space-y-4">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+                        ))}
+                      </div>
+                    ) : leaderboard.length === 0 ? (
+                      <Card className="p-6 rounded-3xl text-center text-muted-foreground">
+                        <Award className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No leaderboard data yet.</p>
+                        <p className="text-sm mt-2">Participate in the challenge to see rankings!</p>
+                      </Card>
+                    ) : (
+                      <div className="space-y-3">
+                        {leaderboard.map((entry, index) => (
+                          <Card key={entry.profile_id} className="p-4 rounded-2xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary font-bold">
+                                  {entry.rank}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">{entry.emoji_avatar}</span>
+                                    <span className="font-semibold">@{entry.handle}</span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                                    <span>{entry.clips_count} clips</span>
+                                    <span>{entry.total_listens} listens</span>
+                                    <span>{entry.total_reactions} reactions</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-bold text-lg">{Math.round(entry.score)}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">points</span>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
           </>
@@ -246,11 +391,13 @@ const ChallengeCard = ({
   isSelected,
   onSelect,
   followerCount,
+  progress,
 }: {
   challenge: Challenge;
   isSelected: boolean;
   onSelect: () => void;
   followerCount: number;
+  progress?: any;
 }) => {
   const { profile: viewerProfile } = useProfile();
   const { isFollowing, toggleFollow, isToggling } = useChallengeFollow(challenge.id);
@@ -325,6 +472,46 @@ const ChallengeCard = ({
                   <span>{localFollowerCount} {localFollowerCount === 1 ? "follower" : "followers"}</span>
                 </div>
               )}
+              {challenge.reward_points && challenge.reward_points > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Award className="w-4 h-4" />
+                  <span>{challenge.reward_points} points</span>
+                </div>
+              )}
+            </div>
+            {progress && (
+              <div className="mt-3 space-y-2">
+                {progress.type === 'react_to_clips' && (
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm">
+                      {progress.reactions_count || 0} / {progress.target} reactions
+                    </span>
+                    {progress.completed && (
+                      <Badge variant="default" className="ml-auto">Completed!</Badge>
+                    )}
+                  </div>
+                )}
+                {progress.type === 'record_memory' && (
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm">
+                      {progress.clips_count || 0} / {progress.target} clips
+                    </span>
+                    {progress.completed && (
+                      <Badge variant="default" className="ml-auto">Completed!</Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {challenge.challenge_template && challenge.challenge_template !== 'topic_based' && (
+              <Badge variant="outline" className="mt-2">
+                {challenge.challenge_template === 'record_memory' && '📝 Memory Challenge'}
+                {challenge.challenge_template === 'react_to_clips' && '❤️ Engagement Challenge'}
+                {challenge.challenge_template === 'daily_streak' && '🔥 Streak Challenge'}
+              </Badge>
+            )}
             </div>
           )}
         </div>

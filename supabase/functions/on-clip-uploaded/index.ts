@@ -660,6 +660,30 @@ serve(async (req) => {
       throw updateError;
     }
 
+    // Detect language and generate translations (async, don't block)
+    if (transcript && transcript.trim().length > 10) {
+      try {
+        // Call language detection and translation function
+        const detectTranslateUrl = `${SUPABASE_URL}/functions/v1/detect-language-and-translate`;
+        fetch(detectTranslateUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: transcript,
+            clipId: clipId,
+          }),
+        }).catch((error) => {
+          console.error("Error calling language detection (non-blocking):", error);
+        });
+      } catch (error) {
+        console.error("Error initiating language detection (non-blocking):", error);
+        // Don't throw - this is non-critical
+      }
+    }
+
     // Update storage usage after successful upload
     if (clip.profile_id && fileSizeBytes) {
       try {

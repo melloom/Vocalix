@@ -30,6 +30,8 @@ export const LazyImage = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!containerRef.current) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -40,13 +42,12 @@ export const LazyImage = ({
         });
       },
       {
-        rootMargin: "50px", // Start loading 50px before entering viewport
+        rootMargin: "100px", // Start loading earlier for smoother experience
+        threshold: 0.01,
       }
     );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
+    observer.observe(containerRef.current);
 
     return () => {
       observer.disconnect();
@@ -74,10 +75,11 @@ export const LazyImage = ({
           src={src}
           alt={alt}
           className={`${className} ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
-          style={{ width, height }}
+          style={{ width, height, objectFit: "cover" }}
           onLoad={handleLoad}
           onError={handleError}
           loading="lazy"
+          decoding="async" // Async decoding for better performance
         />
       )}
       {hasError && (

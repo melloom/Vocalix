@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Mic, X, Check, Waves, Play, Pause, Save, Calendar, Sparkles, Upload, FileAudio } from "lucide-react";
+import { Mic, X, Check, Waves, Play, Pause, Save, Sparkles, Upload, FileAudio, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useUploadQueue } from "@/context/UploadQueueContext";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAudioEnhancements } from "@/hooks/useAudioEnhancements";
 import { AudioEnhancementControls } from "@/components/AudioEnhancementControls";
@@ -16,6 +18,19 @@ import { logError, logWarn } from "@/lib/logger";
 import { AudioTemplateSelector, type AudioTemplate } from "@/components/AudioTemplateSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { validateFileUpload } from "@/lib/validation";
+import { trimAudio, getAudioDuration } from "@/utils/audioTrimming";
+import { normalizeAudioVolume, adjustAudioVolume, getAudioPeakLevel } from "@/utils/audioNormalization";
+import { analyzeAudioQuality, autoEnhanceAudio, type AudioQualityMetrics } from "@/utils/audioQuality";
+import { AudioLevelsIndicator } from "@/components/AudioLevelsIndicator";
+import { AudioQualitySuggestions } from "@/components/AudioQualitySuggestions";
+import { Slider } from "@/components/ui/slider";
+import { Volume2, VolumeX, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useProfile } from "@/hooks/useProfile";
+import { FlairSelector } from "@/components/FlairSelector";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -79,6 +94,7 @@ export const RecordModal = ({
   const [waveform, setWaveform] = useState<number[]>(Array(WAVEFORM_BINS).fill(0.5));
   const [isSensitive, setIsSensitive] = useState(false);
   const [title, setTitle] = useState("");
+  const [caption, setCaption] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [category, setCategory] = useState<string>("");
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -87,11 +103,31 @@ export const RecordModal = ({
   const [isPodcastMode, setIsPodcastMode] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState("");
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
+  const [scheduledHour, setScheduledHour] = useState("12");
+  const [scheduledMinute, setScheduledMinute] = useState("00");
+  const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "followers" | "private">("public");
   const [signLanguageUrl, setSignLanguageUrl] = useState("");
   const [audioDescriptionUrl, setAudioDescriptionUrl] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [volumeLevel, setVolumeLevel] = useState(1.0); // 0-2, where 1 is original
+  const [isNormalizing, setIsNormalizing] = useState(false);
+  const [audioPeakLevel, setAudioPeakLevel] = useState(0.5);
+  const [autoNormalize, setAutoNormalize] = useState(true);
+  const [trimStart, setTrimStart] = useState(0); // Seconds to trim from start
+  const [trimEnd, setTrimEnd] = useState(0); // Seconds to trim from end
+  const [audioDuration, setAudioDuration] = useState(0); // Full audio duration
+  const [isTrimming, setIsTrimming] = useState(false);
+  const [showTrimControls, setShowTrimControls] = useState(false);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | null>(null);
+  const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
+  const [userSeries, setUserSeries] = useState<Array<{ id: string; title: string }>>([]);
+  const [qualityMetrics, setQualityMetrics] = useState<AudioQualityMetrics | null>(null);
+  const [isAnalyzingQuality, setIsAnalyzingQuality] = useState(false);
+  const [isEnhancingAudio, setIsEnhancingAudio] = useState(false);
+  const [autoEnhanceEnabled, setAutoEnhanceEnabled] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dynamic max duration based on podcast mode
@@ -107,6 +143,7 @@ export const RecordModal = ({
   const playbackTimerRef = useRef<number | null>(null);
 
   const { toast } = useToast();
+  const { profile } = useProfile();
   const { enqueueUpload, saveDraft, isProcessing } = useUploadQueue();
   
   // Audio enhancements for playback
@@ -128,7 +165,28 @@ export const RecordModal = ({
     [],
   );
 
-  const tagList = useMemo(() => parseTags(tagInput), [parseTags, tagInput]);
+  // Extract hashtags from caption text
+  const extractHashtagsFromCaption = useCallback((text: string): string[] => {
+    if (!text) return [];
+    const hashtagPattern = /#([a-zA-Z0-9_]+)/g;
+    const matches = text.matchAll(hashtagPattern);
+    const hashtags: string[] = [];
+    for (const match of matches) {
+      const tag = match[1].toLowerCase();
+      if (tag.length > 0 && !hashtags.includes(tag)) {
+        hashtags.push(tag);
+      }
+    }
+    return hashtags;
+  }, []);
+
+  const tagList = useMemo(() => {
+    const tagsFromInput = parseTags(tagInput);
+    const tagsFromCaption = extractHashtagsFromCaption(caption);
+    // Merge and deduplicate
+    const allTags = [...tagsFromInput, ...tagsFromCaption];
+    return allTags.filter((tag, index, arr) => arr.indexOf(tag) === index);
+  }, [parseTags, tagInput, extractHashtagsFromCaption, caption]);
 
   const cleanupAudio = useCallback(() => {
     if (audioContextRef.current) {
@@ -305,18 +363,105 @@ export const RecordModal = ({
         audio.src = url;
       });
 
-      setAudioBlob(audioBlob);
+      // Auto-enhance audio if enabled
+      let processedBlob = audioBlob;
+      if (autoEnhanceEnabled) {
+        try {
+          setIsNormalizing(true);
+          setIsEnhancingAudio(true);
+          processedBlob = await autoEnhanceAudio(audioBlob, {
+            reduceNoise: true,
+            normalize: true,
+            targetPeak: 0.95,
+          });
+          toast({
+            title: "File loaded & enhanced",
+            description: "Your audio file has been enhanced with noise reduction and normalization.",
+          });
+        } catch (error) {
+          logWarn("Auto-enhancement failed, falling back to normalization", error);
+          // Fallback to just normalization
+          if (autoNormalize) {
+            try {
+              processedBlob = await normalizeAudioVolume(audioBlob);
+              toast({
+                title: "File loaded & normalized",
+                description: "Your audio file is ready. Volume has been automatically adjusted.",
+              });
+            } catch (normalizeError) {
+              logWarn("Auto-normalization failed", normalizeError);
+              toast({
+                title: "File loaded",
+                description: "Your audio file is ready. You can preview it or continue to add details.",
+              });
+            }
+          } else {
+            toast({
+              title: "File loaded",
+              description: "Your audio file is ready. You can preview it or continue to add details.",
+            });
+          }
+        } finally {
+          setIsNormalizing(false);
+          setIsEnhancingAudio(false);
+        }
+      } else if (autoNormalize) {
+        // Just normalize if auto-enhance is disabled but normalize is enabled
+        try {
+          setIsNormalizing(true);
+          processedBlob = await normalizeAudioVolume(audioBlob);
+          toast({
+            title: "File loaded & normalized",
+            description: "Your audio file is ready. Volume has been automatically adjusted.",
+          });
+        } catch (error) {
+          logWarn("Auto-normalization failed", error);
+          toast({
+            title: "File loaded",
+            description: "Your audio file is ready. You can preview it or continue to add details.",
+          });
+        } finally {
+          setIsNormalizing(false);
+        }
+      } else {
+        toast({
+          title: "File loaded",
+          description: "Your audio file is ready. You can preview it or continue to add details.",
+        });
+      }
+      
+      // Get peak level and duration for visualization
+      try {
+        const peak = await getAudioPeakLevel(processedBlob);
+        setAudioPeakLevel(peak);
+        const duration = await getAudioDuration(processedBlob);
+        setAudioDuration(duration);
+      } catch (error) {
+        logWarn("Failed to get audio metadata", error);
+      }
+      
+      // Analyze audio quality
+      setIsAnalyzingQuality(true);
+      try {
+        const metrics = await analyzeAudioQuality(processedBlob);
+        setQualityMetrics(metrics);
+      } catch (error) {
+        logWarn("Quality analysis failed", error);
+      } finally {
+        setIsAnalyzingQuality(false);
+      }
+      
+      setAudioBlob(processedBlob);
       setUploadedFileName(file.name);
+      setVolumeLevel(1.0); // Reset volume slider
+      setTrimStart(0);
+      setTrimEnd(0);
+      setShowTrimControls(true);
       
       // Auto-enable podcast mode if duration > 30 seconds
       if (audio.duration > 30) {
         setIsPodcastMode(true);
       }
-      
-      toast({
-        title: "File loaded",
-        description: "Your audio file is ready. You can preview it or continue to add details.",
-      });
     } catch (error) {
       logError("Error loading audio file", error);
       toast({
@@ -343,6 +488,10 @@ export const RecordModal = ({
     }
     setIsPlaying(false);
     setPlaybackProgress(0);
+    // Reset quality metrics
+    setQualityMetrics(null);
+    setIsAnalyzingQuality(false);
+    setIsEnhancingAudio(false);
     
     setAudioBlob(null);
     setDuration(0);
@@ -350,11 +499,17 @@ export const RecordModal = ({
     setWaveform(Array(WAVEFORM_BINS).fill(0.5));
     setIsSensitive(false);
     setTitle("");
+    setCaption("");
     setTagInput("");
     setIsPodcastMode(false);
     setIsScheduled(false);
     setScheduledTime("");
     setUploadedFileName(null);
+    setSelectedSeriesId(null);
+    setEpisodeNumber(null);
+    setVolumeLevel(1.0);
+    setAudioPeakLevel(0.5);
+    setIsNormalizing(false);
     stopTracking();
     cleanupAudio();
     mediaRecorderRef.current = null;
@@ -380,8 +535,9 @@ export const RecordModal = ({
       const audio = new Audio(audioUrl);
       audioPlayerRef.current = audio;
       
-      // Apply enhancements
+      // Apply enhancements and volume
       audio.playbackRate = enhancements.playbackSpeed;
+      audio.volume = Math.min(volumeLevel, 1); // HTML5 volume is 0-1
 
       audio.onended = () => {
         setIsPlaying(false);
@@ -427,7 +583,7 @@ export const RecordModal = ({
         audioPlayerRef.current = null;
       });
     }
-  }, [audioBlob, isPlaying, toast, enhancements.playbackSpeed]);
+  }, [audioBlob, isPlaying, toast, enhancements.playbackSpeed, volumeLevel]);
 
   useEffect(() => {
     return () => {
@@ -442,6 +598,31 @@ export const RecordModal = ({
       handleReset();
     }
   }, [handleReset, isOpen, stopRecording]);
+
+  // Load user's series when modal opens
+  useEffect(() => {
+    if (isOpen && profile?.id) {
+      loadUserSeries();
+    }
+  }, [isOpen, profile?.id]);
+
+  const loadUserSeries = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("series")
+        .select("id, title")
+        .eq("profile_id", profile.id)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setUserSeries(data || []);
+    } catch (error) {
+      console.error("Error loading series:", error);
+    }
+  };
 
   // Cleanup playback on unmount
   useEffect(() => {
@@ -515,10 +696,85 @@ export const RecordModal = ({
         stopRecording();
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: selectedMimeType });
         if (blob.size > 0) {
-          setAudioBlob(blob);
+          // Auto-enhance audio if enabled (includes normalization and noise reduction)
+          let processedBlob = blob;
+          if (autoEnhanceEnabled) {
+            try {
+              setIsNormalizing(true);
+              setIsEnhancingAudio(true);
+              processedBlob = await autoEnhanceAudio(blob, {
+                reduceNoise: true,
+                normalize: true,
+                targetPeak: 0.95,
+              });
+              toast({
+                title: "Audio enhanced",
+                description: "Audio has been automatically enhanced with noise reduction and normalization.",
+              });
+            } catch (error) {
+              logWarn("Auto-enhancement failed, falling back to normalization", error);
+              // Fallback to just normalization
+              if (autoNormalize) {
+                try {
+                  processedBlob = await normalizeAudioVolume(blob);
+                  toast({
+                    title: "Volume normalized",
+                    description: "Audio volume has been automatically adjusted.",
+                  });
+                } catch (normalizeError) {
+                  logWarn("Auto-normalization failed", normalizeError);
+                }
+              }
+            } finally {
+              setIsNormalizing(false);
+              setIsEnhancingAudio(false);
+            }
+          } else if (autoNormalize) {
+            // Just normalize if auto-enhance is disabled but normalize is enabled
+            try {
+              setIsNormalizing(true);
+              processedBlob = await normalizeAudioVolume(blob);
+              toast({
+                title: "Volume normalized",
+                description: "Audio volume has been automatically adjusted.",
+              });
+            } catch (error) {
+              logWarn("Auto-normalization failed", error);
+            } finally {
+              setIsNormalizing(false);
+            }
+          }
+          
+          // Get peak level and duration for visualization
+          try {
+            const peak = await getAudioPeakLevel(processedBlob);
+            setAudioPeakLevel(peak);
+            const duration = await getAudioDuration(processedBlob);
+            setAudioDuration(duration);
+            setDuration(Math.floor(duration));
+          } catch (error) {
+            logWarn("Failed to get audio metadata", error);
+          }
+          
+          // Analyze audio quality
+          setIsAnalyzingQuality(true);
+          try {
+            const metrics = await analyzeAudioQuality(processedBlob);
+            setQualityMetrics(metrics);
+          } catch (error) {
+            logWarn("Quality analysis failed", error);
+          } finally {
+            setIsAnalyzingQuality(false);
+          }
+          
+          setAudioBlob(processedBlob);
+          setVolumeLevel(1.0); // Reset volume slider after normalization
+          setTrimStart(0);
+          setTrimEnd(0);
+          setShowTrimControls(true);
         } else {
           toast({
             title: "No audio recorded",
@@ -654,12 +910,30 @@ export const RecordModal = ({
 
       setIsUploading(true);
       const trimmedTitle = title.trim();
-      const tags = parseTags(tagInput);
+      const trimmedCaption = caption.trim();
+      const tagsFromInput = parseTags(tagInput);
+      const tagsFromCaption = extractHashtagsFromCaption(caption);
+      // Merge tags from both sources, deduplicate
+      const allTags = [...tagsFromInput, ...tagsFromCaption].filter(
+        (tag, index, arr) => arr.indexOf(tag) === index
+      );
+      const tags = allTags;
 
       // Convert scheduled time to ISO string if scheduling
-      const scheduledFor = isScheduled && scheduledTime 
-        ? new Date(scheduledTime).toISOString()
-        : null;
+      let scheduledFor: string | null = null;
+      if (isScheduled) {
+        if (scheduledDate) {
+          // Use calendar picker date and time inputs
+          const scheduledDateTime = new Date(scheduledDate);
+          scheduledDateTime.setHours(parseInt(scheduledHour, 10));
+          scheduledDateTime.setMinutes(parseInt(scheduledMinute, 10));
+          scheduledDateTime.setSeconds(0);
+          scheduledFor = scheduledDateTime.toISOString();
+        } else if (scheduledTime) {
+          // Fallback to datetime-local input
+          scheduledFor = new Date(scheduledTime).toISOString();
+        }
+      }
 
       // Validate scheduled post if scheduling
       if (scheduledFor) {
@@ -688,18 +962,55 @@ export const RecordModal = ({
         }
       }
 
+      // Apply trimming first, then volume adjustment
+      let finalAudioBlob = audioBlob;
+      let finalDuration = duration;
+      
+      // Apply trimming if needed
+      if ((trimStart > 0 || trimEnd > 0) && audioBlob) {
+        try {
+          setIsTrimming(true);
+          finalAudioBlob = await trimAudio(audioBlob, trimStart, trimEnd);
+          const newDuration = await getAudioDuration(finalAudioBlob);
+          finalDuration = Math.floor(newDuration);
+        } catch (error) {
+          logWarn("Trimming failed, using original", error);
+          toast({
+            title: "Trimming failed",
+            description: "Using original audio. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsTrimming(false);
+        }
+      }
+      
+      // Apply volume adjustment if needed
+      if (volumeLevel !== 1.0 && finalAudioBlob) {
+        try {
+          setIsNormalizing(true);
+          finalAudioBlob = await adjustAudioVolume(finalAudioBlob, volumeLevel);
+        } catch (error) {
+          logWarn("Volume adjustment failed, using original", error);
+          // Continue with trimmed blob
+        } finally {
+          setIsNormalizing(false);
+        }
+      }
+
       await enqueueUpload({
         topicId,
         profileId,
         deviceId,
-        duration,
+        duration: finalDuration,
         moodEmoji: selectedMood,
         waveform,
-        audioBlob,
+        audioBlob: finalAudioBlob,
         city: profileCity,
         consentCity: profileConsentCity,
         contentRating: isSensitive ? "sensitive" : "general",
         title: trimmedTitle ? trimmedTitle : null,
+        caption: trimmedCaption ? trimmedCaption : null,
         tags: tags.length > 0 ? tags : undefined,
         category: category || undefined,
         parentClipId: parentClipId || undefined,
@@ -773,12 +1084,44 @@ export const RecordModal = ({
 
       setIsUploading(true);
       const trimmedTitle = title.trim();
-      const tags = parseTags(tagInput);
+      const trimmedCaption = caption.trim();
+      const tagsFromInput = parseTags(tagInput);
+      const tagsFromCaption = extractHashtagsFromCaption(caption);
+      // Merge tags from both sources, deduplicate
+      const allTags = [...tagsFromInput, ...tagsFromCaption].filter(
+        (tag, index, arr) => arr.indexOf(tag) === index
+      );
+      const tags = allTags;
 
       // Convert scheduled time to ISO string if scheduling
-      const scheduledFor = isScheduled && scheduledTime 
-        ? new Date(scheduledTime).toISOString()
-        : null;
+      let scheduledFor: string | null = null;
+      if (isScheduled) {
+        if (scheduledDate) {
+          // Use calendar picker date and time inputs
+          const scheduledDateTime = new Date(scheduledDate);
+          scheduledDateTime.setHours(parseInt(scheduledHour, 10));
+          scheduledDateTime.setMinutes(parseInt(scheduledMinute, 10));
+          scheduledDateTime.setSeconds(0);
+          scheduledFor = scheduledDateTime.toISOString();
+        } else if (scheduledTime) {
+          // Fallback to datetime-local input
+          scheduledFor = new Date(scheduledTime).toISOString();
+        }
+      }
+
+      // Apply volume adjustment if needed
+      let finalAudioBlob = audioBlob;
+      if (volumeLevel !== 1.0 && audioBlob) {
+        try {
+          setIsNormalizing(true);
+          finalAudioBlob = await adjustAudioVolume(audioBlob, volumeLevel);
+        } catch (error) {
+          logWarn("Volume adjustment failed, using original", error);
+          // Continue with original blob
+        } finally {
+          setIsNormalizing(false);
+        }
+      }
 
       await saveDraft({
         topicId,
@@ -787,11 +1130,12 @@ export const RecordModal = ({
         duration,
         moodEmoji: selectedMood,
         waveform,
-        audioBlob,
+        audioBlob: finalAudioBlob,
         city: profileCity,
         consentCity: profileConsentCity,
         contentRating: isSensitive ? "sensitive" : "general",
         title: trimmedTitle ? trimmedTitle : null,
+        caption: trimmedCaption ? trimmedCaption : null,
         tags: tags.length > 0 ? tags : undefined,
         category: category || undefined,
         parentClipId: parentClipId || undefined,
@@ -848,8 +1192,8 @@ export const RecordModal = ({
       </Dialog>
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-sm rounded-3xl">
-        <DialogHeader className="space-y-1">
+        <DialogContent className="sm:max-w-sm rounded-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="space-y-1 flex-shrink-0">
           <DialogTitle className="text-center text-xl">
             {remixingFrom
               ? audioBlob
@@ -904,7 +1248,7 @@ export const RecordModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="space-y-3 py-2 overflow-y-auto flex-1 min-h-0">
           {!audioBlob ? (
             <>
               {/* Single File Upload Option - only show for new recordings (not replies/remixes) */}
@@ -968,24 +1312,32 @@ export const RecordModal = ({
               
               <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4 shadow-inner">
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                    <Waves className="h-3 w-3 text-primary" aria-hidden="true" />
-                    Live waveform
+                  <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground max-w-full">
+                    <Waves className="h-3 w-3 text-primary flex-shrink-0" aria-hidden="true" />
+                    <span className="truncate">Live waveform</span>
                   </div>
-                  <div className="flex justify-center items-center h-20 gap-1 px-2">
-                    {waveform.map((height, i) => (
-                      <div
-                        key={i}
-                        className={`w-2 rounded-full transition-all duration-150 ${
-                          isRecording ? "bg-primary" : "bg-muted-foreground/20"
-                        }`}
-                        style={{
-                          height: `${Math.max(height * 100, 4)}%`,
-                          opacity: isRecording ? Math.max(height * 0.8 + 0.2, 0.2) : 0.3,
-                        }}
-                      />
-                    ))}
-                  </div>
+                  {/* Audio levels indicator during recording */}
+                  {isRecording && analyserRef.current ? (
+                    <AudioLevelsIndicator
+                      analyserNode={analyserRef.current}
+                      isRecording={isRecording}
+                    />
+                  ) : (
+                    <div className="flex justify-center items-center h-20 gap-1 px-2">
+                      {waveform.map((height, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 rounded-full transition-all duration-150 ${
+                            isRecording ? "bg-primary" : "bg-muted-foreground/20"
+                          }`}
+                          style={{
+                            height: `${Math.max(height * 100, 4)}%`,
+                            opacity: isRecording ? Math.max(height * 0.8 + 0.2, 0.2) : 0.3,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4 text-center text-sm text-muted-foreground">
                     <div className="space-y-0.5">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
@@ -1144,9 +1496,9 @@ export const RecordModal = ({
               {/* Playback Section */}
               <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/10 p-3 shadow-inner">
                 <div className="flex flex-col items-center gap-2">
-                  <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                    <Waves className="h-3 w-3 text-primary" aria-hidden="true" />
-                    Playback
+                  <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground max-w-full">
+                    <Waves className="h-3 w-3 text-primary flex-shrink-0" aria-hidden="true" />
+                    <span className="truncate">Playback</span>
                   </div>
                   
                   {/* Show uploaded file name if file was uploaded */}
@@ -1214,6 +1566,131 @@ export const RecordModal = ({
                 </div>
               </div>
 
+              {/* Audio Quality Suggestions */}
+              {(qualityMetrics || isAnalyzingQuality) && (
+                <div className="rounded-xl bg-muted/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-xs font-medium">Audio Quality</label>
+                    </div>
+                    {isAnalyzingQuality && (
+                      <span className="text-xs text-muted-foreground">Analyzing...</span>
+                    )}
+                  </div>
+                  <AudioQualitySuggestions
+                    qualityMetrics={qualityMetrics}
+                    onEnhance={async () => {
+                      if (!audioBlob) return;
+                      setIsEnhancingAudio(true);
+                      try {
+                        const enhanced = await autoEnhanceAudio(audioBlob, {
+                          reduceNoise: true,
+                          normalize: true,
+                          targetPeak: 0.95,
+                        });
+                        setAudioBlob(enhanced);
+                        // Re-analyze quality after enhancement
+                        const metrics = await analyzeAudioQuality(enhanced);
+                        setQualityMetrics(metrics);
+                        toast({
+                          title: "Audio enhanced",
+                          description: "Audio has been enhanced with noise reduction and normalization.",
+                        });
+                      } catch (error) {
+                        logError("Audio enhancement failed", error);
+                        toast({
+                          title: "Enhancement failed",
+                          description: "Could not enhance audio. Please try again.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsEnhancingAudio(false);
+                      }
+                    }}
+                    isEnhancing={isEnhancingAudio}
+                  />
+                </div>
+              )}
+
+              {/* Trim Controls */}
+              {showTrimControls && audioDuration > 0 && (
+                <div className="rounded-xl bg-muted/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Scissors className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-xs font-medium">Trim Audio</label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setTrimStart(0);
+                        setTrimEnd(0);
+                      }}
+                      className="h-7 text-xs"
+                      disabled={trimStart === 0 && trimEnd === 0}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Trim from start</span>
+                        <span className="font-medium">{trimStart.toFixed(1)}s</span>
+                      </div>
+                      <Slider
+                        value={[trimStart]}
+                        onValueChange={([value]) => {
+                          const maxTrim = audioDuration - trimEnd - 0.5; // Keep at least 0.5s
+                          setTrimStart(Math.min(value, maxTrim));
+                        }}
+                        max={Math.max(0, audioDuration - trimEnd - 0.5)}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Trim from end</span>
+                        <span className="font-medium">{trimEnd.toFixed(1)}s</span>
+                      </div>
+                      <Slider
+                        value={[trimEnd]}
+                        onValueChange={([value]) => {
+                          const maxTrim = audioDuration - trimStart - 0.5; // Keep at least 0.5s
+                          setTrimEnd(Math.min(value, maxTrim));
+                        }}
+                        max={Math.max(0, audioDuration - trimStart - 0.5)}
+                        step={0.1}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="text-muted-foreground">Original duration</span>
+                      <span className="font-medium">{audioDuration.toFixed(1)}s</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Trimmed duration</span>
+                      <span className="font-semibold text-primary">
+                        {(audioDuration - trimStart - trimEnd).toFixed(1)}s
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {isTrimming && (
+                    <div className="text-xs text-center text-muted-foreground">
+                      Processing trim...
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium" htmlFor="clip-mood">
@@ -1260,6 +1737,29 @@ export const RecordModal = ({
                 </div>
 
                 <div className="space-y-1">
+                  <label className="text-xs font-medium" htmlFor="clip-caption">
+                    Caption{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      optional - Add #tags and @mentions
+                    </span>
+                  </label>
+                  <Textarea
+                    id="clip-caption"
+                    value={caption}
+                    onChange={(event) => setCaption(event.target.value)}
+                    placeholder="Add a caption with #hashtags and @mentions..."
+                    maxLength={500}
+                    className="rounded-xl min-h-[80px] resize-none"
+                    rows={3}
+                  />
+                  {caption && (
+                    <p className="text-xs text-muted-foreground">
+                      {caption.length}/500 characters
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
                   <label className="text-xs font-medium" htmlFor="clip-category">
                     Category{" "}
                     <span className="text-xs font-normal text-muted-foreground">
@@ -1284,6 +1784,62 @@ export const RecordModal = ({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {userSeries.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" htmlFor="clip-series">
+                      Series{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        optional
+                      </span>
+                    </label>
+                    <Select
+                      value={selectedSeriesId || "none"}
+                      onValueChange={(value) => {
+                        setSelectedSeriesId(value === "none" ? null : value);
+                        if (value === "none") {
+                          setEpisodeNumber(null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger id="clip-series" className="rounded-xl h-9">
+                        <SelectValue placeholder="Select a series" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No series</SelectItem>
+                        {userSeries.map((series) => (
+                          <SelectItem key={series.id} value={series.id}>
+                            {series.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedSeriesId && (
+                      <div className="mt-2">
+                        <Label className="text-xs">Episode Number (optional)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="e.g., 1, 2, 3..."
+                          value={episodeNumber || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEpisodeNumber(val ? parseInt(val, 10) : null);
+                          }}
+                          className="rounded-xl h-9"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {communityId && (
+                  <FlairSelector
+                    communityId={communityId}
+                    selectedFlairId={null}
+                    onFlairChange={() => {}}
+                  />
+                )}
 
                 <div className="space-y-1 relative">
                   <label className="text-xs font-medium" htmlFor="clip-tags">
@@ -1375,10 +1931,15 @@ export const RecordModal = ({
                     checked={isScheduled}
                     onCheckedChange={(checked) => {
                       setIsScheduled(checked);
-                      if (checked && !scheduledTime) {
+                      if (checked && !scheduledDate && !scheduledTime) {
                         // Set default to 1 hour from now
                         const defaultTime = new Date();
                         defaultTime.setHours(defaultTime.getHours() + 1);
+                        defaultTime.setMinutes(0);
+                        defaultTime.setSeconds(0);
+                        setScheduledDate(defaultTime);
+                        setScheduledHour(String(defaultTime.getHours()).padStart(2, '0'));
+                        setScheduledMinute(String(defaultTime.getMinutes()).padStart(2, '0'));
                         setScheduledTime(defaultTime.toISOString().slice(0, 16));
                       }
                     }}
@@ -1386,13 +1947,101 @@ export const RecordModal = ({
                   />
                 </div>
                 {isScheduled && (
-                  <Input
-                    type="datetime-local"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
-                    className="rounded-xl h-9"
-                  />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal rounded-xl h-9",
+                                !scheduledDate && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {scheduledDate ? format(scheduledDate, "PPP") : "Pick a date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={scheduledDate}
+                              onSelect={(date) => {
+                                setScheduledDate(date);
+                                if (date) {
+                                  // Update scheduledTime for fallback
+                                  const newDate = new Date(date);
+                                  newDate.setHours(parseInt(scheduledHour, 10));
+                                  newDate.setMinutes(parseInt(scheduledMinute, 10));
+                                  setScheduledTime(newDate.toISOString().slice(0, 16));
+                                }
+                              }}
+                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Time</Label>
+                        <div className="flex gap-2">
+                          <Select value={scheduledHour} onValueChange={(value) => {
+                            setScheduledHour(value);
+                            if (scheduledDate) {
+                              const newDate = new Date(scheduledDate);
+                              newDate.setHours(parseInt(value, 10));
+                              newDate.setMinutes(parseInt(scheduledMinute, 10));
+                              setScheduledTime(newDate.toISOString().slice(0, 16));
+                            }
+                          }}>
+                            <SelectTrigger className="rounded-xl h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 24 }, (_, i) => (
+                                <SelectItem key={i} value={String(i).padStart(2, '0')}>
+                                  {String(i).padStart(2, '0')}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <span className="flex items-center text-muted-foreground">:</span>
+                          <Select value={scheduledMinute} onValueChange={(value) => {
+                            setScheduledMinute(value);
+                            if (scheduledDate) {
+                              const newDate = new Date(scheduledDate);
+                              newDate.setHours(parseInt(scheduledHour, 10));
+                              newDate.setMinutes(parseInt(value, 10));
+                              setScheduledTime(newDate.toISOString().slice(0, 16));
+                            }
+                          }}>
+                            <SelectTrigger className="rounded-xl h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {['00', '15', '30', '45'].map((min) => (
+                                <SelectItem key={min} value={min}>
+                                  {min}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>Timezone: {userTimezone}</span>
+                    </div>
+                    {scheduledDate && (
+                      <div className="text-xs text-muted-foreground p-2 rounded-lg bg-muted/50">
+                        <p className="font-medium mb-1">Scheduled for:</p>
+                        <p>{format(new Date(scheduledDate.setHours(parseInt(scheduledHour, 10), parseInt(scheduledMinute, 10))), "PPP 'at' p")}</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

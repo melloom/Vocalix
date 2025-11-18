@@ -88,7 +88,7 @@ serve(async (req) => {
       });
     }
 
-    const { clipId, emoji } = await req.json();
+    const { clipId, emoji, reactionTimestampSeconds } = await req.json();
 
     if (!clipId || !emoji) {
       return new Response(JSON.stringify({ error: "clipId and emoji are required" }), { 
@@ -253,6 +253,9 @@ serve(async (req) => {
       clip_id: clipId,
       profile_id: profileId,
       emoji,
+      reaction_timestamp_seconds: reactionTimestampSeconds !== undefined && reactionTimestampSeconds !== null 
+        ? Number(reactionTimestampSeconds) 
+        : null,
     });
 
     if (insertError) {

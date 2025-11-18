@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2 } from "lucide-react";
+import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2, ArrowUpRight } from "lucide-react";
+import { VoteButtons } from "@/components/VoteButtons";
+import { CrosspostDialog } from "@/components/CrosspostDialog";
+import { FlairBadge } from "@/components/FlairBadge";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +29,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { logError, logWarn } from "@/lib/logger";
 import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
+import { MentionText } from "@/components/MentionText";
+import { LiveReactionsDisplay } from "@/components/LiveReactionsDisplay";
 
 interface VoiceReaction {
   id: string;
@@ -66,6 +71,13 @@ interface Clip {
   trending_score?: number | null;
   quality_score?: number | null;
   quality_badge?: "excellent" | "good" | "fair" | null;
+  vote_score?: number | null;
+  upvote_count?: number | null;
+  downvote_count?: number | null;
+  flair_id?: string | null;
+  crosspost_count?: number | null;
+  detected_language?: string | null;
+  translations?: Record<string, string> | null;
   quality_metrics?: {
     volume: number;
     clarity: number;
@@ -139,6 +151,8 @@ export const ClipCard = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isCrosspostDialogOpen, setIsCrosspostDialogOpen] = useState(false);
+  const [clipFlair, setClipFlair] = useState<{ name: string; color: string; background_color: string } | null>(null);
   const highlightNeedle = highlightQuery.trim();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const burstTimeoutRef = useRef<number | null>(null);
@@ -149,6 +163,8 @@ export const ClipCard = ({
   // Offline downloads
   const { isClipDownloaded, downloadClip, deleteDownloadedClip, isLoading: isOfflineLoading } = useOfflineDownloads();
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [userPreferredLanguage, setUserPreferredLanguage] = useState<string>("en");
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
   
   // Global audio player
   const { currentClip, isPlaying: globalIsPlaying, progress: globalProgress, duration: globalDuration, playClip, togglePlayPause, seek: globalSeek } = useAudioPlayer();
@@ -213,6 +229,80 @@ export const ClipCard = ({
   useEffect(() => {
     setIsDownloaded(isClipDownloaded(clip.id));
   }, [clip.id, isClipDownloaded]);
+
+  // Fetch user's language preferences
+  useEffect(() => {
+    const fetchUserPreferences = async () => {
+      if (!profileId) return;
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("preferred_language, auto_translate_enabled")
+          .eq("id", profileId)
+          .single();
+        
+        if (!error && data) {
+          // @ts-ignore - fields exist but not in generated types
+          setUserPreferredLanguage(data.preferred_language || "en");
+          // @ts-ignore
+          setAutoTranslateEnabled(data.auto_translate_enabled ?? true);
+        }
+      } catch (error) {
+        logError("Error fetching user preferences", error);
+      }
+    };
+    
+    fetchUserPreferences();
+  }, [profileId]);
+
+  // Get translated caption text
+  const getDisplayCaption = (): string | null => {
+    if (!clip.captions) return null;
+    
+    // If auto-translate is disabled, show original
+    if (!autoTranslateEnabled) {
+      return clip.captions;
+    }
+    
+    // If user's language matches detected language, show original
+    if (clip.detected_language === userPreferredLanguage) {
+      return clip.captions;
+    }
+    
+    // If translation exists for user's language, show translation
+    if (clip.translations && clip.translations[userPreferredLanguage]) {
+      return clip.translations[userPreferredLanguage];
+    }
+    
+    // Fallback to original
+    return clip.captions;
+  };
+
+  // Load clip flair if it has one
+  useEffect(() => {
+    if (clip.flair_id) {
+      loadFlair();
+    }
+  }, [clip.flair_id]);
+
+  const loadFlair = async () => {
+    if (!clip.flair_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("clip_flairs")
+        .select("name, color, background_color")
+        .eq("id", clip.flair_id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setClipFlair(data);
+      }
+    } catch (error) {
+      console.error("Error loading flair:", error);
+    }
+  };
 
   useEffect(() => {
     const channel = supabase
@@ -637,13 +727,13 @@ export const ClipCard = ({
 
         {clip.title && (
           <h3 className="text-sm font-semibold line-clamp-1">
-            {highlightText(clip.title, highlightNeedle)}
+            <MentionText text={clip.title} highlightQuery={highlightNeedle} />
           </h3>
         )}
 
         {!isSensitiveHidden && clip.summary && (
           <p className="text-xs text-muted-foreground line-clamp-2">
-            {highlightText(clip.summary, highlightNeedle)}
+            <MentionText text={clip.summary} highlightQuery={highlightNeedle} />
           </p>
         )}
 
@@ -723,6 +813,15 @@ export const ClipCard = ({
               aria-label="Share"
             >
               <Share2 className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCrosspostDialogOpen(true)}
+              className="h-6 w-6 rounded-full p-0"
+              aria-label="Crosspost"
+            >
+              <ArrowUpRight className="h-3 w-3" />
             </Button>
             <Button
               variant="ghost"
@@ -840,6 +939,19 @@ export const ClipCard = ({
             Offline
           </Badge>
         )}
+        {clipFlair && (
+          <FlairBadge
+            name={clipFlair.name}
+            color={clipFlair.color}
+            background_color={clipFlair.background_color}
+          />
+        )}
+        {clip.crosspost_count && clip.crosspost_count > 0 && (
+          <Badge variant="outline" className="w-fit">
+            <ArrowUpRight className="h-3 w-3 mr-1" />
+            {clip.crosspost_count} crosspost{clip.crosspost_count !== 1 ? "s" : ""}
+          </Badge>
+        )}
       </div>
 
       {clipTags.length > 0 && (
@@ -856,9 +968,7 @@ export const ClipCard = ({
 
       {!isSensitiveHidden && clip.summary && (
         <p className="text-sm text-muted-foreground italic">
-          "
-          {highlightText(clip.summary, highlightNeedle)}
-          "
+          "<MentionText text={clip.summary} highlightQuery={highlightNeedle} />"
         </p>
       )}
 
@@ -924,9 +1034,16 @@ export const ClipCard = ({
               </p>
             )}
 
-            {showCaptions && clip.captions && (
+            {showCaptions && getDisplayCaption() && (
               <div className="p-3 bg-muted rounded-2xl">
-                <p className="text-sm">{highlightText(clip.captions, highlightNeedle)}</p>
+                <p className="text-sm">
+                  <MentionText text={getDisplayCaption() || ""} highlightQuery={highlightNeedle} />
+                </p>
+                {clip.detected_language && clip.detected_language !== userPreferredLanguage && clip.translations && clip.translations[userPreferredLanguage] && (
+                  <p className="text-xs text-muted-foreground mt-2 italic">
+                    Translated from {clip.detected_language.toUpperCase()}
+                  </p>
+                )}
               </div>
             )}
 
@@ -967,22 +1084,30 @@ export const ClipCard = ({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 pt-2">
-            {REACTION_EMOJIS.map((emoji) => {
-              const count = reactions[emoji] || 0;
-              return (
-                <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-full bg-card hover:bg-muted transition-all hover:scale-105 active:scale-95 ${
-                    burstEmoji === emoji ? "animate-bounce-in" : ""
-                  }`}
-                >
-                  <span className="text-lg">{emoji}</span>
-                  {count > 0 && <span className="text-xs font-medium">{count}</span>}
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-4 pt-2">
+            <VoteButtons
+              clipId={clip.id}
+              initialVoteScore={clip.vote_score || 0}
+              initialUpvotes={clip.upvote_count || 0}
+              initialDownvotes={clip.downvote_count || 0}
+            />
+            <div className="flex flex-wrap gap-2 flex-1">
+              {REACTION_EMOJIS.map((emoji) => {
+                const count = reactions[emoji] || 0;
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReaction(emoji)}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-full bg-card hover:bg-muted transition-all hover:scale-105 active:scale-95 ${
+                      burstEmoji === emoji ? "animate-bounce-in" : ""
+                    }`}
+                  >
+                    <span className="text-lg">{emoji}</span>
+                    {count > 0 && <span className="text-xs font-medium">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Voice Reactions Section */}
@@ -1174,6 +1299,14 @@ export const ClipCard = ({
 
       <Comments clipId={clip.id} profileId={profileId} clipCreatorId={clip.profile_id} />
 
+      {/* Live Reactions Display during Playback */}
+      <LiveReactionsDisplay
+        clipId={clip.id}
+        currentTimeSeconds={progress}
+        isPlaying={isPlaying}
+        timeWindowSeconds={5}
+      />
+
       <ShareClipDialog
         clipId={clip.id}
         clipTitle={clip.title}
@@ -1181,6 +1314,12 @@ export const ClipCard = ({
         profileHandle={clip.profiles?.handle}
         open={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
+      />
+      <CrosspostDialog
+        clipId={clip.id}
+        clipTitle={clip.title || undefined}
+        open={isCrosspostDialogOpen}
+        onOpenChange={setIsCrosspostDialogOpen}
       />
 
       <VoiceReactionRecorder

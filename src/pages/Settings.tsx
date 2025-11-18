@@ -51,6 +51,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 import { formatFileSize } from "@/utils/offlineStorage";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -132,6 +133,11 @@ const Settings = () => {
   const [downloadedClipsList, setDownloadedClipsList] = useState<any[]>([]);
   const [isLoadingDownloads, setIsLoadingDownloads] = useState(false);
   const { getAllDownloadedClips, deleteDownloadedClip, clearAll, storageUsedFormatted } = useOfflineDownloads();
+  const [voiceCloningEnabled, setVoiceCloningEnabled] = useState(false);
+  const [hasVoiceModel, setHasVoiceModel] = useState(false);
+  const [isCreatingVoiceClone, setIsCreatingVoiceClone] = useState(false);
+  const [preferredLanguage, setPreferredLanguage] = useState("en");
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
 
   // Auto-update device user_agent when Settings page loads
   useEffect(() => {
@@ -203,6 +209,14 @@ const Settings = () => {
       setDigestFrequency(profile.digest_frequency ?? 'daily');
       // @ts-ignore
       setDigestEmail(profile.email ?? "");
+      // @ts-ignore
+      setVoiceCloningEnabled(profile.voice_cloning_enabled ?? false);
+      // @ts-ignore
+      setHasVoiceModel(!!profile.voice_model_id);
+      // @ts-ignore
+      setPreferredLanguage(profile.preferred_language || "en");
+      // @ts-ignore
+      setAutoTranslateEnabled(profile.auto_translate_enabled ?? true);
     }
   }, [profile]);
 
@@ -1311,6 +1325,150 @@ const Settings = () => {
               />
             </div>
 
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1">
+                <p className="font-medium">Preferred language</p>
+                <p className="text-sm text-muted-foreground">
+                  Clips and comments will be automatically translated to this language.
+                </p>
+              </div>
+              <Select
+                value={preferredLanguage}
+                onValueChange={async (value) => {
+                  setPreferredLanguage(value);
+                  try {
+                    await updateProfile({ preferred_language: value });
+                    toast({
+                      title: "Language updated",
+                      description: `Content will be shown in ${value === "en" ? "English" : value.toUpperCase()}`,
+                    });
+                  } catch (error) {
+                    logError("Failed to update language", error);
+                    setPreferredLanguage(preferredLanguage);
+                  }
+                }}
+                disabled={isUpdating}
+              >
+                <SelectTrigger className="w-32 rounded-2xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="es">Spanish</SelectItem>
+                  <SelectItem value="fr">French</SelectItem>
+                  <SelectItem value="de">German</SelectItem>
+                  <SelectItem value="it">Italian</SelectItem>
+                  <SelectItem value="pt">Portuguese</SelectItem>
+                  <SelectItem value="ru">Russian</SelectItem>
+                  <SelectItem value="zh">Chinese</SelectItem>
+                  <SelectItem value="ja">Japanese</SelectItem>
+                  <SelectItem value="ko">Korean</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Auto-translate</p>
+                <p className="text-sm text-muted-foreground">
+                  Automatically show translations for clips and comments in other languages.
+                </p>
+              </div>
+              <Switch
+                checked={autoTranslateEnabled}
+                onCheckedChange={async (checked) => {
+                  setAutoTranslateEnabled(checked);
+                  try {
+                    await updateProfile({ auto_translate_enabled: checked });
+                    toast({
+                      title: checked ? "Auto-translate on" : "Auto-translate off",
+                      description: checked
+                        ? "Translations will be shown automatically."
+                        : "You'll see original text only.",
+                    });
+                  } catch (error) {
+                    logError("Failed to update auto-translate", error);
+                    setAutoTranslateEnabled(!checked);
+                  }
+                }}
+                disabled={isUpdating}
+                aria-label="Toggle auto-translate"
+              />
+            </div>
+          </Card>
+
+          <Card className="p-6 rounded-3xl space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Voice Cloning for Accessibility</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Create a voice model from your recordings to use for comments and clips. This helps users with speech disabilities communicate more easily.
+              </p>
+            </div>
+
+            {hasVoiceModel ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Voice model created successfully</span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <div>
+                    <p className="font-medium">Use cloned voice</p>
+                    <p className="text-sm text-muted-foreground">
+                      Enable to use your cloned voice when creating clips and comments.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={voiceCloningEnabled}
+                    onCheckedChange={async (checked) => {
+                      setVoiceCloningEnabled(checked);
+                      try {
+                        await updateProfile({ voice_cloning_enabled: checked });
+                        toast({
+                          title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
+                          description: checked
+                            ? "Your cloned voice will be used for new clips and comments."
+                            : "You'll use your natural voice for recordings.",
+                        });
+                      } catch (error) {
+                        logError("Failed to update voice cloning", error);
+                        setVoiceCloningEnabled(!checked);
+                      }
+                    }}
+                    disabled={isUpdating}
+                    aria-label="Toggle voice cloning"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  To create a voice model, record a clip (at least 30 seconds) and then create your voice clone from the clip.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    // This will be handled by a dialog that lets users select a clip
+                    toast({
+                      title: "Coming soon",
+                      description: "Select a clip from your recordings to create your voice model.",
+                    });
+                  }}
+                  disabled={isCreatingVoiceClone}
+                  className="rounded-2xl"
+                >
+                  {isCreatingVoiceClone ? "Creating voice model..." : "Create voice model"}
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          <NotificationPreferences />
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Content</h2>
+          <Card className="p-6 rounded-3xl space-y-6">
             <div className="flex items-start justify-between gap-6">
               <div>
                 <p className="font-medium">City-level tagging</p>

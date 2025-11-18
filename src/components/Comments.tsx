@@ -32,7 +32,10 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { VoiceReactionRecorder } from "./VoiceReactionRecorder";
 import { VoiceReactionPlayer } from "./VoiceReactionPlayer";
+import { VoiceCommentRecorder } from "./VoiceCommentRecorder";
 import { useProfile } from "@/hooks/useProfile";
+import { MentionAutocomplete } from "./MentionAutocomplete";
+import { MentionText } from "./MentionText";
 
 interface Comment {
   id: string;
@@ -90,15 +93,20 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("time");
-  // Voice comment state (for future implementation)
-  // const [isVoiceCommentOpen, setIsVoiceCommentOpen] = useState(false);
-  // const [voiceCommentParentId, setVoiceCommentParentId] = useState<string | null>(null);
+  const [isVoiceCommentOpen, setIsVoiceCommentOpen] = useState(false);
+  const [voiceCommentParentId, setVoiceCommentParentId] = useState<string | null>(null);
   const [commentReactions, setCommentReactions] = useState<Record<string, Record<string, number>>>({});
   const [commentVoiceReactions, setCommentVoiceReactions] = useState<Record<string, CommentVoiceReaction[]>>({});
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
+  const [newCommentCursorPos, setNewCommentCursorPos] = useState(0);
+  const [replyCursorPos, setReplyCursorPos] = useState(0);
+  const [editCursorPos, setEditCursorPos] = useState(0);
+  const commentAutocompleteRef = useRef<HTMLDivElement>(null);
+  const replyAutocompleteRef = useRef<HTMLDivElement>(null);
 
   // Fetch comments with sorting
   const fetchComments = async () => {
@@ -647,14 +655,12 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
       }
 
       try {
-        const { data, error } = await supabase.storage
-          .from("audio")
-          .createSignedUrl(comment.audio_path, 3600);
+        const { getAudioUrl } = await import("@/utils/audioUrl");
+        const audioUrl = await getAudioUrl(comment.audio_path, {
+          expiresIn: 86400, // 24 hours for better CDN caching
+        });
 
-        if (error) throw error;
-        if (!data?.signedUrl) throw new Error("Failed to get signed URL");
-
-        const audio = new Audio(data.signedUrl);
+        const audio = new Audio(audioUrl);
         audioRefs.current[comment.id] = audio;
         // Apply user's playback speed preference
         audio.playbackRate = playbackSpeed;
@@ -674,7 +680,7 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
 
         await audio.play();
         setIsPlayingAudio(true);
-        setAudioUrl(data.signedUrl);
+        setAudioUrl(audioUrl);
       } catch (error) {
         console.error("Error playing audio:", error);
         toast({
@@ -761,13 +767,35 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
               {/* Text content */}
               {editingCommentId === comment.id ? (
                 <div className="space-y-2">
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder="Edit your comment..."
-                    className="min-h-[80px] rounded-xl"
-                    maxLength={1000}
-                  />
+                  <div className="relative">
+                    <Textarea
+                      ref={editTextareaRef}
+                      value={editContent}
+                      onChange={(e) => {
+                        setEditContent(e.target.value);
+                        setEditCursorPos(e.target.selectionStart);
+                      }}
+                      onKeyUp={(e) => {
+                        setEditCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                      }}
+                      onClick={(e) => {
+                        setEditCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                      }}
+                      placeholder="Edit your comment... (use @ to mention someone)"
+                      className="min-h-[80px] rounded-xl"
+                      maxLength={1000}
+                    />
+                    <div className="absolute bottom-full left-0 mb-1">
+                      <MentionAutocomplete
+                        value={editContent}
+                        onChange={setEditContent}
+                        onSelect={() => {}}
+                        cursorPosition={editCursorPos}
+                        profileId={profileId}
+                        textareaRef={editTextareaRef}
+                      />
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -793,7 +821,7 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
               ) : (
                 comment.content && (
                   <p className="text-sm whitespace-pre-wrap break-words">
-                    {comment.content}
+                    <MentionText text={comment.content} />
                   </p>
                 )
               )}
@@ -935,14 +963,35 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
               {/* Reply form */}
               {replyingTo === comment.id && (
                 <div className="mt-3 space-y-2">
-                  <Textarea
-                    ref={replyTextareaRef}
-                    value={replyContent}
-                    onChange={(e) => setReplyContent(e.target.value)}
-                    placeholder="Write a reply..."
-                    className="min-h-[80px] rounded-xl"
-                    maxLength={1000}
-                  />
+                  <div className="relative">
+                    <Textarea
+                      ref={replyTextareaRef}
+                      value={replyContent}
+                      onChange={(e) => {
+                        setReplyContent(e.target.value);
+                        setReplyCursorPos(e.target.selectionStart);
+                      }}
+                      onKeyUp={(e) => {
+                        setReplyCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                      }}
+                      onClick={(e) => {
+                        setReplyCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                      }}
+                      placeholder="Write a reply... (use @ to mention someone)"
+                      className="min-h-[80px] rounded-xl"
+                      maxLength={1000}
+                    />
+                    <div ref={replyAutocompleteRef} className="absolute bottom-full left-0 mb-1">
+                      <MentionAutocomplete
+                        value={replyContent}
+                        onChange={setReplyContent}
+                        onSelect={() => {}}
+                        cursorPosition={replyCursorPos}
+                        profileId={profileId}
+                        textareaRef={replyTextareaRef}
+                      />
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -1056,20 +1105,40 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
 
       {profileId && (
         <Card className="p-4 rounded-2xl">
-          <div className="flex gap-2 mb-3">
-            <Textarea
-              ref={textareaRef}
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
-              className="min-h-[100px] rounded-xl flex-1"
-              maxLength={1000}
-            />
+          <div className="flex gap-2 mb-3 relative">
+            <div className="flex-1 relative">
+              <Textarea
+                ref={textareaRef}
+                value={newComment}
+                onChange={(e) => {
+                  setNewComment(e.target.value);
+                  setNewCommentCursorPos(e.target.selectionStart);
+                }}
+                onKeyUp={(e) => {
+                  setNewCommentCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                }}
+                onClick={(e) => {
+                  setNewCommentCursorPos((e.target as HTMLTextAreaElement).selectionStart);
+                }}
+                placeholder="Add a comment... (use @ to mention someone)"
+                className="min-h-[100px] rounded-xl flex-1"
+                maxLength={1000}
+              />
+              <div ref={commentAutocompleteRef} className="absolute bottom-full left-0 mb-1">
+                <MentionAutocomplete
+                  value={newComment}
+                  onChange={setNewComment}
+                  onSelect={() => {}}
+                  cursorPosition={newCommentCursorPos}
+                  profileId={profileId}
+                  textareaRef={textareaRef}
+                />
+              </div>
+            </div>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex gap-2">
-              {/* Voice comments feature - coming soon */}
-              {/* <Button
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
@@ -1080,7 +1149,7 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
               >
                 <Mic className="mr-2 h-3 w-3" />
                 Voice Comment
-              </Button> */}
+              </Button>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
@@ -1127,9 +1196,20 @@ export const Comments = ({ clipId, profileId, clipCreatorId }: CommentsProps) =>
         </div>
       )}
 
-      {/* Voice comment recorder - Note: VoiceReactionRecorder is for 3-5s reactions, not full comments */}
-      {/* For now, voice comments should be added via the edge function directly */}
-      {/* TODO: Create a VoiceCommentRecorder component that allows up to 30 seconds */}
+      {/* Voice comment recorder */}
+      <VoiceCommentRecorder
+        clipId={clipId}
+        parentCommentId={voiceCommentParentId}
+        isOpen={isVoiceCommentOpen}
+        onClose={() => {
+          setIsVoiceCommentOpen(false);
+          setVoiceCommentParentId(null);
+        }}
+        onSuccess={() => {
+          fetchComments();
+          getCommentCount().then(setCommentCount);
+        }}
+      />
 
       <AlertDialog
         open={deleteCommentId !== null}

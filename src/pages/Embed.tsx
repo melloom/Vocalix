@@ -61,14 +61,12 @@ export default function Embed() {
 
         setClip(data as Clip);
 
-        // Get signed URL for audio
-        const { data: signedData } = await supabase.storage
-          .from("audio")
-          .createSignedUrl(data.audio_path, 3600); // 1 hour expiry
-
-        if (signedData) {
-          setAudioUrl(signedData.signedUrl);
-        }
+        // Get audio URL with CDN optimization
+        const { getAudioUrl } = await import("@/utils/audioUrl");
+        const audioUrl = await getAudioUrl(data.audio_path, {
+          expiresIn: 86400, // 24 hours for better CDN caching
+        });
+        setAudioUrl(audioUrl);
       } catch (error) {
         console.error("Error fetching clip:", error);
         toast.error("Failed to load clip");
@@ -230,14 +228,18 @@ export default function Embed() {
               {clip.captions && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2">Transcript</h3>
-                  <p className="text-sm text-muted-foreground">{clip.captions}</p>
+                  <p className="text-sm text-muted-foreground">
+                    <MentionText text={clip.captions} />
+                  </p>
                 </div>
               )}
 
               {clip.summary && !clip.captions && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2">Summary</h3>
-                  <p className="text-sm text-muted-foreground">{clip.summary}</p>
+                  <p className="text-sm text-muted-foreground">
+                    <MentionText text={clip.summary} />
+                  </p>
                 </div>
               )}
 

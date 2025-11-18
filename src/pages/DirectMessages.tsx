@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
 import { RecordButton } from "@/components/RecordButton";
 import { useAudioPlayer } from "@/context/AudioPlayerContext";
+import { generateWaveformFromUrl } from "@/utils/audioWaveform";
 
 interface Conversation {
   other_user_id: string;
@@ -40,6 +41,7 @@ interface Message {
     handle: string;
     emoji_avatar: string;
   } | null;
+  waveform?: number[];
 }
 
 const DirectMessages = () => {
@@ -52,6 +54,7 @@ const DirectMessages = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(userId || null);
   const [isSending, setIsSending] = useState(false);
+  const [loadingWaveforms, setLoadingWaveforms] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { playAudio, stopAudio, isPlaying, currentAudioId } = useAudioPlayer();
@@ -149,6 +152,13 @@ const DirectMessages = () => {
       );
 
       setMessages(messagesWithProfiles);
+
+      // Generate waveforms for all messages
+      messagesWithProfiles.forEach((msg) => {
+        if (!msg.waveform && msg.audio_path) {
+          loadWaveformForMessage(msg.id, msg.audio_path);
+        }
+      });
     } catch (err) {
       logError('Error loading messages', err);
       toast({
@@ -158,6 +168,29 @@ const DirectMessages = () => {
       });
     } finally {
       setIsLoadingMessages(false);
+    }
+  };
+
+  const loadWaveformForMessage = async (messageId: string, audioPath: string) => {
+    if (loadingWaveforms.has(messageId)) return;
+    
+    setLoadingWaveforms((prev) => new Set(prev).add(messageId));
+    
+    try {
+      const waveform = await generateWaveformFromUrl(audioPath, 20);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, waveform } : msg
+        )
+      );
+    } catch (err) {
+      logError('Error loading waveform', err);
+    } finally {
+      setLoadingWaveforms((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
     }
   };
 
@@ -395,7 +428,7 @@ const DirectMessages = () => {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`rounded-full ${
+                                className={`rounded-full flex-shrink-0 ${
                                   isOwn ? 'text-primary-foreground hover:bg-primary-foreground/20' : ''
                                 }`}
                                 onClick={() => handlePlayMessage(message)}
@@ -406,15 +439,54 @@ const DirectMessages = () => {
                                   <Play className="h-4 w-4" />
                                 )}
                               </Button>
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">
-                                  {isOwn ? 'You' : `@${message.sender?.handle || 'Unknown'}`}
-                                </p>
-                                <p className="text-xs opacity-80">
-                                  {message.duration_seconds}s • {new Date(message.created_at).toLocaleTimeString()}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="text-sm font-medium">
+                                    {isOwn ? 'You' : `@${message.sender?.handle || 'Unknown'}`}
+                                  </p>
+                                  <p className="text-xs opacity-80">
+                                    {message.duration_seconds}s
+                                  </p>
+                                </div>
+                                
+                                {/* Waveform visualization */}
+                                {message.waveform ? (
+                                  <div className="flex items-center gap-1 h-8 mb-2">
+                                    {message.waveform.map((value, index) => (
+                                      <div
+                                        key={index}
+                                        className={`flex-1 rounded-sm transition-all ${
+                                          isOwn
+                                            ? 'bg-primary-foreground/30'
+                                            : 'bg-muted-foreground/30'
+                                        }`}
+                                        style={{
+                                          height: `${Math.max(4, value * 100)}%`,
+                                          minHeight: '4px',
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : loadingWaveforms.has(message.id) ? (
+                                  <div className="flex items-center gap-1 h-8 mb-2">
+                                    {Array.from({ length: 20 }).map((_, index) => (
+                                      <div
+                                        key={index}
+                                        className="flex-1 bg-muted-foreground/20 rounded-sm animate-pulse"
+                                        style={{
+                                          height: `${Math.random() * 60 + 20}%`,
+                                          minHeight: '4px',
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : null}
+                                
+                                <p className="text-xs opacity-80 mb-1">
+                                  {new Date(message.created_at).toLocaleTimeString()}
                                 </p>
                                 {message.transcript && (
-                                  <p className="text-sm mt-2 opacity-90">{message.transcript}</p>
+                                  <p className="text-sm mt-2 opacity-90 line-clamp-2">{message.transcript}</p>
                                 )}
                               </div>
                             </div>

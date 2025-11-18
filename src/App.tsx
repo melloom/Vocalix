@@ -65,6 +65,10 @@ const LiveRoom = retryLazyImport(() => import("./pages/LiveRoom"));
 const Embed = retryLazyImport(() => import("./pages/Embed"));
 const DirectMessages = retryLazyImport(() => import("./pages/DirectMessages"));
 const Analytics = retryLazyImport(() => import("./pages/Analytics"));
+const Leaderboards = retryLazyImport(() => import("./pages/Leaderboards"));
+const SeriesList = retryLazyImport(() => import("./pages/SeriesList"));
+const SeriesDetail = retryLazyImport(() => import("./pages/SeriesDetail"));
+const AllTopics = retryLazyImport(() => import("./pages/AllTopics"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -114,6 +118,7 @@ const App = () => (
                       <Route path="/" element={<Index />} />
                       <Route path="/profile/:handle" element={<Profile />} />
                       <Route path="/topic/:topicId" element={<Topic />} />
+                      <Route path="/topics" element={<AllTopics />} />
                       <Route path="/settings" element={<Settings />} />
                       <Route path="/my-recordings" element={<MyRecordings />} />
                       <Route path="/saved" element={<SavedClips />} />
@@ -132,6 +137,9 @@ const App = () => (
                       <Route path="/messages" element={<DirectMessages />} />
                       <Route path="/messages/:userId" element={<DirectMessages />} />
                       <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/leaderboards" element={<Leaderboards />} />
+                      <Route path="/series" element={<SeriesList />} />
+                      <Route path="/series/:seriesId" element={<SeriesDetail />} />
                       <Route path="/admin" element={<Admin />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />

@@ -75,6 +75,18 @@ export const useOfflineDownloads = () => {
       // Store in IndexedDB
       await offlineStorage.downloadClip(clipId, audioPath, audioBlob, metadata);
 
+      // Sync to cloud (non-blocking)
+      const profileId = localStorage.getItem("profileId");
+      const deviceId = localStorage.getItem("deviceId");
+      if (profileId && deviceId) {
+        // Import sync utility
+        const { syncDownloadedClip } = await import("@/utils/offlineSync");
+        syncDownloadedClip(profileId, clipId, deviceId).catch((error) => {
+          // Silent failure - sync will happen on next sync
+          console.warn("Failed to sync download immediately:", error);
+        });
+      }
+
       // Update state
       setDownloadedClips((prev) => new Set([...prev, clipId]));
       
@@ -96,6 +108,18 @@ export const useOfflineDownloads = () => {
   const deleteDownloadedClip = useCallback(async (clipId: string): Promise<boolean> => {
     try {
       await offlineStorage.deleteDownloadedClip(clipId);
+      
+      // Unsync from cloud (non-blocking)
+      const profileId = localStorage.getItem("profileId");
+      const deviceId = localStorage.getItem("deviceId");
+      if (profileId && deviceId) {
+        // Import sync utility
+        const { unsyncDownloadedClip } = await import("@/utils/offlineSync");
+        unsyncDownloadedClip(profileId, clipId, deviceId).catch((error) => {
+          // Silent failure
+          console.warn("Failed to unsync download:", error);
+        });
+      }
       
       // Update state
       setDownloadedClips((prev) => {

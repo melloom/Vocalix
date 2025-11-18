@@ -30,6 +30,7 @@ import { useCommunityChatRooms, useCreateChatRoom } from "@/hooks/useChatRooms";
 import { Textarea } from "@/components/ui/textarea";
 import { logError, logWarn } from "@/lib/logger";
 import { Switch } from "@/components/ui/switch";
+import { CommunitySettings } from "@/components/CommunitySettings";
 
 interface Clip {
   id: string;
@@ -1922,24 +1923,12 @@ const CommunityDetail = () => {
       </Dialog>
 
       {/* Settings Dialog (for creators) */}
-      {communityData.is_creator && (
-        <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-          <DialogContent className="sm:max-w-md rounded-3xl">
-            <DialogHeader>
-              <DialogTitle>Community Settings</DialogTitle>
-              <DialogDescription>
-                Manage your community settings
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <Card className="p-4 rounded-2xl bg-muted/50">
-                <p className="text-sm text-muted-foreground">
-                  Community settings coming soon! You can manage your community details, guidelines, and moderation settings here.
-                </p>
-              </Card>
-            </div>
-          </DialogContent>
-        </Dialog>
+      {communityData.is_creator && communityData.id && (
+        <CommunitySettings
+          communityId={communityData.id}
+          isOpen={isSettingsDialogOpen}
+          onOpenChange={setIsSettingsDialogOpen}
+        />
       )}
 
       {/* Manage Moderators Dialog (for creators) */}

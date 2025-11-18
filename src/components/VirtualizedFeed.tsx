@@ -104,20 +104,19 @@ export const VirtualizedFeed = ({
       if (!clip.audio_path) return;
       
       try {
-        // Use link prefetch for better browser caching
-        const { supabase } = await import("@/integrations/supabase/client");
-        const { data } = await supabase.storage
-          .from("audio")
-          .createSignedUrl(clip.audio_path, 3600);
+        // Use CDN-optimized URL for prefetching
+        const { getAudioUrl } = await import("@/utils/audioUrl");
+        const audioUrl = await getAudioUrl(clip.audio_path, {
+          clipId: clip.id,
+          expiresIn: 86400, // 24 hours for better CDN caching
+        });
         
-        if (data?.signedUrl) {
-          // Prefetch the audio file
-          const link = document.createElement("link");
-          link.rel = "prefetch";
-          link.as = "audio";
-          link.href = data.signedUrl;
-          document.head.appendChild(link);
-        }
+        // Prefetch the audio file
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.as = "audio";
+        link.href = audioUrl;
+        document.head.appendChild(link);
       } catch (error) {
         // Silently fail - prefetching is optional
         console.debug("Failed to prefetch audio:", error);
