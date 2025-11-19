@@ -437,9 +437,9 @@ const Settings = () => {
     
     // Debounce the save - only save after user stops typing for 1 second
     emailSaveTimeoutRef.current = setTimeout(async () => {
-      try {
-        // @ts-ignore - email field exists but not in generated types
-        await updateProfile({ email: email.trim() || null });
+    try {
+      // @ts-ignore - email field exists but not in generated types
+      await updateProfile({ email: email.trim() || null });
         
         // If email was cleared and digest is enabled, disable digest
         if (!email.trim() && digestEnabled) {
@@ -448,7 +448,7 @@ const Settings = () => {
             digest_frequency: 'never'
           });
           setDigestEnabled(false);
-          toast({
+        toast({
             title: "Digest disabled",
             description: "Email digests have been disabled since email was removed.",
           });
@@ -456,16 +456,16 @@ const Settings = () => {
           toast({
             title: "Email saved",
             description: "Your email has been saved. You can use it for digests and login links.",
-          });
-        }
-      } catch (error) {
-        logError("Failed to update email", error);
-        toast({
-          title: "Couldn't update email",
-          description: "Please try again.",
-          variant: "destructive",
         });
       }
+    } catch (error) {
+      logError("Failed to update email", error);
+      toast({
+        title: "Couldn't update email",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
     }, 1000); // Wait 1 second after user stops typing
   };
 
@@ -1395,31 +1395,31 @@ const Settings = () => {
               {/* Email address section - always visible */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
+              <div className="flex-1">
                     <Label htmlFor="digest-email" className="text-sm font-medium">
-                      Email address
-                    </Label>
+                        Email address
+                      </Label>
                     <p className="text-xs text-muted-foreground mt-1">
                       Used for email digests and magic login links
                     </p>
                   </div>
                 </div>
-                <Input
-                  id="digest-email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={digestEmail}
-                  onChange={(e) => handleDigestEmailChange(e.target.value)}
+                      <Input
+                        id="digest-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={digestEmail}
+                        onChange={(e) => handleDigestEmailChange(e.target.value)}
                   className="rounded-2xl"
-                  disabled={isUpdating}
-                />
+                        disabled={isUpdating}
+                      />
                 <p className="text-xs text-muted-foreground">
                   {digestEmail.trim() 
                     ? "✓ Email saved. You can use it for digests and login links."
                     : "Add your email to receive digests and use the 'Email Me' feature for login links."
                   }
                 </p>
-              </div>
+                    </div>
 
               {/* Digest settings section */}
               <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
@@ -1430,34 +1430,34 @@ const Settings = () => {
                   </p>
                   {digestEnabled && (
                     <div className="mt-3 space-y-2">
-                      <div>
-                        <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
-                          Frequency
-                        </Label>
-                        <Select
-                          value={digestFrequency}
-                          onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
-                          disabled={isUpdating}
-                        >
-                          <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="never">Never</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div>
+                      <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
+                        Frequency
+                      </Label>
+                      <Select
+                        value={digestFrequency}
+                        onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
+                        disabled={isUpdating}
+                      >
+                        <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="never">Never</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                </div>
-                <Switch
-                  checked={digestEnabled}
-                  onCheckedChange={handleDigestToggle}
+                  </div>
+                )}
+              </div>
+              <Switch
+                checked={digestEnabled}
+                onCheckedChange={handleDigestToggle}
                   disabled={isUpdating || !digestEmail.trim()}
-                  aria-label="Toggle email digest"
-                />
+                aria-label="Toggle email digest"
+              />
               </div>
               {!digestEmail.trim() && (
                 <p className="text-xs text-muted-foreground italic">
@@ -2952,25 +2952,25 @@ const Settings = () => {
                   </Label>
                   <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40">
                     {magicLinkUrl}
-                  </div>
-                  {magicLinkExpiresDisplay && (
-                    <p className="text-xs text-muted-foreground">Expires {magicLinkExpiresDisplay}</p>
-                  )}
+                </div>
+                {magicLinkExpiresDisplay && (
+                  <p className="text-xs text-muted-foreground">Expires {magicLinkExpiresDisplay}</p>
+                )}
                 </div>
                 
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground">Quick actions:</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
                       variant="default"
                       className="rounded-2xl flex-1 min-w-[120px]"
-                      onClick={handleCopyMagicLink}
-                    >
-                      <Copy className="mr-2 h-4 w-4" />
+                    onClick={handleCopyMagicLink}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
                       Copy Link
-                    </Button>
+                  </Button>
                     <Button
                       type="button"
                       size="sm"
@@ -2983,31 +2983,31 @@ const Settings = () => {
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {canNativeShare && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={handleShareMagicLink}
-                      >
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                      </Button>
-                    )}
+                  {canNativeShare && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-2xl"
+                      onClick={handleShareMagicLink}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share
+                    </Button>
+                  )}
                     {magicLinkEmail.trim().length > 0 && magicLinkEmail !== profile?.email && (
-                      <Button
-                        type="button"
-                        size="sm"
+                    <Button
+                      type="button"
+                      size="sm"
                         variant="outline"
-                        className="rounded-2xl"
-                        onClick={handleEmailMagicLink}
-                      >
-                        <Mail className="mr-2 h-4 w-4" />
-                        Email
-                      </Button>
-                    )}
-                  </div>
+                      className="rounded-2xl"
+                      onClick={handleEmailMagicLink}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Email
+                    </Button>
+                  )}
+                </div>
                 </div>
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
                   <p className="text-xs text-blue-900 dark:text-blue-100 font-medium mb-1">
@@ -3087,17 +3087,6 @@ const Settings = () => {
             >
               {isSavingHandle ? "Saving..." : "Save"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default Settings;
-
-
-
           </DialogFooter>
         </DialogContent>
       </Dialog>
