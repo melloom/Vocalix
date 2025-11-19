@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { logError, logWarn } from "@/lib/logger";
 import { Switch } from "@/components/ui/switch";
 import { CommunitySettings } from "@/components/CommunitySettings";
+import { CommunityProjects } from "@/components/CommunityProjects";
 
 interface Clip {
   id: string;
@@ -757,7 +758,7 @@ const CommunityDetail = () => {
 
             {/* Tabs for Clips, Members, Live Rooms, Chat, Activity, and Events */}
             <Tabs defaultValue="clips" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1">
+              <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7 gap-1">
                 <TabsTrigger value="clips" className="flex items-center gap-1 text-xs">
                   <Mic className="w-3 h-3" />
                   <span className="hidden sm:inline">Clips</span>
@@ -774,6 +775,10 @@ const CommunityDetail = () => {
                 <TabsTrigger value="chat" className="flex items-center gap-1 text-xs">
                   <MessageSquare className="w-3 h-3" />
                   <span className="hidden sm:inline">Chat</span>
+                </TabsTrigger>
+                <TabsTrigger value="projects" className="flex items-center gap-1 text-xs">
+                  <Award className="w-3 h-3" />
+                  <span className="hidden sm:inline">Projects</span>
                 </TabsTrigger>
                 <TabsTrigger value="activity" className="flex items-center gap-1 text-xs">
                   <TrendingUp className="w-3 h-3" />
@@ -1256,6 +1261,13 @@ const CommunityDetail = () => {
                     ))}
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="projects" className="space-y-4">
+                <CommunityProjects 
+                  communityId={communityId || undefined} 
+                  showCreateButton={isMember}
+                />
               </TabsContent>
             </Tabs>
           </div>

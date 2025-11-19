@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2, ArrowUpRight } from "lucide-react";
+import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2, ArrowUpRight, Sparkles } from "lucide-react";
 import { VoteButtons } from "@/components/VoteButtons";
 import { CrosspostDialog } from "@/components/CrosspostDialog";
 import { FlairBadge } from "@/components/FlairBadge";
@@ -13,9 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAudioEnhancements } from "@/hooks/useAudioEnhancements";
 import { AudioEnhancementControls } from "@/components/AudioEnhancementControls";
 import { ShareClipDialog } from "@/components/ShareClipDialog";
+import { FindVoiceTwinDialog } from "@/components/FindVoiceTwinDialog";
 import { Comments } from "@/components/Comments";
 import { VoiceReactionRecorder } from "@/components/VoiceReactionRecorder";
 import { VoiceReactionPlayer } from "@/components/VoiceReactionPlayer";
+import { DuetModal } from "@/components/DuetModal";
 import { useAudioPlayer } from "@/context/AudioPlayerContext";
 import {
   AlertDialog,
@@ -31,6 +33,10 @@ import { logError, logWarn } from "@/lib/logger";
 import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 import { MentionText } from "@/components/MentionText";
 import { LiveReactionsDisplay } from "@/components/LiveReactionsDisplay";
+import { VoiceCloningConsentRequestDialog } from "@/components/VoiceCloningConsentRequestDialog";
+import { Copy } from "lucide-react";
+import { useOptimistic } from "@/hooks/useOptimistic";
+import { ErrorRecovery } from "@/components/ErrorRecovery";
 
 interface VoiceReaction {
   id: string;
@@ -83,9 +89,21 @@ interface Clip {
     clarity: number;
     noise_level: number;
   } | null;
+  uses_cloned_voice?: boolean;
+  original_voice_clip_id?: string | null;
+  cloned_voice_model_id?: string | null;
+  has_watermark?: boolean;
+  original_voice_clip?: {
+    id: string;
+    profiles: {
+      handle: string;
+      emoji_avatar: string;
+    } | null;
+  } | null;
   profiles: {
     handle: string;
     emoji_avatar: string;
+    allow_voice_cloning?: boolean;
   } | null;
 }
 
@@ -95,6 +113,7 @@ interface ClipCardProps {
   highlightQuery?: string;
   onReply?: (clipId: string) => void;
   onRemix?: (clipId: string) => void;
+  onDuet?: (clipId: string) => void;
   onContinueChain?: (clipId: string) => void;
   showReplyButton?: boolean;
   isReply?: boolean;
@@ -129,6 +148,7 @@ export const ClipCard = ({
   highlightQuery = "",
   onReply,
   onRemix,
+  onDuet,
   onContinueChain,
   showReplyButton = true,
   isReply = false,
@@ -136,8 +156,60 @@ export const ClipCard = ({
   viewMode = "list",
 }: ClipCardProps) => {
   const [showCaptions, setShowCaptions] = useState(captionsDefault);
-  const [reactions, setReactions] = useState<Record<string, number>>(clip.reactions || {});
   const [burstEmoji, setBurstEmoji] = useState<string | null>(null);
+  const [reactionError, setReactionError] = useState<Error | null>(null);
+  const [saveError, setSaveError] = useState<Error | null>(null);
+  
+  // Optimistic UI for reactions
+  const { state: reactions, execute: executeReaction, isPending: isReacting } = useOptimistic<Record<string, number>>(
+    clip.reactions || {},
+    (current, action) => {
+      const newReactions = { ...current };
+      newReactions[action.data.emoji] = (newReactions[action.data.emoji] || 0) + 1;
+      return newReactions;
+    },
+    {
+      onError: (error, rollback) => {
+        setReactionError(error);
+        rollback();
+        toast({
+          title: "Couldn't add reaction",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      },
+      onSuccess: () => {
+        setReactionError(null);
+      },
+    }
+  );
+
+  // Optimistic UI for saves
+  const { state: savedState, execute: executeSave, isPending: isSaving } = useOptimistic<boolean>(
+    isSaved,
+    (current, action) => {
+      return action.data.saved;
+    },
+    {
+      onError: (error) => {
+        setSaveError(error);
+        toast({
+          title: "Couldn't save clip",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      },
+      onSuccess: (saved) => {
+        setSaveError(null);
+        setIsSaved(saved);
+        toast({
+          title: saved ? "Saved for later" : "Removed from saved",
+          description: saved ? "Clip added to your collection." : "Clip removed from your collection.",
+        });
+      },
+    }
+  );
+
   const [isSensitiveHidden, setIsSensitiveHidden] = useState(
     clip.content_rating === "sensitive",
   );
@@ -148,11 +220,14 @@ export const ClipCard = ({
   const [isLoadingVoiceReactions, setIsLoadingVoiceReactions] = useState(false);
   const [voiceReactionsError, setVoiceReactionsError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isFindVoiceTwinDialogOpen, setIsFindVoiceTwinDialogOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCrosspostDialogOpen, setIsCrosspostDialogOpen] = useState(false);
+  const [isDuetModalOpen, setIsDuetModalOpen] = useState(false);
   const [clipFlair, setClipFlair] = useState<{ name: string; color: string; background_color: string } | null>(null);
+  const [isVoiceCloningRequestDialogOpen, setIsVoiceCloningRequestDialogOpen] = useState(false);
+  const [originalVoiceClip, setOriginalVoiceClip] = useState<Clip["original_voice_clip"]>(null);
   const highlightNeedle = highlightQuery.trim();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const burstTimeoutRef = useRef<number | null>(null);
@@ -395,6 +470,22 @@ export const ClipCard = ({
     fetchVoiceReactions();
   }, [fetchVoiceReactions]);
 
+  // Fetch original voice clip if this uses cloned voice
+  useEffect(() => {
+    if (clip.uses_cloned_voice && clip.original_voice_clip_id && !clip.original_voice_clip) {
+      supabase
+        .from("clips")
+        .select("id, profiles(handle, emoji_avatar)")
+        .eq("id", clip.original_voice_clip_id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setOriginalVoiceClip(data as any);
+          }
+        });
+    }
+  }, [clip.uses_cloned_voice, clip.original_voice_clip_id, clip.original_voice_clip]);
+
   const togglePlay = async () => {
     if (isSensitiveHidden) {
       toast({
@@ -510,9 +601,6 @@ export const ClipCard = ({
     }
 
     const deviceId = localStorage.getItem("deviceId");
-    const previousReactions = reactions;
-    const optimistic = { ...previousReactions, [emoji]: (previousReactions[emoji] || 0) + 1 };
-    setReactions(optimistic);
     setBurstEmoji(emoji);
     if (burstTimeoutRef.current) {
       window.clearTimeout(burstTimeoutRef.current);
@@ -523,29 +611,31 @@ export const ClipCard = ({
     }, 500);
 
     try {
-      const { data, error } = await supabase.functions.invoke("react-to-clip", {
-        body: { clipId: clip.id, emoji },
-        headers: deviceId ? { "x-device-id": deviceId } : undefined,
-      });
+      await executeReaction(
+        {
+          type: "react",
+          data: { emoji },
+          id: `${clip.id}-${emoji}-${Date.now()}`,
+          timestamp: Date.now(),
+        },
+        async () => {
+          const { data, error } = await supabase.functions.invoke("react-to-clip", {
+            body: { clipId: clip.id, emoji },
+            headers: deviceId ? { "x-device-id": deviceId } : undefined,
+          });
 
-      if (error) throw error;
+          if (error) throw error;
 
-      if (data?.reactions) {
-        setReactions(data.reactions as Record<string, number>);
-      }
+          return (data?.reactions as Record<string, number>) || reactions;
+        }
+      );
     } catch (err) {
-      logError("Error updating reactions", err);
-      toast({
-        title: "Couldn't add reaction",
-        description: "Please try again",
-        variant: "destructive",
-      });
+      // Error handled by useOptimistic
       if (burstTimeoutRef.current) {
         window.clearTimeout(burstTimeoutRef.current);
         burstTimeoutRef.current = null;
       }
       setBurstEmoji(null);
-      setReactions(previousReactions);
     }
   };
 
@@ -559,49 +649,43 @@ export const ClipCard = ({
       return;
     }
 
-    setIsSaving(true);
-    const wasSaved = isSaved;
+    const wasSaved = savedState;
 
     try {
-      if (wasSaved) {
-        // Remove from saved
-        const { error } = await supabase
-          .from("saved_clips")
-          .delete()
-          .eq("clip_id", clip.id)
-          .eq("profile_id", profileId);
+      await executeSave(
+        {
+          type: "save",
+          data: { saved: !wasSaved },
+          id: `${clip.id}-save-${Date.now()}`,
+          timestamp: Date.now(),
+        },
+        async () => {
+          if (wasSaved) {
+            // Remove from saved
+            const { error } = await supabase
+              .from("saved_clips")
+              .delete()
+              .eq("clip_id", clip.id)
+              .eq("profile_id", profileId);
 
-        if (error) throw error;
-        setIsSaved(false);
-        toast({
-          title: "Removed from saved",
-          description: "Clip removed from your collection.",
-        });
-      } else {
-        // Add to saved
-        const { error } = await supabase
-          .from("saved_clips")
-          .insert({
-            clip_id: clip.id,
-            profile_id: profileId,
-          });
+            if (error) throw error;
+            return false;
+          } else {
+            // Add to saved
+            const { error } = await supabase
+              .from("saved_clips")
+              .insert({
+                clip_id: clip.id,
+                profile_id: profileId,
+              });
 
-        if (error) throw error;
-        setIsSaved(true);
-        toast({
-          title: "Saved for later",
-          description: "Clip added to your collection.",
-        });
-      }
+            if (error) throw error;
+            return true;
+          }
+        }
+      );
     } catch (err) {
-      logError("Error saving clip", err);
-      toast({
-        title: "Couldn't save clip",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+      // Error handled by useOptimistic
     }
   };
 
@@ -817,6 +901,16 @@ export const ClipCard = ({
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setIsFindVoiceTwinDialogOpen(true)}
+              className="h-6 w-6 rounded-full p-0"
+              aria-label="Find Voice Twin"
+              title="Find similar voices"
+            >
+              <Sparkles className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIsCrosspostDialogOpen(true)}
               className="h-6 w-6 rounded-full p-0"
               aria-label="Crosspost"
@@ -861,11 +955,26 @@ export const ClipCard = ({
             {clip.remix_of_clip_id && (
               <span className="ml-1 inline-block text-primary/80">• Remix</span>
             )}
+            {clip.duet_of_clip_id && (
+              <span className="ml-1 inline-block text-primary/80">• Duet</span>
+            )}
             {clip.chain_id && (
               <span className="ml-1 inline-block text-primary/80">• Chain</span>
             )}
             {clip.challenge_id && (
               <span className="ml-1 inline-block text-primary/80">• Challenge</span>
+            )}
+            {clip.uses_cloned_voice && (clip.original_voice_clip || originalVoiceClip) && (
+              <span className="ml-1 inline-flex items-center gap-1 text-primary/80" title="Uses cloned voice">
+                <Copy className="h-3 w-3 inline" />
+                <span className="text-xs">Voice from @{(clip.original_voice_clip || originalVoiceClip)?.profiles?.handle || "Unknown"}</span>
+              </span>
+            )}
+            {clip.has_watermark && (
+              <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground" title="AI-generated content (watermarked)">
+                <Sparkles className="h-3 w-3 inline" />
+                <span className="text-xs">AI</span>
+              </span>
             )}
             {clip.visibility === "private" && (
               <span className="ml-1 inline-block text-muted-foreground" title="Private clip">
@@ -1219,6 +1328,17 @@ export const ClipCard = ({
               )}
             </Button>
           )}
+          {!isReply && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsDuetModalOpen(true)}
+              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+            >
+              <Users className="mr-1 h-3 w-3" />
+              Duet
+            </Button>
+          )}
           {onContinueChain && !isReply && (
             <Button
               variant="ghost"
@@ -1239,6 +1359,28 @@ export const ClipCard = ({
             <Share2 className="mr-1 h-3 w-3" />
             Share
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsFindVoiceTwinDialogOpen(true)}
+            className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+            title="Find similar voices"
+          >
+            <Sparkles className="mr-1 h-3 w-3" />
+            Voice Twin
+          </Button>
+          {!isOwner && clip.profiles?.allow_voice_cloning && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsVoiceCloningRequestDialogOpen(true)}
+              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              title="Request to clone this voice"
+            >
+              <Mic className="mr-1 h-3 w-3" />
+              Clone Voice
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -1267,14 +1409,14 @@ export const ClipCard = ({
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSavingOptimistic}
             className={`h-auto px-3 py-1 rounded-full text-xs ${
-              isSaved
+              savedState
                 ? "text-primary hover:text-primary hover:bg-primary/10"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {isSaved ? (
+            {savedState ? (
               <>
                 <BookmarkCheck className="mr-1 h-3 w-3" />
                 Saved
@@ -1297,6 +1439,33 @@ export const ClipCard = ({
         </div>
       </div>
 
+      {/* Error Recovery for Reactions */}
+      {reactionError && (
+        <ErrorRecovery
+          error={reactionError}
+          onRetry={() => {
+            setReactionError(null);
+            // Retry last reaction would need to be tracked
+          }}
+          onDismiss={() => setReactionError(null)}
+          variant="toast"
+          position="inline"
+          className="mt-2"
+        />
+      )}
+
+      {/* Error Recovery for Saves */}
+      {saveError && (
+        <ErrorRecovery
+          error={saveError}
+          onRetry={handleSave}
+          onDismiss={() => setSaveError(null)}
+          variant="toast"
+          position="inline"
+          className="mt-2"
+        />
+      )}
+
       <Comments clipId={clip.id} profileId={profileId} clipCreatorId={clip.profile_id} />
 
       {/* Live Reactions Display during Playback */}
@@ -1314,6 +1483,38 @@ export const ClipCard = ({
         profileHandle={clip.profiles?.handle}
         open={isShareDialogOpen}
         onOpenChange={setIsShareDialogOpen}
+      />
+      <FindVoiceTwinDialog
+        clipId={clip.id}
+        open={isFindVoiceTwinDialogOpen}
+        onOpenChange={setIsFindVoiceTwinDialogOpen}
+      />
+      <VoiceCloningConsentRequestDialog
+        open={isVoiceCloningRequestDialogOpen}
+        onOpenChange={setIsVoiceCloningRequestDialogOpen}
+        clipId={clip.id}
+        creatorId={clip.profile_id || ""}
+        creatorHandle={clip.profiles?.handle || "Unknown"}
+        onSuccess={() => {
+          // Refresh or show success message
+        }}
+      />
+      <DuetModal
+        isOpen={isDuetModalOpen}
+        onClose={() => setIsDuetModalOpen(false)}
+        onSuccess={() => {
+          setIsDuetModalOpen(false);
+          if (onDuet) onDuet(clip.id);
+        }}
+        originalClipId={clip.id}
+        originalClip={{
+          id: clip.id,
+          audio_path: clip.audio_path,
+          title: clip.title,
+          summary: clip.summary,
+          duration_seconds: clip.duration_seconds,
+          profiles: clip.profiles,
+        }}
       />
       <CrosspostDialog
         clipId={clip.id}

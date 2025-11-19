@@ -188,3 +188,74 @@ export const useNotificationCount = () => {
   };
 };
 
+export interface NotificationDigest {
+  unread_count: number;
+  by_type: Record<string, number>;
+  priority_notifications: Array<{
+    id: string;
+    type: string;
+    message: string;
+    created_at: string;
+  }>;
+}
+
+export const useNotificationDigest = (sinceHours: number = 24) => {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+
+  const {
+    data: digest,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['notification-digest', profile?.id, sinceHours],
+    queryFn: async () => {
+      if (!profile?.id) return null;
+
+      const since = new Date();
+      since.setHours(since.getHours() - sinceHours);
+
+      const { data, error } = await supabase.rpc('get_smart_notification_digest', {
+        p_profile_id: profile.id,
+        p_since: since.toISOString(),
+      });
+
+      if (error) throw error;
+      return data as NotificationDigest | null;
+    },
+    enabled: !!profile?.id,
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Real-time subscription for digest updates
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const channel = supabase
+      .channel(`notification-digest-${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_id=eq.${profile.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['notification-digest', profile.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id, queryClient, sinceHours]);
+
+  return {
+    digest: digest || null,
+    isLoading,
+    error,
+  };
+};
+

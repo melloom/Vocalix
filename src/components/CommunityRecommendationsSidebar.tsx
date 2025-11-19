@@ -7,6 +7,7 @@ import { useCommunities } from '@/hooks/useCommunity';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
+import { LazyImage } from '@/components/LazyImage';
 
 interface LiveRoom {
   id: string;
@@ -315,16 +316,14 @@ export const CommunityRecommendationsSidebar = () => {
                   >
                     {item.image && (
                       <div className="relative w-full h-32 overflow-hidden bg-muted">
-                        <img
+                        <LazyImage
                           src={item.image}
                           alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            // Hide image if it fails to load
-                            e.currentTarget.style.display = 'none';
-                          }}
+                          className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+                          width={undefined}
+                          height={128}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
                       </div>
                     )}
                     <div className="p-3">

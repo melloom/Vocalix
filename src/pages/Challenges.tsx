@@ -13,6 +13,7 @@ import { useChallengeFollow } from "@/hooks/useChallengeFollow";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { logError } from "@/lib/logger";
+import { GroupChallengeDialog } from "@/components/GroupChallengeDialog";
 
 interface Challenge {
   id: string;
@@ -73,6 +74,7 @@ const Challenges = () => {
   const [activeTab, setActiveTab] = useState<"clips" | "leaderboard">("clips");
   const [userStreak, setUserStreak] = useState<{ current: number; longest: number } | null>(null);
   const [challengeProgress, setChallengeProgress] = useState<Record<string, any>>({});
+  const [isGroupChallengeDialogOpen, setIsGroupChallengeDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadChallenges = async () => {
@@ -270,17 +272,94 @@ const Challenges = () => {
           </Card>
         ) : (
           <>
+            {/* Streak Challenge Prominent Display */}
+            {challenges.filter(c => c.challenge_template === 'daily_streak').length > 0 && (
+              <Card className="p-6 rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Flame className="h-6 w-6 text-primary" />
+                      <h2 className="text-2xl font-bold">Daily Streak Challenge 🔥</h2>
+                    </div>
+                    <p className="text-muted-foreground mb-4">
+                      Post a clip today to maintain your streak! Build your daily posting habit and compete with others.
+                    </p>
+                    {userStreak && userStreak.current > 0 && (
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Flame className="h-5 w-5 text-primary" />
+                          <span className="font-semibold">Current Streak: {userStreak.current} days</span>
+                        </div>
+                        {userStreak.longest > userStreak.current && (
+                          <span className="text-sm text-muted-foreground">
+                            Best: {userStreak.longest} days
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {challenges
+                      .filter(c => c.challenge_template === 'daily_streak')
+                      .map((streakChallenge) => {
+                        const streakProgress = challengeProgress[streakChallenge.id];
+                        return (
+                          <div key={streakChallenge.id} className="space-y-2">
+                            {streakProgress && (
+                              <div className="flex items-center gap-2 p-3 rounded-xl bg-background/50">
+                                <Flame className="h-4 w-4 text-primary" />
+                                <span className="text-sm">
+                                  {streakProgress.posted_today ? (
+                                    <>✅ Posted today! Keep your {streakProgress.current_streak || 0} day streak going!</>
+                                  ) : (
+                                    <>Post a clip today to maintain your {streakProgress.current_streak || 0} day streak</>
+                                  )}
+                                </span>
+                                {streakProgress.completed && (
+                                  <Badge variant="default" className="ml-auto">Completed!</Badge>
+                                )}
+                              </div>
+                            )}
+                            <Button
+                              onClick={() => handleChallengeSelect(streakChallenge)}
+                              className="w-full"
+                              size="lg"
+                            >
+                              <Flame className="h-4 w-4 mr-2" />
+                              View Streak Challenge
+                            </Button>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <div className="grid gap-4">
-              {challenges.map((challenge) => (
-                <ChallengeCard
-                  key={challenge.id}
-                  challenge={challenge}
-                  isSelected={selectedChallenge?.id === challenge.id}
-                  onSelect={() => handleChallengeSelect(challenge)}
-                  followerCount={followerCounts[challenge.id] || 0}
-                  progress={challengeProgress[challenge.id]}
-                />
-              ))}
+              {challenges
+                .filter(c => c.challenge_template !== 'daily_streak')
+                .map((challenge) => (
+                  <ChallengeCard
+                    key={challenge.id}
+                    challenge={challenge}
+                    isSelected={selectedChallenge?.id === challenge.id}
+                    onSelect={() => handleChallengeSelect(challenge)}
+                    followerCount={followerCounts[challenge.id] || 0}
+                    progress={challengeProgress[challenge.id]}
+                  />
+                ))}
+              {/* Also show streak challenge in the list but less prominently */}
+              {challenges
+                .filter(c => c.challenge_template === 'daily_streak')
+                .map((challenge) => (
+                  <ChallengeCard
+                    key={challenge.id}
+                    challenge={challenge}
+                    isSelected={selectedChallenge?.id === challenge.id}
+                    onSelect={() => handleChallengeSelect(challenge)}
+                    followerCount={followerCounts[challenge.id] || 0}
+                    progress={challengeProgress[challenge.id]}
+                  />
+                ))}
             </div>
 
             {selectedChallenge && (
@@ -289,13 +368,23 @@ const Challenges = () => {
                   <h2 className="text-lg font-semibold">
                     {selectedChallenge.title}
                   </h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/topic/${selectedChallenge.topic_id}`)}
-                  >
-                    View Topic
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsGroupChallengeDialogOpen(true)}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Group Teams
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/topic/${selectedChallenge.topic_id}`)}
+                    >
+                      View Topic
+                    </Button>
+                  </div>
                 </div>
 
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "clips" | "leaderboard")}>
@@ -381,6 +470,14 @@ const Challenges = () => {
           </>
         )}
       </main>
+
+      {selectedChallenge && (
+        <GroupChallengeDialog
+          isOpen={isGroupChallengeDialogOpen}
+          onClose={() => setIsGroupChallengeDialogOpen(false)}
+          challengeId={selectedChallenge.id}
+        />
+      )}
     </div>
   );
 };
@@ -498,6 +595,21 @@ const ChallengeCard = ({
                   <Target className="w-4 h-4 text-primary" />
                   <span className="text-sm">
                     {progress.clips_count || 0} / {progress.target} clips
+                  </span>
+                  {progress.completed && (
+                    <Badge variant="default" className="ml-auto">Completed!</Badge>
+                  )}
+                </div>
+              )}
+              {progress.type === 'daily_streak' && (
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-primary" />
+                  <span className="text-sm">
+                    {progress.posted_today ? (
+                      <>✅ Posted today! Keep your {progress.current_streak || 0} day streak going!</>
+                    ) : (
+                      <>Post a clip today to maintain your {progress.current_streak || 0} day streak</>
+                    )}
                   </span>
                   {progress.completed && (
                     <Badge variant="default" className="ml-auto">Completed!</Badge>

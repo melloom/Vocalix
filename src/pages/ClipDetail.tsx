@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
+import { ClipTranslation } from "@/components/ClipTranslation";
+import { SimilarClipsSection } from "@/components/SimilarClipsSection";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
@@ -216,12 +218,20 @@ const ClipDetail = () => {
           </Button>
         </div>
       </header>
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="max-w-2xl mx-auto px-4 py-8 space-y-4">
         <ClipCard
           clip={clip}
           captionsDefault={true}
           showReplyButton={true}
         />
+        {(clip.captions || clip.summary) && (
+          <ClipTranslation
+            clipId={clip.id}
+            transcription={clip.captions}
+            caption={clip.summary}
+          />
+        )}
+        <SimilarClipsSection clipId={clip.id} />
       </main>
     </div>
   );

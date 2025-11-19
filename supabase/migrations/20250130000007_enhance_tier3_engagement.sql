@@ -36,6 +36,7 @@ DECLARE
   v_challenge_title TEXT;
   v_memory_challenge_id UUID;
   v_react_challenge_id UUID;
+  v_streak_challenge_id UUID;
 BEGIN
   -- 1. Topic-based daily challenge (existing)
   SELECT id INTO v_topic_id
@@ -167,6 +168,45 @@ BEGIN
     RETURN QUERY SELECT v_react_challenge_id, 'react_to_clips'::TEXT;
   END IF;
 
+  -- 4. Daily Streak Challenge
+  SELECT id INTO v_streak_challenge_id
+  FROM public.challenges
+  WHERE challenge_type = 'daily'
+    AND challenge_template = 'daily_streak'
+    AND start_date::DATE = v_today
+  LIMIT 1;
+
+  IF v_streak_challenge_id IS NULL THEN
+    INSERT INTO public.challenges (
+      title,
+      description,
+      challenge_type,
+      challenge_template,
+      is_auto_generated,
+      is_active,
+      leaderboard_enabled,
+      reward_points,
+      start_date,
+      end_date,
+      criteria
+    ) VALUES (
+      'Daily Streak Challenge 🔥',
+      'Post a clip today to maintain your streak! Build your daily posting habit and compete with others.',
+      'daily',
+      'daily_streak',
+      true,
+      true,
+      true,
+      25,
+      NOW(),
+      (v_today + INTERVAL '1 day')::TIMESTAMPTZ,
+      '{"type": "daily_streak", "target_days": 1, "bonus_for_streak": true}'::jsonb
+    )
+    RETURNING id INTO v_streak_challenge_id;
+
+    RETURN QUERY SELECT v_streak_challenge_id, 'daily_streak'::TEXT;
+  END IF;
+
   RETURN;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -182,6 +222,8 @@ DECLARE
   v_progress JSONB;
   v_clips_count INTEGER;
   v_reactions_count INTEGER;
+  v_current_streak INTEGER;
+  v_posted_today BOOLEAN;
 BEGIN
   SELECT * INTO v_challenge
   FROM public.challenges
@@ -222,6 +264,30 @@ BEGIN
         'reactions_count', v_reactions_count,
         'target', (v_challenge.criteria->>'target_count')::INTEGER,
         'completed', v_reactions_count >= (v_challenge.criteria->>'target_count')::INTEGER
+      );
+
+    WHEN 'daily_streak' THEN
+      -- Check if user posted a clip today
+      SELECT COUNT(*) INTO v_clips_count
+      FROM public.clips
+      WHERE profile_id = p_profile_id
+        AND created_at::DATE = CURRENT_DATE
+        AND status = 'live';
+
+      -- Get user's current streak
+      SELECT current_streak_days INTO v_current_streak
+      FROM public.profiles
+      WHERE id = p_profile_id;
+
+      v_posted_today := v_clips_count > 0;
+
+      v_progress := jsonb_build_object(
+        'type', 'daily_streak',
+        'posted_today', v_posted_today,
+        'clips_count', v_clips_count,
+        'current_streak', COALESCE(v_current_streak, 0),
+        'target', 1,
+        'completed', v_posted_today
       );
 
     ELSE
@@ -366,10 +432,12 @@ ALTER TABLE public.challenge_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ama_questions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for challenge_progress
+DROP POLICY IF EXISTS "Challenge progress viewable by everyone" ON public.challenge_progress;
 CREATE POLICY "Challenge progress viewable by everyone"
 ON public.challenge_progress FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Users can insert their own challenge progress" ON public.challenge_progress;
 CREATE POLICY "Users can insert their own challenge progress"
 ON public.challenge_progress FOR INSERT
 WITH CHECK (
@@ -379,6 +447,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Users can update their own challenge progress" ON public.challenge_progress;
 CREATE POLICY "Users can update their own challenge progress"
 ON public.challenge_progress FOR UPDATE
 USING (
@@ -389,10 +458,12 @@ USING (
 );
 
 -- RLS Policies for ama_questions
+DROP POLICY IF EXISTS "AMA questions viewable by everyone" ON public.ama_questions;
 CREATE POLICY "AMA questions viewable by everyone"
 ON public.ama_questions FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Users can insert their own AMA questions" ON public.ama_questions;
 CREATE POLICY "Users can insert their own AMA questions"
 ON public.ama_questions FOR INSERT
 WITH CHECK (
@@ -402,6 +473,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "AMA hosts can update questions" ON public.ama_questions;
 CREATE POLICY "AMA hosts can update questions"
 ON public.ama_questions FOR UPDATE
 USING (

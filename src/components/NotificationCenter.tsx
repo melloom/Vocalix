@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Bell, Check, CheckCheck, MessageCircle, Reply, UserPlus, Heart, AtSign, Trophy, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Bell, Check, CheckCheck, MessageCircle, Reply, UserPlus, Heart, AtSign, Trophy, X, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -10,9 +10,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useNotifications, useNotificationCount, Notification } from '@/hooks/useNotifications';
+import { useNotifications, useNotificationCount, useNotificationDigest, Notification } from '@/hooks/useNotifications';
+import { useFollow } from '@/hooks/useFollow';
 import { formatDistanceToNow } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const NotificationIcon = ({ type }: { type: Notification['type'] }) => {
@@ -97,18 +98,25 @@ const NotificationMessage = ({ notification }: { notification: Notification }) =
   }
 };
 
-const NotificationItem = ({ 
-  notification, 
-  onMarkAsRead 
-}: { 
+interface NotificationItemProps {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
-}) => {
+  showQuickActions?: boolean;
+  onReply?: (clipId: string) => void;
+}
+
+const NotificationItem = ({ 
+  notification, 
+  onMarkAsRead,
+  showQuickActions = true,
+  onReply
+}: NotificationItemProps) => {
   const isRead = !!notification.read_at;
   const actorEmoji = notification.actor?.emoji_avatar || '🎧';
   const badgeIcon = notification.type === 'badge_unlocked' 
     ? (notification.metadata?.badge_icon as string) || '🏆'
     : actorEmoji;
+  const { toggleFollow, isFollowing } = useFollow(notification.actor_id || null);
 
   const getNotificationLink = () => {
     if (notification.entity_type === 'clip') {
@@ -126,19 +134,46 @@ const NotificationItem = ({
       return `/challenges`;
     }
     if (notification.entity_type === 'badge') {
-      // Link to user's own profile badges tab
       return `/my-recordings?tab=badges`;
     }
     return '#';
   };
 
+  const handleQuickAction = (e: React.MouseEvent, action: 'reply' | 'follow' | 'view') => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (action === 'reply') {
+      const clipId = notification.entity_type === 'clip' 
+        ? notification.entity_id 
+        : (notification.metadata?.clip_id as string | undefined);
+      if (clipId && onReply) {
+        onReply(clipId);
+      }
+    } else if (action === 'follow' && notification.actor_id && notification.type === 'follow') {
+      toggleFollow();
+    } else if (action === 'view') {
+      // Navigation handled by Link component
+      return;
+    }
+  };
+
+  const canReply = notification.type === 'comment' || notification.type === 'reply' || notification.type === 'mention';
+  const canFollow = notification.type === 'follow' && notification.actor_id;
+  const clipId = notification.entity_type === 'clip' ? notification.entity_id : 
+                 notification.metadata?.clip_id as string | undefined;
+
   return (
-    <Link to={getNotificationLink()} onClick={() => !isRead && onMarkAsRead(notification.id)}>
-      <Card
-        className={cn(
-          'p-3 rounded-xl transition-colors cursor-pointer hover:bg-accent',
-          !isRead && 'bg-accent/50 border-primary/20'
-        )}
+    <Card
+      className={cn(
+        'p-3 rounded-xl transition-colors',
+        !isRead && 'bg-accent/50 border-primary/20'
+      )}
+    >
+      <Link 
+        to={getNotificationLink()} 
+        onClick={() => !isRead && onMarkAsRead(notification.id)}
+        className="block"
       >
         <div className="flex items-start gap-3">
           <div className="text-2xl flex-shrink-0">{badgeIcon}</div>
@@ -154,21 +189,162 @@ const NotificationItem = ({
                 <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
               )}
             </div>
-            <div className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+              </div>
+              {showQuickActions && (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  {canReply && clipId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => handleQuickAction(e, 'reply')}
+                      title="Reply"
+                    >
+                      <Reply className="h-3 w-3 mr-1" />
+                      Reply
+                    </Button>
+                  )}
+                  {canFollow && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={(e) => handleQuickAction(e, 'follow')}
+                      title={isFollowing ? "Following" : "Follow back"}
+                      disabled={isFollowing}
+                    >
+                      <UserPlus className="h-3 w-3 mr-1" />
+                      {isFollowing ? "Following" : "Follow"}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={(e) => handleQuickAction(e, 'view')}
+                    title="View"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
+      </Link>
+    </Card>
+  );
+};
+
+interface GroupedNotifications {
+  [key: string]: Notification[];
+}
+
+const NotificationGroup = ({
+  type,
+  notifications: groupNotifications,
+  count,
+  onMarkAsRead,
+  onMarkGroupAsRead,
+  onReply,
+}: {
+  type: string;
+  notifications: Notification[];
+  count: number;
+  onMarkAsRead: (id: string) => void;
+  onMarkGroupAsRead: () => void;
+  onReply?: (clipId: string) => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(count <= 3); // Auto-expand if 3 or fewer
+  const typeLabels: Record<string, string> = {
+    comment: 'Comments',
+    reply: 'Replies',
+    reaction: 'Reactions',
+    follow: 'Follows',
+    mention: 'Mentions',
+    challenge_update: 'Challenge Updates',
+    badge_unlocked: 'Badges',
+  };
+  const label = typeLabels[type] || type;
+
+  const unreadCount = groupNotifications.filter(n => !n.read_at).length;
+
+  return (
+    <div className="space-y-2">
+      <Card className="p-3 rounded-xl bg-accent/30">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-2 flex-1 text-left"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            <NotificationIcon type={type as Notification['type']} />
+            <span className="font-medium text-sm">{label}</span>
+            <Badge variant="secondary" className="text-xs">
+              {count} {unreadCount > 0 && `(${unreadCount} new)`}
+            </Badge>
+          </button>
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onMarkGroupAsRead();
+              }}
+            >
+              <Check className="h-3 w-3 mr-1" />
+              Mark all read
+            </Button>
+          )}
+        </div>
       </Card>
-    </Link>
+      {isExpanded && (
+        <div className="space-y-2 pl-6">
+          {groupNotifications.slice(0, 5).map((notification) => (
+            <NotificationItem
+              key={notification.id}
+              notification={notification}
+              onMarkAsRead={onMarkAsRead}
+              showQuickActions={true}
+              onReply={onReply}
+            />
+          ))}
+          {groupNotifications.length > 5 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-muted-foreground"
+              onClick={() => {
+                // Show all notifications (could implement pagination here)
+                setIsExpanded(true);
+              }}
+            >
+              View {groupNotifications.length - 5} more...
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
 export const NotificationCenter = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<Notification['type'] | 'all'>('all');
+  const [groupingEnabled, setGroupingEnabled] = useState(true);
   const { notifications, isLoading, markAsRead, markAllAsRead, isMarkingAsRead } = useNotifications();
   const { count } = useNotificationCount();
+  const { digest } = useNotificationDigest(24);
 
   const filteredNotifications = filter === 'all' 
     ? notifications 
@@ -177,12 +353,57 @@ export const NotificationCenter = () => {
   const unreadNotifications = filteredNotifications.filter(n => !n.read_at);
   const unreadCount = unreadNotifications.length;
 
+  // Group notifications by type
+  const groupedNotifications = useMemo(() => {
+    if (!groupingEnabled) return null;
+
+    const groups: GroupedNotifications = {};
+    filteredNotifications.forEach((notification) => {
+      const type = notification.type;
+      if (!groups[type]) {
+        groups[type] = [];
+      }
+      groups[type].push(notification);
+    });
+
+    // Sort groups by most recent notification and unread count
+    const sortedGroups = Object.entries(groups).sort((a, b) => {
+      const aUnread = a[1].filter(n => !n.read_at).length;
+      const bUnread = b[1].filter(n => !n.read_at).length;
+      if (aUnread !== bUnread) return bUnread - aUnread;
+      const aLatest = new Date(a[1][0].created_at).getTime();
+      const bLatest = new Date(b[1][0].created_at).getTime();
+      return bLatest - aLatest;
+    });
+
+    return sortedGroups;
+  }, [filteredNotifications, groupingEnabled]);
+
+  // Priority notifications (from digest)
+  const priorityNotifications = useMemo(() => {
+    if (!digest?.priority_notifications) return [];
+    return filteredNotifications.filter(n => 
+      digest.priority_notifications.some(p => p.id === n.id)
+    );
+  }, [digest, filteredNotifications]);
+
   const handleMarkAsRead = (id: string) => {
     markAsRead(id);
   };
 
   const handleMarkAllAsRead = () => {
     markAllAsRead();
+  };
+
+  const handleMarkGroupAsRead = (notificationIds: string[]) => {
+    notificationIds.forEach(id => markAsRead(id));
+  };
+
+  const navigate = useNavigate();
+  const handleReply = (clipId: string) => {
+    // Navigate to clip page where user can reply
+    setIsOpen(false); // Close notification center
+    navigate(`/clip/${clipId}`);
   };
 
   const filterTypes: Array<{ value: Notification['type'] | 'all'; label: string }> = [
@@ -222,18 +443,29 @@ export const NotificationCenter = () => {
               </Badge>
             )}
           </div>
-          {unreadCount > 0 && (
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleMarkAllAsRead}
-              disabled={isMarkingAsRead}
+              onClick={() => setGroupingEnabled(!groupingEnabled)}
               className="h-auto px-2 py-1 text-xs rounded-full"
+              title={groupingEnabled ? "Disable grouping" : "Enable grouping"}
             >
-              <CheckCheck className="h-3 w-3 mr-1" />
-              Mark all read
+              {groupingEnabled ? "Ungrouped" : "Grouped"}
             </Button>
-          )}
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                disabled={isMarkingAsRead}
+                className="h-auto px-2 py-1 text-xs rounded-full"
+              >
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -277,14 +509,78 @@ export const NotificationCenter = () => {
                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No notifications yet</p>
               </Card>
+            ) : groupingEnabled && groupedNotifications ? (
+              <>
+                {/* Priority notifications section */}
+                {priorityNotifications.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 px-2">
+                      <Badge variant="default" className="text-xs">Priority</Badge>
+                      <Separator className="flex-1" />
+                    </div>
+                    {priorityNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onMarkAsRead={handleMarkAsRead}
+                        showQuickActions={true}
+                        onReply={handleReply}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {/* Grouped notifications */}
+                <div className="space-y-3">
+                  {groupedNotifications.map(([type, groupNotifications]) => (
+                    <NotificationGroup
+                      key={type}
+                      type={type}
+                      notifications={groupNotifications}
+                      count={groupNotifications.length}
+                      onMarkAsRead={handleMarkAsRead}
+                      onMarkGroupAsRead={() => handleMarkGroupAsRead(groupNotifications.map(n => n.id))}
+                      onReply={handleReply}
+                    />
+                  ))}
+                </div>
+              </>
             ) : (
-              filteredNotifications.map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onMarkAsRead={handleMarkAsRead}
-                />
-              ))
+              <>
+                {/* Priority notifications section */}
+                {priorityNotifications.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 px-2">
+                      <Badge variant="default" className="text-xs">Priority</Badge>
+                      <Separator className="flex-1" />
+                    </div>
+                    {priorityNotifications.map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onMarkAsRead={handleMarkAsRead}
+                        showQuickActions={true}
+                        onReply={handleReply}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {/* Ungrouped list */}
+                <div className="space-y-2">
+                  {filteredNotifications
+                    .filter(n => !priorityNotifications.some(p => p.id === n.id))
+                    .map((notification) => (
+                      <NotificationItem
+                        key={notification.id}
+                        notification={notification}
+                        onMarkAsRead={handleMarkAsRead}
+                        showQuickActions={true}
+                        onReply={handleReply}
+                      />
+                    ))}
+                </div>
+              </>
             )}
           </div>
         </ScrollArea>

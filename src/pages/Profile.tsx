@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Zap, Bookmark, UserPlus, UserMinus, Trophy, Award, Sparkles, Users, Ban, MoreVertical, Flag, BarChart3 } from "lucide-react";
+import { FindVoiceTwinDialog } from "@/components/FindVoiceTwinDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import { usePagination } from "@/hooks/usePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
 import { ReportProfileDialog } from "@/components/ReportProfileDialog";
+import { NetworkEffects } from "@/components/NetworkEffects";
+import { SocialDiscovery } from "@/components/SocialDiscovery";
 
 interface ProfileMetrics {
   clipCount: number;
@@ -182,6 +185,8 @@ const Profile = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showUnblockDialog, setShowUnblockDialog] = useState(false);
+  const [isFindVoiceTwinDialogOpen, setIsFindVoiceTwinDialogOpen] = useState(false);
+  const [selectedClipForVoiceTwin, setSelectedClipForVoiceTwin] = useState<string | null>(null);
   const { profile: viewerProfile } = useProfile();
   const { isFollowing, toggleFollow, isFollowingUser, isUnfollowingUser } = useFollow(profile?.id ?? null);
   const { count: followerCount } = useFollowerCount(profile?.id ?? null);
@@ -596,10 +601,41 @@ const Profile = () => {
               <p className="text-2xl font-semibold">{metrics.topEmoji}</p>
             </Card>
           )}
+
+          {/* Find Voice Twin Section - only show if user has clips */}
+          {isOwnProfile && clips.length > 0 && (
+            <Card className="p-6 rounded-3xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-purple-500" />
+                    <h3 className="text-lg font-semibold">Find Your Voice Twin</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Discover other creators with similar voice characteristics
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    // Use the most recent clip
+                    if (clips.length > 0) {
+                      setSelectedClipForVoiceTwin(clips[0].id);
+                      setIsFindVoiceTwinDialogOpen(true);
+                    }
+                  }}
+                  variant="default"
+                  className="rounded-full"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Find Twin
+                </Button>
+              </div>
+            </Card>
+          )}
         </section>
 
         <Tabs defaultValue="clips" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 rounded-2xl">
+          <TabsList className={`grid w-full ${isOwnProfile ? 'grid-cols-5' : 'grid-cols-3'} rounded-2xl`}>
             <TabsTrigger value="clips" className="rounded-xl">
               Clips
             </TabsTrigger>
@@ -611,6 +647,18 @@ const Profile = () => {
               <Award className="h-4 w-4 mr-2" />
               Progress
             </TabsTrigger>
+            {isOwnProfile && (
+              <>
+                <TabsTrigger value="network" className="rounded-xl">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Network
+                </TabsTrigger>
+                <TabsTrigger value="discovery" className="rounded-xl">
+                  <Users className="h-4 w-4 mr-2" />
+                  Discovery
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="clips" className="space-y-4 mt-6">
@@ -787,6 +835,17 @@ const Profile = () => {
               </div>
             </Card>
           </TabsContent>
+
+          {isOwnProfile && (
+            <>
+              <TabsContent value="network" className="space-y-6 mt-6">
+                <NetworkEffects />
+              </TabsContent>
+              <TabsContent value="discovery" className="space-y-6 mt-6">
+                <SocialDiscovery />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </main>
 
@@ -849,6 +908,20 @@ const Profile = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Find Voice Twin Dialog */}
+      {selectedClipForVoiceTwin && (
+        <FindVoiceTwinDialog
+          clipId={selectedClipForVoiceTwin}
+          open={isFindVoiceTwinDialogOpen}
+          onOpenChange={(open) => {
+            setIsFindVoiceTwinDialogOpen(open);
+            if (!open) {
+              setSelectedClipForVoiceTwin(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

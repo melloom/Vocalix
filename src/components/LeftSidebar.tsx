@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
-import { TrendingUp, Radio, Users, Sparkles, ArrowRight, Clock, Plus } from 'lucide-react';
+import { TrendingUp, Radio, Users, Sparkles, ArrowRight, Clock, Plus, Compass } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -331,6 +331,13 @@ export const LeftSidebar = () => {
           >
             <Sparkles className="w-4 h-4" />
             <span>Daily Challenges</span>
+          </Link>
+          <Link
+            to="/discovery"
+            className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary/10 transition-colors text-sm"
+          >
+            <Compass className="w-4 h-4" />
+            <span>Discovery</span>
           </Link>
         </div>
       </Card>

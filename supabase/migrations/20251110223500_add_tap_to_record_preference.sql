@@ -12,3 +12,5 @@ ADD COLUMN IF NOT EXISTS tap_to_record BOOLEAN NOT NULL DEFAULT false;
 
 
 
+
+

@@ -20,6 +20,7 @@ interface EnqueueUploadOptions {
   category?: string;
   parentClipId?: string | null;
   remixOfClipId?: string | null;
+  duetOfClipId?: string | null;
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
@@ -52,6 +53,7 @@ interface UploadQueueItem {
   category?: string;
   parentClipId?: string | null;
   remixOfClipId?: string | null;
+  duetOfClipId?: string | null;
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
@@ -168,6 +170,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       category,
       parentClipId,
       remixOfClipId,
+      duetOfClipId,
       chainId,
       challengeId,
       communityId,
@@ -207,6 +210,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
             category: category || null,
             parent_clip_id: parentClipId ?? null,
             remix_of_clip_id: remixOfClipId ?? null,
+            duet_of_clip_id: duetOfClipId ?? null,
+            duet_position: duetOfClipId ? "right" : null,
             chain_id: chainId ?? null,
             challenge_id: challengeId ?? null,
             community_id: communityId ?? null,
@@ -265,6 +270,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       category,
       parentClipId,
       remixOfClipId,
+      duetOfClipId,
       chainId,
       challengeId,
       communityId,
@@ -296,6 +302,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           category,
           parentClipId,
           remixOfClipId,
+          duetOfClipId,
           chainId,
           challengeId,
           communityId,
@@ -362,6 +369,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
         category: category || undefined,
         parentClipId: parentClipId || undefined,
         remixOfClipId: remixOfClipId || undefined,
+        duetOfClipId: duetOfClipId || undefined,
         chainId: chainId || undefined,
         challengeId: challengeId || undefined,
         communityId: communityId || undefined,
@@ -439,6 +447,8 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
           category: item.category || null,
           parent_clip_id: item.parentClipId ?? null,
           remix_of_clip_id: item.remixOfClipId ?? null,
+          duet_of_clip_id: item.duetOfClipId ?? null,
+          duet_position: item.duetOfClipId ? "right" : null,
           chain_id: item.chainId ?? null,
           challenge_id: item.challengeId ?? null,
           community_id: item.communityId ?? null,

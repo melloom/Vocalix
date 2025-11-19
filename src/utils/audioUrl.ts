@@ -5,6 +5,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { offlineStorage } from "./offlineStorage";
+import { getOptimalAudioQuality, getAudioQualityParams, AudioQuality } from "./adaptiveBitrate";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_PUBLIC_URL = import.meta.env.VITE_SUPABASE_PUBLIC_URL || SUPABASE_URL;
@@ -30,6 +31,10 @@ export async function getAudioUrl(
     expiresIn?: number;
     /** Force refresh URL even if cached (default: false) */
     forceRefresh?: boolean;
+    /** Audio quality level (default: auto-detect based on connection) */
+    quality?: AudioQuality;
+    /** Enable adaptive bitrate (default: true) */
+    adaptiveBitrate?: boolean;
   } = {}
 ): Promise<string> {
   const {
@@ -38,7 +43,12 @@ export async function getAudioUrl(
     usePublicUrl = false,
     expiresIn = 86400, // 24 hours for better CDN caching
     forceRefresh = false,
+    quality,
+    adaptiveBitrate = true,
   } = options;
+
+  // Determine audio quality if adaptive bitrate is enabled
+  const audioQuality = quality || (adaptiveBitrate ? getOptimalAudioQuality() : 'medium');
 
   // Check offline storage first if enabled and clipId provided
   if (checkOffline && clipId) {
@@ -57,7 +67,14 @@ export async function getAudioUrl(
   // Use public URL if bucket is public and option enabled
   // Public URLs are more cache-friendly and CDN-optimized
   if (usePublicUrl && SUPABASE_PUBLIC_URL) {
-    const publicUrl = `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/audio/${audioPath}`;
+    let publicUrl = `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/audio/${audioPath}`;
+    
+    // Add quality parameters if adaptive bitrate is enabled and not original
+    if (adaptiveBitrate && audioQuality !== 'original') {
+      const qualityParams = getAudioQualityParams(audioQuality);
+      const params = new URLSearchParams(qualityParams);
+      publicUrl += `?${params.toString()}`;
+    }
     
     // Validate public URL works (optional check)
     if (!forceRefresh) {

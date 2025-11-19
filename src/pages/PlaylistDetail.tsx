@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Share2, Plus, Trash2, X, Heart, Eye, Users, UserPlus, UserMinus } from "lucide-react";
+import { ArrowLeft, Share2, Plus, Trash2, X, Heart, Eye, Users, UserPlus, UserMinus, Play, Shuffle, SkipForward, SkipBack } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PlaylistSkeleton, PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { useCollectionFollow, useTrackCollectionView } from "@/hooks/useCollectionFollow";
 import { logError } from "@/lib/logger";
+import { useAudioPlayer } from "@/context/AudioPlayerContext";
 import {
   Dialog,
   DialogContent,
@@ -95,6 +98,7 @@ const PlaylistDetail = () => {
   const { toast } = useToast();
   const { isFollowing, toggleFollow, isToggling } = useCollectionFollow(playlist?.id || null);
   const trackView = useTrackCollectionView();
+  const audioPlayer = useAudioPlayer();
 
   const loadPlaylist = async () => {
     if (!playlistId) {
@@ -275,6 +279,25 @@ const PlaylistDetail = () => {
       supabase.removeChannel(channel);
     };
   }, [playlistId, profile?.id, isCollaboratorsDialogOpen]);
+
+  // Set playlist queue when clips are loaded
+  useEffect(() => {
+    if (clips.length > 0) {
+      const playlistClips = clips.map(c => ({
+        id: c.id,
+        title: c.title || undefined,
+        summary: c.summary || undefined,
+        audio_path: c.audio_path,
+        profiles: c.profiles || undefined,
+      }));
+      // Only update queue if it's different or empty
+      if (audioPlayer.playlistQueue.length === 0 || 
+          audioPlayer.playlistQueue.length !== playlistClips.length ||
+          audioPlayer.playlistQueue[0]?.id !== playlistClips[0]?.id) {
+        audioPlayer.setPlaylistQueue(playlistClips);
+      }
+    }
+  }, [clips, audioPlayer]);
 
   // Track view when playlist is loaded and is public
   useEffect(() => {
@@ -770,6 +793,70 @@ const PlaylistDetail = () => {
         </section>
 
         <section className="space-y-4">
+          {clips.length > 0 && (
+            <Card className="p-4 rounded-3xl bg-muted/50">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => {
+                      const playlistClips = clips.map(c => ({
+                        id: c.id,
+                        title: c.title || undefined,
+                        summary: c.summary || undefined,
+                        audio_path: c.audio_path,
+                        profiles: c.profiles || undefined,
+                      }));
+                      audioPlayer.setPlaylistQueue(playlistClips, 0);
+                      if (playlistClips.length > 0) {
+                        audioPlayer.playClip(playlistClips[0]);
+                      }
+                    }}
+                    className="rounded-2xl"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Play All
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={audioPlayer.playPrevious}
+                    disabled={!audioPlayer.hasPrevious}
+                    className="rounded-2xl"
+                  >
+                    <SkipBack className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={audioPlayer.playNext}
+                    disabled={!audioPlayer.hasNext}
+                    className="rounded-2xl"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={audioPlayer.autoPlayEnabled}
+                      onCheckedChange={audioPlayer.setAutoPlayEnabled}
+                    />
+                    <Label className="text-sm">Auto-play</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={audioPlayer.shuffleEnabled ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => audioPlayer.setShuffleEnabled(!audioPlayer.shuffleEnabled)}
+                      className="rounded-2xl"
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
           {clips.length === 0 ? (
             <Card className="p-6 rounded-3xl bg-muted text-center text-muted-foreground space-y-3">
               <p>No clips in this playlist yet.</p>
@@ -779,7 +866,7 @@ const PlaylistDetail = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {clips.map((clip) => (
+              {clips.map((clip, index) => (
                 <div key={clip.id} className="relative">
                   <ClipCard
                     clip={clip}

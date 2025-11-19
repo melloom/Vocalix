@@ -22,6 +22,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ReactionTimeline } from "@/components/ReactionTimeline";
 
 interface Clip {
   id: string;
@@ -33,6 +34,7 @@ interface Clip {
   reply_count?: number;
   remix_count?: number;
   created_at: string;
+  duration_seconds?: number | null;
 }
 
 interface ClipAnalyticsDialogProps {
@@ -429,6 +431,14 @@ export const ClipAnalyticsDialog = ({ clip, open, onOpenChange }: ClipAnalyticsD
                   </div>
                 </div>
               </Card>
+            )}
+
+            {/* Reaction Timeline */}
+            {clip.duration_seconds && (
+              <ReactionTimeline 
+                clipId={clip.id} 
+                clipDuration={clip.duration_seconds}
+              />
             )}
           </div>
         )}

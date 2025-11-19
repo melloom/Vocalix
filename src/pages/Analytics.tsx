@@ -30,6 +30,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ReactionTimeline } from "@/components/ReactionTimeline";
+import { MentionAnalytics } from "@/components/MentionAnalytics";
 import {
   LineChart,
   Line,
@@ -112,7 +114,8 @@ const Analytics = () => {
   const [clipPerformance, setClipPerformance] = useState<ClipPerformance[]>([]);
   const [growthTrends, setGrowthTrends] = useState<GrowthTrend[]>([]);
   const [listenThroughRate, setListenThroughRate] = useState<ListenThroughRate | null>(null);
-  const [clips, setClips] = useState<Array<{ id: string; title: string | null }>>([]);
+  const [clips, setClips] = useState<Array<{ id: string; title: string | null; duration_seconds: number | null }>>([]);
+  const [selectedClipDuration, setSelectedClipDuration] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -133,7 +136,7 @@ const Analytics = () => {
       // Load clips for selector
       const { data: clipsData } = await supabase
         .from("clips")
-        .select("id, title")
+        .select("id, title, duration_seconds")
         .eq("profile_id", profile.id)
         .eq("status", "live")
         .order("created_at", { ascending: false })
@@ -141,6 +144,24 @@ const Analytics = () => {
 
       if (clipsData) {
         setClips(clipsData);
+      }
+
+      // Load selected clip duration if a clip is selected
+      if (selectedClipId) {
+        const selectedClip = clipsData?.find((c) => c.id === selectedClipId);
+        if (selectedClip?.duration_seconds) {
+          setSelectedClipDuration(selectedClip.duration_seconds);
+        } else {
+          // Fallback: fetch duration if not in clipsData
+          const { data: clipData } = await supabase
+            .from("clips")
+            .select("duration_seconds")
+            .eq("id", selectedClipId)
+            .single();
+          setSelectedClipDuration(clipData?.duration_seconds || null);
+        }
+      } else {
+        setSelectedClipDuration(null);
       }
 
       // Load engagement metrics
@@ -220,18 +241,62 @@ const Analytics = () => {
     }
   };
 
-  const exportData = async (format: "csv" | "json") => {
+  const exportData = async (format: "csv" | "json" | "tsv") => {
     if (!profile?.id) return;
 
     try {
+      // Fetch additional detailed data for comprehensive export
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - dateRange);
+      const endDate = new Date();
+
+      // Get detailed per-clip analytics
+      const { data: detailedClips } = await supabase
+        .rpc("get_clip_performance_comparison", {
+          p_profile_id: profile.id,
+          p_limit: 1000, // Get all clips
+        });
+
+      // Get listen-through rates for all clips
+      const listenThroughData: Record<string, any> = {};
+      if (clips.length > 0) {
+        for (const clip of clips.slice(0, 50)) { // Limit to 50 to avoid timeout
+          const { data } = await supabase.rpc("get_clip_listen_through_rates", {
+            p_clip_id: clip.id,
+            p_start_date: startDate.toISOString(),
+            p_end_date: endDate.toISOString(),
+          });
+          if (data && data.length > 0) {
+            listenThroughData[clip.id] = data[0];
+          }
+        }
+      }
+
       const exportData: any = {
         profile_id: profile.id,
+        profile_handle: profile.handle,
         date_range: dateRange,
+        date_range_start: startDate.toISOString(),
+        date_range_end: endDate.toISOString(),
         exported_at: new Date().toISOString(),
-        engagement_metrics: engagementMetrics,
-        audience_insights: audienceInsights,
-        clip_performance: clipPerformance,
-        growth_trends: growthTrends,
+        summary: {
+          engagement_metrics: engagementMetrics,
+          audience_insights: audienceInsights,
+          total_clips: clipPerformance.length,
+        },
+        detailed_metrics: {
+          clip_performance: detailedClips || clipPerformance,
+          listen_through_rates: listenThroughData,
+          growth_trends: growthTrends,
+        },
+        time_series_data: {
+          daily_growth: growthTrends,
+          peak_listening_times: audienceInsights?.peak_listening_times || {},
+        },
+        demographics: {
+          device_distribution: audienceInsights?.device_distribution || {},
+          geographic_distribution: audienceInsights?.geographic_distribution || {},
+        },
       };
 
       if (format === "json") {
@@ -243,27 +308,86 @@ const Analytics = () => {
         a.click();
         URL.revokeObjectURL(url);
       } else {
-        // CSV export
-        let csv = "Metric,Value\n";
-        if (engagementMetrics) {
-          csv += `Total Listens,${engagementMetrics.total_listens}\n`;
-          csv += `Total Reactions,${engagementMetrics.total_reactions}\n`;
-          csv += `Total Voice Reactions,${engagementMetrics.total_voice_reactions}\n`;
-          csv += `Total Shares,${engagementMetrics.total_shares}\n`;
-          csv += `Total Comments,${engagementMetrics.total_comments}\n`;
-          csv += `Avg Listens per Clip,${engagementMetrics.avg_listens_per_clip.toFixed(2)}\n`;
-          csv += `Engagement Rate,${engagementMetrics.engagement_rate.toFixed(2)}%\n`;
-        }
-        csv += "\nDate,New Followers,Total Followers,New Listens,New Reactions,New Voice Reactions,New Shares,Engagement Rate\n";
-        growthTrends.forEach((trend) => {
-          csv += `${trend.date},${trend.new_followers},${trend.total_followers},${trend.new_listens},${trend.new_reactions},${trend.new_voice_reactions},${trend.new_shares},${trend.engagement_rate.toFixed(2)}\n`;
-        });
+        // CSV/TSV export
+        const delimiter = format === "tsv" ? "\t" : ",";
+        let output = "";
 
-        const blob = new Blob([csv], { type: "text/csv" });
+        // Summary metrics
+        output += "=== SUMMARY METRICS ===\n";
+        output += `Metric${delimiter}Value\n`;
+        if (engagementMetrics) {
+          output += `Total Listens${delimiter}${engagementMetrics.total_listens}\n`;
+          output += `Total Reactions${delimiter}${engagementMetrics.total_reactions}\n`;
+          output += `Total Voice Reactions${delimiter}${engagementMetrics.total_voice_reactions}\n`;
+          output += `Total Shares${delimiter}${engagementMetrics.total_shares}\n`;
+          output += `Total Comments${delimiter}${engagementMetrics.total_comments}\n`;
+          output += `Avg Listens per Clip${delimiter}${engagementMetrics.avg_listens_per_clip.toFixed(2)}\n`;
+          output += `Avg Reactions per Clip${delimiter}${engagementMetrics.avg_reactions_per_clip.toFixed(2)}\n`;
+          output += `Engagement Rate${delimiter}${engagementMetrics.engagement_rate.toFixed(2)}%\n`;
+        }
+        if (audienceInsights) {
+          output += `Total Unique Listeners${delimiter}${audienceInsights.total_unique_listeners}\n`;
+        }
+        output += "\n";
+
+        // Growth trends
+        output += "=== DAILY GROWTH TRENDS ===\n";
+        output += `Date${delimiter}New Followers${delimiter}Total Followers${delimiter}New Listens${delimiter}New Reactions${delimiter}New Voice Reactions${delimiter}New Shares${delimiter}Engagement Rate\n`;
+        growthTrends.forEach((trend) => {
+          output += `${trend.date}${delimiter}${trend.new_followers}${delimiter}${trend.total_followers}${delimiter}${trend.new_listens}${delimiter}${trend.new_reactions}${delimiter}${trend.new_voice_reactions}${delimiter}${trend.new_shares}${delimiter}${trend.engagement_rate.toFixed(2)}\n`;
+        });
+        output += "\n";
+
+        // Clip performance
+        output += "=== CLIP PERFORMANCE ===\n";
+        output += `Clip ID${delimiter}Title${delimiter}Created At${delimiter}Listens${delimiter}Reactions${delimiter}Voice Reactions${delimiter}Shares${delimiter}Comments${delimiter}Avg Completion%${delimiter}Engagement Score\n`;
+        (detailedClips || clipPerformance).forEach((clip: any) => {
+          output += `${clip.clip_id}${delimiter}"${(clip.title || "").replace(/"/g, '""')}"${delimiter}${clip.created_at}${delimiter}${clip.listens_count}${delimiter}${clip.reactions_count}${delimiter}${clip.voice_reactions_count}${delimiter}${clip.shares_count}${delimiter}${clip.comments_count}${delimiter}${clip.avg_completion_percentage?.toFixed(2) || "N/A"}${delimiter}${clip.engagement_score?.toFixed(2) || "N/A"}\n`;
+        });
+        output += "\n";
+
+        // Device distribution
+        if (audienceInsights?.device_distribution) {
+          output += "=== DEVICE DISTRIBUTION ===\n";
+          output += `Device${delimiter}Count${delimiter}Percentage\n`;
+          const totalDevices = Object.values(audienceInsights.device_distribution).reduce((a: number, b: number) => a + b, 0);
+          Object.entries(audienceInsights.device_distribution).forEach(([device, count]) => {
+            const percentage = totalDevices > 0 ? (((count as number) / totalDevices) * 100).toFixed(2) : "0.00";
+            output += `${device}${delimiter}${count}${delimiter}${percentage}%\n`;
+          });
+          output += "\n";
+        }
+
+        // Geographic distribution
+        if (audienceInsights?.geographic_distribution) {
+          output += "=== GEOGRAPHIC DISTRIBUTION ===\n";
+          output += `Country${delimiter}Count${delimiter}Percentage\n`;
+          const totalGeo = Object.values(audienceInsights.geographic_distribution).reduce((a: number, b: number) => a + b, 0);
+          Object.entries(audienceInsights.geographic_distribution)
+            .sort(([, a], [, b]) => (b as number) - (a as number))
+            .forEach(([country, count]) => {
+              const percentage = totalGeo > 0 ? (((count as number) / totalGeo) * 100).toFixed(2) : "0.00";
+              output += `${country}${delimiter}${count}${delimiter}${percentage}%\n`;
+            });
+          output += "\n";
+        }
+
+        // Peak listening times
+        if (audienceInsights?.peak_listening_times) {
+          output += "=== PEAK LISTENING TIMES ===\n";
+          output += `Hour${delimiter}Listens\n`;
+          Object.entries(audienceInsights.peak_listening_times)
+            .sort(([a], [b]) => parseInt(a) - parseInt(b))
+            .forEach(([hour, count]) => {
+              output += `${hour}:00${delimiter}${count}\n`;
+            });
+        }
+
+        const blob = new Blob([output], { type: format === "tsv" ? "text/tab-separated-values" : "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `analytics-${new Date().toISOString().split("T")[0]}.csv`;
+        a.download = `analytics-${new Date().toISOString().split("T")[0]}.${format}`;
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -382,6 +506,15 @@ const Analytics = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => exportData("tsv")}
+              className="rounded-2xl"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              TSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => exportData("json")}
               className="rounded-2xl"
             >
@@ -408,7 +541,7 @@ const Analytics = () => {
           />
         ) : (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 rounded-2xl">
+            <TabsList className="grid w-full grid-cols-6 rounded-2xl">
               <TabsTrigger value="overview" className="rounded-xl">
                 Overview
               </TabsTrigger>
@@ -423,6 +556,9 @@ const Analytics = () => {
               </TabsTrigger>
               <TabsTrigger value="growth" className="rounded-xl">
                 Growth
+              </TabsTrigger>
+              <TabsTrigger value="mentions" className="rounded-xl">
+                Mentions
               </TabsTrigger>
             </TabsList>
 
@@ -670,6 +806,14 @@ const Analytics = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Reaction Timeline */}
+              {selectedClipId && selectedClipDuration && (
+                <ReactionTimeline 
+                  clipId={selectedClipId} 
+                  clipDuration={selectedClipDuration}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="audience" className="space-y-6">
@@ -857,6 +1001,12 @@ const Analytics = () => {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="mentions" className="space-y-6">
+              {profile?.id && (
+                <MentionAnalytics profileId={profile.id} days={dateRange} />
+              )}
             </TabsContent>
           </Tabs>
         )}

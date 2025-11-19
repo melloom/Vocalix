@@ -29,6 +29,19 @@ interface AudioPlayerContextType {
   setPlaybackRate: (rate: number) => void;
   playbackRate: number;
   stop: () => void;
+  // Playlist queue support
+  playlistQueue: Clip[];
+  setPlaylistQueue: (clips: Clip[], startIndex?: number) => void;
+  clearPlaylistQueue: () => void;
+  playNext: () => void;
+  playPrevious: () => void;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  currentQueueIndex: number;
+  autoPlayEnabled: boolean;
+  setAutoPlayEnabled: (enabled: boolean) => void;
+  shuffleEnabled: boolean;
+  setShuffleEnabled: (enabled: boolean) => void;
 }
 
 export const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
@@ -40,12 +53,19 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [playlistQueue, setPlaylistQueueState] = useState<Clip[]>([]);
+  const [currentQueueIndex, setCurrentQueueIndex] = useState(-1);
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [shuffledQueue, setShuffledQueue] = useState<Clip[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressUpdateRef = useRef<number | null>(null);
   const wasPlayingBeforeInterruptionRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { profile, updateProfile } = useProfile();
+  const clipStartTimeRef = useRef<number | null>(null);
+  const clipStartProgressRef = useRef<number>(0);
 
   // Load playback speed from user profile on mount or when profile changes
   useEffect(() => {
@@ -164,11 +184,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       // Handle interruptions
       mediaSession.setActionHandler("previoustrack", () => {
-        // Could implement previous clip in playlist
+        // Will be handled by the effect that updates handlers
       });
 
       mediaSession.setActionHandler("nexttrack", () => {
-        // Could implement next clip in playlist
+        // Will be handled by the effect that updates handlers
       });
     };
 
@@ -230,112 +250,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
     };
   }, [isPlaying]);
-
-  // Handle audio events
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      if (!isNaN(audio.duration) && audio.duration > 0) {
-        const currentProgress = (audio.currentTime / audio.duration) * 100;
-        setProgress(currentProgress);
-        setDuration(audio.duration);
-
-        // Sync listening progress to cloud (debounced)
-        if (currentClip?.id && profile?.id) {
-          // Only sync every 5 seconds to avoid too many requests
-          if (!saveTimeoutRef.current) {
-            saveTimeoutRef.current = setTimeout(async () => {
-              try {
-                const { syncListeningProgress } = await import("@/utils/offlineSync");
-                const deviceId = localStorage.getItem("deviceId");
-                await syncListeningProgress(
-                  profile.id,
-                  currentClip.id,
-                  audio.currentTime,
-                  currentProgress,
-                  deviceId || null
-                );
-              } catch (error) {
-                // Silent failure - progress sync is non-critical
-                logWarn("Failed to sync listening progress", error);
-              } finally {
-                saveTimeoutRef.current = null;
-              }
-            }, 5000); // Sync every 5 seconds
-          }
-        }
-
-        // Update Media Session position state
-        if ("mediaSession" in navigator && navigator.mediaSession.setPositionState) {
-          try {
-            navigator.mediaSession.setPositionState({
-              duration: audio.duration,
-              playbackRate: playbackRate,
-              position: audio.currentTime,
-            });
-          } catch (error) {
-            // Position state may not be supported on all browsers
-            logWarn("Failed to set position state", error);
-          }
-        }
-      }
-    };
-
-    const handlePlay = () => {
-      setIsPlaying(true);
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.playbackState = "playing";
-      }
-    };
-
-    const handlePause = () => {
-      setIsPlaying(false);
-      // Reset interruption flag if user manually paused
-      wasPlayingBeforeInterruptionRef.current = false;
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.playbackState = "paused";
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(0);
-      setCurrentClip(null);
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-        setAudioUrl(null);
-      }
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.playbackState = "none";
-        navigator.mediaSession.metadata = null;
-      }
-    };
-
-    const handleError = () => {
-      setIsPlaying(false);
-      toast({
-        title: "Playback error",
-        description: "Could not play audio. Please try again.",
-        variant: "destructive",
-      });
-    };
-
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("error", handleError);
-
-    return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("error", handleError);
-    };
-  }, [toast, playbackRate, audioUrl]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -407,43 +321,26 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audioRef.current.preload = "auto"; // Preload for smoother playback
       }
       
-      audioRef.current.src = urlToUse;
+      // Use progressive loading for better performance
+      const { loadAudioProgressively } = await import("@/utils/progressiveAudioLoader");
       audioRef.current.playbackRate = playbackRate;
       // Ensure audio continues playing in background
       audioRef.current.setAttribute("playsinline", "true");
       
-      // Wait for metadata to load
-      await new Promise<void>((resolve, reject) => {
-        if (!audioRef.current) {
-          reject(new Error("Audio element not available"));
-          return;
+      // Load audio progressively (browser handles Range requests automatically)
+      await loadAudioProgressively(urlToUse, audioRef.current, (loaded, total) => {
+        // Optional: Track loading progress if needed
+        if (total > 0) {
+          const progress = (loaded / total) * 100;
+          // Can be used for loading indicators if needed
+          console.debug(`Audio loading progress: ${progress.toFixed(1)}%`);
         }
-
-        const handleLoadedMetadata = () => {
-          if (audioRef.current) {
-            setDuration(audioRef.current.duration);
-          }
-          audioRef.current?.removeEventListener("loadedmetadata", handleLoadedMetadata);
-          resolve();
-        };
-
-        const handleError = () => {
-          audioRef.current?.removeEventListener("error", handleError);
-          reject(new Error("Failed to load audio"));
-        };
-
-        audioRef.current.addEventListener("loadedmetadata", handleLoadedMetadata);
-        audioRef.current.addEventListener("error", handleError);
-
-        // Timeout after 10 seconds
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.removeEventListener("loadedmetadata", handleLoadedMetadata);
-            audioRef.current.removeEventListener("error", handleError);
-          }
-          reject(new Error("Timeout loading audio"));
-        }, 10000);
       });
+      
+      // Set duration after metadata is loaded
+      if (audioRef.current.duration) {
+        setDuration(audioRef.current.duration);
+      }
     } catch (error) {
       logError("Error loading audio", error);
       const errorMessage = error instanceof Error ? error.message : "Could not load audio. Please try again.";
@@ -458,9 +355,31 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const playClip = useCallback(async (clip: Clip) => {
     try {
+      // Track skip if switching clips early
+      if (currentClip?.id && currentClip.id !== clip.id && profile?.id && audioRef.current) {
+        const currentTime = audioRef.current.currentTime;
+        const duration = audioRef.current.duration || currentClip.duration_seconds || 0;
+        const completionPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+        
+        // If user listened less than 50% before switching, consider it a skip
+        if (completionPercentage < 50 && currentTime > 0) {
+          try {
+            const { trackClipSkip } = await import("@/lib/personalization");
+            await trackClipSkip(currentClip.id, profile.id, {
+              skipReason: 'not_interested',
+              listenDurationSeconds: currentTime,
+            });
+          } catch (error) {
+            // Silent failure - non-critical
+          }
+        }
+      }
+
       // If same clip, just resume
       if (currentClip?.id === clip.id && audioRef.current) {
         await audioRef.current.play();
+        clipStartTimeRef.current = Date.now();
+        clipStartProgressRef.current = audioRef.current.currentTime;
         return;
       }
 
@@ -470,6 +389,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       
       if (audioRef.current) {
         await audioRef.current.play();
+        clipStartTimeRef.current = Date.now();
+        clipStartProgressRef.current = 0;
       }
     } catch (error) {
       logError("Error playing clip", error);
@@ -479,7 +400,145 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         variant: "destructive",
       });
     }
-  }, [currentClip, loadAudio, toast]);
+  }, [currentClip, profile, loadAudio, toast]);
+
+  // Handle audio events - must be after playClip is defined
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleTimeUpdate = () => {
+      if (!isNaN(audio.duration) && audio.duration > 0) {
+        const currentProgress = (audio.currentTime / audio.duration) * 100;
+        setProgress(currentProgress);
+        setDuration(audio.duration);
+
+        // Sync listening progress to cloud (debounced)
+        if (currentClip?.id && profile?.id) {
+          // Only sync every 5 seconds to avoid too many requests
+          if (!saveTimeoutRef.current) {
+            saveTimeoutRef.current = setTimeout(async () => {
+              try {
+                const { syncListeningProgress } = await import("@/utils/offlineSync");
+                const deviceId = localStorage.getItem("deviceId");
+                await syncListeningProgress(
+                  profile.id,
+                  currentClip.id,
+                  audio.currentTime,
+                  currentProgress,
+                  deviceId || null
+                );
+              } catch (error) {
+                // Silent failure - progress sync is non-critical
+                logWarn("Failed to sync listening progress", error);
+              } finally {
+                saveTimeoutRef.current = null;
+              }
+            }, 5000); // Sync every 5 seconds
+          }
+        }
+
+        // Update Media Session position state
+        if ("mediaSession" in navigator && navigator.mediaSession.setPositionState) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: audio.duration,
+              playbackRate: playbackRate,
+              position: audio.currentTime,
+            });
+          } catch (error) {
+            // Position state may not be supported on all browsers
+            logWarn("Failed to set position state", error);
+          }
+        }
+      }
+    };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "playing";
+      }
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      // Reset interruption flag if user manually paused
+      wasPlayingBeforeInterruptionRef.current = false;
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "paused";
+      }
+    };
+
+    const handleEnded = async () => {
+      setIsPlaying(false);
+      setProgress(0);
+      
+      // Track listening pattern when clip completes
+      if (currentClip?.id && profile?.id && audio) {
+        try {
+          const { updateListeningPattern } = await import("@/lib/personalization");
+          const durationSeconds = audio.duration || currentClip.duration_seconds || 0;
+          await updateListeningPattern(profile.id, durationSeconds);
+        } catch (error) {
+          // Silent failure - non-critical
+        }
+      }
+      
+      // Reset tracking refs
+      clipStartTimeRef.current = null;
+      clipStartProgressRef.current = 0;
+      
+      // Auto-play next clip if enabled and queue exists
+      if (autoPlayEnabled && playlistQueue.length > 0 && currentQueueIndex >= 0) {
+        const effectiveQueue = shuffleEnabled ? shuffledQueue : playlistQueue;
+        const nextIndex = currentQueueIndex + 1;
+        if (nextIndex < effectiveQueue.length) {
+          // Auto-play next clip
+          const nextClip = effectiveQueue[nextIndex];
+          setCurrentQueueIndex(nextIndex);
+          playClip(nextClip).catch((error) => {
+            logError("Error auto-playing next clip", error);
+          });
+          return; // Don't clear current clip yet
+        }
+      }
+      
+      // No next clip, clear current
+      setCurrentClip(null);
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+        setAudioUrl(null);
+      }
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.playbackState = "none";
+        navigator.mediaSession.metadata = null;
+      }
+    };
+
+    const handleError = () => {
+      setIsPlaying(false);
+      toast({
+        title: "Playback error",
+        description: "Could not play audio. Please try again.",
+        variant: "destructive",
+      });
+    };
+
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+    };
+  }, [toast, playbackRate, audioUrl, autoPlayEnabled, playlistQueue, currentQueueIndex, shuffleEnabled, shuffledQueue, playClip, currentClip, profile]);
 
   const pause = useCallback(() => {
     if (audioRef.current) {
@@ -525,7 +584,27 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const stop = useCallback(() => {
+  const stop = useCallback(async () => {
+    // Track skip if stopping early
+    if (currentClip?.id && profile?.id && audioRef.current) {
+      const currentTime = audioRef.current.currentTime;
+      const duration = audioRef.current.duration || currentClip.duration_seconds || 0;
+      const completionPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+      
+      // If user listened less than 50% before stopping, consider it a skip
+      if (completionPercentage < 50 && currentTime > 0) {
+        try {
+          const { trackClipSkip } = await import("@/lib/personalization");
+          await trackClipSkip(currentClip.id, profile.id, {
+            skipReason: 'not_interested',
+            listenDurationSeconds: currentTime,
+          });
+        } catch (error) {
+          // Silent failure - non-critical
+        }
+      }
+    }
+
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -533,6 +612,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setIsPlaying(false);
     setProgress(0);
     setCurrentClip(null);
+    setCurrentQueueIndex(-1);
+    clipStartTimeRef.current = null;
+    clipStartProgressRef.current = 0;
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
@@ -542,6 +624,108 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       navigator.mediaSession.metadata = null;
     }
   }, [audioUrl]);
+
+  // Shuffle array helper
+  const shuffleArray = useCallback(<T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, []);
+
+  // Set playlist queue
+  const setPlaylistQueue = useCallback((clips: Clip[], startIndex: number = 0) => {
+    setPlaylistQueueState(clips);
+    if (shuffleEnabled) {
+      const shuffled = shuffleArray(clips);
+      setShuffledQueue(shuffled);
+      setCurrentQueueIndex(startIndex < shuffled.length ? startIndex : 0);
+    } else {
+      setCurrentQueueIndex(startIndex < clips.length ? startIndex : 0);
+    }
+  }, [shuffleEnabled, shuffleArray]);
+
+  // Clear playlist queue
+  const clearPlaylistQueue = useCallback(() => {
+    setPlaylistQueueState([]);
+    setShuffledQueue([]);
+    setCurrentQueueIndex(-1);
+  }, []);
+
+  // Play next clip in queue
+  const playNext = useCallback(async () => {
+    const effectiveQueue = shuffleEnabled ? shuffledQueue : playlistQueue;
+    if (effectiveQueue.length === 0 || currentQueueIndex < 0) return;
+    
+    const nextIndex = currentQueueIndex + 1;
+    if (nextIndex < effectiveQueue.length) {
+      const nextClip = effectiveQueue[nextIndex];
+      setCurrentQueueIndex(nextIndex);
+      await playClip(nextClip);
+    } else {
+      toast({
+        title: "End of playlist",
+        description: "You've reached the end of the playlist",
+      });
+    }
+  }, [playlistQueue, shuffledQueue, shuffleEnabled, currentQueueIndex, playClip, toast]);
+
+  // Play previous clip in queue
+  const playPrevious = useCallback(async () => {
+    const effectiveQueue = shuffleEnabled ? shuffledQueue : playlistQueue;
+    if (effectiveQueue.length === 0 || currentQueueIndex < 0) return;
+    
+    const prevIndex = currentQueueIndex - 1;
+    if (prevIndex >= 0) {
+      const prevClip = effectiveQueue[prevIndex];
+      setCurrentQueueIndex(prevIndex);
+      await playClip(prevClip);
+    } else {
+      // Restart current clip
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play();
+      }
+    }
+  }, [playlistQueue, shuffledQueue, shuffleEnabled, currentQueueIndex, playClip]);
+
+  // Update media session handlers when playlist functions are available
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+
+    const mediaSession = navigator.mediaSession;
+    mediaSession.setActionHandler("previoustrack", () => {
+      playPrevious();
+    });
+
+    mediaSession.setActionHandler("nexttrack", () => {
+      playNext();
+    });
+  }, [playNext, playPrevious]);
+
+  // Update shuffled queue when shuffle is toggled
+  useEffect(() => {
+    if (shuffleEnabled && playlistQueue.length > 0) {
+      const shuffled = shuffleArray(playlistQueue);
+      setShuffledQueue(shuffled);
+      // Update current index if needed
+      if (currentQueueIndex >= 0 && currentQueueIndex < playlistQueue.length) {
+        const currentClipId = currentClip?.id;
+        if (currentClipId) {
+          const newIndex = shuffled.findIndex(c => c.id === currentClipId);
+          if (newIndex >= 0) {
+            setCurrentQueueIndex(newIndex);
+          }
+        }
+      }
+    }
+  }, [shuffleEnabled, playlistQueue, shuffleArray, currentQueueIndex, currentClip]);
+
+  const effectiveQueue = shuffleEnabled ? shuffledQueue : playlistQueue;
+  const hasNext = currentQueueIndex >= 0 && currentQueueIndex < effectiveQueue.length - 1;
+  const hasPrevious = currentQueueIndex > 0;
 
   return (
     <AudioPlayerContext.Provider
@@ -558,6 +742,18 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         setPlaybackRate: handleSetPlaybackRate,
         playbackRate,
         stop,
+        playlistQueue,
+        setPlaylistQueue,
+        clearPlaylistQueue,
+        playNext,
+        playPrevious,
+        hasNext,
+        hasPrevious,
+        currentQueueIndex,
+        autoPlayEnabled,
+        setAutoPlayEnabled,
+        shuffleEnabled,
+        setShuffleEnabled,
       }}
     >
       {children}

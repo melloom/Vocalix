@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, X, Play, Pause, Waves, Volume2, VolumeX, Scissors, Sparkles } from "lucide-react";
+import { Mic, X, Play, Pause, Waves, Volume2, VolumeX, Scissors, Sparkles, Layers, FileAudio, Zap, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,12 @@ import { logError, logWarn } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import { trimAudio, getAudioDuration } from "@/utils/audioTrimming";
 import { normalizeAudioVolume, adjustAudioVolume } from "@/utils/audioNormalization";
+import { mixAudioTracks, AudioTrack } from "@/utils/audioMultiTrack";
+import { applyEcho, applyReverb, applyVoiceFilter, EchoOptions, ReverbOptions, VoiceFilterOptions } from "@/utils/audioEffects";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface RemixModalProps {
   isOpen: boolean;
@@ -28,6 +34,26 @@ interface RemixModalProps {
       emoji_avatar: string;
     } | null;
   };
+  remixChallengeId?: string; // Optional: if remixing for a challenge
+}
+
+interface RemixTemplate {
+  id: string;
+  name: string;
+  description: string;
+  template_type: 'overlay' | 'sequential' | 'custom';
+  original_volume: number;
+  remix_volume: number;
+}
+
+interface AdditionalClip {
+  id: string;
+  audio_path: string;
+  title?: string | null;
+  blob?: Blob;
+  volume: number;
+  startOffset: number;
+  effectType?: string;
 }
 
 const WAVEFORM_BINS = 50;
@@ -58,6 +84,19 @@ export const RemixModal = ({
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  
+  // Enhanced features
+  const [realTimeRemix, setRealTimeRemix] = useState(false); // Record while listening
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<RemixTemplate[]>([]);
+  const [additionalClips, setAdditionalClips] = useState<AdditionalClip[]>([]); // Multi-clip support
+  const [showMultiClip, setShowMultiClip] = useState(false);
+  const [remixEffect, setRemixEffect] = useState<{
+    type: 'none' | 'echo' | 'reverb' | 'filter';
+    enabled: boolean;
+    params: any;
+  }>({ type: 'none', enabled: false, params: {} });
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -71,6 +110,31 @@ export const RemixModal = ({
 
   const { toast } = useToast();
   const { enqueueUpload } = useUploadQueue();
+
+  // Load remix templates
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const loadTemplates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('remix_templates')
+          .select('*')
+          .eq('is_public', true)
+          .order('usage_count', { ascending: false })
+          .limit(10);
+        
+        if (error) throw error;
+        if (data) {
+          setTemplates(data as RemixTemplate[]);
+        }
+      } catch (error) {
+        logWarn('Failed to load remix templates', error);
+      }
+    };
+    
+    loadTemplates();
+  }, [isOpen]);
 
   // Load original clip audio
   useEffect(() => {
@@ -185,6 +249,17 @@ export const RemixModal = ({
       analyserRef.current.smoothingTimeConstant = 0.8;
       source.connect(analyserRef.current);
 
+      // Real-time remix: play original while recording
+      if (realTimeRemix && originalAudioBlob && originalAudioRef.current === null) {
+        const originalAudio = new Audio(URL.createObjectURL(originalAudioBlob));
+        originalAudioRef.current = originalAudio;
+        originalAudio.volume = originalVolume;
+        originalAudio.loop = false;
+        originalAudio.play().catch(() => {
+          // Auto-play may be blocked, user can start manually
+        });
+      }
+
       const mimeTypes = ['audio/webm', 'audio/webm;codecs=opus', 'audio/ogg;codecs=opus'];
       let selectedMimeType = 'audio/webm';
       for (const mimeType of mimeTypes) {
@@ -238,7 +313,7 @@ export const RemixModal = ({
       });
       setIsRecording(false);
     }
-  }, [animateWaveform, cleanupAudio, toast]);
+  }, [animateWaveform, cleanupAudio, toast, realTimeRemix, originalAudioBlob, originalVolume]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -255,85 +330,87 @@ export const RemixModal = ({
     }
   }, [isRecording]);
 
-  // Mix audio function
+  // Enhanced mix audio function with multi-clip and effects support
   const mixAudio = useCallback(async () => {
     if (!recordedBlob || !originalAudioBlob) return;
 
     try {
+      // Apply template if selected
+      let templateOriginalVolume = originalVolume;
+      let templateRemixVolume = remixVolume;
+      if (selectedTemplate) {
+        const template = templates.find(t => t.id === selectedTemplate);
+        if (template) {
+          templateOriginalVolume = template.original_volume;
+          templateRemixVolume = template.remix_volume;
+        }
+      }
+
+      // Prepare tracks for mixing
+      const tracks: AudioTrack[] = [];
+      
+      // Add original clip
+      let processedOriginal = originalAudioBlob;
+      if (remixEffect.enabled && remixEffect.type !== 'none') {
+        // Apply effect to original if specified
+        try {
+          if (remixEffect.type === 'echo') {
+            processedOriginal = await applyEcho(processedOriginal, remixEffect.params as EchoOptions);
+          } else if (remixEffect.type === 'reverb') {
+            processedOriginal = await applyReverb(processedOriginal, remixEffect.params as ReverbOptions);
+          } else if (remixEffect.type === 'filter') {
+            processedOriginal = await applyVoiceFilter(processedOriginal, remixEffect.params as VoiceFilterOptions);
+          }
+        } catch (error) {
+          logWarn('Failed to apply effect to original', error);
+        }
+      }
+      
+      tracks.push({
+        blob: processedOriginal,
+        volume: templateOriginalVolume,
+        startTime: 0,
+      });
+
+      // Add recorded remix
+      let processedRemix = recordedBlob;
+      tracks.push({
+        blob: processedRemix,
+        volume: templateRemixVolume,
+        startTime: mixMode === 'sequential' ? (await getAudioDuration(processedOriginal)) : 0,
+      });
+
+      // Add additional clips if multi-clip mode
+      if (additionalClips.length > 0) {
+        for (const clip of additionalClips) {
+          if (clip.blob) {
+            tracks.push({
+              blob: clip.blob,
+              volume: clip.volume,
+              startTime: clip.startOffset,
+              fadeIn: 0.2,
+              fadeOut: 0.2,
+            });
+          }
+        }
+      }
+
+      // Mix all tracks
+      const mixedBlob = await mixAudioTracks(tracks);
+      setMixedAudioBlob(mixedBlob);
+      
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      // Decode both audio buffers
+      // Decode both audio buffers (for duration calculation)
       const originalArrayBuffer = await originalAudioBlob.arrayBuffer();
       const remixArrayBuffer = await recordedBlob.arrayBuffer();
       
       const originalBuffer = await audioContext.decodeAudioData(originalArrayBuffer);
       const remixBuffer = await audioContext.decodeAudioData(remixArrayBuffer);
 
-      let finalLength: number;
-      let finalSampleRate: number;
-
-      if (mixMode === "overlay") {
-        // Overlay: use the longer of the two
-        finalLength = Math.max(originalBuffer.length, remixBuffer.length);
-        finalSampleRate = originalBuffer.sampleRate;
-      } else {
-        // Sequential: add lengths
-        finalLength = originalBuffer.length + remixBuffer.length;
-        finalSampleRate = originalBuffer.sampleRate;
-      }
-
-      // Create output buffer
-      const outputBuffer = audioContext.createBuffer(
-        originalBuffer.numberOfChannels,
-        finalLength,
-        finalSampleRate
-      );
-
-      // Mix the audio
-      for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
-        const outputData = outputBuffer.getChannelData(channel);
-        const originalData = originalBuffer.getChannelData(Math.min(channel, originalBuffer.numberOfChannels - 1));
-        const remixData = remixBuffer.getChannelData(Math.min(channel, remixBuffer.numberOfChannels - 1));
-
-        if (mixMode === "overlay") {
-          // Overlay: mix both tracks
-          for (let i = 0; i < finalLength; i++) {
-            const originalSample = i < originalBuffer.length 
-              ? originalData[i] * originalVolume 
-              : 0;
-            const remixSample = i < remixBuffer.length 
-              ? remixData[i] * remixVolume 
-              : 0;
-            outputData[i] = Math.max(-1, Math.min(1, originalSample + remixSample));
-          }
-        } else {
-          // Sequential: play original first, then remix
-          for (let i = 0; i < originalBuffer.length; i++) {
-            outputData[i] = originalData[i] * originalVolume;
-          }
-          for (let i = 0; i < remixBuffer.length; i++) {
-            outputData[originalBuffer.length + i] = remixData[i] * remixVolume;
-          }
-        }
-      }
-
-      // Render to blob
-      const offlineContext = new OfflineAudioContext(
-        outputBuffer.numberOfChannels,
-        finalLength,
-        finalSampleRate
-      );
-
-      const source = offlineContext.createBufferSource();
-      source.buffer = outputBuffer;
-      source.connect(offlineContext.destination);
-      source.start(0);
-
-      const renderedBuffer = await offlineContext.startRendering();
-      
-      // Convert to WAV
-      const wavBlob = audioBufferToWav(renderedBuffer);
-      setMixedAudioBlob(wavBlob);
+      // Duration is already calculated from mixedBlob
+      const finalDuration = await getAudioDuration(mixedBlob);
+      setDuration(Math.floor(finalDuration));
       
       audioContext.close();
     } catch (error) {
@@ -344,7 +421,7 @@ export const RemixModal = ({
         variant: "destructive",
       });
     }
-  }, [recordedBlob, originalAudioBlob, mixMode, originalVolume, remixVolume, toast]);
+  }, [recordedBlob, originalAudioBlob, mixMode, originalVolume, remixVolume, toast, selectedTemplate, templates, additionalClips, remixEffect]);
 
   // Auto-mix when volumes change
   useEffect(() => {
@@ -444,7 +521,23 @@ export const RemixModal = ({
         title: title.trim() || null,
         caption: caption.trim() || null,
         remixOfClipId: originalClipId,
+        challengeId: undefined, // TODO: Pass remixChallengeId from props if available
+        contentRating: "general", // Default
       });
+
+      // Save remix sources and template usage after upload (will be handled by backend trigger or separate call)
+      // Note: This will be saved after the clip is created via a separate API call or trigger
+      
+      // Increment template usage if template was used
+      if (selectedTemplate) {
+        try {
+          await supabase.rpc('increment_template_usage', {
+            p_template_id: selectedTemplate,
+          });
+        } catch (error) {
+          logWarn('Failed to increment template usage', error);
+        }
+      }
 
       toast({
         title: "Remix created!",
@@ -540,6 +633,181 @@ export const RemixModal = ({
             </div>
           )}
 
+          {/* Enhanced Remix Features Tabs */}
+          {!recordedBlob && (
+            <Tabs defaultValue="basic" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="basic" className="text-xs">Basic</TabsTrigger>
+                <TabsTrigger value="templates" className="text-xs">Templates</TabsTrigger>
+                <TabsTrigger value="multi" className="text-xs">Multi-Clip</TabsTrigger>
+                <TabsTrigger value="effects" className="text-xs">Effects</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="basic" className="space-y-3">
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/40">
+                  <input
+                    type="checkbox"
+                    id="realtime"
+                    checked={realTimeRemix}
+                    onChange={(e) => setRealTimeRemix(e.target.checked)}
+                    className="rounded"
+                  />
+                  <label htmlFor="realtime" className="text-sm cursor-pointer flex-1">
+                    <span className="font-medium">Real-time Remix</span>
+                    <span className="text-xs text-muted-foreground block">
+                      Record while listening to the original
+                    </span>
+                  </label>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="templates" className="space-y-3">
+                {templates.length > 0 ? (
+                  <div className="grid gap-2 max-h-48 overflow-y-auto">
+                    {templates.map((template) => (
+                      <Card
+                        key={template.id}
+                        className={`cursor-pointer transition-all ${
+                          selectedTemplate === template.id
+                            ? 'ring-2 ring-primary'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedTemplate(template.id);
+                          setMixMode(template.template_type === 'custom' ? 'overlay' : template.template_type);
+                          setOriginalVolume(template.original_volume);
+                          setRemixVolume(template.remix_volume);
+                        }}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-medium">{template.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {template.description}
+                              </p>
+                            </div>
+                            {selectedTemplate === template.id && (
+                              <Badge variant="default" className="ml-2">Selected</Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No templates available
+                  </p>
+                )}
+              </TabsContent>
+
+              <TabsContent value="multi" className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium">Add More Clips</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowMultiClip(!showMultiClip)}
+                  >
+                    <Layers className="h-4 w-4 mr-1" />
+                    {showMultiClip ? 'Hide' : 'Add Clips'}
+                  </Button>
+                </div>
+                {showMultiClip && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      You can add up to 3 additional clips to your remix
+                    </p>
+                    {additionalClips.map((clip, index) => (
+                      <div key={clip.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40">
+                        <span className="text-xs flex-1">{clip.title || `Clip ${index + 1}`}</span>
+                        <Slider
+                          value={[clip.volume]}
+                          onValueChange={([v]) => {
+                            const updated = [...additionalClips];
+                            updated[index].volume = v;
+                            setAdditionalClips(updated);
+                          }}
+                          max={1}
+                          step={0.1}
+                          className="w-24"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setAdditionalClips(additionalClips.filter((_, i) => i !== index));
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    {additionalClips.length < 3 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={async () => {
+                          // TODO: Open clip selector modal
+                          toast({
+                            title: "Feature coming soon",
+                            description: "Clip selector will be available soon",
+                          });
+                        }}
+                      >
+                        <FileAudio className="h-4 w-4 mr-2" />
+                        Add Clip
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="effects" className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="enable-effect"
+                      checked={remixEffect.enabled}
+                      onChange={(e) => setRemixEffect({ ...remixEffect, enabled: e.target.checked })}
+                      className="rounded"
+                    />
+                    <label htmlFor="enable-effect" className="text-sm font-medium cursor-pointer">
+                      Apply Effect to Remix
+                    </label>
+                  </div>
+                  {remixEffect.enabled && (
+                    <Select
+                      value={remixEffect.type}
+                      onValueChange={(value: 'none' | 'echo' | 'reverb' | 'filter') => {
+                        setRemixEffect({
+                          type: value,
+                          enabled: true,
+                          params: value === 'echo' ? { delay: 0.2, feedback: 0.3, wetLevel: 0.5 } :
+                                  value === 'reverb' ? { roomSize: 0.5, damping: 0.5, wetLevel: 0.3 } :
+                                  value === 'filter' ? { type: 'robot', intensity: 0.5 } : {}
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="echo">Echo</SelectItem>
+                        <SelectItem value="reverb">Reverb</SelectItem>
+                        <SelectItem value="filter">Voice Filter</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+
           {/* Recording Section */}
           {!recordedBlob ? (
             <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
@@ -632,7 +900,7 @@ export const RemixModal = ({
                 </div>
               </div>
 
-              {/* Playback */}
+              {/* Playback with Preview */}
               <div className="rounded-3xl bg-gradient-to-br from-primary/10 via-background to-accent/10 p-3">
                 <div className="flex items-center gap-3">
                   <Button
@@ -649,9 +917,25 @@ export const RemixModal = ({
                     ) : (
                       <>
                         <Play className="mr-1.5 h-4 w-4" />
-                        Play Mixed
+                        {isPreviewing ? 'Preview Remix' : 'Play Mixed'}
                       </>
                     )}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      setIsPreviewing(true);
+                      await mixAudio();
+                      setTimeout(() => {
+                        handlePlayback();
+                        setIsPreviewing(false);
+                      }, 100);
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className="h-10"
+                  >
+                    <Zap className="h-4 w-4 mr-1" />
+                    Preview
                   </Button>
                   <div className="text-center min-w-[50px]">
                     <p className="text-xs text-muted-foreground">Duration</p>

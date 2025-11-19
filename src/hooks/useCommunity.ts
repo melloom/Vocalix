@@ -18,6 +18,13 @@ export interface Community {
   guidelines: string | null;
   created_at: string;
   updated_at: string;
+  is_voice_based?: boolean;
+  voice_cluster_id?: string | null;
+  voice_characteristics_summary?: {
+    avg_pitch?: number;
+    avg_speed?: number;
+    common_tone?: string;
+  } | null;
 }
 
 export interface CommunityWithDetails extends Community {
@@ -523,6 +530,59 @@ export const useCommunityPermission = (communityId: string | null, permission: s
       return data || false;
     },
     enabled: !!communityId && !!profile?.id,
+  });
+};
+
+// Hook to get voice-based community suggestions for the current user
+export const useVoiceBasedCommunitySuggestions = (limit: number = 5) => {
+  const { profile } = useProfile();
+
+  return useQuery({
+    queryKey: ['voice-based-community-suggestions', profile?.id, limit],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+
+      const { data, error } = await supabase
+        .rpc('suggest_voice_based_communities', {
+          p_profile_id: profile.id,
+          p_limit: limit,
+        });
+
+      if (error) throw error;
+      return (data || []) as Array<{
+        community_id: string;
+        community_name: string;
+        community_slug: string;
+        community_description: string;
+        avatar_emoji: string;
+        member_count: number;
+        match_score: number;
+        voice_similarity: number;
+      }>;
+    },
+    enabled: !!profile?.id,
+  });
+};
+
+// Hook to trigger discovery of voice-based communities (admin/system use)
+export const useDiscoverVoiceBasedCommunities = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (options?: { min_cluster_size?: number; similarity_threshold?: number }) => {
+      const { data, error } = await supabase
+        .rpc('discover_voice_based_communities', {
+          p_min_cluster_size: options?.min_cluster_size || 5,
+          p_similarity_threshold: options?.similarity_threshold || 0.6,
+        });
+
+      if (error) throw error;
+      return data || [];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      queryClient.invalidateQueries({ queryKey: ['voice-based-community-suggestions'] });
+    },
   });
 };
 

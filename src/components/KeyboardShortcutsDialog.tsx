@@ -54,6 +54,26 @@ const shortcuts: Shortcut[] = [
   { keys: ["d"], description: "Toggle dark mode", category: "Settings" },
   { keys: ["Esc"], description: "Close modals/dialogs", category: "Settings" },
   { keys: ["?"], description: "Show keyboard shortcuts", category: "Settings" },
+  
+  // Undo/Redo
+  { keys: ["Ctrl", "z"], description: "Undo last action", category: "Editing" },
+  { keys: ["Ctrl", "y"], description: "Redo last action", category: "Editing" },
+  { keys: ["Ctrl", "Shift", "z"], description: "Redo (alternative)", category: "Editing" },
+  
+  // Additional Navigation
+  { keys: ["h"], description: "Go to home", category: "Navigation" },
+  { keys: ["u"], description: "Go to profile", category: "Navigation" },
+  { keys: ["i"], description: "Go to saved clips", category: "Navigation" },
+  { keys: ["a"], description: "Go to activity", category: "Navigation" },
+  
+  // Playback Controls
+  { keys: ["l"], description: "Like current clip", category: "Actions" },
+  { keys: ["b"], description: "Bookmark current clip", category: "Actions" },
+  { keys: ["Shift", "s"], description: "Share current clip", category: "Actions" },
+  
+  // Utility
+  { keys: ["Ctrl", "k"], description: "Open command palette", category: "Utility" },
+  { keys: ["Ctrl", "f"], description: "Focus search", category: "Utility" },
 ];
 
 interface KeyboardShortcutsDialogProps {

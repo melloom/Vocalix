@@ -323,6 +323,64 @@ export const useKeyboardShortcuts = (options: KeyboardShortcutsOptions = {}) => 
         return;
       }
 
+      // Undo/Redo (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === 'z') {
+        event.preventDefault();
+        // Undo functionality - will be handled by components using undo hook
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.shiftKey && event.key === 'z'))) {
+        event.preventDefault();
+        // Redo functionality - will be handled by components using redo hook
+        return;
+      }
+
+      // Additional shortcuts
+      if (!hasModifier && !isInput) {
+        switch (event.key.toLowerCase()) {
+          case 'h':
+            event.preventDefault();
+            if (onGoHome) {
+              onGoHome();
+            } else {
+              navigate('/');
+            }
+            return;
+          case 'u':
+            event.preventDefault();
+            if (onOpenProfile) {
+              onOpenProfile();
+            } else if (profile?.handle) {
+              navigate(`/profile/${profile.handle}`);
+            }
+            return;
+          case 'i':
+            event.preventDefault();
+            if (onGoSaved) {
+              onGoSaved();
+            } else {
+              navigate('/saved');
+            }
+            return;
+          case 'a':
+            event.preventDefault();
+            navigate('/activity');
+            return;
+          case 'l':
+            event.preventDefault();
+            if (onReact) {
+              onReact();
+            }
+            return;
+          case 'b':
+            event.preventDefault();
+            if (onSaveClip) {
+              onSaveClip();
+            }
+            return;
+        }
+      }
+
       // Escape - Close modals, clear search, etc.
       if (event.key === 'Escape') {
         if (isInput && target.tagName === 'INPUT') {

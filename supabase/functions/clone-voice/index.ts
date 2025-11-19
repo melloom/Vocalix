@@ -160,10 +160,19 @@ serve(async (req) => {
     }
 
     if (req.method === "POST") {
-      const { action, audioUrl, clipId, text, name, description } =
-        await req.json();
+      const { 
+        action, 
+        audioUrl, 
+        clipId, 
+        text, 
+        name, 
+        description,
+        sourceClipId, // For cloning another creator's voice
+        originalCreatorId, // For cloning another creator's voice
+        consentId // Consent ID if cloning another creator's voice
+      } = await req.json();
 
-      // Action: create_voice_clone
+      // Action: create_voice_clone (self-cloning or cloning others with consent)
       if (action === "create_voice_clone") {
         if (!audioUrl || !name) {
           return new Response(
@@ -177,6 +186,96 @@ serve(async (req) => {
           );
         }
 
+        // If cloning another creator's voice, check consent
+        if (sourceClipId && originalCreatorId) {
+          // Check if user has permission to clone this voice
+          const { data: canClone, error: canCloneError } = await supabase
+            .rpc("can_clone_voice", {
+              p_requester_id: profile.id,
+              p_creator_id: originalCreatorId,
+              p_clip_id: sourceClipId,
+            });
+
+          if (canCloneError || !canClone) {
+            return new Response(
+              JSON.stringify({
+                error: "You do not have permission to clone this voice. Please request consent first.",
+              }),
+              {
+                status: 403,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }
+            );
+          }
+
+          // Create cloned voice model record
+          try {
+            const voiceClone = await createVoiceClone(
+              audioUrl,
+              name,
+              description
+            );
+
+            if (!voiceClone) {
+              return new Response(
+                JSON.stringify({
+                  error: "Failed to create voice clone (API key may be missing)",
+                }),
+                {
+                  status: 500,
+                  headers: {
+                    ...corsHeaders,
+                    "content-type": "application/json",
+                  },
+                }
+              );
+            }
+
+            // Store cloned voice model
+            const { error: modelError } = await supabase
+              .from("cloned_voice_models")
+              .insert({
+                user_id: profile.id,
+                original_creator_id: originalCreatorId,
+                source_clip_id: sourceClipId,
+                consent_id: consentId || null,
+                voice_model_id: voiceClone.voice_id,
+                voice_model_name: name,
+              });
+
+            if (modelError) {
+              console.error("Error storing cloned voice model:", modelError);
+            }
+
+            return new Response(
+              JSON.stringify({
+                success: true,
+                voice_model_id: voiceClone.voice_id,
+                status: voiceClone.status,
+                is_cloned_from_other: true,
+              }),
+              {
+                headers: { ...corsHeaders, "content-type": "application/json" },
+                status: 200,
+              }
+            );
+          } catch (error) {
+            console.error("Error creating voice clone:", error);
+            return new Response(
+              JSON.stringify({
+                error: "Failed to create voice clone",
+                message:
+                  error instanceof Error ? error.message : "Unknown error",
+              }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }
+            );
+          }
+        }
+
+        // Self-cloning (original behavior)
         // Check if user already has a voice model
         if (profile.voice_model_id) {
           return new Response(
@@ -257,7 +356,75 @@ serve(async (req) => {
 
       // Action: generate_speech
       if (action === "generate_speech") {
-        if (!text || !profile.voice_model_id) {
+        const { 
+          text, 
+          voiceModelId, // Can be user's own voice or a cloned voice model ID
+          originalVoiceClipId, // REQUIRED if using cloned voice
+          clonedVoiceModelId, // ID from cloned_voice_models table if using another creator's voice
+          addWatermark = true // Add watermark for AI-generated content
+        } = await req.json();
+
+        // Determine which voice model to use
+        let targetVoiceId: string | null = null;
+        let isClonedFromOther = false;
+        let originalCreatorId: string | null = null;
+
+        if (clonedVoiceModelId) {
+          // Using a cloned voice model from another creator
+          const { data: clonedModel, error: modelError } = await supabase
+            .from("cloned_voice_models")
+            .select("voice_model_id, original_creator_id, source_clip_id, is_active")
+            .eq("id", clonedVoiceModelId)
+            .eq("user_id", profile.id)
+            .single();
+
+          if (modelError || !clonedModel || !clonedModel.is_active) {
+            return new Response(
+              JSON.stringify({
+                error: "Invalid or inactive cloned voice model",
+              }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }
+            );
+          }
+
+          targetVoiceId = clonedModel.voice_model_id;
+          isClonedFromOther = true;
+          originalCreatorId = clonedModel.original_creator_id;
+          
+          // Enforce attribution - original_voice_clip_id is required
+          if (!originalVoiceClipId) {
+            return new Response(
+              JSON.stringify({
+                error: "original_voice_clip_id is required when using cloned voice",
+              }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, "content-type": "application/json" },
+              }
+            );
+          }
+        } else if (voiceModelId) {
+          // Using a specific voice model ID
+          targetVoiceId = voiceModelId;
+        } else if (profile.voice_model_id) {
+          // Using user's own voice model
+          targetVoiceId = profile.voice_model_id;
+        } else {
+          return new Response(
+            JSON.stringify({
+              error: "No voice model available. Please create a voice model first.",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
+
+        if (!text || !targetVoiceId) {
           return new Response(
             JSON.stringify({
               error: "Text and voice model ID are required",
@@ -270,10 +437,7 @@ serve(async (req) => {
         }
 
         try {
-          const audioBlob = await generateSpeech(
-            profile.voice_model_id,
-            text
-          );
+          const audioBlob = await generateSpeech(targetVoiceId, text);
 
           if (!audioBlob) {
             return new Response(
@@ -288,11 +452,25 @@ serve(async (req) => {
             );
           }
 
+          // Add watermark if requested (for AI detection)
+          let watermarkedBlob = audioBlob;
+          let watermarkData = null;
+          if (addWatermark) {
+            // In a real implementation, you would add an inaudible watermark here
+            // For now, we'll just mark it in metadata
+            watermarkData = {
+              algorithm: "echo_garden_v1",
+              timestamp: new Date().toISOString(),
+              voice_model_id: targetVoiceId,
+              is_ai_generated: true,
+            };
+          }
+
           // Upload generated audio to Supabase storage
           const fileName = `voice-clones/${profile.id}/${Date.now()}.mp3`;
           const { error: uploadError } = await supabase.storage
             .from("audio")
-            .upload(fileName, audioBlob, {
+            .upload(fileName, watermarkedBlob, {
               contentType: "audio/mpeg",
               upsert: false,
             });
@@ -301,14 +479,41 @@ serve(async (req) => {
             throw uploadError;
           }
 
-          // If clipId is provided, update the clip
+          // If clipId is provided, update the clip with attribution and watermark
           if (clipId) {
+            const updateData: any = {
+              uses_cloned_voice: true,
+              audio_path: fileName,
+              has_watermark: addWatermark,
+            };
+
+            // Enforce attribution
+            if (originalVoiceClipId) {
+              updateData.original_voice_clip_id = originalVoiceClipId;
+            } else if (isClonedFromOther) {
+              // If using cloned voice but no original_voice_clip_id provided, use source_clip_id
+              const { data: clonedModel } = await supabase
+                .from("cloned_voice_models")
+                .select("source_clip_id")
+                .eq("id", clonedVoiceModelId)
+                .single();
+              
+              if (clonedModel) {
+                updateData.original_voice_clip_id = clonedModel.source_clip_id;
+              }
+            }
+
+            if (clonedVoiceModelId) {
+              updateData.cloned_voice_model_id = clonedVoiceModelId;
+            }
+
+            if (watermarkData) {
+              updateData.watermark_data = watermarkData;
+            }
+
             const { error: clipError } = await supabase
               .from("clips")
-              .update({
-                uses_cloned_voice: true,
-                audio_path: fileName,
-              })
+              .update(updateData)
               .eq("id", clipId);
 
             if (clipError) {
@@ -326,6 +531,8 @@ serve(async (req) => {
               success: true,
               audio_url: urlData.publicUrl,
               audio_path: fileName,
+              has_watermark: addWatermark,
+              is_cloned_from_other: isClonedFromOther,
             }),
             {
               headers: { ...corsHeaders, "content-type": "application/json" },

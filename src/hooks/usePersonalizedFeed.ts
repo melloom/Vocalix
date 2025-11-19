@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { logError } from '@/lib/logger';
 
+// Utility function to detect device type
+function getDeviceType(): string {
+  if (typeof navigator === 'undefined') return 'desktop';
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (/mobile|android|iphone|ipod/i.test(userAgent)) return 'mobile';
+  if (/tablet|ipad/i.test(userAgent)) return 'tablet';
+  return 'desktop';
+}
+
 interface PersonalizedClip {
   id: string;
   profile_id: string | null;
@@ -55,13 +64,31 @@ export const usePersonalizedFeed = (limit: number = 50) => {
 
         const validLimit = Number.isInteger(limit) && limit > 0 ? limit : 50;
         const validOffset = 0;
+        const currentHour = new Date().getHours();
+        const deviceType = getDeviceType();
 
-        // Use the database function for efficient personalized feed calculation
-        const { data, error: rpcError } = await supabase.rpc('get_for_you_feed', {
-          p_profile_id: profile.id,
-          p_limit: validLimit,
-          p_offset: validOffset,
-        });
+        // Try enhanced feed first, fallback to basic feed if it doesn't exist
+        let data, rpcError;
+        try {
+          const result = await supabase.rpc('get_enhanced_for_you_feed', {
+            p_profile_id: profile.id,
+            p_limit: validLimit,
+            p_offset: validOffset,
+            p_current_hour: currentHour,
+            p_device_type: deviceType,
+          });
+          data = result.data;
+          rpcError = result.error;
+        } catch (err) {
+          // If enhanced function doesn't exist, fall back to basic function
+          const result = await supabase.rpc('get_for_you_feed', {
+            p_profile_id: profile.id,
+            p_limit: validLimit,
+            p_offset: validOffset,
+          });
+          data = result.data;
+          rpcError = result.error;
+        }
 
         if (rpcError) {
           logError('usePersonalizedFeed RPC error', {

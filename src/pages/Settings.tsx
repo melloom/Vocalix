@@ -52,6 +52,9 @@ import { formatDistanceToNow } from "date-fns";
 import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 import { formatFileSize } from "@/utils/offlineStorage";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
+import { VoiceCloningConsentManagement } from "@/components/VoiceCloningConsentManagement";
+import { Slider } from "@/components/ui/slider";
+import { OnboardingProgress, useOnboardingProgress } from "@/components/OnboardingProgress";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -138,6 +141,9 @@ const Settings = () => {
   const [isCreatingVoiceClone, setIsCreatingVoiceClone] = useState(false);
   const [preferredLanguage, setPreferredLanguage] = useState("en");
   const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(true);
+  const [allowVoiceCloning, setAllowVoiceCloning] = useState(false);
+  const [voiceCloningAutoApprove, setVoiceCloningAutoApprove] = useState(false);
+  const [voiceCloningRevenueShare, setVoiceCloningRevenueShare] = useState(20);
 
   // Auto-update device user_agent when Settings page loads
   useEffect(() => {
@@ -1463,7 +1469,126 @@ const Settings = () => {
             )}
           </Card>
 
+          <Card className="p-6 rounded-3xl space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Voice Cloning Permissions</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Control whether others can clone your voice and how consent requests are handled.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between gap-6">
+                <div>
+                  <p className="font-medium">Allow Voice Cloning</p>
+                  <p className="text-sm text-muted-foreground">
+                    Let other users request permission to clone your voice for ethical use cases.
+                  </p>
+                </div>
+                <Switch
+                  checked={allowVoiceCloning}
+                  onCheckedChange={async (checked) => {
+                    setAllowVoiceCloning(checked);
+                    try {
+                      await updateProfile({ allow_voice_cloning: checked });
+                      toast({
+                        title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
+                        description: checked
+                          ? "Users can now request to clone your voice."
+                          : "Voice cloning requests are now disabled.",
+                      });
+                    } catch (error) {
+                      logError("Failed to update voice cloning permissions", error);
+                      setAllowVoiceCloning(!checked);
+                    }
+                  }}
+                  disabled={isUpdating}
+                  aria-label="Toggle allow voice cloning"
+                />
+              </div>
+
+              {allowVoiceCloning && (
+                <>
+                  <div className="flex items-center justify-between gap-6">
+                    <div>
+                      <p className="font-medium">Auto-Approve Requests</p>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically approve all voice cloning requests without manual review.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={voiceCloningAutoApprove}
+                      onCheckedChange={async (checked) => {
+                        setVoiceCloningAutoApprove(checked);
+                        try {
+                          await updateProfile({ voice_cloning_auto_approve: checked });
+                          toast({
+                            title: checked ? "Auto-approve enabled" : "Auto-approve disabled",
+                            description: checked
+                              ? "Voice cloning requests will be automatically approved."
+                              : "You'll need to manually approve each request.",
+                          });
+                        } catch (error) {
+                          logError("Failed to update auto-approve setting", error);
+                          setVoiceCloningAutoApprove(!checked);
+                        }
+                      }}
+                      disabled={isUpdating}
+                      aria-label="Toggle auto-approve"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Revenue Share Percentage</p>
+                        <p className="text-sm text-muted-foreground">
+                          Percentage of revenue from cloned content that goes to you (default: 20%).
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">{voiceCloningRevenueShare}%</p>
+                      </div>
+                    </div>
+                    <Slider
+                      value={[voiceCloningRevenueShare]}
+                      onValueChange={async (value) => {
+                        const newValue = value[0];
+                        setVoiceCloningRevenueShare(newValue);
+                        try {
+                          await updateProfile({ voice_cloning_revenue_share_percentage: newValue });
+                        } catch (error) {
+                          logError("Failed to update revenue share", error);
+                        }
+                      }}
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground px-1">
+                      <span>0%</span>
+                      <span>50%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {allowVoiceCloning && !voiceCloningAutoApprove && (
+                <div className="pt-4 border-t">
+                  <VoiceCloningConsentManagement />
+                </div>
+              )}
+            </div>
+          </Card>
+
           <NotificationPreferences />
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Personalization</h2>
+          <PersonalizationPreferences />
         </section>
 
         <section className="space-y-4">
@@ -2721,6 +2846,17 @@ const Settings = () => {
             >
               {isSavingHandle ? "Saving..." : "Save"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Settings;
+
+
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

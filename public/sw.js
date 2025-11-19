@@ -31,9 +31,10 @@ self.addEventListener("install", (event) => {
       }),
       // Pre-cache HTML pages for offline access
       caches.open(HTML_CACHE_NAME).then((cache) => {
-        // Cache common routes
+        // Cache common routes and offline page
         return cache.addAll([
           "/",
+          "/offline.html",
         ]).catch((error) => {
           console.warn("Failed to cache some HTML pages:", error);
         });
@@ -390,6 +391,13 @@ async function handleHTMLRequest(request) {
     const cachedResponse = await cache.match(request);
     if (cachedResponse) {
       return cachedResponse;
+    }
+    // Return offline page for navigation requests
+    if (request.mode === 'navigate') {
+      const offlineResponse = await cache.match('/offline.html');
+      if (offlineResponse) {
+        return offlineResponse;
+      }
     }
     // Return offline page or error
     throw error;

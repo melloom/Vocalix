@@ -23,6 +23,7 @@ import { normalizeAudioVolume, adjustAudioVolume, getAudioPeakLevel } from "@/ut
 import { analyzeAudioQuality, autoEnhanceAudio, type AudioQualityMetrics } from "@/utils/audioQuality";
 import { AudioLevelsIndicator } from "@/components/AudioLevelsIndicator";
 import { AudioQualitySuggestions } from "@/components/AudioQualitySuggestions";
+import { AudioEditor } from "@/components/AudioEditor";
 import { Slider } from "@/components/ui/slider";
 import { Volume2, VolumeX, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -31,6 +32,12 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 import { FlairSelector } from "@/components/FlairSelector";
+import { AIContentOptimization } from "@/components/AIContentOptimization";
+import { useAIContentCreation } from "@/hooks/useAIContentCreation";
+import { Wand2 } from "lucide-react";
+import { AIContentOptimization } from "@/components/AIContentOptimization";
+import { useAIContentCreation } from "@/hooks/useAIContentCreation";
+import { Wand2 } from "lucide-react";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -128,6 +135,7 @@ export const RecordModal = ({
   const [isAnalyzingQuality, setIsAnalyzingQuality] = useState(false);
   const [isEnhancingAudio, setIsEnhancingAudio] = useState(false);
   const [autoEnhanceEnabled, setAutoEnhanceEnabled] = useState(true);
+  const [showAudioEditor, setShowAudioEditor] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dynamic max duration based on podcast mode
@@ -145,6 +153,9 @@ export const RecordModal = ({
   const { toast } = useToast();
   const { profile } = useProfile();
   const { enqueueUpload, saveDraft, isProcessing } = useUploadQueue();
+  const { getSuggestions: getAISuggestions } = useAIContentCreation();
+  const [showAIOptimization, setShowAIOptimization] = useState(false);
+  const [clipTranscript, setClipTranscript] = useState<string | null>(null);
   
   // Audio enhancements for playback
   const { enhancements, updateEnhancement } = useAudioEnhancements(audioPlayerRef);
@@ -1621,19 +1632,31 @@ export const RecordModal = ({
                       <Scissors className="h-4 w-4 text-muted-foreground" />
                       <label className="text-xs font-medium">Trim Audio</label>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setTrimStart(0);
-                        setTrimEnd(0);
-                      }}
-                      className="h-7 text-xs"
-                      disabled={trimStart === 0 && trimEnd === 0}
-                    >
-                      Reset
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowAudioEditor(true)}
+                        className="h-7 text-xs"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Advanced Editor
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setTrimStart(0);
+                          setTrimEnd(0);
+                        }}
+                        className="h-7 text-xs"
+                        disabled={trimStart === 0 && trimEnd === 0}
+                      >
+                        Reset
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -1720,12 +1743,46 @@ export const RecordModal = ({
 
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium" htmlFor="clip-title">
-                    Title{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      optional
-                    </span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium" htmlFor="clip-title">
+                      Title{" "}
+                      <span className="text-xs font-normal text-muted-foreground">
+                        optional
+                      </span>
+                    </label>
+                    {audioBlob && (
+                      <Popover open={showAIOptimization} onOpenChange={setShowAIOptimization}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => setShowAIOptimization(true)}
+                          >
+                            <Wand2 className="mr-1 h-3 w-3" />
+                            AI Help
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-96 p-0" align="end">
+                          <AIContentOptimization
+                            clipTranscript={clipTranscript || undefined}
+                            clipSummary={caption || undefined}
+                            clipTitle={title || undefined}
+                            clipTags={tagInput.split(/[,\s#]+/).filter(Boolean)}
+                            onSelectTitle={(suggestedTitle) => {
+                              setTitle(suggestedTitle);
+                              setShowAIOptimization(false);
+                            }}
+                            onSelectHashtags={(hashtags) => {
+                              setTagInput(hashtags.map(h => `#${h}`).join(" "));
+                              setShowAIOptimization(false);
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
                   <Input
                     id="clip-title"
                     value={title}
@@ -2125,6 +2182,26 @@ export const RecordModal = ({
           )}
         </div>
       </DialogContent>
+      
+      {/* Audio Editor Modal */}
+      <AudioEditor
+        isOpen={showAudioEditor}
+        onClose={() => setShowAudioEditor(false)}
+        audioBlob={audioBlob}
+        onSave={(editedBlob) => {
+          setAudioBlob(editedBlob);
+          getAudioDuration(editedBlob).then((dur) => {
+            setDuration(dur);
+            setAudioDuration(dur);
+          });
+          setShowAudioEditor(false);
+          toast({
+            title: "Audio edited",
+            description: "Your edits have been applied.",
+          });
+        }}
+        originalDuration={duration}
+      />
     </Dialog>
     </>
   );

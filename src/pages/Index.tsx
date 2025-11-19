@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield, Trophy, X } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield, Trophy, X, MessageCircle, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -27,6 +27,7 @@ import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { ThreadView } from "@/components/ThreadView";
 import { ChainView } from "@/components/ChainView";
 import { CommunityRecommendationsSidebar } from "@/components/CommunityRecommendationsSidebar";
+import { VirtualizedFeed } from "@/components/VirtualizedFeed";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,7 @@ import { useBlockedUsers } from "@/hooks/useBlock";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { UserPlus, UserCheck } from "lucide-react";
 import { AdvancedSearchFilters, SearchFilters } from "@/components/AdvancedSearchFilters";
+import { VoiceSearchButton } from "@/components/VoiceSearchButton";
 import { useAuth } from "@/context/AuthContext";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { BackToTop } from "@/components/BackToTop";
@@ -254,6 +256,7 @@ const Index = () => {
   const [similarVoicesClips, setSimilarVoicesClips] = useState<Clip[]>([]);
   const [isLoadingSimilarVoices, setIsLoadingSimilarVoices] = useState(false);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const [savedClipsCount, setSavedClipsCount] = useState<number | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<SearchFilters>({
     moodEmoji: null, // Keep for backward compatibility but use categoryFilter instead
     durationMin: null,
@@ -495,6 +498,23 @@ const Index = () => {
 
       // Fetch spotlight question (best/most engaging question)
       await fetchSpotlightQuestion();
+
+      // Load saved clips count if user is logged in
+      if (profileId) {
+        try {
+          const { count, error: countError } = await supabase
+            .from("saved_clips")
+            .select("*", { count: "exact", head: true })
+            .eq("profile_id", profileId);
+          
+          if (!countError && count !== null) {
+            setSavedClipsCount(count);
+          }
+        } catch (err) {
+          // Silently fail - bookmark count is not critical
+          console.debug("Could not load saved clips count:", err);
+        }
+      }
 
       // First, get all clips (including replies) to calculate reply counts
       const { data: allClipsData, error: allClipsError } = await supabase
@@ -1690,6 +1710,12 @@ const Index = () => {
     return displayClips.length > displayedClipsCount;
   }, [displayClips.length, displayedClipsCount]);
 
+  const loadMoreClips = useCallback(() => {
+    if (hasMoreClips) {
+      setDisplayedClipsCount((prev) => Math.min(prev + 20, displayClips.length));
+    }
+  }, [hasMoreClips, displayClips.length]);
+
   const isSearching = normalizedQuery.length > 0;
   const visibleClips = isSearching ? filteredClips : paginatedDisplayClips;
 
@@ -2311,6 +2337,18 @@ const Index = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/voice-amas" aria-label="Voice AMAs">
+                      <MessageCircle className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Voice AMAs - Ask Me Anything sessions</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
                     <Link to="/live-rooms" aria-label="Live Rooms">
                       <Radio className="h-5 w-5" />
                     </Link>
@@ -2356,17 +2394,37 @@ const Index = () => {
                   <p>Following - See clips from creators you follow</p>
                 </TooltipContent>
               </Tooltip>
-              <NotificationCenter />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                    <Link to="/saved" aria-label="Saved Clips">
-                      <Bookmark className="h-5 w-5" />
+                    <Link to="/discovery" aria-label="Discovery">
+                      <Compass className="h-5 w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Saved Clips - View your bookmarked voices</p>
+                  <p>Discovery - Personalized recommendations</p>
+                </TooltipContent>
+              </Tooltip>
+              <NotificationCenter />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full relative" asChild>
+                    <Link to="/saved" aria-label="Saved Clips">
+                      <Bookmark className="h-5 w-5" />
+                      {savedClipsCount !== null && savedClipsCount > 0 && (
+                        <Badge 
+                          variant="default" 
+                          className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs rounded-full"
+                        >
+                          {savedClipsCount > 99 ? '99+' : savedClipsCount}
+                        </Badge>
+                      )}
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Saved Clips - View your bookmarked voices{savedClipsCount !== null && savedClipsCount > 0 && ` (${savedClipsCount})`}</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -2446,29 +2504,39 @@ const Index = () => {
                 }
               }}
               placeholder="Search voices, topics, moods..."
-              className="h-12 rounded-2xl border-transparent bg-muted/60 pl-11 pr-24 text-sm shadow-sm transition focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="h-12 rounded-2xl border-transparent bg-muted/60 pl-11 pr-32 text-sm shadow-sm transition focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/40"
               aria-label="Search clips and topics"
               aria-describedby="search-hint"
               data-tutorial="search"
             />
-            {isSearching || isSearchingDatabase ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setShowSuggestions(false);
-                  setSelectedSuggestionIndex(-1);
-                  setSearchResults([]);
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <VoiceSearchButton
+                onTranscript={(transcript) => {
+                  setSearchQuery(transcript);
+                  if (transcript.trim().length >= 2) {
+                    setShowSuggestions(true);
+                  }
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear
-              </button>
-            ) : (
-              <span id="search-hint" className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 text-xs font-medium text-muted-foreground/80 sm:block">
-                Press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-muted-foreground bg-muted border border-border rounded">/</kbd> to search
-              </span>
-            )}
+              />
+              {isSearching || isSearchingDatabase ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setShowSuggestions(false);
+                    setSelectedSuggestionIndex(-1);
+                    setSearchResults([]);
+                  }}
+                  className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-2"
+                >
+                  Clear
+                </button>
+              ) : (
+                <span id="search-hint" className="pointer-events-none hidden text-xs font-medium text-muted-foreground/80 sm:block">
+                  Press <kbd className="px-1.5 py-0.5 text-xs font-semibold text-muted-foreground bg-muted border border-border rounded">/</kbd> to search
+                </span>
+              )}
+            </div>
             
             {/* Enhanced Search Suggestions */}
             {showSuggestions && !isSearchMode && (
@@ -3104,59 +3172,55 @@ const Index = () => {
 
           {(isLoading || (sortMode === "for_you" && isLoadingPersonalized)) ? (
             <ClipListSkeleton count={3} compact={viewMode === "compact"} />
+          ) : visibleClips.length > 0 ? (
+            <div className="h-[calc(100vh-300px)] min-h-[600px]">
+              <VirtualizedFeed
+                clips={visibleClips}
+                captionsDefault={profile?.default_captions ?? true}
+                highlightQuery={normalizedQuery}
+                onReply={handleReply}
+                onRemix={handleRemix}
+                onContinueChain={handleContinueChain}
+                viewMode={viewMode}
+                onLoadMore={!isSearching && hasMoreClips ? loadMoreClips : undefined}
+                hasMore={!isSearching && hasMoreClips}
+                prefetchNext={3}
+              />
+            </div>
           ) : (
-            <div className="space-y-4">
-              {visibleClips.map((clip, index) => (
-                <div key={clip.id} data-tutorial={index === 0 ? "clip-card" : undefined}>
-                  <div 
-                    className={isSearching ? "cursor-pointer" : ""}
-                    onClick={(e) => {
-                      // Only navigate if clicking on the card itself, not on buttons/interactive elements
-                      if (isSearching && (e.target as HTMLElement).closest('button, a, [role="button"]') === null) {
-                        navigate(`/clip/${clip.id}`);
-                      }
-                    }}
+            <div className="text-center py-12 space-y-3">
+              {isSearching ? (
+                <>
+                  <p className="text-xl text-muted-foreground">
+                    No voices match "{searchQuery.trim()}"
+                  </p>
+                  <p className="text-sm text-muted-foreground/80">
+                    Try a different keyword or reset the filters.
+                  </p>
+                </>
+              ) : sortMode === "for_you" ? (
+                <>
+                  <p className="text-xl text-muted-foreground">
+                    Your personalized feed is empty
+                  </p>
+                  <p className="text-sm text-muted-foreground/80">
+                    Follow topics and creators, or listen to clips to get personalized recommendations
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xl text-muted-foreground">
+                    Plant the first voice in today&apos;s garden
+                  </p>
+                  <Button
+                    onClick={() => setIsRecordModalOpen(true)}
+                    variant="outline"
+                    size="lg"
+                    className="rounded-2xl"
                   >
-                    <ClipCard
-                      clip={clip}
-                      captionsDefault={profile?.default_captions ?? true}
-                      highlightQuery={normalizedQuery}
-                      onReply={handleReply}
-                      onRemix={handleRemix}
-                      onContinueChain={handleContinueChain}
-                      showReplyButton={true}
-                      viewMode={viewMode}
-                    />
-                  </div>
-                  {clip.reply_count && clip.reply_count > 0 && viewMode === "list" && (
-                    <ThreadView
-                      parentClip={clip}
-                      onReply={handleReply}
-                      highlightQuery={normalizedQuery}
-                    />
-                  )}
-                  {clip.chain_id && viewMode === "list" && (
-                    <div className="mt-4">
-                      <ChainView
-                        chainId={clip.chain_id}
-                        onReply={handleReply}
-                        onRemix={handleRemix}
-                        onContinueChain={handleContinueChain}
-                        highlightQuery={normalizedQuery}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {!isSearching && hasMoreClips && (
-                <div ref={loadMoreTriggerRef} className="h-20 flex items-center justify-center">
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              )}
-              {!isSearching && !hasMoreClips && visibleClips.length > 0 && (
-                <div className="text-center py-8 text-sm text-muted-foreground">
-                  You've reached the end
-                </div>
+                    Get started
+                  </Button>
+                </>
               )}
             </div>
           )}

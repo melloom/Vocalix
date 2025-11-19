@@ -11,6 +11,7 @@ import { CommunityCard } from "@/components/CommunityCard";
 import { CreateCommunityModal } from "@/components/CreateCommunityModal";
 import { useProfile } from "@/hooks/useProfile";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VoiceBasedCommunitySuggestions } from "@/components/VoiceBasedCommunitySuggestions";
 
 type SortOption = "trending" | "newest" | "members" | "clips";
 
@@ -93,7 +94,10 @@ const Communities = () => {
         break;
     }
 
-    return filtered;
+    // Sort: voice-based communities first, then regular ones
+    const voiceBased = filtered.filter((c) => c.is_voice_based);
+    const regular = filtered.filter((c) => !c.is_voice_based);
+    return [...voiceBased, ...regular];
   }, [communities, followedCommunities, sortBy, filterJoined, filterFollowed, searchQuery]);
 
   if (isProfileLoading) {
@@ -164,6 +168,9 @@ const Communities = () => {
             </div>
           </Card>
         )}
+
+        {/* Voice-Based Community Suggestions */}
+        <VoiceBasedCommunitySuggestions />
 
         {/* Search and Filters */}
         <div className="space-y-4">

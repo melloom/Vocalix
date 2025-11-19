@@ -3,6 +3,7 @@ import { useProfile } from './useProfile';
 import { useNotifications } from './useNotifications';
 import { useToast } from './use-toast';
 import { logWarn, logError } from '@/lib/logger';
+import { supabase } from '@/integrations/supabase/client';
 
 export const usePushNotifications = () => {
   const { profile } = useProfile();
@@ -54,6 +55,27 @@ export const usePushNotifications = () => {
           ),
         });
         setSubscription(sub);
+        
+        // Save subscription to backend if user is logged in
+        if (profile?.id) {
+          try {
+            const subscriptionData = sub.toJSON();
+            const keys = subscriptionData.keys;
+            
+            if (keys) {
+              await supabase.rpc('save_push_subscription', {
+                p_profile_id: profile.id,
+                p_endpoint: subscriptionData.endpoint || '',
+                p_p256dh: keys.p256dh || '',
+                p_auth: keys.auth || '',
+                p_user_agent: navigator.userAgent || null,
+              });
+            }
+          } catch (error) {
+            logError('Failed to save push subscription to backend', error);
+            // Don't fail the whole operation if saving fails
+          }
+        }
         
         toast({
           title: 'Notifications enabled',
