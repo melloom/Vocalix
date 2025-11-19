@@ -15,7 +15,6 @@ import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FirstClipGuidance } from "@/components/FirstClipGuidance";
 import { FeatureDiscovery } from "@/components/FeatureDiscovery";
-import { useState } from "react";
 
 // Helper function to retry lazy imports on failure
 const retryLazyImport = (importFn: () => Promise<any>, retries = 2) => {

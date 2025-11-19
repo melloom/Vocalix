@@ -40,6 +40,17 @@ export const useFollow = (targetProfileId: string | null) => {
         throw new Error('Cannot follow yourself');
       }
 
+      // Check if target is an admin account (admin accounts cannot be followed)
+      const { data: adminData } = await supabase
+        .from('admins')
+        .select('profile_id')
+        .eq('profile_id', targetProfileId)
+        .maybeSingle();
+
+      if (adminData) {
+        throw new Error('Admin accounts cannot be followed');
+      }
+
       // Check if user can follow (rate limiting, cooldown)
       const { data: canFollow, error: canFollowError } = await supabase
         .rpc('can_follow_profile', {
@@ -144,6 +155,12 @@ export const useFollowing = () => {
 
         const followingIds = followsData.map((f: any) => f.following_id);
 
+        // Get admin profile IDs to exclude them from following list
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('profile_id');
+        const adminIds = new Set(adminData?.map((a) => a.profile_id) || []);
+
         // Then get the profiles
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -159,14 +176,17 @@ export const useFollowing = () => {
           throw profilesError;
         }
 
-        return (profilesData || []).map((profile: any) => ({
-          id: profile.id,
-          profile: {
+        // Filter out admin accounts
+        return (profilesData || [])
+          .filter((profile: any) => !adminIds.has(profile.id))
+          .map((profile: any) => ({
             id: profile.id,
-            handle: profile.handle,
-            emoji_avatar: profile.emoji_avatar,
-          },
-        }));
+            profile: {
+              id: profile.id,
+              handle: profile.handle,
+              emoji_avatar: profile.emoji_avatar,
+            },
+          }));
       } catch (error: any) {
         // Catch any other errors and return empty array to prevent crashes
         console.error("Error loading following list:", error);
@@ -270,11 +290,17 @@ export const useMutualFollows = (targetProfileId: string | null) => {
 
         if (targetError) throw targetError;
 
+        // Get admin profile IDs to exclude them from mutual follows
+        const { data: adminData } = await supabase
+          .from('admins')
+          .select('profile_id');
+        const adminIds = new Set(adminData?.map((a) => a.profile_id) || []);
+
         // Find mutual follows
         const currentFollowingIds = new Set((currentFollowing || []).map((f: any) => f.following_id));
         const mutualIds = (targetFollowing || [])
           .map((f: any) => f.following_id)
-          .filter((id: string) => currentFollowingIds.has(id));
+          .filter((id: string) => currentFollowingIds.has(id) && !adminIds.has(id));
 
         if (mutualIds.length === 0) return [];
 
@@ -287,11 +313,14 @@ export const useMutualFollows = (targetProfileId: string | null) => {
 
         if (profilesError) throw profilesError;
 
-        return (profilesData || []).map((profile: any) => ({
-          id: profile.id,
-          handle: profile.handle,
-          emoji_avatar: profile.emoji_avatar,
-        }));
+        // Filter out admin accounts (double check)
+        return (profilesData || [])
+          .filter((profile: any) => !adminIds.has(profile.id))
+          .map((profile: any) => ({
+            id: profile.id,
+            handle: profile.handle,
+            emoji_avatar: profile.emoji_avatar,
+          }));
       } catch (error: any) {
         console.error("Error loading mutual follows:", error);
         return [];

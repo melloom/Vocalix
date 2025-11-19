@@ -18,6 +18,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
 import { logError } from "@/lib/logger";
+import { getEmojiAvatar } from "@/utils/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { ClipAnalyticsDialog } from "@/components/ClipAnalyticsDialog";
 
@@ -573,7 +574,7 @@ const MyRecordings = () => {
         <section className="space-y-4">
           <Card className="p-6 rounded-3xl bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-              <div className="text-8xl">{profile.emoji_avatar || "🎧"}</div>
+              <div className="text-8xl">{getEmojiAvatar(profile.emoji_avatar, "🎧")}</div>
               <div className="flex-1 text-center md:text-left space-y-2">
                 <h2 className="text-3xl font-bold">{profile.handle}</h2>
                 <p className="text-sm text-muted-foreground">Joined {formatDate(profile.joined_at)}</p>

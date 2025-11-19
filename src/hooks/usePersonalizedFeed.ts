@@ -91,6 +91,12 @@ export const usePersonalizedFeed = (limit: number = 50) => {
         }
 
         if (rpcError) {
+          console.error('get_enhanced_for_you_feed error:', {
+            code: rpcError.code,
+            message: rpcError.message,
+            details: rpcError.details,
+            hint: rpcError.hint,
+          });
           logError('usePersonalizedFeed RPC error', {
             error: rpcError,
             profileId: profile.id,

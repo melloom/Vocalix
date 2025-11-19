@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { useProfile } from "@/hooks/useProfile";
 import { useFollow, useFollowerCount, useFollowingCount, useMutualFollows } from "@/hooks/useFollow";
 import { useBlock } from "@/hooks/useBlock";
+import { getEmojiAvatar } from "@/utils/avatar";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -392,7 +393,7 @@ const Profile = () => {
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
         <section className="space-y-4 text-center">
           <div className="flex flex-col items-center gap-3">
-            <div className="text-6xl">{profile.emoji_avatar || "🎧"}</div>
+            <div className="text-6xl">{getEmojiAvatar(profile.emoji_avatar, "🎧")}</div>
             <div>
               <h2 className="text-3xl font-bold">{profile.handle}</h2>
               <p className="text-sm text-muted-foreground">Joined {formatDate(profile.joined_at)}</p>

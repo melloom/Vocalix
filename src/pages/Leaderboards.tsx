@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Trophy, Medal, Award, TrendingUp, Users, Heart, Headphones, Flame } from "lucide-react";
+import { Trophy, Medal, Award, TrendingUp, Users, Heart, Headphones, Flame, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getEmojiAvatar } from "@/utils/avatar";
 
 interface LeaderboardEntry {
   profile_id: string;
@@ -181,14 +182,21 @@ const Leaderboards = () => {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Trophy className="h-8 w-8 text-primary" />
-              Leaderboards
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              See who's leading the community
-            </p>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to="/">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <Trophy className="h-8 w-8 text-primary" />
+                Leaderboards
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                See who's leading the community
+              </p>
+            </div>
           </div>
           <Select value={timePeriod} onValueChange={(value) => setTimePeriod(value as TimePeriod)}>
             <SelectTrigger className="w-[140px]">
@@ -301,21 +309,21 @@ const Leaderboards = () => {
                           {/* Avatar */}
                           <Avatar className="h-12 w-12">
                             <AvatarFallback className="text-xl">
-                              {entry.emoji_avatar || "🎤"}
+                              {getEmojiAvatar(entry.emoji_avatar, "🎤")}
                             </AvatarFallback>
                           </Avatar>
 
                           {/* User Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold truncate">
+                              <div className="font-semibold truncate flex items-center">
                                 @{entry.handle}
                                 {isCurrentUser && (
                                   <Badge variant="secondary" className="ml-2 text-xs">
                                     You
                                   </Badge>
                                 )}
-                              </p>
+                              </div>
                             </div>
                             <p className="text-sm text-muted-foreground">
                               {getMetricLabel(entry)}

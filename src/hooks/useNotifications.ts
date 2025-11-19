@@ -220,7 +220,15 @@ export const useNotificationDigest = (sinceHours: number = 24) => {
         p_since: since.toISOString(),
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('get_smart_notification_digest error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
       return data as NotificationDigest | null;
     },
     enabled: !!profile?.id,

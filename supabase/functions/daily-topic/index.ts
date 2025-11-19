@@ -128,30 +128,91 @@ const fetchGeneratedTopic = async (recentTopics: TopicRow[], today: string) => {
 };
 
 const upsertTopic = async (topic: { title: string; description: string }, today: string) => {
-  const { error } = await supabase
-    .from("topics")
-    .upsert(
-      {
-        title: topic.title,
-        description: topic.description,
-        date: today,
-        is_active: true,
-      },
-      { onConflict: "date" },
-    );
+  // Use the safe upsert function that handles race conditions and prevents duplicates
+  // This function uses PostgreSQL's ON CONFLICT to safely handle concurrent requests
+  const { data: topicId, error: upsertError } = await supabase.rpc("upsert_system_topic", {
+    p_title: topic.title,
+    p_description: topic.description,
+    p_date: today,
+    p_is_active: true,
+  });
 
-  if (error) {
-    throw error;
+  if (upsertError) {
+    // If upsert fails, fall back to checking manually
+    // This is a safety net in case the function doesn't exist or has issues
+    console.warn("Upsert function failed, falling back to manual check:", upsertError);
+
+    // Check if a system-generated topic for today already exists
+    const { data: existing, error: checkError } = await supabase
+      .from("topics")
+      .select("id")
+      .eq("date", today)
+      .eq("is_active", true)
+      .is("user_created_by", null)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== "PGRST116") {
+      throw checkError;
+    }
+
+    if (existing) {
+      // Update existing system topic
+      const { error: updateError } = await supabase
+        .from("topics")
+        .update({
+          title: topic.title,
+          description: topic.description,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+
+      if (updateError) {
+        // If update fails due to unique constraint, topic already exists and is correct
+        if (updateError.code === "23505" || updateError.message?.includes("unique")) {
+          console.warn("Topic already exists (race condition handled by database)");
+          return;
+        }
+        throw updateError;
+      }
+    } else {
+      // Insert new system topic (user_created_by is NULL for system topics)
+      const { error: insertError } = await supabase
+        .from("topics")
+        .insert({
+          title: topic.title,
+          description: topic.description,
+          date: today,
+          is_active: true,
+          user_created_by: null, // Explicitly set to null for system topics
+        });
+
+      if (insertError) {
+        // If insert fails due to unique constraint, another request already created it
+        if (insertError.code === "23505" || insertError.message?.includes("unique")) {
+          console.warn("Topic already exists (race condition handled by database)");
+          return;
+        }
+        throw insertError;
+      }
+    }
   }
+
+  // Topic successfully upserted
+  return topicId;
 };
 
 const handler = async () => {
   const today = formatISODate(new Date());
 
+  // Check if a system-generated topic for today already exists
+  // (user_created_by IS NULL means it's a system-generated daily topic)
   const { data: existingToday, error: todayError } = await supabase
     .from("topics")
     .select("*")
     .eq("date", today)
+    .eq("is_active", true)
+    .is("user_created_by", null)
     .maybeSingle();
 
   if (todayError && todayError.code !== "PGRST116") {
@@ -176,14 +237,27 @@ const handler = async () => {
     throw recentError;
   }
 
-  const generated = await fetchGeneratedTopic(recentTopics ?? [], today);
+  // Try to generate topic, but always have a fallback
+  let generated = null;
+  try {
+    generated = await fetchGeneratedTopic(recentTopics ?? [], today);
+  } catch (error) {
+    console.error("Failed to generate topic from OpenAI:", error);
+    // Continue with fallback
+  }
+
   const usedTitles = new Set((recentTopics ?? []).map((topic) => topic.title));
   const selected =
     generated && generated.title && !usedTitles.has(generated.title)
       ? generated
       : chooseFallbackTopic(usedTitles, today);
 
-  await upsertTopic(selected, today);
+  try {
+    await upsertTopic(selected, today);
+  } catch (error) {
+    console.error("Failed to upsert topic:", error);
+    throw new Error(`Failed to create topic: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   return {
     status: "created",

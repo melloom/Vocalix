@@ -229,16 +229,26 @@ All colors MUST be HSL.
     animation: fade-in 0.3s ease-out;
   }
 
-  /* Mobile swipe gestures hint */
+  /* Mobile swipe gestures hint - only show on touch devices */
   .swipe-hint {
     @apply relative overflow-hidden;
   }
 
-  .swipe-hint::after {
-    content: "";
-    @apply absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent;
-    transform: translateX(-100%);
-    animation: swipe-hint 2s ease-in-out infinite;
+  /* Only show swipe hint animation on touch-enabled devices */
+  @media (hover: none) and (pointer: coarse) {
+    .swipe-hint::after {
+      content: "";
+      @apply absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent;
+      transform: translateX(-100%);
+      animation: swipe-hint 2s ease-in-out infinite;
+    }
+  }
+
+  /* Hide swipe hint on non-touch devices */
+  @media (hover: hover) and (pointer: fine) {
+    .swipe-hint::after {
+      display: none;
+    }
   }
 
   @keyframes swipe-hint {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Download } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
@@ -130,7 +131,11 @@ const Settings = () => {
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
   const [magicLinkExpiresAt, setMagicLinkExpiresAt] = useState<string | null>(null);
+  const [magicLinkToken, setMagicLinkToken] = useState<string | null>(null);
+  const [magicLinkType, setMagicLinkType] = useState<"standard" | "extended" | "one_time">("standard");
   const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(true); // Show QR code by default for easy sharing
+  const emailSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isExportingAudio, setIsExportingAudio] = useState(false);
   const [downloadedClipsList, setDownloadedClipsList] = useState<any[]>([]);
@@ -232,10 +237,21 @@ const Settings = () => {
     }
   }, []);
 
+  // Cleanup email save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (emailSaveTimeoutRef.current) {
+        clearTimeout(emailSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isMagicLinkDialogOpen) {
       setMagicLinkUrl(null);
       setMagicLinkExpiresAt(null);
+      setMagicLinkToken(null);
+      setShowQRCode(false);
       setIsGeneratingMagicLink(false);
     }
   }, [isMagicLinkDialogOpen]);
@@ -351,6 +367,15 @@ const Settings = () => {
   };
 
   const handleDigestToggle = async (checked: boolean) => {
+    if (checked && !digestEmail.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please add your email address first to enable email digests.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setDigestEnabled(checked);
     try {
       // @ts-ignore - digest fields exist but not in generated types
@@ -402,25 +427,46 @@ const Settings = () => {
     }
   };
 
-  const handleDigestEmailChange = async (email: string) => {
+  const handleDigestEmailChange = (email: string) => {
     setDigestEmail(email);
-    try {
-      // @ts-ignore - email field exists but not in generated types
-      await updateProfile({ email: email.trim() || null });
-      if (email.trim()) {
+    
+    // Clear existing timeout
+    if (emailSaveTimeoutRef.current) {
+      clearTimeout(emailSaveTimeoutRef.current);
+    }
+    
+    // Debounce the save - only save after user stops typing for 1 second
+    emailSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        // @ts-ignore - email field exists but not in generated types
+        await updateProfile({ email: email.trim() || null });
+        
+        // If email was cleared and digest is enabled, disable digest
+        if (!email.trim() && digestEnabled) {
+          await updateProfile({ 
+            digest_enabled: false,
+            digest_frequency: 'never'
+          });
+          setDigestEnabled(false);
+          toast({
+            title: "Digest disabled",
+            description: "Email digests have been disabled since email was removed.",
+          });
+        } else if (email.trim()) {
+          toast({
+            title: "Email saved",
+            description: "Your email has been saved. You can use it for digests and login links.",
+          });
+        }
+      } catch (error) {
+        logError("Failed to update email", error);
         toast({
-          title: "Email updated",
-          description: "Your digest email has been saved.",
+          title: "Couldn't update email",
+          description: "Please try again.",
+          variant: "destructive",
         });
       }
-    } catch (error) {
-      logError("Failed to update email", error);
-      toast({
-        title: "Couldn't update email",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    }
+    }, 1000); // Wait 1 second after user stops typing
   };
 
   const handleGenerateMagicLink = async () => {
@@ -430,6 +476,8 @@ const Settings = () => {
       const trimmedEmail = magicLinkEmail.trim();
       const { data, error } = await supabase.rpc("create_magic_login_link", {
         target_email: trimmedEmail.length > 0 ? trimmedEmail : null,
+        p_link_type: magicLinkType,
+        p_duration_hours: null, // Use default for link type
       });
       if (error) throw error;
 
@@ -443,7 +491,9 @@ const Settings = () => {
         origin.length > 0 ? `${origin}/login-link?token=${result.token}` : `/login-link?token=${result.token}`;
 
       setMagicLinkUrl(loginUrl);
+      setMagicLinkToken(result.token);
       setMagicLinkExpiresAt(result.expires_at ?? null);
+      setShowQRCode(false); // Reset QR code view
 
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -547,6 +597,83 @@ const Settings = () => {
       `Use this link to sign back in to Echo Garden on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
     );
     window.open(`mailto:${trimmedEmail}?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleEmailToMyself = () => {
+    if (!magicLinkUrl) return;
+    // Email to user's own email if available, otherwise prompt
+    const userEmail = digestEmail.trim() || magicLinkEmail.trim() || "";
+    if (userEmail.length === 0) {
+      toast({
+        title: "Email needed",
+        description: "Please enter your email address in the email field above, or add it in Digest Settings.",
+      });
+      return;
+    }
+    const subject = encodeURIComponent("Echo Garden Login Link - For Your Other Device");
+    const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
+    const body = encodeURIComponent(
+      `Hi,\n\nHere's your Echo Garden login link for signing in on another device:\n\n${magicLinkUrl}${expiryLine}\n\nOpen this link on your other device to sign in automatically.\n\nYou can also scan the QR code if you saved it.`,
+    );
+    window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`, "_blank");
+    toast({
+      title: "Email opened",
+      description: "Send the email to yourself so you can access the link later.",
+    });
+  };
+
+  const handleDownloadQRCode = () => {
+    const svgElement = document.getElementById("magic-link-qr-code");
+    if (!svgElement || !magicLinkUrl) return;
+
+    try {
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const img = new Image();
+
+      img.onload = () => {
+        // Make canvas larger for better quality
+        canvas.width = 400;
+        canvas.height = 400;
+        
+        // Scale and draw
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `echo-garden-login-qr-${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast({
+              title: "QR code downloaded",
+              description: "Save it to transfer to your other device. Scan it or share the image file.",
+            });
+          }
+        }, "image/png");
+      };
+
+      // Convert SVG to image
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      img.src = url;
+    } catch (error) {
+      logError("Failed to download QR code", error);
+      toast({
+        title: "Couldn't download QR code",
+        description: "Try copying the link instead.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMatureFilterToggle = async (checked: boolean) => {
@@ -1264,56 +1391,79 @@ const Settings = () => {
               )}
             </div>
 
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1">
-                <p className="font-medium">Email digest</p>
-                <p className="text-sm text-muted-foreground">
-                  Get a daily or weekly email with the best clips from topics you follow.
-                </p>
-                {digestEnabled && (
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <Label htmlFor="digest-email" className="text-xs text-muted-foreground">
-                        Email address
-                      </Label>
-                      <Input
-                        id="digest-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={digestEmail}
-                        onChange={(e) => handleDigestEmailChange(e.target.value)}
-                        className="mt-1 rounded-2xl"
-                        disabled={isUpdating}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
-                        Frequency
-                      </Label>
-                      <Select
-                        value={digestFrequency}
-                        onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
-                        disabled={isUpdating}
-                      >
-                        <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="never">Never</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+            <div className="space-y-4">
+              {/* Email address section - always visible */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <Label htmlFor="digest-email" className="text-sm font-medium">
+                      Email address
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for email digests and magic login links
+                    </p>
                   </div>
-                )}
+                </div>
+                <Input
+                  id="digest-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={digestEmail}
+                  onChange={(e) => handleDigestEmailChange(e.target.value)}
+                  className="rounded-2xl"
+                  disabled={isUpdating}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {digestEmail.trim() 
+                    ? "✓ Email saved. You can use it for digests and login links."
+                    : "Add your email to receive digests and use the 'Email Me' feature for login links."
+                  }
+                </p>
               </div>
-              <Switch
-                checked={digestEnabled}
-                onCheckedChange={handleDigestToggle}
-                disabled={isUpdating}
-                aria-label="Toggle email digest"
-              />
+
+              {/* Digest settings section */}
+              <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
+                <div className="flex-1">
+                  <p className="font-medium">Email digest</p>
+                  <p className="text-sm text-muted-foreground">
+                    Get a daily or weekly email with the best clips from topics you follow.
+                  </p>
+                  {digestEnabled && (
+                    <div className="mt-3 space-y-2">
+                      <div>
+                        <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
+                          Frequency
+                        </Label>
+                        <Select
+                          value={digestFrequency}
+                          onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
+                          disabled={isUpdating}
+                        >
+                          <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="never">Never</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <Switch
+                  checked={digestEnabled}
+                  onCheckedChange={handleDigestToggle}
+                  disabled={isUpdating || !digestEmail.trim()}
+                  aria-label="Toggle email digest"
+                />
+              </div>
+              {!digestEmail.trim() && (
+                <p className="text-xs text-muted-foreground italic">
+                  💡 Add an email address above to enable email digests
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between gap-6">
@@ -1730,7 +1880,7 @@ const Settings = () => {
               <div>
                 <p className="font-medium">Log in on a new device</p>
                 <p className="text-sm text-muted-foreground">
-                  Generate a one-time login link so you can sign in from another phone or computer within 30 minutes.
+                  Generate a secure login link to sign in from another device. Links last up to 7 days.
                 </p>
               </div>
               <Button
@@ -2711,10 +2861,30 @@ const Settings = () => {
           <DialogHeader>
             <DialogTitle>Send a login link</DialogTitle>
             <DialogDescription>
-              We’ll generate a single-use link that signs you in on another device. It expires after 30 minutes.
+              Generate a secure link to sign in on another device. Links can last up to 7 days.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="magic-link-type">Link type</Label>
+              <Select value={magicLinkType} onValueChange={(value: "standard" | "extended" | "one_time") => setMagicLinkType(value)}>
+                <SelectTrigger id="magic-link-type" className="rounded-2xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard (7 days)</SelectItem>
+                  <SelectItem value="extended">Extended (7 days)</SelectItem>
+                  <SelectItem value="one_time">Quick share (1 hour)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {magicLinkType === "one_time" 
+                  ? "Perfect for quick device access. Expires in 1 hour."
+                  : "Standard and extended links last 7 days for convenience."
+                }
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="magic-link-email">Email (optional)</Label>
               <Input
@@ -2731,54 +2901,125 @@ const Settings = () => {
             </div>
 
             {magicLinkUrl && (
-              <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Login link</p>
-                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all">
-                    {magicLinkUrl}
-                  </div>
-                </div>
-                {magicLinkExpiresDisplay && (
-                  <p className="text-xs text-muted-foreground">Expires {magicLinkExpiresDisplay}</p>
-                )}
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-4 rounded-2xl border border-border/60 bg-muted/40 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Quick Access - Copy link or scan QR code
+                  </p>
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
-                    className="rounded-2xl"
-                    onClick={handleCopyMagicLink}
+                    variant="ghost"
+                    className="rounded-xl h-7 px-2"
+                    onClick={() => setShowQRCode(!showQRCode)}
                   >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy
+                    <QrCode className="h-4 w-4 mr-1" />
+                    {showQRCode ? "Hide QR" : "Show QR"}
                   </Button>
-                  {canNativeShare && (
+                </div>
+
+                {showQRCode && (
+                  <div className="space-y-3">
+                    <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
+                      <div id="magic-link-qr-code">
+                        <QRCodeSVG 
+                          value={magicLinkUrl} 
+                          size={220}
+                          level="M"
+                          includeMargin={true}
+                        />
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="rounded-2xl"
-                      onClick={handleShareMagicLink}
+                      className="w-full rounded-2xl"
+                      onClick={handleDownloadQRCode}
                     >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share
+                      <Download className="mr-2 h-4 w-4" />
+                      Download QR Code Image
                     </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Save the QR code image to your phone. You can scan it later or send the image file to your other device.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Or copy the link
+                  </Label>
+                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40">
+                    {magicLinkUrl}
+                  </div>
+                  {magicLinkExpiresDisplay && (
+                    <p className="text-xs text-muted-foreground">Expires {magicLinkExpiresDisplay}</p>
                   )}
-                  {magicLinkEmail.trim().length > 0 && (
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Quick actions:</p>
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
-                      className="rounded-2xl"
-                      onClick={handleEmailMagicLink}
+                      variant="default"
+                      className="rounded-2xl flex-1 min-w-[120px]"
+                      onClick={handleCopyMagicLink}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy Link
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="rounded-2xl flex-1 min-w-[120px]"
+                      onClick={handleEmailToMyself}
                     >
                       <Mail className="mr-2 h-4 w-4" />
-                      Email
+                      Email Me
                     </Button>
-                  )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {canNativeShare && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={handleShareMagicLink}
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share
+                      </Button>
+                    )}
+                    {magicLinkEmail.trim().length > 0 && magicLinkEmail !== profile?.email && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-2xl"
+                        onClick={handleEmailMagicLink}
+                      >
+                        <Mail className="mr-2 h-4 w-4" />
+                        Email
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Open this link on the other device and you’ll be signed in automatically.
-                </p>
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                  <p className="text-xs text-blue-900 dark:text-blue-100 font-medium mb-1">
+                    💡 Easy transfer tips:
+                  </p>
+                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                    <li>Download the QR code and save it to your phone/cloud storage</li>
+                    <li>Copy the link and paste it into Notes, Messages, or email</li>
+                    <li>Email it to yourself for easy access later</li>
+                    <li>Scan the QR code directly on your other device</li>
+                  </ul>
+                </div>
               </div>
             )}
           </div>

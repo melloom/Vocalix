@@ -44,10 +44,17 @@ window.addEventListener("unhandledrejection", (event) => {
     error?.message?.includes("404") ||
     error?.message?.includes("Not Found");
   
-  if (is403Error || is404Error) {
-    // Silently handle 403/404 errors - they're expected in some cases
+  // Check for generic Object errors (often from browser extensions like content.js)
+  // These are typically non-critical and can be safely ignored
+  const isGenericObjectError = 
+    (typeof error === 'object' && error !== null && !error.message && !error.stack && !errorCode) ||
+    (error?.constructor?.name === 'Object' && !error.message && !error.stack);
+  
+  if (is403Error || is404Error || isGenericObjectError) {
+    // Silently handle 403/404/generic Object errors - they're expected in some cases
     // 404 errors are expected when RPC functions don't exist (migrations not run)
     // 403 errors can come from RLS policies or browser extensions (content.js)
+    // Generic Object errors are often from browser extensions
     // Don't log to avoid console spam, just prevent the uncaught error
     event.preventDefault();
     event.stopPropagation();

@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.clip_skips (
 ALTER TABLE public.clip_skips ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own skips
+DROP POLICY IF EXISTS "Clip skips readable by owner" ON public.clip_skips;
 CREATE POLICY "Clip skips readable by owner"
 ON public.clip_skips FOR SELECT
 USING (
@@ -35,6 +36,7 @@ USING (
 );
 
 -- Users can insert their own skips
+DROP POLICY IF EXISTS "Clip skips insertable by owner" ON public.clip_skips;
 CREATE POLICY "Clip skips insertable by owner"
 ON public.clip_skips FOR INSERT
 WITH CHECK (
@@ -70,6 +72,7 @@ CREATE TABLE IF NOT EXISTS public.listening_patterns (
 ALTER TABLE public.listening_patterns ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own listening patterns
+DROP POLICY IF EXISTS "Listening patterns readable by owner" ON public.listening_patterns;
 CREATE POLICY "Listening patterns readable by owner"
 ON public.listening_patterns FOR SELECT
 USING (
@@ -80,6 +83,7 @@ USING (
 );
 
 -- Users can insert/update their own listening patterns
+DROP POLICY IF EXISTS "Listening patterns insertable by owner" ON public.listening_patterns;
 CREATE POLICY "Listening patterns insertable by owner"
 ON public.listening_patterns FOR INSERT
 WITH CHECK (
@@ -89,6 +93,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Listening patterns updatable by owner" ON public.listening_patterns;
 CREATE POLICY "Listening patterns updatable by owner"
 ON public.listening_patterns FOR UPDATE
 USING (
@@ -158,6 +163,7 @@ CREATE TABLE IF NOT EXISTS public.user_preferences (
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own preferences
+DROP POLICY IF EXISTS "User preferences readable by owner" ON public.user_preferences;
 CREATE POLICY "User preferences readable by owner"
 ON public.user_preferences FOR SELECT
 USING (
@@ -168,6 +174,7 @@ USING (
 );
 
 -- Users can insert their own preferences
+DROP POLICY IF EXISTS "User preferences insertable by owner" ON public.user_preferences;
 CREATE POLICY "User preferences insertable by owner"
 ON public.user_preferences FOR INSERT
 WITH CHECK (
@@ -178,6 +185,7 @@ WITH CHECK (
 );
 
 -- Users can update their own preferences
+DROP POLICY IF EXISTS "User preferences updatable by owner" ON public.user_preferences;
 CREATE POLICY "User preferences updatable by owner"
 ON public.user_preferences FOR UPDATE
 USING (
@@ -549,9 +557,24 @@ SET search_path = public
 AS $$
 DECLARE
   v_current_hour INTEGER;
+  v_valid_limit INTEGER;
+  v_valid_offset INTEGER;
 BEGIN
+  -- Validate inputs - return empty result if profile_id is invalid
+  IF p_profile_id IS NULL THEN
+    RETURN;
+  END IF;
+  
+  v_valid_limit := GREATEST(1, LEAST(COALESCE(p_limit, 50), 100));
+  v_valid_offset := GREATEST(0, COALESCE(p_offset, 0));
+  
   -- Get current hour if not provided
   v_current_hour := COALESCE(p_current_hour, EXTRACT(HOUR FROM NOW())::INTEGER);
+  
+  -- Ensure profile exists before processing
+  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = p_profile_id) THEN
+    RETURN;
+  END IF;
   
   RETURN QUERY
   WITH scored_clips AS (
@@ -607,7 +630,7 @@ BEGIN
     -- Pre-filter: only calculate relevance for clips that might be relevant
     AND (c.created_at > NOW() - INTERVAL '30 days' OR c.trending_score > 100)
     ORDER BY c.trending_score DESC NULLS LAST, c.created_at DESC
-    LIMIT (p_limit + p_offset) * 3 -- Get more candidates to score, then filter
+    LIMIT (v_valid_limit + v_valid_offset) * 3 -- Get more candidates to score, then filter
   )
   SELECT 
     sc.id as clip_id,
@@ -616,8 +639,8 @@ BEGIN
   FROM scored_clips sc
   WHERE sc.relevance > 0 -- Only return clips with some relevance
   ORDER BY sc.relevance DESC, (sc.clip_data->>'created_at')::TIMESTAMPTZ DESC
-  LIMIT p_limit
-  OFFSET p_offset;
+  LIMIT v_valid_limit
+  OFFSET v_valid_offset;
 END;
 $$;
 
@@ -663,12 +686,88 @@ BEGIN
 END;
 $$;
 
+-- Ensure get_smart_notification_digest is properly defined (redefine from fix migration)
+CREATE OR REPLACE FUNCTION public.get_smart_notification_digest(
+  p_profile_id UUID,
+  p_since TIMESTAMPTZ DEFAULT NOW() - INTERVAL '24 hours'
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_digest JSONB;
+BEGIN
+  -- Return empty digest if profile_id is NULL
+  IF p_profile_id IS NULL THEN
+    RETURN jsonb_build_object(
+      'unread_count', 0,
+      'by_type', '{}'::jsonb,
+      'priority_notifications', '[]'::jsonb
+    );
+  END IF;
+  
+  SELECT jsonb_build_object(
+    'unread_count', (
+      SELECT COUNT(*) FROM public.notifications
+      WHERE recipient_id = p_profile_id
+        AND read_at IS NULL
+        AND created_at >= p_since
+    ),
+    'by_type', COALESCE(
+      (
+        SELECT jsonb_object_agg(type, count_val)
+        FROM (
+          SELECT type, COUNT(*)::INTEGER as count_val
+          FROM public.notifications
+          WHERE recipient_id = p_profile_id
+            AND read_at IS NULL
+            AND created_at >= p_since
+          GROUP BY type
+        ) grouped
+      ),
+      '{}'::jsonb
+    ),
+    'priority_notifications', (
+      SELECT COALESCE(
+        jsonb_agg(jsonb_build_object(
+          'id', id,
+          'type', type,
+          'message', CASE 
+            WHEN type = 'mention' THEN 'You were mentioned'
+            WHEN type = 'follow' THEN 'You have a new follower'
+            WHEN type = 'comment' THEN 'You have a new comment'
+            WHEN type = 'reply' THEN 'You have a new reply'
+            WHEN type = 'reaction' THEN 'You have a new reaction'
+            WHEN type = 'challenge_update' THEN 'Challenge update'
+            ELSE 'You have a new notification'
+          END,
+          'created_at', created_at
+        )),
+        '[]'::jsonb
+      )
+      FROM public.notifications
+      WHERE recipient_id = p_profile_id
+        AND read_at IS NULL
+        AND created_at >= p_since
+        AND type IN ('mention', 'follow')
+      ORDER BY created_at DESC
+      LIMIT 5
+    )
+  ) INTO v_digest;
+  
+  RETURN COALESCE(v_digest, jsonb_build_object(
+    'unread_count', 0,
+    'by_type', '{}'::jsonb,
+    'priority_notifications', '[]'::jsonb
+  ));
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION public.get_user_listening_hours(UUID, INTEGER) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_user_skip_rate(UUID, UUID, UUID, INTEGER) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.calculate_enhanced_personalized_relevance(UUID, UUID, INTEGER, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.get_enhanced_for_you_feed(UUID, INTEGER, INTEGER, INTEGER, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.update_listening_pattern(UUID, DECIMAL, TEXT) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.get_smart_notification_digest(UUID, TIMESTAMPTZ) TO authenticated, anon;
 
 -- Comments for documentation
 COMMENT ON TABLE public.clip_skips IS 'Tracks when users skip clips to learn preferences and improve recommendations';

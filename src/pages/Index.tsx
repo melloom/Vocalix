@@ -56,6 +56,12 @@ interface Topic {
   description: string;
   date: string;
   is_active?: boolean;
+  user_created_by?: string | null;
+  creator?: {
+    id: string;
+    handle: string;
+    emoji_avatar: string;
+  } | null;
 }
 
 interface TopicMetrics {
@@ -225,11 +231,12 @@ const Index = () => {
   const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
+  const [allTopicsList, setAllTopicsList] = useState<Topic[]>([]);
   const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestion | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [topicMetrics, setTopicMetrics] = useState<Record<string, TopicMetrics>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you">("hot");
+  const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you" | null>(null);
   const [topTimePeriod, setTopTimePeriod] = useState<"all" | "week" | "month">("all");
   const [cityFilter, setCityFilter] = useState<"global" | "local">("global");
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
@@ -340,10 +347,15 @@ const Index = () => {
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       );
 
-      const todayCandidate =
-        sortedByDate.find((topic) => topic.date === todayISO && topic.is_active !== false) ??
-        sortedByDate.find((topic) => new Date(topic.date).getTime() <= now) ??
-        sortedByDate[0];
+      // Strictly match today's date - only use today's topic, never fall back to old topics
+      // This ensures the spotlight changes daily
+      // If no topic found, don't override the state (in case it was just set in loadData)
+      const todayCandidate = sortedByDate.find(
+        (topic) => topic.date === todayISO && topic.is_active !== false
+      );
+      
+      // Only update if we found a topic - don't clear todayTopic if it's already set correctly
+      // This prevents clearing todayTopic when applyTopicCuration runs before the topic is in the list
 
       const remainder = sortedByDate.filter((topic) => topic.id !== todayCandidate?.id);
 
@@ -385,7 +397,12 @@ const Index = () => {
         }
       }
 
-      setTodayTopic(todayCandidate ?? null);
+      // Only update todayTopic if we found today's topic - preserve existing state (including fallback)
+      // This ensures todayTopic set in loadData (which may be a fallback) is not cleared
+      if (todayCandidate && todayCandidate.date === todayISO) {
+        setTodayTopic(todayCandidate);
+      }
+      // Don't clear todayTopic if we don't find today's topic - keep the fallback from loadData
       setRecentTopics(curated);
       topicIdsRef.current = [
         todayCandidate?.id,
@@ -417,7 +434,11 @@ const Index = () => {
 
   const fetchSpotlightQuestion = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc('get_spotlight_question');
+      // Pass current question ID to exclude it (for rotation)
+      const excludeId = spotlightQuestion?.id || null;
+      const { data, error } = await supabase.rpc('get_spotlight_question', {
+        p_exclude_question_id: excludeId,
+      });
       
       if (error) {
         // If function doesn't exist yet or RLS issue, silently fail and use topic
@@ -441,7 +462,7 @@ const Index = () => {
       console.warn("Error fetching spotlight question:", error);
       setSpotlightQuestion(null);
     }
-  }, []);
+  }, [spotlightQuestion?.id]);
 
   const toastRef = useRef(toast);
   useEffect(() => {
@@ -454,7 +475,7 @@ const Index = () => {
       const todayISO = new Date().toISOString().slice(0, 10);
       
       // Check if today's topic exists, if not, generate it
-      const { data: todayTopic, error: todayCheckError } = await supabase
+      let { data: todayTopic, error: todayCheckError } = await supabase
         .from("topics")
         .select("*")
         .eq("date", todayISO)
@@ -467,20 +488,47 @@ const Index = () => {
           await supabase.functions.invoke("daily-topic", {
             body: {},
           });
-          // Wait a moment for the topic to be created
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // Wait for the topic to be created, with retries
+          let retries = 3;
+          let newlyCreatedTopic = null;
+          while (retries > 0 && !newlyCreatedTopic) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            
+            // Re-fetch today's topic to ensure we have it
+            const { data: refetchedTopic, error: refetchError } = await supabase
+              .from("topics")
+              .select("*")
+              .eq("date", todayISO)
+              .maybeSingle();
+            
+            if (refetchedTopic && !refetchError) {
+              newlyCreatedTopic = refetchedTopic;
+            }
+            retries--;
+          }
+          
+          if (newlyCreatedTopic) {
+            todayTopic = newlyCreatedTopic;
+          }
         } catch (invokeError: any) {
           // Silently handle 403 errors - they're expected in some cases
           if (invokeError?.code !== 403) {
             console.warn("Failed to generate daily topic:", invokeError);
           }
-          // Continue anyway - we'll use the most recent topic
+          // Continue anyway - we'll check for today's topic in the full list
         }
       }
 
       const { data: topics, error: topicsError } = await supabase
         .from("topics")
-        .select("*")
+        .select(`
+          *,
+          creator:user_created_by (
+            id,
+            handle,
+            emoji_avatar
+          )
+        `)
         .order("date", { ascending: false })
         .limit(20);
 
@@ -488,12 +536,44 @@ const Index = () => {
         throw topicsError;
       }
 
-      const activeTopics = (topics ?? []).filter((topic) => topic.is_active !== false);
+      // Ensure today's topic is included in the topics array if we have it
+      let allTopics = (topics ?? []).map((topic: any) => ({
+        ...topic,
+        creator: topic.creator || (topic.user_created_by ? null : undefined),
+      }));
+      
+      // If we don't have today's topic yet, check if it exists in the fetched topics
+      if (!todayTopic) {
+        todayTopic = allTopics.find((t) => t.date === todayISO && t.is_active !== false) || null;
+      }
+      
+      if (todayTopic && !allTopics.find((t) => t.id === todayTopic.id)) {
+        allTopics = [todayTopic, ...allTopics];
+      }
+
+      const activeTopics = allTopics.filter((topic) => topic.is_active !== false);
       const topicIds = activeTopics.map((topic) => topic.id);
       topicIdsRef.current = topicIds;
 
+      // Store all topics for duplicate checking
+      setAllTopicsList(allTopics);
+
       const metrics = await fetchTopicMetrics(topicIds);
       setTopicMetrics(metrics);
+      
+      // If we have today's topic, explicitly set it before calling applyTopicCuration
+      // This ensures the Garden Spotlight shows even if applyTopicCuration doesn't find it
+      if (todayTopic && todayTopic.is_active !== false && todayTopic.date === todayISO) {
+        setTodayTopic(todayTopic);
+      } else if (activeTopics.length > 0) {
+        // Fallback: use the most recent active topic if today's topic doesn't exist
+        // This ensures Garden Spotlight always shows something
+        const mostRecentTopic = activeTopics[0];
+        setTodayTopic(mostRecentTopic);
+      } else {
+        setTodayTopic(null);
+      }
+      
       applyTopicCuration(activeTopics, metrics);
 
       // Fetch spotlight question (best/most engaging question)
@@ -1135,7 +1215,10 @@ const Index = () => {
         
         let score = 0;
 
-        if (sortMode === "hot") {
+        // Default to "hot" behavior if no sort mode is selected
+        const effectiveSortMode = sortMode || "hot";
+
+        if (effectiveSortMode === "hot") {
           // Hot: Trending now - strong emphasis on recent engagement
           const freshness = Math.exp(-hoursOld / 12);
           const reactionScore = Math.sqrt(reactionTotal + 1);
@@ -1165,7 +1248,7 @@ const Index = () => {
             moderationData && typeof moderationData.risk === "number" ? moderationData.risk : 0;
           const boundedRisk = Math.min(Math.max(rawRisk, 0), 1);
           const moderationPenalty = boundedRisk * 0.5;
-          score =
+            score =
             0.5 * freshness +
             0.2 * reactionScore +
             0.15 * listenScore +
@@ -1176,7 +1259,7 @@ const Index = () => {
             processingPenalty -
             moderationPenalty -
             sensitivePenalty;
-        } else if (sortMode === "top") {
+        } else if (effectiveSortMode === "top") {
           // Top: All-time, week, or month - pure engagement score
           const timeCutoff = now - (
             topTimePeriod === "week" ? 7 * 24 * 60 * 60 * 1000 :
@@ -1197,7 +1280,7 @@ const Index = () => {
           const completionScore = Math.max(0, Math.min(1, completionRate));
           
           score = reactionTotal * reactionWeight + listens * listenWeight + completionScore * 10;
-        } else if (sortMode === "controversial") {
+        } else if (effectiveSortMode === "controversial") {
           // Controversial: High engagement + mixed reactions
           const reactionKeys = Object.keys(clip.reactions || {});
           const reactionCounts = reactionKeys.map(key => {
@@ -1225,7 +1308,7 @@ const Index = () => {
           const freshness = Math.exp(-hoursOld / 48);
           
           score = engagementScore * (1 + diversityBonus + varianceBonus) * (0.7 + 0.3 * freshness);
-        } else if (sortMode === "rising") {
+        } else if (effectiveSortMode === "rising") {
           // Rising: Gaining traction - recent clips with accelerating engagement
           // Prefer clips from last 24-48 hours with good engagement velocity
           if (hoursOld > 48) {
@@ -1246,7 +1329,7 @@ const Index = () => {
           const performanceRatio = (reactionTotal + listens) / Math.max(1, hoursOld);
           
           score = (reactionScore + listenScore + completionScore * 5) * ageWeight * (1 + Math.log1p(performanceRatio));
-        } else if (sortMode === "trending") {
+        } else if (effectiveSortMode === "trending") {
           // Trending: Use pre-calculated trending_score from database
           // This score is calculated server-side using engagement × freshness × quality
           score = clip.trending_score ?? 0;
@@ -1427,8 +1510,14 @@ const Index = () => {
       
       setIsLoadingUserRecommendations(true);
       try {
+        // Get admin profile IDs to exclude them from recommendations
+        const { data: adminData } = await supabase
+          .from("admins")
+          .select("profile_id");
+        const adminIds = new Set(adminData?.map((a) => a.profile_id) || []);
+
         const allRecommended: SearchProfile[] = [];
-        const seenIds = new Set<string>([profile.id]); // Exclude current user
+        const seenIds = new Set<string>([profile.id, ...adminIds]); // Exclude current user and admins
 
         // 1. Get users followed by people the current user follows (similar interests)
         if (profile.id) {
@@ -1470,7 +1559,7 @@ const Index = () => {
                 if (profiles) {
                   const sortedProfiles = sortedSimilarIds
                     .map((id) => profiles.find((p) => p.id === id))
-                    .filter((p): p is SearchProfile => p !== undefined);
+                    .filter((p): p is SearchProfile => p !== undefined && !adminIds.has(p.id));
                   allRecommended.push(...sortedProfiles);
                   sortedProfiles.forEach((p) => seenIds.add(p.id));
                 }
@@ -1507,7 +1596,7 @@ const Index = () => {
             if (popularProfiles) {
               const sortedPopular = topPopularIds
                 .map((id) => popularProfiles.find((p) => p.id === id))
-                .filter((p): p is SearchProfile => p !== undefined);
+                .filter((p): p is SearchProfile => p !== undefined && !adminIds.has(p.id));
               allRecommended.push(...sortedPopular);
               sortedPopular.forEach((p) => seenIds.add(p.id));
             }
@@ -1524,7 +1613,7 @@ const Index = () => {
             .limit(5);
 
           if (cityUsers) {
-            const cityProfiles = cityUsers.filter((p) => !seenIds.has(p.id));
+            const cityProfiles = cityUsers.filter((p) => !seenIds.has(p.id) && !adminIds.has(p.id));
             allRecommended.push(...cityProfiles);
             cityProfiles.forEach((p) => seenIds.add(p.id));
           }
@@ -1561,7 +1650,7 @@ const Index = () => {
             if (trendingProfiles) {
               const sortedTrending = trendingIds
                 .map((id) => trendingProfiles.find((p) => p.id === id))
-                .filter((p): p is SearchProfile => p !== undefined);
+                .filter((p): p is SearchProfile => p !== undefined && !adminIds.has(p.id));
               allRecommended.push(...sortedTrending);
             }
           }
@@ -1599,12 +1688,18 @@ const Index = () => {
 
       setIsSearchMode(true);
       try {
+        // Get admin profile IDs to exclude them from search
+        const { data: adminData } = await supabase
+          .from("admins")
+          .select("profile_id");
+        const adminIds = new Set(adminData?.map((a) => a.profile_id) || []);
+
         const { data, error } = await supabase
           .from("profiles")
           .select("id, handle, emoji_avatar, city")
           .ilike("handle", `%${normalizedDebounced}%`)
           .neq("id", profile?.id) // Exclude current user
-          .limit(10);
+          .limit(20); // Fetch more to account for filtering
 
         if (error) {
           console.error("Error searching profiles:", error);
@@ -1613,7 +1708,10 @@ const Index = () => {
           return;
         }
 
-        const profiles = (data || []) as SearchProfile[];
+        // Filter out admin accounts
+        const profiles = ((data || []) as SearchProfile[])
+          .filter((p) => !adminIds.has(p.id))
+          .slice(0, 10); // Limit to 10 after filtering
         setSearchProfiles(profiles);
         setShowSuggestions(profiles.length > 0);
         setSelectedSuggestionIndex(-1);
@@ -2674,7 +2772,7 @@ const Index = () => {
                     size="sm"
                     className="rounded-full px-4"
                     variant={sortMode === "hot" ? "default" : "ghost"}
-                    onClick={() => setSortMode("hot")}
+                    onClick={() => setSortMode(sortMode === "hot" ? null : "hot")}
                   >
                     Hot
                   </Button>
@@ -2689,7 +2787,7 @@ const Index = () => {
                     size="sm"
                     className="rounded-full px-4"
                     variant={sortMode === "top" ? "default" : "ghost"}
-                    onClick={() => setSortMode("top")}
+                    onClick={() => setSortMode(sortMode === "top" ? null : "top")}
                   >
                     Top
                   </Button>
@@ -2704,7 +2802,7 @@ const Index = () => {
                     size="sm"
                     className="rounded-full px-4"
                     variant={sortMode === "controversial" ? "default" : "ghost"}
-                    onClick={() => setSortMode("controversial")}
+                    onClick={() => setSortMode(sortMode === "controversial" ? null : "controversial")}
                   >
                     Controversial
                   </Button>
@@ -2719,7 +2817,7 @@ const Index = () => {
                     size="sm"
                     className="rounded-full px-4"
                     variant={sortMode === "rising" ? "default" : "ghost"}
-                    onClick={() => setSortMode("rising")}
+                    onClick={() => setSortMode(sortMode === "rising" ? null : "rising")}
                   >
                     Rising
                   </Button>
@@ -2734,7 +2832,7 @@ const Index = () => {
                     size="sm"
                     className="rounded-full px-4"
                     variant={sortMode === "trending" ? "default" : "ghost"}
-                    onClick={() => setSortMode("trending")}
+                    onClick={() => setSortMode(sortMode === "trending" ? null : "trending")}
                   >
                     Trending
                   </Button>
@@ -2750,7 +2848,7 @@ const Index = () => {
                       size="sm"
                       className="rounded-full px-4"
                       variant={sortMode === "for_you" ? "default" : "ghost"}
-                      onClick={() => setSortMode("for_you")}
+                      onClick={() => setSortMode(sortMode === "for_you" ? null : "for_you")}
                     >
                       For You
                     </Button>
@@ -2884,40 +2982,67 @@ const Index = () => {
                   </span>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {filteredTopics.map((topic) => (
-                    <Link
-                      key={topic.id}
-                      to={`/topic/${topic.id}`}
-                      onClick={() => {
-                        setShowSuggestions(false);
-                        setSearchQuery("");
-                      }}
-                      className="block rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg cursor-pointer"
-                    >
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
-                        {new Date(topic.date).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold">{topic.title}</p>
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{topic.description}</p>
-                      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>
-                          {topicMetrics[topic.id]?.posts ?? 0}{" "}
-                          {topicMetrics[topic.id]?.posts === 1 ? "voice" : "voices"}
-                        </span>
-                        <span>{topicMetrics[topic.id]?.listens ?? 0} listens</span>
-                      </div>
-                    </Link>
-                  ))}
+                  {filteredTopics.map((topic) => {
+                    const isDuplicate = filteredTopics.some(
+                      (t) => t.id !== topic.id && (t.date === topic.date || t.title.toLowerCase() === topic.title.toLowerCase())
+                    );
+                    
+                    return (
+                      <Link
+                        key={topic.id}
+                        to={`/topic/${topic.id}`}
+                        onClick={() => {
+                          setShowSuggestions(false);
+                          setSearchQuery("");
+                        }}
+                        className="block rounded-2xl border border-border/60 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
+                            {(() => {
+                              // Parse date string (YYYY-MM-DD) as local date to avoid timezone issues
+                              const [year, month, day] = topic.date.split('-').map(Number);
+                              const localDate = new Date(year, month - 1, day);
+                              return localDate.toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              });
+                            })()}
+                          </p>
+                          {/* Show small creator badge if this is a duplicate topic */}
+                          {isDuplicate && topic.user_created_by && topic.creator && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[9px] text-muted-foreground/70 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/30">
+                                  <span>{topic.creator.emoji_avatar}</span>
+                                  <span>@{topic.creator.handle}</span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Created by @{topic.creator.handle}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm font-semibold">{topic.title}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{topic.description}</p>
+                        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                          <span>
+                            {topicMetrics[topic.id]?.posts ?? 0}{" "}
+                            {topicMetrics[topic.id]?.posts === 1 ? "voice" : "voices"}
+                          </span>
+                          <span>{topicMetrics[topic.id]?.listens ?? 0} listens</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </section>
             )}
           </>
         )}
 
-        {!isSearching && (spotlightQuestion || todayTopic) && (
+        {!isSearching && !sortMode && (spotlightQuestion || todayTopic) && (
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl p-8 text-center space-y-3" data-tutorial="today-topic">
               <p className="text-sm text-muted-foreground uppercase tracking-wide">
@@ -2996,7 +3121,23 @@ const Index = () => {
                     </Badge>
                   </div>
                   <Link to={`/topic/${todayTopic.id}`} className="block">
-                    <h2 className="text-3xl font-bold hover:underline">{todayTopic.title}</h2>
+                    <div className="flex items-center gap-2 justify-center mb-2">
+                      <h2 className="text-3xl font-bold hover:underline">{todayTopic.title}</h2>
+                      {/* Show creator badge if this is a duplicate topic (user-created) */}
+                      {todayTopic.user_created_by && todayTopic.creator && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-muted-foreground/70 flex items-center gap-1 px-2 py-1 rounded-full bg-muted/50 border border-border/40">
+                              <span>{todayTopic.creator.emoji_avatar}</span>
+                              <span>@{todayTopic.creator.handle}</span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Created by @{todayTopic.creator.handle}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   </Link>
                   <p className="text-muted-foreground">{todayTopic.description}</p>
                   <div className="flex justify-center gap-4 text-sm text-muted-foreground">
@@ -3031,7 +3172,6 @@ const Index = () => {
                           variant="outline"
                           size="sm"
                           className="rounded-full text-xs"
-                          onClick={() => setSearchQuery(seed)}
                         >
                           {seed}
                         </Button>
@@ -3070,6 +3210,9 @@ const Index = () => {
                     {recentTopics.map((topic) => {
                       const posts = topicMetrics[topic.id]?.posts ?? 0;
                       const isSelected = selectedTopicId === topic.id;
+                      const isDuplicate = allTopicsList.some(
+                        (t) => t.id !== topic.id && (t.date === topic.date || t.title.toLowerCase() === topic.title.toLowerCase())
+                      );
                       
                       return (
                         <button
@@ -3085,6 +3228,20 @@ const Index = () => {
                             <span className="text-xs font-medium line-clamp-1">
                               {topic.title}
                             </span>
+                            {/* Show small creator badge if this is a duplicate topic */}
+                            {isDuplicate && topic.user_created_by && topic.creator && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-[9px] text-muted-foreground/70 flex items-center gap-0.5 px-1 py-0.5 rounded bg-muted/40 border border-border/30">
+                                    <span>{topic.creator.emoji_avatar}</span>
+                                    <span>@{topic.creator.handle}</span>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Created by @{topic.creator.handle}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                               {posts}
                             </span>
@@ -3187,43 +3344,7 @@ const Index = () => {
                 prefetchNext={3}
               />
             </div>
-          ) : (
-            <div className="text-center py-12 space-y-3">
-              {isSearching ? (
-                <>
-                  <p className="text-xl text-muted-foreground">
-                    No voices match "{searchQuery.trim()}"
-                  </p>
-                  <p className="text-sm text-muted-foreground/80">
-                    Try a different keyword or reset the filters.
-                  </p>
-                </>
-              ) : sortMode === "for_you" ? (
-                <>
-                  <p className="text-xl text-muted-foreground">
-                    Your personalized feed is empty
-                  </p>
-                  <p className="text-sm text-muted-foreground/80">
-                    Follow topics and creators, or listen to clips to get personalized recommendations
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-xl text-muted-foreground">
-                    Plant the first voice in today&apos;s garden
-                  </p>
-                  <Button
-                    onClick={() => setIsRecordModalOpen(true)}
-                    variant="outline"
-                    size="lg"
-                    className="rounded-2xl"
-                  >
-                    Get started
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
+          ) : null}
         </div>
           </div>
 

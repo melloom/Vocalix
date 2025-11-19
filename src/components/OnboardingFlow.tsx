@@ -14,6 +14,22 @@ import { useDeviceId } from "@/hooks/useDeviceId";
 // Nature-themed SVG avatar types
 type AvatarType = 'leaf' | 'flower' | 'tree' | 'mountain' | 'wave' | 'sun' | 'moon' | 'star' | 'butterfly' | 'bird' | 'fern' | 'cactus';
 
+// Map avatar types to emojis for display
+const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
+  leaf: '🍃',
+  flower: '🌸',
+  tree: '🌳',
+  mountain: '⛰️',
+  wave: '🌊',
+  sun: '☀️',
+  moon: '🌙',
+  star: '⭐',
+  butterfly: '🦋',
+  bird: '🐦',
+  fern: '🌿',
+  cactus: '🌵',
+};
+
 const AVATAR_TYPES: AvatarType[] = [
   'leaf', 'flower', 'tree', 'mountain', 'wave', 'sun', 
   'moon', 'star', 'butterfly', 'bird', 'fern', 'cactus'
@@ -477,6 +493,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       // Store avatar type (we'll use the type name as the identifier)
       const avatarType = selectedAvatar;
+      // Map avatar type to emoji for storage
+      const avatarEmoji = AVATAR_TYPE_TO_EMOJI[avatarType] || '🎧';
 
       // Ensure we have a device ID
       if (!deviceId) {
@@ -490,7 +508,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           auth_user_id: currentUserId,
           device_id: deviceId,
           handle: normalizedHandle,
-          emoji_avatar: avatarType, // Storing avatar type as string
+          emoji_avatar: avatarEmoji, // Store as emoji instead of type name
         } as any)
         .select()
         .single();

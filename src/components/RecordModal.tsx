@@ -35,9 +35,6 @@ import { FlairSelector } from "@/components/FlairSelector";
 import { AIContentOptimization } from "@/components/AIContentOptimization";
 import { useAIContentCreation } from "@/hooks/useAIContentCreation";
 import { Wand2 } from "lucide-react";
-import { AIContentOptimization } from "@/components/AIContentOptimization";
-import { useAIContentCreation } from "@/hooks/useAIContentCreation";
-import { Wand2 } from "lucide-react";
 
 interface RecordModalProps {
   isOpen: boolean;

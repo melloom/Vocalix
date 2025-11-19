@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { isTouchDevice } from '@/utils/responsive';
 
 interface UsePinchZoomOptions {
   minScale?: number;
@@ -61,6 +62,12 @@ export function usePinchZoom<T extends HTMLElement = HTMLDivElement>(
 
   useEffect(() => {
     if (!enabled || !elementRef.current) return;
+
+    // Only enable pinch zoom on touch-enabled devices (mobile, tablets)
+    // Laptops/desktops without touch gestures won't have pinch zoom
+    if (!isTouchDevice()) {
+      return;
+    }
 
     const element = elementRef.current;
 

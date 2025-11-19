@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isTouchDevice } from "@/utils/responsive";
 
 interface SwipeHandlers {
   onSwipeLeft?: () => void;
@@ -27,6 +28,12 @@ export function useSwipe<T extends HTMLElement = HTMLDivElement>({
   useEffect(() => {
     const element = elementRef.current;
     if (!element) return;
+
+    // Only enable swipe on touch-enabled devices (mobile, tablets)
+    // Laptops/desktops without touch gestures won't have swipe functionality
+    if (!isTouchDevice()) {
+      return;
+    }
 
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];

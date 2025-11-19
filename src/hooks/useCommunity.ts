@@ -448,14 +448,22 @@ export const useSearchUsers = (searchQuery: string) => {
     queryFn: async () => {
       if (!searchQuery || searchQuery.length < 2) return [];
 
+      // Get admin profile IDs to exclude them from search
+      const { data: adminData } = await supabase
+        .from('admins')
+        .select('profile_id');
+      const adminIds = new Set(adminData?.map((a) => a.profile_id) || []);
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, handle, emoji_avatar')
         .ilike('handle', `%${searchQuery}%`)
-        .limit(10);
+        .limit(20); // Fetch more to account for filtering
 
       if (error) throw error;
-      return data || [];
+      
+      // Filter out admin accounts
+      return (data || []).filter((profile) => !adminIds.has(profile.id)).slice(0, 10);
     },
     enabled: !!searchQuery && searchQuery.length >= 2,
   });
