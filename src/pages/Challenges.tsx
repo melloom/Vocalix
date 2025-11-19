@@ -479,40 +479,39 @@ const ChallengeCard = ({
                 </div>
               )}
             </div>
-            {progress && (
-              <div className="mt-3 space-y-2">
-                {progress.type === 'react_to_clips' && (
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm">
-                      {progress.reactions_count || 0} / {progress.target} reactions
-                    </span>
-                    {progress.completed && (
-                      <Badge variant="default" className="ml-auto">Completed!</Badge>
-                    )}
-                  </div>
-                )}
-                {progress.type === 'record_memory' && (
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm">
-                      {progress.clips_count || 0} / {progress.target} clips
-                    </span>
-                    {progress.completed && (
-                      <Badge variant="default" className="ml-auto">Completed!</Badge>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {challenge.challenge_template && challenge.challenge_template !== 'topic_based' && (
-              <Badge variant="outline" className="mt-2">
-                {challenge.challenge_template === 'record_memory' && '📝 Memory Challenge'}
-                {challenge.challenge_template === 'react_to_clips' && '❤️ Engagement Challenge'}
-                {challenge.challenge_template === 'daily_streak' && '🔥 Streak Challenge'}
-              </Badge>
-            )}
+          )}
+          {progress && (
+            <div className="mt-3 space-y-2">
+              {progress.type === 'react_to_clips' && (
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <span className="text-sm">
+                    {progress.reactions_count || 0} / {progress.target} reactions
+                  </span>
+                  {progress.completed && (
+                    <Badge variant="default" className="ml-auto">Completed!</Badge>
+                  )}
+                </div>
+              )}
+              {progress.type === 'record_memory' && (
+                <div className="flex items-center gap-2">
+                  <Target className="w-4 h-4 text-primary" />
+                  <span className="text-sm">
+                    {progress.clips_count || 0} / {progress.target} clips
+                  </span>
+                  {progress.completed && (
+                    <Badge variant="default" className="ml-auto">Completed!</Badge>
+                  )}
+                </div>
+              )}
             </div>
+          )}
+          {challenge.challenge_template && challenge.challenge_template !== 'topic_based' && (
+            <Badge variant="outline" className="mt-2">
+              {challenge.challenge_template === 'record_memory' && '📝 Memory Challenge'}
+              {challenge.challenge_template === 'react_to_clips' && '❤️ Engagement Challenge'}
+              {challenge.challenge_template === 'daily_streak' && '🔥 Streak Challenge'}
+            </Badge>
           )}
         </div>
         {viewerProfile && (
