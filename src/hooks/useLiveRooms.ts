@@ -61,7 +61,7 @@ export const useCommunityLiveRooms = (communityId: string | null) => {
         .from('live_rooms')
         .select(`
           *,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           )
@@ -71,7 +71,11 @@ export const useCommunityLiveRooms = (communityId: string | null) => {
         .order('created_at', { ascending: false });
 
       if (queryError) throw queryError;
-      return (data || []) as LiveRoom[];
+      // Map host_profile to profiles for consistency with interface
+      return ((data || []) as any[]).map((room: any) => ({
+        ...room,
+        profiles: Array.isArray(room.host_profile) ? room.host_profile[0] : room.host_profile,
+      })) as LiveRoom[];
     },
     enabled: !!communityId,
   });
@@ -102,7 +106,7 @@ export const useLiveRoom = (roomId: string | null) => {
         .from('live_rooms')
         .select(`
           *,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           )
@@ -111,7 +115,12 @@ export const useLiveRoom = (roomId: string | null) => {
         .single();
 
       if (queryError) throw queryError;
-      return data as LiveRoom;
+      // Map host_profile to profiles for consistency with interface
+      const formatted = data as any;
+      return {
+        ...formatted,
+        profiles: Array.isArray(formatted.host_profile) ? formatted.host_profile[0] : formatted.host_profile,
+      } as LiveRoom;
     },
     enabled: !!roomId,
   });

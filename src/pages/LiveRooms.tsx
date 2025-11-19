@@ -68,7 +68,7 @@ const LiveRooms = () => {
         .select(
           `
           *,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           ),
@@ -85,7 +85,7 @@ const LiveRooms = () => {
 
       const formattedRooms: LiveRoom[] = (data || []).map((room: any) => ({
         ...room,
-        profiles: Array.isArray(room.profiles) ? room.profiles[0] : room.profiles,
+        profiles: Array.isArray(room.host_profile) ? room.host_profile[0] : room.host_profile,
         communities: Array.isArray(room.communities) ? room.communities[0] : room.communities,
       }));
 

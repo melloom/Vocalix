@@ -149,7 +149,7 @@ const LiveRoom = () => {
         .select(
           `
           *,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           )
@@ -162,7 +162,7 @@ const LiveRoom = () => {
 
       const formattedRoom: LiveRoom = {
         ...data,
-        profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles,
+        profiles: Array.isArray(data.host_profile) ? data.host_profile[0] : data.host_profile,
       };
 
       setRoom(formattedRoom);

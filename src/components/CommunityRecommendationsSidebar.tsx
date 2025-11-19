@@ -55,7 +55,7 @@ export const CommunityRecommendationsSidebar = () => {
           title,
           description,
           participant_count,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           )
@@ -65,7 +65,11 @@ export const CommunityRecommendationsSidebar = () => {
         .limit(3);
 
       if (error) throw error;
-      return (data || []) as LiveRoom[];
+      // Map host_profile to profiles for consistency with interface
+      return ((data || []) as any[]).map((room: any) => ({
+        ...room,
+        profiles: Array.isArray(room.host_profile) ? room.host_profile[0] : room.host_profile,
+      })) as LiveRoom[];
     },
   });
 
