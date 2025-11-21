@@ -19,10 +19,11 @@ export const SearchSuggestions = ({
   onClearHistory,
   className,
 }: SearchSuggestionsProps) => {
-  const { getSearchSuggestions, trendingSearches, searchHistory } = useSearch(profileId);
+  const { getSearchSuggestions, trendingSearches, searchHistory, getRelatedSearches } = useSearch(profileId);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [relatedSearches, setRelatedSearches] = useState<Array<{ query: string; search_count: number }>>([]);
 
   useEffect(() => {
     const loadSuggestions = async () => {
@@ -30,22 +31,28 @@ export const SearchSuggestions = ({
         setShowSuggestions(true);
         setIsLoadingSuggestions(true);
         try {
-          const data = await getSearchSuggestions(query);
-          setSuggestions(data);
+          const [suggestionsData, relatedData] = await Promise.all([
+            getSearchSuggestions(query),
+            getRelatedSearches(query, 5),
+          ]);
+          setSuggestions(suggestionsData);
+          setRelatedSearches(relatedData);
         } catch (error) {
           console.error("Error loading suggestions:", error);
           setSuggestions([]);
+          setRelatedSearches([]);
         } finally {
           setIsLoadingSuggestions(false);
         }
       } else {
         setShowSuggestions(true);
         setSuggestions([]);
+        setRelatedSearches([]);
       }
     };
 
     loadSuggestions();
-  }, [query, profileId, getSearchSuggestions]);
+  }, [query, profileId, getSearchSuggestions, getRelatedSearches]);
 
   if (!showSuggestions) return null;
 
@@ -124,6 +131,33 @@ export const SearchSuggestions = ({
                   {suggestion.source === "popular" && (
                     <TrendingUp className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* People Also Searched For */}
+        {relatedSearches.length > 0 && query && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 px-2 py-1.5">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">People also searched for</span>
+            </div>
+            <div className="space-y-1">
+              {relatedSearches.map((item) => (
+                <button
+                  key={item.query}
+                  onClick={() => {
+                    onSelectSuggestion(item.query);
+                    setShowSuggestions(false);
+                  }}
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center justify-between group"
+                >
+                  <span className="truncate">{item.query}</span>
+                  <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.search_count}
+                  </span>
                 </button>
               ))}
             </div>

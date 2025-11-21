@@ -538,6 +538,55 @@ const Admin = () => {
     [loadAdminData, loadMetrics, toast],
   );
 
+  const handleMarkAs18Plus = useCallback(
+    async ({
+      clipId,
+      flagId,
+      reportIds,
+    }: {
+      clipId: string;
+      flagId?: number;
+      reportIds?: number[];
+    }) => {
+      setIsActioning(true);
+      try {
+        const deviceId = localStorage.getItem("deviceId");
+        const { error } = await supabase.functions.invoke("admin-review", {
+          body: {
+            action: "markAs18Plus",
+            clipId,
+            flagId,
+            reportIds,
+          },
+          headers: deviceId ? { "x-device-id": deviceId } : undefined,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Content marked as 18+",
+          description: "Content has been moved to the 18+ section and will be filtered from regular feeds.",
+        });
+        setSelectedFlags(new Set());
+        setSelectedReports(new Set());
+        await loadAdminData();
+        await loadMetrics();
+      } catch (error) {
+        console.error("Failed to mark as 18+:", error);
+        toast({
+          title: "Action failed",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsActioning(false);
+      }
+    },
+    [loadAdminData, loadMetrics, toast],
+  );
+
   const handleBulkAction = useCallback(
     async (status: "live" | "hidden" | "removed") => {
       if (selectedFlags.size === 0 && selectedReports.size === 0) {
@@ -1927,6 +1976,27 @@ const Admin = () => {
                         </Button>
                       </DialogContent>
                     </Dialog>
+                    {flag.reasons && flag.reasons.some((r: string) => 
+                      r.toLowerCase().includes("18+") || 
+                      r.toLowerCase().includes("sexual") || 
+                      r.toLowerCase().includes("nsfw") ||
+                      r.toLowerCase().includes("explicit")
+                    ) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full border-orange-500 text-orange-600 hover:bg-orange-50"
+                        disabled={isActioning}
+                        onClick={() =>
+                          handleMarkAs18Plus({
+                            clipId: flag.clip.id,
+                            flagId: flag.id,
+                          })
+                        }
+                      >
+                        Mark as 18+
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       className="rounded-full"
@@ -2162,6 +2232,22 @@ const Admin = () => {
                     )}
                     {!report.isProfileReport && report.clip && (
                       <>
+                        {(report.reason === "18+ content" || report.reason === "NSFW" || report.reason === "nsfw") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full border-orange-500 text-orange-600 hover:bg-orange-50"
+                            disabled={isActioning}
+                            onClick={() =>
+                              handleMarkAs18Plus({
+                                clipId: report.clip!.id,
+                                reportIds: [report.id],
+                              })
+                            }
+                          >
+                            Mark as 18+
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

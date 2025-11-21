@@ -1,144 +1,268 @@
 /**
- * Audio compression utilities
- * Provides utilities for client-side audio compression hints and quality selection
+ * Audio compression and optimization utilities
+ * Provides utilities for optimizing audio file sizes and quality
  */
 
-import { AudioQuality, getOptimalAudioQuality } from './adaptiveBitrate';
+interface CompressionOptions {
+  quality?: number; // 0-1, higher is better quality
+  bitrate?: number; // Target bitrate in kbps
+  format?: "mp3" | "opus" | "aac" | "ogg";
+  sampleRate?: number; // Target sample rate in Hz
+}
 
-/**
- * Audio compression options
- */
-export interface CompressionOptions {
-  quality: AudioQuality;
-  bitrate?: number;
-  sampleRate?: number;
-  channels?: 1 | 2;
+interface CompressionResult {
+  originalSize: number;
+  compressedSize: number;
+  compressionRatio: number;
+  url: string;
 }
 
 /**
- * Get recommended compression settings based on quality level
+ * Estimate audio file size based on duration and bitrate
  */
-export function getCompressionSettings(quality: AudioQuality): CompressionOptions {
-  const settings: Record<AudioQuality, CompressionOptions> = {
-    low: {
-      quality: 'low',
-      bitrate: 64000, // 64 kbps
-      sampleRate: 22050,
-      channels: 1, // Mono for low quality
-    },
-    medium: {
-      quality: 'medium',
-      bitrate: 128000, // 128 kbps
-      sampleRate: 44100,
-      channels: 2, // Stereo
-    },
-    high: {
-      quality: 'high',
-      bitrate: 192000, // 192 kbps
-      sampleRate: 44100,
-      channels: 2, // Stereo
-    },
-    original: {
-      quality: 'original',
-      // No compression hints - use original
-    },
-  };
+export function estimateAudioSize(
+  durationSeconds: number,
+  bitrateKbps: number = 128
+): number {
+  // Size in bytes = (bitrate in bits per second * duration in seconds) / 8
+  return (bitrateKbps * 1000 * durationSeconds) / 8;
+}
 
-  return settings[quality];
+/**
+ * Get optimal audio format based on browser support
+ */
+export function getOptimalAudioFormat(): "mp3" | "opus" | "aac" | "ogg" {
+  const audio = document.createElement("audio");
+  
+  if (audio.canPlayType("audio/opus")) {
+    return "opus"; // Best compression
+  }
+  if (audio.canPlayType("audio/mp4")) {
+    return "aac"; // Good compression, wide support
+  }
+  if (audio.canPlayType("audio/mpeg")) {
+    return "mp3"; // Universal support
+  }
+  return "ogg"; // Fallback
 }
 
 /**
  * Compress audio using Web Audio API (client-side)
- * Note: This is a simplified implementation. Full compression may require server-side processing.
+ * Note: This is a simplified version. Full compression requires server-side processing.
  */
-export async function compressAudio(
-  audioBlob: Blob,
-  options: CompressionOptions
-): Promise<Blob> {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+export async function compressAudioClientSide(
+  audioFile: File,
+  options: CompressionOptions = {}
+): Promise<CompressionResult> {
+  const {
+    quality = 0.7,
+    bitrate = 96,
+    sampleRate = 44100,
+  } = options;
 
-    // Create offline context with target sample rate
-    const targetSampleRate = options.sampleRate || audioBuffer.sampleRate;
-    const offlineContext = new OfflineAudioContext(
-      options.channels || audioBuffer.numberOfChannels,
-      Math.floor((audioBuffer.length * targetSampleRate) / audioBuffer.sampleRate),
-      targetSampleRate
-    );
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target?.result as ArrayBuffer;
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        // Decode audio data
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Create offline context for processing
+        const offlineContext = new OfflineAudioContext(
+          audioBuffer.numberOfChannels,
+          Math.floor(audioBuffer.duration * sampleRate),
+          sampleRate
+        );
+        
+        // Create buffer source
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineContext.destination);
+        source.start();
+        
+        // Render to new buffer
+        const renderedBuffer = await offlineContext.startRendering();
+        
+        // Convert to WAV (simplified - in production, use proper encoder)
+        const wav = audioBufferToWav(renderedBuffer);
+        const blob = new Blob([wav], { type: "audio/wav" });
+        
+        const originalSize = audioFile.size;
+        const compressedSize = blob.size;
+        
+        resolve({
+          originalSize,
+          compressedSize,
+          compressionRatio: compressedSize / originalSize,
+          url: URL.createObjectURL(blob),
+        });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(audioFile);
+  });
+}
 
-    // Create buffer source
-    const source = offlineContext.createBufferSource();
-    source.buffer = audioBuffer;
+/**
+ * Convert AudioBuffer to WAV format
+ */
+function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+  const length = buffer.length;
+  const numberOfChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bytesPerSample = 2;
+  const blockAlign = numberOfChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = length * blockAlign;
+  const bufferSize = 44 + dataSize;
+  
+  const arrayBuffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(arrayBuffer);
+  
+  // WAV header
+  const writeString = (offset: number, string: string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, "RIFF");
+  view.setUint32(4, bufferSize - 8, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true); // audio format (PCM)
+  view.setUint16(22, numberOfChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(36, "data");
+  view.setUint32(40, dataSize, true);
+  
+  // Write audio data
+  let offset = 44;
+  for (let i = 0; i < length; i++) {
+    for (let channel = 0; channel < numberOfChannels; channel++) {
+      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      offset += 2;
+    }
+  }
+  
+  return arrayBuffer;
+}
 
-    // Connect to destination
-    source.connect(offlineContext.destination);
-    source.start(0);
-
-    // Render to new buffer
-    const renderedBuffer = await offlineContext.startRendering();
-
-    // Convert back to WAV format (simplified - full implementation would encode to MP3/OGG)
-    // Note: For production, you'd want to use a library like lamejs for MP3 encoding
-    // This is a placeholder that returns a resampled version
-    return new Promise((resolve) => {
-      // For now, just return the original blob
-      // Full compression would require server-side processing or a library
-      // This function serves as a placeholder for future implementation
-      resolve(audioBlob);
-    });
-  } catch (error) {
-    console.warn('Audio compression failed, using original:', error);
-    return audioBlob;
+/**
+ * Get recommended compression settings based on use case
+ */
+export function getRecommendedCompressionSettings(
+  useCase: "voice" | "music" | "podcast"
+): CompressionOptions {
+  switch (useCase) {
+    case "voice":
+      return {
+        quality: 0.6,
+        bitrate: 64,
+        sampleRate: 22050,
+        format: "opus",
+      };
+    case "podcast":
+      return {
+        quality: 0.7,
+        bitrate: 96,
+        sampleRate: 44100,
+        format: "mp3",
+      };
+    case "music":
+      return {
+        quality: 0.8,
+        bitrate: 128,
+        sampleRate: 44100,
+        format: "mp3",
+      };
+    default:
+      return {
+        quality: 0.7,
+        bitrate: 96,
+        sampleRate: 44100,
+        format: "mp3",
+      };
   }
 }
 
 /**
- * Get optimal compression options based on current connection
+ * Validate audio file before upload
  */
-export function getOptimalCompression(): CompressionOptions {
-  const quality = getOptimalAudioQuality();
-  return getCompressionSettings(quality);
-}
-
-/**
- * Estimate file size reduction with compression
- */
-export function estimateSizeReduction(
-  originalSizeMB: number,
-  quality: AudioQuality
-): number {
-  const reductionRatios: Record<AudioQuality, number> = {
-    low: 0.15, // ~85% reduction
-    medium: 0.35, // ~65% reduction
-    high: 0.55, // ~45% reduction
-    original: 1.0, // No reduction
+export function validateAudioFile(file: File): {
+  valid: boolean;
+  error?: string;
+  recommendations?: string[];
+} {
+  const recommendations: string[] = [];
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  const maxDuration = 10 * 60; // 10 minutes
+  
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds maximum (50MB)`,
+      recommendations: ["Compress the audio file", "Reduce recording duration"],
+    };
+  }
+  
+  // Check file type
+  const validTypes = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/webm", "audio/mp4"];
+  if (!validTypes.includes(file.type)) {
+    recommendations.push(`Consider converting to MP3 or Opus format for better compatibility`);
+  }
+  
+  return {
+    valid: true,
+    recommendations: recommendations.length > 0 ? recommendations : undefined,
   };
-
-  return originalSizeMB * reductionRatios[quality];
 }
 
 /**
- * Format file size for display
+ * Get audio file metadata
  */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+export async function getAudioMetadata(file: File): Promise<{
+  duration: number;
+  sampleRate: number;
+  channels: number;
+  bitrate: number;
+}> {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    const url = URL.createObjectURL(file);
+    
+    audio.addEventListener("loadedmetadata", () => {
+      const duration = audio.duration;
+      // Estimate bitrate from file size and duration
+      const bitrate = (file.size * 8) / duration / 1000; // kbps
+      
+      URL.revokeObjectURL(url);
+      
+      resolve({
+        duration,
+        sampleRate: 44100, // Default, actual would need AudioContext
+        channels: 2, // Default, actual would need AudioContext
+        bitrate: Math.round(bitrate),
+      });
+    });
+    
+    audio.addEventListener("error", () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load audio file"));
+    });
+    
+    audio.src = url;
+  });
 }
-
-/**
- * Check if audio compression is supported
- */
-export function isCompressionSupported(): boolean {
-  return (
-    typeof AudioContext !== 'undefined' ||
-    typeof (window as any).webkitAudioContext !== 'undefined'
-  );
-}
-

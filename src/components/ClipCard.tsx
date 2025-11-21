@@ -36,9 +36,11 @@ import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 import { MentionText } from "@/components/MentionText";
 import { LiveReactionsDisplay } from "@/components/LiveReactionsDisplay";
 import { VoiceCloningConsentRequestDialog } from "@/components/VoiceCloningConsentRequestDialog";
-import { Copy } from "lucide-react";
+import { Copy, Clock, TrendingUp } from "lucide-react";
 import { useOptimistic } from "@/hooks/useOptimistic";
 import { ErrorRecovery } from "@/components/ErrorRecovery";
+import { WaveformPreview } from "@/components/WaveformPreview";
+import { formatDuration } from "@/lib/utils";
 
 interface VoiceReaction {
   id: string;
@@ -1119,6 +1121,35 @@ export const ClipCard = ({
           ))}
         </div>
       )}
+
+      {/* Enhanced Clip Metadata - Waveform, Listen Time, Engagement */}
+      <div className="flex items-center gap-3 py-2">
+        {/* Waveform Preview */}
+        <div className="flex-1 min-w-0">
+          <WaveformPreview
+            clipId={clip.id}
+            audioPath={clip.audio_path}
+            duration={clip.duration_seconds}
+            progress={progress}
+            height={32}
+            className="opacity-70"
+          />
+        </div>
+        
+        {/* Estimated Listen Time & Engagement */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Badge variant="outline" className="h-6 px-2 text-[10px] font-normal">
+            <Clock className="h-3 w-3 mr-1" />
+            {formatDuration(clip.duration_seconds)}
+          </Badge>
+          {clip.listens_count !== undefined && clip.listens_count > 0 && (
+            <Badge variant="outline" className="h-6 px-2 text-[10px] font-normal">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              {clip.listens_count}
+            </Badge>
+          )}
+        </div>
+      </div>
 
       {!isSensitiveHidden && clip.summary && (
         <p className="text-sm text-muted-foreground leading-relaxed">

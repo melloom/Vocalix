@@ -33,12 +33,31 @@ const retryLazyImport = (importFn: () => Promise<any>, retries = 2) => {
             setTimeout(tryImport, 300 * attempt);
           } else {
             console.error("Failed to load module after retries:", error);
-            reject(error);
+            // Convert to a proper Error object if it's not already
+            const err = error instanceof Error 
+              ? error 
+              : new Error(error?.message || String(error) || "Failed to load module");
+            // Ensure the error is properly formatted for React error boundaries
+            reject(err);
           }
         }
       };
       
-      tryImport();
+      // Wrap in try-catch to handle any synchronous errors
+      try {
+        tryImport().catch((error) => {
+          // This should not happen, but ensure errors are properly formatted
+          const err = error instanceof Error 
+            ? error 
+            : new Error(error?.message || String(error) || "Failed to load module");
+          reject(err);
+        });
+      } catch (error: any) {
+        const err = error instanceof Error 
+          ? error 
+          : new Error(error?.message || String(error) || "Failed to load module");
+        reject(err);
+      }
     });
   });
 };
@@ -77,6 +96,7 @@ const RemixFeed = retryLazyImport(() => import("./pages/RemixFeed"));
 const VoiceAMAs = retryLazyImport(() => import("./pages/VoiceAMAs"));
 const Discovery = retryLazyImport(() => import("./pages/Discovery"));
 const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreation"));
+const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -174,6 +194,7 @@ const App = () => {
                         <Route path="/discovery" element={<Discovery />} />
                         <Route path="/admin" element={<Admin />} />
                         <Route path="/ai-content" element={<AIContentCreation />} />
+                        <Route path="/18-plus" element={<EighteenPlus />} />
                         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                         <Route path="*" element={<NotFound />} />
                       </Route>

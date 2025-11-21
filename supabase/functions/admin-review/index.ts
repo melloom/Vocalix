@@ -1544,7 +1544,7 @@ serve(async (req) => {
     }
 
     if (action === "updateClip") {
-      const { clipId, status, flagId, reportIds } = body;
+      const { clipId, status, flagId, reportIds, contentRating } = body;
 
       if (!clipId || !status) {
         return new Response(
@@ -1560,9 +1560,14 @@ serve(async (req) => {
         );
       }
 
+      const updateData: any = { status };
+      if (contentRating) {
+        updateData.content_rating = contentRating;
+      }
+
       const { error: clipError } = await supabase
         .from("clips")
-        .update({ status })
+        .update(updateData)
         .eq("id", clipId);
 
       if (clipError) throw clipError;
@@ -1620,8 +1625,98 @@ serve(async (req) => {
       await logAdminAction(adminProfileId, deviceId, "updateClip", {
         clipId,
         status,
+        contentRating: contentRating || null,
         flagId: flagId || null,
         reportIds: reportIds || [],
+      }, req);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: {
+          ...corsHeaders,
+          ...createVersionHeaders(apiVersion),
+          "content-type": "application/json",
+        },
+      });
+    }
+
+    if (action === "markAs18Plus") {
+      const { clipId, reportIds, flagId } = body;
+
+      if (!clipId) {
+        return new Response(
+          JSON.stringify({ error: "clipId is required" }), 
+          { 
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          }
+        );
+      }
+
+      // Update clip to mark as sensitive (18+)
+      const { error: clipError } = await supabase
+        .from("clips")
+        .update({ content_rating: "sensitive" })
+        .eq("id", clipId);
+
+      if (clipError) throw clipError;
+
+      // Update reports if provided
+      if (Array.isArray(reportIds) && reportIds.length > 0) {
+        const { error: reportError } = await supabase
+          .from("reports")
+          .update({ 
+            status: "actioned",
+            workflow_state: "actioned",
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: adminProfileId,
+          })
+          .in("id", reportIds);
+        if (reportError) throw reportError;
+
+        // Log to moderation history
+        for (const reportId of reportIds) {
+          await supabase.rpc("log_moderation_history", {
+            p_item_type: "report",
+            p_item_id: reportId,
+            p_action: "marked_as_18_plus",
+            p_admin_profile_id: adminProfileId,
+            p_new_value: JSON.stringify({ content_rating: "sensitive" }),
+          });
+        }
+      }
+
+      // Update flag if provided
+      if (flagId) {
+        const { error: flagError } = await supabase
+          .from("moderation_flags")
+          .update({ 
+            status: "actioned",
+            workflow_state: "actioned",
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: adminProfileId,
+          })
+          .eq("id", flagId);
+        if (flagError) throw flagError;
+
+        // Log to moderation history
+        await supabase.rpc("log_moderation_history", {
+          p_item_type: "flag",
+          p_item_id: flagId,
+          p_action: "marked_as_18_plus",
+          p_admin_profile_id: adminProfileId,
+          p_new_value: JSON.stringify({ content_rating: "sensitive" }),
+        });
+      }
+
+      // Log admin action
+      await logAdminAction(adminProfileId, deviceId, "markAs18Plus", {
+        clipId,
+        reportIds: reportIds || [],
+        flagId: flagId || null,
       }, req);
 
       return new Response(JSON.stringify({ success: true }), {

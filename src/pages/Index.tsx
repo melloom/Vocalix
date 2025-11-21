@@ -31,6 +31,7 @@ import { ChainView } from "@/components/ChainView";
 import { CommunityRecommendationsSidebar } from "@/components/CommunityRecommendationsSidebar";
 import { VirtualizedFeed } from "@/components/VirtualizedFeed";
 import { LeftSidebar } from "@/components/LeftSidebar";
+import { UpNextPreview } from "@/components/UpNextPreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CityOptInDialog } from "@/components/CityOptInDialog";
@@ -51,6 +52,8 @@ import { BackToTop } from "@/components/BackToTop";
 import { useSearch } from "@/hooks/useSearch";
 import { SearchSuggestions } from "@/components/SearchSuggestions";
 import { usePersonalizedFeed } from "@/hooks/usePersonalizedFeed";
+import { useFeedFilters, FeedFilterType, TimePeriod } from "@/hooks/useFeedFilters";
+import { FeedFilterSelector } from "@/components/FeedFilterSelector";
 
 interface Topic {
   id: string;
@@ -281,6 +284,18 @@ const Index = () => {
   const { isAdmin } = useAdminStatus();
   const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  
+  // Listen for record modal trigger from BottomNavigation
+  useEffect(() => {
+    const handleOpenRecordModal = () => {
+      setIsRecordModalOpen(true);
+    };
+    
+    window.addEventListener("openRecordModal", handleOpenRecordModal);
+    return () => {
+      window.removeEventListener("openRecordModal", handleOpenRecordModal);
+    };
+  }, []);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
@@ -292,6 +307,8 @@ const Index = () => {
   const [topicMetrics, setTopicMetrics] = useState<Record<string, TopicMetrics>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you" | null>(null);
+  const [feedFilter, setFeedFilter] = useState<FeedFilterType>("for_you");
+  const [feedTimePeriod, setFeedTimePeriod] = useState<TimePeriod>("day");
   const [topTimePeriod, setTopTimePeriod] = useState<"all" | "week" | "month">("all");
   const [cityFilter, setCityFilter] = useState<"global" | "local">("global");
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
@@ -323,6 +340,7 @@ const Index = () => {
     moodEmoji: null, // Keep for backward compatibility but use categoryFilter instead
     durationMin: null,
     durationMax: null,
+    durationPreset: null,
     dateFrom: null,
     dateTo: null,
     city: null,
@@ -330,6 +348,11 @@ const Index = () => {
     qualityBadge: null,
     emotion: null,
     searchQuery: "",
+    minReactions: null,
+    minListens: null,
+    minCompletionRate: null,
+    creatorReputation: null,
+    language: null,
   });
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: SearchFilters }>>([]);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -344,6 +367,39 @@ const Index = () => {
   
   // Personalized feed
   const { personalizedClips, isLoading: isLoadingPersonalized, error: personalizedError } = usePersonalizedFeed(100);
+  
+  // Enhanced feed filters
+  const { clips: bestClips, isLoading: isLoadingBest } = useFeedFilters({
+    filterType: "best",
+    limit: 100,
+    timePeriod: feedTimePeriod,
+  });
+  
+  const { clips: risingClips, isLoading: isLoadingRising } = useFeedFilters({
+    filterType: "rising",
+    limit: 100,
+  });
+  
+  const { clips: controversialClips, isLoading: isLoadingControversial } = useFeedFilters({
+    filterType: "controversial",
+    limit: 100,
+  });
+  
+  const { clips: followedClips, isLoading: isLoadingFollowed } = useFeedFilters({
+    filterType: "from_followed",
+    limit: 100,
+  });
+  
+  const { clips: unheardClips, isLoading: isLoadingUnheard } = useFeedFilters({
+    filterType: "unheard",
+    limit: 100,
+  });
+  
+  const { clips: cityClips, isLoading: isLoadingCity } = useFeedFilters({
+    filterType: "from_city",
+    limit: 100,
+    city: profile?.city || undefined,
+  });
 
   const topicIdsRef = useRef<string[]>([]);
   const topicsRef = useRef<Topic[]>([]);
@@ -652,7 +708,9 @@ const Index = () => {
       }
 
       // First, get all clips (including replies) to calculate reply counts
-      const { data: allClipsData, error: allClipsError } = await supabase
+      // @ts-ignore - show_18_plus_content exists but not in generated types
+      const has18PlusAccess = profile?.show_18_plus_content ?? false;
+      let clipsQuery = supabase
         .from("clips")
         .select(`
           *,
@@ -662,6 +720,13 @@ const Index = () => {
           )
         `)
         .in("status", ["live", "processing"]);
+      
+      // Filter out NSFW clips if user hasn't enabled 18+ content
+      if (!has18PlusAccess) {
+        clipsQuery = clipsQuery.or("content_rating.is.null,content_rating.eq.general");
+      }
+      
+      const { data: allClipsData, error: allClipsError } = await clipsQuery;
 
       if (allClipsError) {
         throw allClipsError;
@@ -697,7 +762,8 @@ const Index = () => {
       }
 
       // Load posts
-      const { data: postsData, error: postsError } = await supabase
+      // Reuse has18PlusAccess from above - no need to redeclare
+      let postsQuery = supabase
         .from("posts")
         .select(`
           *,
@@ -718,7 +784,14 @@ const Index = () => {
         `)
         .eq("status", "live")
         .eq("visibility", "public")
-        .is("deleted_at", null)
+        .is("deleted_at", null);
+      
+      // Filter out NSFW posts if user hasn't enabled 18+ content
+      if (!has18PlusAccess) {
+        postsQuery = postsQuery.eq("is_nsfw", false);
+      }
+      
+      const { data: postsData, error: postsError } = await postsQuery
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -793,7 +866,9 @@ const Index = () => {
       const creatorIds = [...new Set(listenedClips.map((c) => c.profile_id).filter(Boolean))];
 
       // Get recommended clips
-      const { data: recommended, error: recommendedError } = await supabase
+      // @ts-ignore - show_18_plus_content exists but not in generated types
+      const has18PlusAccess = profile?.show_18_plus_content ?? false;
+      let recommendedQuery = supabase
         .from("clips")
         .select(`
           *,
@@ -809,7 +884,14 @@ const Index = () => {
             ...(topicIds.length > 0 ? [`topic_id.in.(${topicIds.join(",")})`] : []),
             ...(creatorIds.length > 0 ? [`profile_id.in.(${creatorIds.join(",")})`] : []),
           ].join(",")
-        )
+        );
+      
+      // Filter out NSFW clips if user hasn't enabled 18+ content
+      if (!has18PlusAccess) {
+        recommendedQuery = recommendedQuery.or("content_rating.is.null,content_rating.eq.general");
+      }
+      
+      const { data: recommended, error: recommendedError } = await recommendedQuery
         .order("created_at", { ascending: false })
         .limit(10);
 
@@ -851,7 +933,7 @@ const Index = () => {
     } finally {
       setIsLoadingRecommendedClips(false);
     }
-  }, [profileId]);
+  }, [profileId, profile]);
 
   const loadSimilarVoices = useCallback(async () => {
     if (!profileId) return;
@@ -964,7 +1046,9 @@ const Index = () => {
       }
 
       // Get clips from similar creators
-      const { data: similarClips, error: similarClipsError } = await supabase
+      // @ts-ignore - show_18_plus_content exists but not in generated types
+      const has18PlusAccess = profile?.show_18_plus_content ?? false;
+      let similarClipsQuery = supabase
         .from("clips")
         .select(`
           *,
@@ -975,7 +1059,14 @@ const Index = () => {
         `)
         .in("profile_id", topSimilarCreators)
         .in("status", ["live"])
-        .not("id", "in", `(${listenedClipIds.join(",")})`)
+        .not("id", "in", `(${listenedClipIds.join(",")})`);
+      
+      // Filter out NSFW clips if user hasn't enabled 18+ content
+      if (!has18PlusAccess) {
+        similarClipsQuery = similarClipsQuery.or("content_rating.is.null,content_rating.eq.general");
+      }
+      
+      const { data: similarClips, error: similarClipsError } = await similarClipsQuery
         .order("created_at", { ascending: false })
         .limit(8);
 
@@ -1014,7 +1105,7 @@ const Index = () => {
     } finally {
       setIsLoadingSimilarVoices(false);
     }
-  }, [profileId]);
+  }, [profileId, profile]);
 
   const handleOnboardingComplete = useCallback(
     (id: string) => {
@@ -1080,9 +1171,97 @@ const Index = () => {
     [profile, toast],
   );
 
+  // Convert feed filter clips to Clip format
+  const convertFeedClipsToClips = useCallback((feedClips: any[]): Clip[] => {
+    return feedClips.map((item) => {
+      const clipData = item.clip_data || item;
+      return {
+        id: clipData.id || item.clip_id,
+        profile_id: clipData.profile_id,
+        audio_path: clipData.audio_path,
+        duration_seconds: clipData.duration_seconds,
+        title: clipData.title,
+        captions: clipData.captions,
+        summary: clipData.summary,
+        tags: clipData.tags,
+        mood_emoji: clipData.mood_emoji,
+        status: clipData.status,
+        listens_count: clipData.listens_count,
+        reactions: clipData.reactions || {},
+        created_at: clipData.created_at,
+        topic_id: clipData.topic_id,
+        completion_rate: clipData.completion_rate,
+        trending_score: clipData.trending_score,
+        city: clipData.city,
+        parent_clip_id: clipData.parent_clip_id,
+        reply_count: clipData.reply_count,
+        remix_of_clip_id: clipData.remix_of_clip_id,
+        remix_count: clipData.remix_count,
+        chain_id: clipData.chain_id,
+        challenge_id: clipData.challenge_id,
+        is_podcast: clipData.is_podcast,
+        profiles: null, // Will be populated if needed
+      } as Clip;
+    });
+  }, []);
+
   const displayClips = useMemo(() => {
+    // Use new feed filters if feedFilter is set
+    if (feedFilter !== "for_you" && feedFilter !== null) {
+      let feedClips: any[] = [];
+      let isLoading = false;
+
+      switch (feedFilter) {
+        case "best":
+          feedClips = bestClips;
+          isLoading = isLoadingBest;
+          break;
+        case "rising":
+          feedClips = risingClips;
+          isLoading = isLoadingRising;
+          break;
+        case "controversial":
+          feedClips = controversialClips;
+          isLoading = isLoadingControversial;
+          break;
+        case "from_followed":
+          feedClips = followedClips;
+          isLoading = isLoadingFollowed;
+          break;
+        case "unheard":
+          feedClips = unheardClips;
+          isLoading = isLoadingUnheard;
+          break;
+        case "from_city":
+          feedClips = cityClips;
+          isLoading = isLoadingCity;
+          break;
+        default:
+          break;
+      }
+
+      if (isLoading) {
+        return [];
+      }
+
+      let filtered = convertFeedClipsToClips(feedClips);
+      
+      // Filter out blocked users
+      if (blockedUserIds.size > 0) {
+        filtered = filtered.filter((clip) => !clip.profile_id || !blockedUserIds.has(clip.profile_id));
+      }
+      
+      // Apply topic filter if set
+      const topicFilter = advancedFilters.topicId || selectedTopicId;
+      if (topicFilter) {
+        filtered = filtered.filter((clip) => clip.topic_id === topicFilter);
+      }
+      
+      return filtered;
+    }
+
     // If "For You" mode, use personalized clips
-    if (sortMode === "for_you") {
+    if (sortMode === "for_you" || feedFilter === "for_you") {
       if (isLoadingPersonalized) {
         return [];
       }
@@ -1281,6 +1460,16 @@ const Index = () => {
         return false;
       }
       
+      // Filter out NSFW content if user hasn't enabled 18+ content
+      // @ts-ignore - show_18_plus_content exists but not in generated types
+      const has18PlusAccess = profile?.show_18_plus_content ?? false;
+      if (!has18PlusAccess) {
+        // Filter out clips with sensitive content rating
+        if (clip.content_rating === "sensitive") {
+          return false;
+        }
+      }
+      
       // Filter out clips with multiple pending reports (3+)
       // Note: This would require fetching reports, so we skip for performance
       // The server-side filter will handle this
@@ -1425,7 +1614,7 @@ const Index = () => {
       .filter((entry): entry is { clip: Clip; score: number } => entry !== null)
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.clip);
-  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters, blockedUserIds, personalizedClips, isLoadingPersonalized]);
+  }, [cityFilter, clips, sortMode, topTimePeriod, profile?.city, selectedTopicId, topicMetrics, advancedFilters, blockedUserIds, personalizedClips, isLoadingPersonalized, feedFilter, bestClips, risingClips, controversialClips, followedClips, unheardClips, cityClips, isLoadingBest, isLoadingRising, isLoadingControversial, isLoadingFollowed, isLoadingUnheard, isLoadingCity, convertFeedClipsToClips]);
 
   const allTopics = useMemo(() => {
     const list: Topic[] = [];
@@ -1475,16 +1664,37 @@ const Index = () => {
 
   // Enhanced search: Use database search when query exists, otherwise use client-side filtering
   const filteredClips = useMemo(() => {
+    // @ts-ignore - show_18_plus_content exists but not in generated types
+    const has18PlusAccess = profile?.show_18_plus_content ?? false;
+    
     // If we have database search results, filter clips by those IDs
     if (normalizedQuery && searchResults.length > 0) {
       const resultSet = new Set(searchResults);
-      return displayClips.filter((clip) => resultSet.has(clip.id));
+      return displayClips.filter((clip) => {
+        if (!resultSet.has(clip.id)) return false;
+        // Filter NSFW content if user hasn't enabled 18+ content
+        if (!has18PlusAccess && clip.content_rating === "sensitive") {
+          return false;
+        }
+        return true;
+      });
     }
     
     // Fallback to client-side filtering for non-text searches or when database search hasn't run
-    if (!normalizedQuery) return displayClips;
+    if (!normalizedQuery) {
+      // Still filter NSFW content even when not searching
+      if (!has18PlusAccess) {
+        return displayClips.filter((clip) => clip.content_rating !== "sensitive");
+      }
+      return displayClips;
+    }
     
     return displayClips.filter((clip) => {
+      // Filter NSFW content if user hasn't enabled 18+ content
+      if (!has18PlusAccess && clip.content_rating === "sensitive") {
+        return false;
+      }
+      
       const needle = [
         clip.summary,
         clip.captions,
@@ -1499,7 +1709,7 @@ const Index = () => {
         .toLowerCase();
       return needle.includes(normalizedQuery);
     });
-  }, [displayClips, normalizedQuery, searchResults]);
+  }, [displayClips, normalizedQuery, searchResults, profile]);
 
   // Debounce search query for performance
   useEffect(() => {
@@ -1518,10 +1728,16 @@ const Index = () => {
         advancedFilters.moodEmoji !== null ||
         advancedFilters.durationMin !== null ||
         advancedFilters.durationMax !== null ||
+        advancedFilters.durationPreset !== null ||
         advancedFilters.dateFrom !== null ||
         advancedFilters.dateTo !== null ||
         advancedFilters.city !== null ||
-        advancedFilters.topicId !== null;
+        advancedFilters.topicId !== null ||
+        advancedFilters.minReactions !== null ||
+        advancedFilters.minListens !== null ||
+        advancedFilters.minCompletionRate !== null ||
+        advancedFilters.creatorReputation !== null ||
+        advancedFilters.language !== null;
 
       // Only use database search if we have a query or filters
       if (!hasQuery && !hasFilters) {
@@ -2589,6 +2805,21 @@ const Index = () => {
                   <p>Discovery - Personalized recommendations</p>
                 </TooltipContent>
               </Tooltip>
+              {/* @ts-ignore - show_18_plus_content exists but not in generated types */}
+              {profile?.show_18_plus_content && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                      <Link to="/18-plus" aria-label="18+ Content">
+                        <span className="text-lg font-bold">18+</span>
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>18+ Content - NSFW content</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               <NotificationCenter />
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -2850,90 +3081,89 @@ const Index = () => {
             <div data-tutorial="view-mode">
               <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
             </div>
-            <div className="flex bg-muted/50 rounded-md p-0.5" data-tutorial="feed-sorting">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="rounded-md px-3 text-xs h-7"
-                    variant={sortMode === "hot" ? "default" : "ghost"}
-                    onClick={() => setSortMode(sortMode === "hot" ? null : "hot")}
-                  >
-                    Hot
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Hot - Trending now with recent engagement</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="rounded-md px-3 text-xs h-7"
-                    variant={sortMode === "top" ? "default" : "ghost"}
-                    onClick={() => setSortMode(sortMode === "top" ? null : "top")}
-                  >
-                    Top
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Top - Highest engagement (all-time, week, or month)</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="rounded-md px-3 text-xs h-7"
-                    variant={sortMode === "controversial" ? "default" : "ghost"}
-                    onClick={() => setSortMode(sortMode === "controversial" ? null : "controversial")}
-                  >
-                    Controversial
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Controversial - High engagement with mixed reactions</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="rounded-md px-3 text-xs h-7"
-                    variant={sortMode === "rising" ? "default" : "ghost"}
-                    onClick={() => setSortMode(sortMode === "rising" ? null : "rising")}
-                  >
-                    Rising
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Rising - Gaining traction quickly</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="rounded-md px-3 text-xs h-7"
-                    variant={sortMode === "trending" ? "default" : "ghost"}
-                    onClick={() => setSortMode(sortMode === "trending" ? null : "trending")}
-                  >
-                    Trending
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Trending - Algorithm picks based on quality and engagement</p>
-                </TooltipContent>
-              </Tooltip>
-              {profile?.id && (
+            <div data-tutorial="feed-sorting">
+              <FeedFilterSelector
+                currentFilter={feedFilter}
+                timePeriod={feedTimePeriod}
+                onFilterChange={(filter) => {
+                  setFeedFilter(filter);
+                  // Also update sortMode for backward compatibility
+                  if (filter === "for_you") {
+                    setSortMode("for_you");
+                  } else if (filter === "best") {
+                    setSortMode("top");
+                  } else if (filter === "rising") {
+                    setSortMode("rising");
+                  } else if (filter === "controversial") {
+                    setSortMode("controversial");
+                  } else {
+                    setSortMode(null);
+                  }
+                }}
+                onTimePeriodChange={(period) => setFeedTimePeriod(period)}
+                showTimePeriod={feedFilter === "best"}
+              />
+              {/* Legacy sort mode buttons for backward compatibility */}
+              {sortMode && sortMode !== "for_you" && (
+                <div className="flex bg-muted/50 rounded-md p-0.5 mt-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="rounded-md px-3 text-xs h-7"
+                        variant={sortMode === "hot" ? "default" : "ghost"}
+                        onClick={() => setSortMode(sortMode === "hot" ? null : "hot")}
+                      >
+                        Hot
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Hot - Trending now with recent engagement</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="rounded-md px-3 text-xs h-7"
+                        variant={sortMode === "top" ? "default" : "ghost"}
+                        onClick={() => setSortMode(sortMode === "top" ? null : "top")}
+                      >
+                        Top
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Top - Highest engagement (all-time, week, or month)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="rounded-md px-3 text-xs h-7"
+                        variant={sortMode === "trending" ? "default" : "ghost"}
+                        onClick={() => setSortMode(sortMode === "trending" ? null : "trending")}
+                      >
+                        Trending
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Trending - Algorithm picks based on quality and engagement</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+              {profile?.id && sortMode === "for_you" && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
                       className="rounded-md px-3 text-xs h-7"
                       variant={sortMode === "for_you" ? "default" : "ghost"}
-                      onClick={() => setSortMode(sortMode === "for_you" ? null : "for_you")}
+                      onClick={() => {
+                        setSortMode(null);
+                        setFeedFilter("for_you");
+                      }}
                     >
                       For You
                     </Button>
@@ -3355,19 +3585,26 @@ const Index = () => {
               )}
               {/* Clips Section */}
               {visibleClips.length > 0 && (
-                <div className="h-[calc(100vh-300px)] min-h-[600px]">
-                  <VirtualizedFeed
-                    clips={visibleClips}
-                    captionsDefault={profile?.default_captions ?? true}
-                    highlightQuery={normalizedQuery}
-                onReply={handleReply}
-                onRemix={handleRemix}
-                onContinueChain={handleContinueChain}
-                viewMode={viewMode}
-                onLoadMore={!isSearching && hasMoreClips ? loadMoreClips : undefined}
-                hasMore={!isSearching && hasMoreClips}
-                prefetchNext={3}
-              />
+                <div className="space-y-4">
+                  {/* Up Next Preview */}
+                  <div className="px-2">
+                    <UpNextPreview />
+                  </div>
+                  
+                  <div className="h-[calc(100vh-300px)] min-h-[600px]">
+                    <VirtualizedFeed
+                      clips={visibleClips}
+                      captionsDefault={profile?.default_captions ?? true}
+                      highlightQuery={normalizedQuery}
+                      onReply={handleReply}
+                      onRemix={handleRemix}
+                      onContinueChain={handleContinueChain}
+                      viewMode={viewMode}
+                      onLoadMore={!isSearching && hasMoreClips ? loadMoreClips : undefined}
+                      hasMore={!isSearching && hasMoreClips}
+                      prefetchNext={3}
+                    />
+                  </div>
                 </div>
               )}
             </div>

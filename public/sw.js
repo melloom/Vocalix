@@ -1,10 +1,12 @@
 // Service Worker for caching audio files and assets
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3"; // Incremented for enhanced prefetching
 const CACHE_NAME = `echo-garden-${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = `echo-garden-audio-${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `echo-garden-static-${CACHE_VERSION}`;
 const HTML_CACHE_NAME = `echo-garden-html-${CACHE_VERSION}`;
 const API_CACHE_NAME = `echo-garden-api-${CACHE_VERSION}`;
+const PREFETCH_CACHE_NAME = `echo-garden-prefetch-${CACHE_VERSION}`;
+const PREFETCH_CACHE_NAME = `echo-garden-prefetch-${CACHE_VERSION}`;
 
 // Cache duration settings
 const AUDIO_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -59,6 +61,7 @@ self.addEventListener("activate", (event) => {
                 cacheName !== STATIC_CACHE_NAME &&
                 cacheName !== HTML_CACHE_NAME &&
                 cacheName !== API_CACHE_NAME &&
+                cacheName !== PREFETCH_CACHE_NAME &&
                 cacheName.startsWith("echo-garden-")
               );
             })
@@ -563,12 +566,118 @@ async function manageCacheSizes() {
 self.addEventListener("sync", (event) => {
   if (event.tag === "background-sync") {
     event.waitUntil(syncFailedRequests());
+  } else if (event.tag === "background-upload") {
+    event.waitUntil(syncFailedUploads());
   }
 });
 
 async function syncFailedRequests() {
-  // This would sync any failed API requests when connection is restored
-  // Implementation depends on your specific needs
-  console.log("Background sync triggered");
+  // Sync any failed API requests when connection is restored
+  try {
+    const cache = await caches.open(API_CACHE_NAME);
+    const requests = await cache.keys();
+    
+    for (const request of requests) {
+      // Check if this is a failed POST/PUT/DELETE request
+      if (request.method !== "GET") {
+        try {
+          const response = await fetch(request.clone());
+          if (response.ok) {
+            // Request succeeded, remove from failed queue
+            await cache.delete(request);
+          }
+        } catch (error) {
+          // Still failing, keep in queue
+          console.warn("Background sync still failing for:", request.url);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Background sync error:", error);
+  }
 }
+
+async function syncFailedUploads() {
+  // Sync failed audio uploads when connection is restored
+  try {
+    // Get failed uploads from IndexedDB or cache
+    // This would be implemented based on your upload queue system
+    console.log("Syncing failed uploads...");
+    
+    // Example: Get upload queue from IndexedDB
+    // const uploadQueue = await getUploadQueueFromIndexedDB();
+    // for (const upload of uploadQueue) {
+    //   if (upload.status === "failed") {
+    //     await retryUpload(upload);
+    //   }
+    // }
+  } catch (error) {
+    console.error("Background upload sync error:", error);
+  }
+}
+
+// Periodic background sync (when supported)
+if ("periodicSync" in self.registration) {
+  self.addEventListener("periodicsync", (event) => {
+    if (event.tag === "content-sync") {
+      event.waitUntil(syncContent());
+    }
+  });
+}
+
+async function syncContent() {
+  // Sync content in background periodically
+  try {
+    // Prefetch next clips, update cache, etc.
+    console.log("Periodic content sync");
+    cleanOldCacheEntries();
+    manageCacheSizes();
+  } catch (error) {
+    console.error("Periodic sync error:", error);
+  }
+}
+
+// Prefetch next clips when user is near the end of current clip
+self.addEventListener("message", async (event) => {
+  if (event.data && event.data.type === "PREFETCH_AUDIO") {
+    const { audioUrls } = event.data;
+    if (Array.isArray(audioUrls)) {
+      await prefetchAudioUrls(audioUrls);
+    }
+  }
+});
+
+// Prefetch audio URLs in background
+async function prefetchAudioUrls(urls) {
+  const cache = await caches.open(PREFETCH_CACHE_NAME);
+  const prefetchPromises = urls.map(async (url) => {
+    try {
+      // Check if already cached
+      const cached = await cache.match(url);
+      if (cached) {
+        return; // Already cached
+      }
+      
+      // Prefetch with low priority
+      const response = await fetch(url, {
+        priority: "low", // Browser hint for low priority
+      });
+      
+      if (response.ok) {
+        await cache.put(url, response);
+      }
+    } catch (error) {
+      // Silently fail - prefetching is optional
+      console.debug("Prefetch failed for:", url, error);
+    }
+  });
+  
+  await Promise.allSettled(prefetchPromises);
+}
+
+// Periodic cache maintenance
+setInterval(() => {
+  cleanOldCacheEntries();
+  manageCacheSizes();
+}, 60 * 60 * 1000); // Every hour
 

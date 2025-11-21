@@ -56,6 +56,9 @@ import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { VoiceCloningConsentManagement } from "@/components/VoiceCloningConsentManagement";
 import { Slider } from "@/components/ui/slider";
 import { OnboardingProgress, useOnboardingProgress } from "@/components/OnboardingProgress";
+import { PersonalizationPreferences } from "@/components/PersonalizationPreferences";
+import { FeedCustomizationSettings } from "@/components/FeedCustomizationSettings";
+import { MuteBlockSettings } from "@/components/MuteBlockSettings";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -119,6 +122,7 @@ const Settings = () => {
   const [tapToRecordEnabled, setTapToRecordEnabled] = useState(false);
   const [topicAlertsEnabled, setTopicAlertsEnabled] = useState(true);
   const [matureFilterEnabled, setMatureFilterEnabled] = useState(true);
+  const [show18PlusContent, setShow18PlusContent] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(false);
   const [digestFrequency, setDigestFrequency] = useState<'never' | 'daily' | 'weekly'>('daily');
   const [digestEmail, setDigestEmail] = useState("");
@@ -214,6 +218,7 @@ const Settings = () => {
       setTapToRecordEnabled(profile.tap_to_record ?? false);
       setTopicAlertsEnabled(profile.notify_new_topics);
       setMatureFilterEnabled(profile.filter_mature_content);
+      setShow18PlusContent(profile.show_18_plus_content ?? false);
       // @ts-ignore - digest fields exist but not in generated types
       setDigestEnabled(profile.digest_enabled ?? false);
       // @ts-ignore
@@ -1481,6 +1486,40 @@ const Settings = () => {
               />
             </div>
 
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Show 18+ content</p>
+                <p className="text-sm text-muted-foreground">
+                  Enable to view and access NSFW content. When enabled, a dedicated 18+ section will appear in the header.
+                </p>
+              </div>
+              <Switch
+                checked={show18PlusContent}
+                onCheckedChange={async (checked) => {
+                  setShow18PlusContent(checked);
+                  try {
+                    await updateProfile({ show_18_plus_content: checked });
+                    toast({
+                      title: checked ? "18+ content enabled" : "18+ content disabled",
+                      description: checked
+                        ? "You can now access NSFW content. A dedicated section will appear in the header."
+                        : "18+ content is now hidden from your feed and search results.",
+                    });
+                  } catch (error) {
+                    logError("Failed to update 18+ content preference", error);
+                    setShow18PlusContent(!checked);
+                    toast({
+                      title: "Couldn't update preference",
+                      description: "Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                disabled={isUpdating}
+                aria-label="Toggle 18+ content visibility"
+              />
+            </div>
+
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
                 <p className="font-medium">Preferred language</p>
@@ -1739,6 +1778,10 @@ const Settings = () => {
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">Personalization</h2>
           <PersonalizationPreferences />
+          
+          <FeedCustomizationSettings />
+          
+          <MuteBlockSettings />
         </section>
 
         <section className="space-y-4">

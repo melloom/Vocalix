@@ -16,6 +16,7 @@ export interface SearchFilters {
   moodEmoji: string | null;
   durationMin: number | null;
   durationMax: number | null;
+  durationPreset: "short" | "medium" | "long" | null; // New: duration presets
   dateFrom: Date | null;
   dateTo: Date | null;
   city: string | null;
@@ -23,6 +24,11 @@ export interface SearchFilters {
   qualityBadge: "excellent" | "good" | "fair" | null;
   emotion: "joy" | "sadness" | "anger" | "fear" | "surprise" | "disgust" | "neutral" | "excited" | "calm" | "frustrated" | "happy" | "melancholic" | null;
   searchQuery: string;
+  minReactions: number | null; // New: minimum reactions filter
+  minListens: number | null; // New: minimum listens filter
+  minCompletionRate: number | null; // New: minimum completion rate (0-100)
+  creatorReputation: "high" | "medium" | "low" | null; // New: creator reputation filter
+  language: string | null; // New: language filter (if available)
 }
 
 interface AdvancedSearchFiltersProps {
@@ -67,6 +73,7 @@ export const AdvancedSearchFilters = ({
       moodEmoji: null,
       durationMin: null,
       durationMax: null,
+      durationPreset: null,
       dateFrom: null,
       dateTo: null,
       city: null,
@@ -74,6 +81,11 @@ export const AdvancedSearchFilters = ({
       qualityBadge: null,
       emotion: null,
       searchQuery: filters.searchQuery, // Keep search query
+      minReactions: null,
+      minListens: null,
+      minCompletionRate: null,
+      creatorReputation: null,
+      language: null,
     });
   };
 
@@ -81,12 +93,18 @@ export const AdvancedSearchFilters = ({
     filters.moodEmoji !== null ||
     filters.durationMin !== null ||
     filters.durationMax !== null ||
+    filters.durationPreset !== null ||
     filters.dateFrom !== null ||
     filters.dateTo !== null ||
     filters.city !== null ||
     filters.topicId !== null ||
     filters.qualityBadge !== null ||
-    filters.emotion !== null;
+    filters.emotion !== null ||
+    filters.minReactions !== null ||
+    filters.minListens !== null ||
+    filters.minCompletionRate !== null ||
+    filters.creatorReputation !== null ||
+    filters.language !== null;
 
   const handleSaveSearch = () => {
     if (saveSearchName.trim() && onSaveSearch) {
@@ -198,8 +216,8 @@ export const AdvancedSearchFilters = ({
             {/* Duration Range */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Duration (seconds)</Label>
-                {(filters.durationMin !== null || filters.durationMax !== null) && (
+                <Label className="text-xs font-medium">Duration</Label>
+                {(filters.durationMin !== null || filters.durationMax !== null || filters.durationPreset !== null) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -207,11 +225,69 @@ export const AdvancedSearchFilters = ({
                     onClick={() => {
                       updateFilter("durationMin", null);
                       updateFilter("durationMax", null);
+                      updateFilter("durationPreset", null);
                     }}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 )}
+              </div>
+              {/* Duration Presets */}
+              <div className="flex gap-2">
+                <Button
+                  variant={filters.durationPreset === "short" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 flex-1 text-xs"
+                  onClick={() => {
+                    if (filters.durationPreset === "short") {
+                      updateFilter("durationPreset", null);
+                      updateFilter("durationMin", null);
+                      updateFilter("durationMax", null);
+                    } else {
+                      updateFilter("durationPreset", "short");
+                      updateFilter("durationMin", 0);
+                      updateFilter("durationMax", 10);
+                    }
+                  }}
+                >
+                  Short (&lt;10s)
+                </Button>
+                <Button
+                  variant={filters.durationPreset === "medium" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 flex-1 text-xs"
+                  onClick={() => {
+                    if (filters.durationPreset === "medium") {
+                      updateFilter("durationPreset", null);
+                      updateFilter("durationMin", null);
+                      updateFilter("durationMax", null);
+                    } else {
+                      updateFilter("durationPreset", "medium");
+                      updateFilter("durationMin", 10);
+                      updateFilter("durationMax", 20);
+                    }
+                  }}
+                >
+                  Medium (10-20s)
+                </Button>
+                <Button
+                  variant={filters.durationPreset === "long" ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 flex-1 text-xs"
+                  onClick={() => {
+                    if (filters.durationPreset === "long") {
+                      updateFilter("durationPreset", null);
+                      updateFilter("durationMin", null);
+                      updateFilter("durationMax", null);
+                    } else {
+                      updateFilter("durationPreset", "long");
+                      updateFilter("durationMin", 20);
+                      updateFilter("durationMax", 30);
+                    }
+                  }}
+                >
+                  Long (&gt;20s)
+                </Button>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -219,7 +295,10 @@ export const AdvancedSearchFilters = ({
                     type="number"
                     placeholder="Min"
                     value={filters.durationMin ?? ""}
-                    onChange={(e) => updateFilter("durationMin", e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => {
+                      updateFilter("durationMin", e.target.value ? Number(e.target.value) : null);
+                      updateFilter("durationPreset", null); // Clear preset when manually setting
+                    }}
                     className="h-8 text-sm"
                     min={0}
                     max={30}
@@ -229,7 +308,10 @@ export const AdvancedSearchFilters = ({
                     type="number"
                     placeholder="Max"
                     value={filters.durationMax ?? ""}
-                    onChange={(e) => updateFilter("durationMax", e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => {
+                      updateFilter("durationMax", e.target.value ? Number(e.target.value) : null);
+                      updateFilter("durationPreset", null); // Clear preset when manually setting
+                    }}
                     className="h-8 text-sm"
                     min={0}
                     max={30}
@@ -243,6 +325,7 @@ export const AdvancedSearchFilters = ({
                   onValueChange={([min, max]) => {
                     updateFilter("durationMin", min);
                     updateFilter("durationMax", max);
+                    updateFilter("durationPreset", null); // Clear preset when manually setting
                   }}
                   min={0}
                   max={30}
@@ -467,6 +550,132 @@ export const AdvancedSearchFilters = ({
                   <SelectItem value="fear">😨 Fear</SelectItem>
                   <SelectItem value="surprise">😲 Surprise</SelectItem>
                   <SelectItem value="disgust">🤢 Disgust</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Engagement Filters */}
+            <div className="space-y-3 border-t pt-3">
+              <Label className="text-xs font-medium">Engagement</Label>
+              
+              {/* Min Reactions */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Min Reactions</Label>
+                  {filters.minReactions !== null && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => clearFilter("minReactions")}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  type="number"
+                  placeholder="Any"
+                  value={filters.minReactions ?? ""}
+                  onChange={(e) => updateFilter("minReactions", e.target.value ? Number(e.target.value) : null)}
+                  className="h-8 text-sm"
+                  min={0}
+                />
+              </div>
+
+              {/* Min Listens */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Min Listens</Label>
+                  {filters.minListens !== null && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => clearFilter("minListens")}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  type="number"
+                  placeholder="Any"
+                  value={filters.minListens ?? ""}
+                  onChange={(e) => updateFilter("minListens", e.target.value ? Number(e.target.value) : null)}
+                  className="h-8 text-sm"
+                  min={0}
+                />
+              </div>
+
+              {/* Min Completion Rate */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">Min Completion Rate (%)</Label>
+                  {filters.minCompletionRate !== null && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => clearFilter("minCompletionRate")}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="Any"
+                    value={filters.minCompletionRate ?? ""}
+                    onChange={(e) => updateFilter("minCompletionRate", e.target.value ? Number(e.target.value) : null)}
+                    className="h-8 text-sm"
+                    min={0}
+                    max={100}
+                  />
+                  <Slider
+                    value={[filters.minCompletionRate ?? 0]}
+                    onValueChange={([value]) => updateFilter("minCompletionRate", value)}
+                    min={0}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Creator Reputation Filter */}
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Creator Reputation</Label>
+                {filters.creatorReputation && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => clearFilter("creatorReputation")}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+              <Select
+                value={filters.creatorReputation || ""}
+                onValueChange={(value) => updateFilter("creatorReputation", (value || null) as typeof filters.creatorReputation)}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Any reputation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Any reputation</SelectItem>
+                  <SelectItem value="high">⭐ High (Top creators)</SelectItem>
+                  <SelectItem value="medium">✨ Medium (Established)</SelectItem>
+                  <SelectItem value="low">🎤 Low (New creators)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

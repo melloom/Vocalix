@@ -17,7 +17,7 @@ interface ReportClipDialogProps {
   trigger: React.ReactNode;
 }
 
-const REPORT_REASONS = ["harassment", "hate", "NSFW", "personal data", "self-harm", "other"] as const;
+const REPORT_REASONS = ["harassment", "hate", "NSFW", "18+ content", "personal data", "self-harm", "other"] as const;
 
 export const ReportClipDialog = ({ clipId, trigger }: ReportClipDialogProps) => {
   const [open, setOpen] = useState(false);

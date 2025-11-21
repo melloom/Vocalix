@@ -9,6 +9,8 @@ project_id = "xgblxtopsapvacyaurcr"
   verify_jwt = false
   [functions."validate-account-creation"]
   verify_jwt = false
+  [functions."update-engagement-velocity"]
+  verify_jwt = false
 
 # Cron jobs are configured in Supabase Dashboard
 # [cron]

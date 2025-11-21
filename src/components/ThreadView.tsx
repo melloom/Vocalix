@@ -147,15 +147,29 @@ export const ThreadView = ({
       </Button>
 
       {isExpanded && (
-        <div className="space-y-3 ml-8 border-l-2 border-l-primary/20 pl-4">
+        <div className="space-y-3 ml-8 border-l-2 border-l-primary/20 pl-4 relative">
+          {/* Enhanced thread indicator line */}
+          <div className="absolute -left-2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent" />
+          
           {replies.map((reply, index) => (
             <div key={reply.id} className="relative">
+              {/* Thread connector dot */}
+              <div className="absolute -left-[34px] top-6 w-2 h-2 rounded-full bg-primary/40 border-2 border-background z-10" />
+              
+              {/* Horizontal connector line */}
               <div className="absolute -left-6 top-6 w-4 h-0.5 bg-primary/30" />
+              
               <div className="relative">
-                {/* Thread line connector */}
+                {/* Vertical thread line connector */}
                 {index < replies.length - 1 && (
                   <div className="absolute -left-4 top-12 bottom-0 w-0.5 bg-primary/20" />
                 )}
+                
+                {/* Parent clip highlight indicator */}
+                {index === 0 && (
+                  <div className="absolute -left-[38px] top-0 bottom-0 w-1 bg-primary/30 rounded-full" />
+                )}
+                
                 <ClipCard
                   clip={reply}
                   captionsDefault={false}
@@ -165,6 +179,7 @@ export const ThreadView = ({
                   isReply={true}
                   depth={1}
                 />
+                
                 {/* Nested replies (if any) */}
                 {reply.reply_count && reply.reply_count > 0 && (
                   <div className="mt-2 ml-4">
@@ -179,6 +194,14 @@ export const ThreadView = ({
               </div>
             </div>
           ))}
+          
+          {/* Continue thread indicator */}
+          {replies.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+              <div className="w-4 h-0.5 bg-primary/20" />
+              <span>Continue thread...</span>
+            </div>
+          )}
         </div>
       )}
     </div>

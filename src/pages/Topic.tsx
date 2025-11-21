@@ -15,6 +15,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { PaginationControls } from "@/components/PaginationControls";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { TopicDiscovery } from "@/components/TopicDiscovery";
 
 interface Topic {
   id: string;
@@ -663,7 +664,10 @@ const Topic = () => {
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-8 space-y-8">
 
         {/* Discussion & Questions Section (Reddit-style) */}
         <section className="space-y-4">
@@ -1024,6 +1028,21 @@ const Topic = () => {
             </Card>
           )}
         </section>
+          </div>
+
+          {/* Right Sidebar - Topic Discovery */}
+          <aside className="hidden lg:block lg:col-span-4">
+            <div className="sticky top-4">
+              <TopicDiscovery
+                profileId={viewerProfile?.id}
+                currentTopicId={topicId || null}
+                showRecommendations={true}
+                showSimilar={true}
+                showTrending={true}
+              />
+            </div>
+          </aside>
+        </div>
       </main>
     </div>
   );

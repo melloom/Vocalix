@@ -12,6 +12,7 @@ import { ArrowLeft, TrendingUp, Calendar, Users, Plus, Search, Sparkles, Clock, 
 import { format, formatDistanceToNow } from 'date-fns';
 import { CreateTopicModal } from '@/components/CreateTopicModal';
 import { useProfile } from '@/hooks/useProfile';
+import { TopicDiscovery } from '@/components/TopicDiscovery';
 
 interface Topic {
   id: string;
@@ -172,6 +173,9 @@ export default function AllTopics() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-8">
         {/* Search and Filters */}
         <div className="space-y-6 mb-8">
           {/* Search Bar */}
@@ -373,6 +377,20 @@ export default function AllTopics() {
             ))}
           </div>
         )}
+          </div>
+
+          {/* Right Sidebar - Topic Discovery */}
+          <aside className="hidden lg:block lg:col-span-4">
+            <div className="sticky top-4">
+              <TopicDiscovery
+                profileId={profile?.id}
+                showRecommendations={true}
+                showSimilar={false}
+                showTrending={true}
+              />
+            </div>
+          </aside>
+        </div>
       </main>
 
       <CreateTopicModal

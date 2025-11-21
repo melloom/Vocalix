@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { CreateTopicModal } from './CreateTopicModal';
+import { TopicDiscovery } from './TopicDiscovery';
+import { useProfile } from '@/hooks/useProfile';
 
 interface Topic {
   id: string;
@@ -41,6 +43,7 @@ interface LiveRoom {
 
 export const LeftSidebar = () => {
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+  const { profile } = useProfile();
 
   // Get live rooms
   const { data: liveRooms, isLoading: isLoadingRooms } = useQuery({
@@ -248,6 +251,15 @@ export const LeftSidebar = () => {
           refetchTopics();
           setIsCreateTopicOpen(false);
         }}
+      />
+
+      {/* Topic Recommendations */}
+      <TopicDiscovery
+        profileId={profile?.id}
+        showRecommendations={true}
+        showSimilar={false}
+        showTrending={false}
+        className="mt-6"
       />
 
       {/* Live Rooms Preview */}

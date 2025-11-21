@@ -49,7 +49,6 @@ interface RecordModalProps {
   chainId?: string | null;
   challengeId?: string | null;
   communityId?: string | null;
-  onOpenBulkUpload?: () => void;
   replyingTo?: {
     id: string;
     handle: string;
@@ -85,7 +84,6 @@ export const RecordModal = ({
   chainId = null,
   challengeId = null,
   communityId = null,
-  onOpenBulkUpload,
   replyingTo = null,
   remixingFrom = null,
   continuingChain = null,
@@ -1201,7 +1199,7 @@ export const RecordModal = ({
 
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-sm rounded-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="space-y-1 flex-shrink-0">
+        <DialogHeader className="space-y-1 flex-shrink-0 sticky top-0 bg-background z-10 pb-2 border-b">
           <DialogTitle className="text-center text-xl">
             {remixingFrom
               ? audioBlob
@@ -1282,21 +1280,6 @@ export const RecordModal = ({
                     Supports: .webm, .mp3, .wav, .ogg, .m4a, .aac (max 10MB)
                   </p>
                 </>
-              )}
-              
-              {/* Bulk Upload Option - only show for new recordings (not replies/remixes) */}
-              {!replyingTo && !remixingFrom && !continuingChain && onOpenBulkUpload && (
-                <Button
-                  variant="outline"
-                  className="w-full rounded-xl py-6 flex items-center justify-center gap-2"
-                  onClick={() => {
-                    onClose();
-                    onOpenBulkUpload();
-                  }}
-                >
-                  <Upload className="h-5 w-5" />
-                  <span className="font-medium">Bulk Upload Files</span>
-                </Button>
               )}
               
               {/* Podcast Mode Toggle - only show for new recordings (not replies/remixes) */}

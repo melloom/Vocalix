@@ -183,13 +183,34 @@ async function enhancedContentScan(
           })
           .eq("id", clip.id);
 
+        // Check if content is 18+ (sexual/explicit content)
+        const is18Plus = moderationResult.reasons.some((reason: string) => {
+          const lowerReason = reason.toLowerCase();
+          return lowerReason.includes("sexual") || 
+                 lowerReason.includes("explicit") || 
+                 lowerReason.includes("nsfw") ||
+                 lowerReason.includes("adult");
+        });
+
+        // If 18+ content detected with high confidence, automatically mark as sensitive
+        if (is18Plus && moderationResult.risk >= 0.7) {
+          await supabase
+            .from("clips")
+            .update({ content_rating: "sensitive" })
+            .eq("id", clip.id);
+        }
+
         // Create flag if needed
         if (moderationResult.flagged) {
+          const flagReasons = is18Plus 
+            ? [...moderationResult.reasons, "18+ content detected"]
+            : moderationResult.reasons;
+
           const { error: flagError } = await supabase
             .from("moderation_flags")
             .insert({
               clip_id: clip.id,
-              reasons: moderationResult.reasons,
+              reasons: flagReasons,
               risk: moderationResult.risk,
               source: "ai",
               priority: Math.min(Math.floor(moderationResult.risk * 10), 100),
@@ -204,7 +225,7 @@ async function enhancedContentScan(
                 p_flag_id: null, // Will be set by trigger
                 p_clip_id: clip.id,
                 p_risk: moderationResult.risk,
-                p_reasons: moderationResult.reasons,
+                p_reasons: flagReasons,
                 p_source: "ai",
               });
             }

@@ -53,8 +53,10 @@ export const useSearch = (profileId: string | null | undefined) => {
         mood_emoji_filter: filters?.moodEmoji || null,
         city_filter: filters?.city || null,
         topic_id_filter: filters?.topicId || null,
-        min_reactions: null, // Can be added later
-        min_listens: null, // Can be added later
+        min_reactions: filters?.minReactions || null,
+        min_listens: filters?.minListens || null,
+        min_completion_rate: filters?.minCompletionRate || null,
+        creator_reputation: filters?.creatorReputation || null,
         quality_badge_filter: filters?.qualityBadge || null,
         emotion_filter: filters?.emotion || null,
         limit_results: limit,
@@ -177,8 +179,10 @@ export const useSearch = (profileId: string | null | undefined) => {
         mood_emoji_filter: filters?.moodEmoji || null,
         city_filter: filters?.city || null,
         topic_id_filter: filters?.topicId || null,
-        min_reactions: null,
-        min_listens: null,
+        min_reactions: filters?.minReactions || null,
+        min_listens: filters?.minListens || null,
+        min_completion_rate: filters?.minCompletionRate || null,
+        creator_reputation: filters?.creatorReputation || null,
         quality_badge_filter: filters?.qualityBadge || null,
         emotion_filter: filters?.emotion || null,
         limit_results: limit,
@@ -202,6 +206,20 @@ export const useSearch = (profileId: string | null | undefined) => {
       return (data || []) as Array<{ query: string; search_count: number }>;
     },
   });
+
+  // Get related searches ("People also searched for")
+  const getRelatedSearches = useCallback(async (query: string, limit: number = 5) => {
+    if (!query.trim()) return [];
+    
+    const { data, error } = await supabase.rpc("get_related_searches", {
+      p_query: query.trim(),
+      p_profile_id: profileId || null,
+      p_limit: limit,
+    });
+
+    if (error) throw error;
+    return (data || []) as Array<{ query: string; search_count: number }>;
+  }, [profileId]);
 
   // Delete search history item
   const deleteSearchHistory = useMutation({
@@ -302,6 +320,7 @@ export const useSearch = (profileId: string | null | undefined) => {
     searchHistory,
     getSearchSuggestions,
     trendingSearches,
+    getRelatedSearches,
     deleteSearchHistory,
     clearSearchHistory,
     savedSearches,

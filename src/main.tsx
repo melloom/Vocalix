@@ -47,14 +47,26 @@ window.addEventListener("unhandledrejection", (event) => {
   // Check for generic Object errors (often from browser extensions like content.js)
   // These are typically non-critical and can be safely ignored
   const isGenericObjectError = 
-    (typeof error === 'object' && error !== null && !error.message && !error.stack && !errorCode) ||
-    (error?.constructor?.name === 'Object' && !error.message && !error.stack);
+    (typeof error === 'object' && error !== null && !error.message && !error.stack && !errorCode && !httpStatus) ||
+    (error?.constructor?.name === 'Object' && !error.message && !error.stack) ||
+    (error?.constructor === Object && !error.message && !error.stack && !errorCode);
   
-  if (is403Error || is404Error || isGenericObjectError) {
-    // Silently handle 403/404/generic Object errors - they're expected in some cases
+  // Check for browser extension messaging errors
+  const isExtensionError = 
+    error?.message?.includes("Could not establish connection") ||
+    error?.message?.includes("Receiving end does not exist") ||
+    error?.message?.includes("Extension context invalidated") ||
+    error?.message?.includes("chrome-extension://") ||
+    error?.message?.includes("moz-extension://") ||
+    String(error).includes("Could not establish connection") ||
+    String(error).includes("Receiving end does not exist");
+  
+  if (is403Error || is404Error || isGenericObjectError || isExtensionError) {
+    // Silently handle 403/404/generic Object/extension errors - they're expected in some cases
     // 404 errors are expected when RPC functions don't exist (migrations not run)
     // 403 errors can come from RLS policies or browser extensions (content.js)
     // Generic Object errors are often from browser extensions
+    // Extension errors occur when extensions try to communicate with disconnected scripts
     // Don't log to avoid console spam, just prevent the uncaught error
     event.preventDefault();
     event.stopPropagation();
@@ -86,15 +98,75 @@ window.addEventListener("unhandledrejection", (event) => {
   });
 });
 
-const existingDeviceId =
-  localStorage.getItem("deviceId") ?? localStorage.getItem("voice-note-device-id");
+// Global error handler for runtime errors (not promise rejections)
+window.addEventListener("error", (event) => {
+  const error = event.error;
+  const errorMessage = event.message || error?.message || String(error) || '';
+  const errorStack = error?.stack || event.error?.stack || '';
+  
+  // Check if this is a browser extension error
+  const isExtensionError = 
+    // Teflon Content Script or other extension-related errors
+    errorMessage.includes("messenger") ||
+    errorMessage.includes("Teflon") ||
+    errorMessage.includes("Content Script") ||
+    errorStack.includes("Teflon") ||
+    errorStack.includes("Content Script") ||
+    errorStack.includes("chrome-extension://") ||
+    errorStack.includes("moz-extension://") ||
+    // Common extension error patterns
+    errorMessage.includes("Cannot read properties of undefined") && (
+      errorMessage.includes("reading 'messenger'") ||
+      errorStack.includes("messenger") ||
+      errorStack.includes("handleMessage")
+    ) ||
+    // Extension context errors
+    errorMessage.includes("Extension context invalidated") ||
+    errorMessage.includes("Receiving end does not exist") ||
+    errorMessage.includes("Could not establish connection") ||
+    // Check if error originates from extension scripts
+    (event.filename && (
+      event.filename.includes("chrome-extension://") ||
+      event.filename.includes("moz-extension://") ||
+      event.filename.includes("extension://")
+    ));
+  
+  if (isExtensionError) {
+    // Silently suppress browser extension errors - they don't affect our app
+    // These errors occur when extensions try to interact with the page
+    event.preventDefault();
+    event.stopPropagation();
+    return false; // Prevent default error logging
+  }
+  
+  // For legitimate errors from our app, let them bubble up normally
+  // They will be caught by Sentry ErrorBoundary or other error handlers
+  return true;
+});
+
+// Safely get device ID with error handling for mobile browsers
+let existingDeviceId: string | null = null;
+try {
+  if (typeof Storage !== 'undefined' && localStorage) {
+    existingDeviceId = localStorage.getItem("deviceId") ?? localStorage.getItem("voice-note-device-id");
+  }
+} catch (e) {
+  // Handle localStorage errors (private browsing, quota exceeded, etc.)
+  console.warn("Failed to access localStorage:", e);
+}
 
 if (existingDeviceId) {
-  if (!localStorage.getItem("deviceId")) {
-    localStorage.setItem("deviceId", existingDeviceId);
-    localStorage.removeItem("voice-note-device-id");
+  try {
+    if (typeof Storage !== 'undefined' && localStorage) {
+      if (!localStorage.getItem("deviceId")) {
+        localStorage.setItem("deviceId", existingDeviceId);
+        localStorage.removeItem("voice-note-device-id");
+      }
+    }
+    updateSupabaseDeviceHeader(existingDeviceId);
+  } catch (e) {
+    console.warn("Failed to update device ID:", e);
   }
-  updateSupabaseDeviceHeader(existingDeviceId);
 }
 
 // Initialize RPC function availability check on app startup
@@ -154,12 +226,61 @@ createRoot(document.getElementById("root")!).render(
               <pre className="whitespace-pre-wrap text-[10px] mt-1">{error?.toString()}</pre>
             </details>
           )}
-          <button
-            onClick={resetError}
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
-          >
-            Try Again
-          </button>
+          <div className="flex flex-col gap-3 pt-2">
+            <button
+              onClick={() => {
+                // Check if we're online before reloading
+                if (!navigator.onLine) {
+                  alert('You appear to be offline. Please check your internet connection and try again.');
+                  return;
+                }
+                window.location.reload();
+              }}
+              className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-medium"
+            >
+              Refresh Page
+            </button>
+            <button
+              onClick={resetError}
+              className="w-full px-4 py-2 border border-border rounded-lg hover:bg-muted"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                try {
+                  if (typeof Storage !== 'undefined' && localStorage) {
+                    localStorage.removeItem('missing_rpc_functions');
+                  }
+                } catch (e) {
+                  // Ignore localStorage errors (e.g., private browsing mode, quota exceeded)
+                  console.warn('Failed to clear localStorage:', e);
+                }
+                
+                // Check if we're online before reloading
+                if (!navigator.onLine) {
+                  alert('You appear to be offline. Please check your internet connection and try again.');
+                  return;
+                }
+                
+                window.location.reload();
+              }}
+              className="w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear Cache & Reload
+            </button>
+            
+            {/* Mobile-specific help text */}
+            <div className="text-xs text-muted-foreground pt-2 border-t space-y-1">
+              <p className="font-medium">Still having issues?</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>Make sure you have a stable internet connection</li>
+                <li>Try closing and reopening the app</li>
+                <li>Check if your browser is up to date</li>
+                <li>If on mobile, try switching between WiFi and mobile data</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     )}

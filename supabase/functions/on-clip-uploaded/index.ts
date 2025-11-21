@@ -49,7 +49,7 @@ const moderateTranscript = async (transcript: string) => {
   const json = await response.json();
   const result = json.results?.[0];
   if (!result) {
-    return { flag: false, reasons: [], risk: 0 };
+    return { flag: false, reasons: [], risk: 0, is18Plus: false };
   }
 
   const reasons = Object.entries(result.categories || {})
@@ -57,7 +57,22 @@ const moderateTranscript = async (transcript: string) => {
     .map(([key]) => key.replace(/_/g, " "));
   const risk = Math.max(...Object.values(result.category_scores || { default: 0 }));
 
-  return { flag: Boolean(result.flagged), reasons, risk: Number.isFinite(risk) ? risk : 0 };
+  // Check if content is 18+ (sexual/explicit content)
+  const categories = result.categories || {};
+  const categoryScores = result.category_scores || {};
+  const is18Plus = Boolean(
+    categories.sexual || 
+    categories.sexual_minors || 
+    (categoryScores.sexual && Number(categoryScores.sexual) > 0.7) ||
+    (categoryScores.sexual_minors && Number(categoryScores.sexual_minors) > 0.7)
+  );
+
+  return { 
+    flag: Boolean(result.flagged), 
+    reasons, 
+    risk: Number.isFinite(risk) ? risk : 0,
+    is18Plus 
+  };
 };
 
 const summarizeTranscript = async (transcript: string) => {
@@ -630,6 +645,11 @@ serve(async (req) => {
         sentiment: summaryData.SENTIMENT ?? "neutral",
       },
     };
+
+    // If 18+ content detected with high confidence, mark as sensitive
+    if (moderationData.is18Plus && moderationData.risk >= 0.7) {
+      updateData.content_rating = "sensitive";
+    }
     
     // Add quality data if available
     if (qualityData) {

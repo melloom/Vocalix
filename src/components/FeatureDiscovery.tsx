@@ -73,6 +73,41 @@ export const FeatureDiscovery = ({
   const [visibleFeatures, setVisibleFeatures] = useState<Feature[]>([]);
   const [dismissedFeatures, setDismissedFeatures] = useState<Set<string>>(new Set());
   const [isMobile, setIsMobile] = useState(false);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+
+  // Check if onboarding/tutorial is complete
+  useEffect(() => {
+    const checkOnboardingStatus = () => {
+      // Check if tutorial is completed
+      const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed") === "true";
+      
+      // Check if profile exists (onboarding complete)
+      const profileId = localStorage.getItem("profileId");
+      const hasProfile = !!profileId;
+      
+      // Only show features after both tutorial and onboarding are complete
+      setIsOnboardingComplete(tutorialCompleted && hasProfile);
+    };
+
+    checkOnboardingStatus();
+    
+    // Listen for storage changes (when tutorial/onboarding completes)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "echo_garden_tutorial_completed" || e.key === "profileId") {
+        checkOnboardingStatus();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically in case storage changes in same window
+    const interval = setInterval(checkOnboardingStatus, 1000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Detect if device is mobile/tablet
   useEffect(() => {
@@ -105,6 +140,12 @@ export const FeatureDiscovery = ({
 
   // Filter and prioritize features
   useEffect(() => {
+    // Don't show any features if onboarding/tutorial is not complete
+    if (!isOnboardingComplete) {
+      setVisibleFeatures([]);
+      return;
+    }
+
     const available = features
       .filter((f) => {
         // Filter out dismissed features
@@ -123,7 +164,7 @@ export const FeatureDiscovery = ({
       .slice(0, maxVisible);
 
     setVisibleFeatures(available);
-  }, [features, dismissedFeatures, maxVisible, isMobile]);
+  }, [features, dismissedFeatures, maxVisible, isMobile, isOnboardingComplete]);
 
   const dismissFeature = useCallback(
     (featureId: string) => {
