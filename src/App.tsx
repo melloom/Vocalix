@@ -67,6 +67,7 @@ const LiveRooms = retryLazyImport(() => import("./pages/LiveRooms"));
 const LiveRoom = retryLazyImport(() => import("./pages/LiveRoom"));
 const Embed = retryLazyImport(() => import("./pages/Embed"));
 const DirectMessages = retryLazyImport(() => import("./pages/DirectMessages"));
+const PrivateChats = retryLazyImport(() => import("./pages/PrivateChats"));
 const Analytics = retryLazyImport(() => import("./pages/Analytics"));
 const Leaderboards = retryLazyImport(() => import("./pages/Leaderboards"));
 const SeriesList = retryLazyImport(() => import("./pages/SeriesList"));
@@ -162,6 +163,8 @@ const App = () => {
                         <Route path="/live-room/:id" element={<LiveRoom />} />
                         <Route path="/messages" element={<DirectMessages />} />
                         <Route path="/messages/:userId" element={<DirectMessages />} />
+                        <Route path="/private-chats" element={<PrivateChats />} />
+                        <Route path="/private-chats/:chatId" element={<PrivateChats />} />
                         <Route path="/analytics" element={<Analytics />} />
                         <Route path="/leaderboards" element={<Leaderboards />} />
                         <Route path="/series" element={<SeriesList />} />

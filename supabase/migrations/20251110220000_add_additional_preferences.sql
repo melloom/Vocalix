@@ -15,3 +15,5 @@ ADD COLUMN IF NOT EXISTS filter_mature_content BOOLEAN NOT NULL DEFAULT true;
 
 
 
+
+

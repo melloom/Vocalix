@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/useProfile";
-import { useCommunity, useCommunityMembership, useAddModerator, useRemoveModerator, useSearchUsers, useSetCommunitySuccessor, useClearCommunitySuccessor } from "@/hooks/useCommunity";
+import { useCommunity, useCommunityMembership, useAddModerator, useRemoveModerator, useSearchUsers, useSetCommunitySuccessor, useClearCommunitySuccessor, useCommunityStatus, useTransferCommunityOwnership, useOwnershipTransferRateLimit } from "@/hooks/useCommunity";
+import { ReviveCommunityDialog } from "@/components/ReviveCommunityDialog";
 import { useCommunityFollow } from "@/hooks/useCommunityFollow";
 import { toast } from "sonner";
 import { RecordModal } from "@/components/RecordModal";
@@ -108,6 +109,7 @@ const CommunityDetail = () => {
   const [moderatorSearchQuery, setModeratorSearchQuery] = useState("");
   const [successorSearchQuery, setSuccessorSearchQuery] = useState("");
   const [currentSuccessor, setCurrentSuccessor] = useState<any>(null);
+  const [isReviveDialogOpen, setIsReviveDialogOpen] = useState(false);
 
   // First, get community ID from slug
   const [communityId, setCommunityId] = useState<string | null>(null);
@@ -136,6 +138,9 @@ const CommunityDetail = () => {
   const { community: communityData, isLoading: isLoadingCommunityData, error: communityError, refetch: refetchCommunity } = useCommunity(communityId);
   const { isMember, toggleMembership, isJoining, isLeaving } = useCommunityMembership(communityId);
   const { isFollowing, toggleFollow, isFollowingCommunity, isUnfollowingCommunity } = useCommunityFollow(communityId);
+  const { data: communityStatus } = useCommunityStatus(communityId);
+  const transferOwnership = useTransferCommunityOwnership(communityId);
+  const { data: rateLimitInfo } = useOwnershipTransferRateLimit(viewerProfile?.id || null);
   
   // Moderator management hooks
   const addModerator = useAddModerator(communityId);
@@ -511,6 +516,69 @@ const CommunityDetail = () => {
       return;
     }
 
+    if (isMember) {
+      toggleMembership();
+    } else {
+      // Check if community is dead before joining
+      if (communityStatus?.is_dead) {
+        // Check rate limits before showing dialog
+        if (rateLimitInfo && !rateLimitInfo.allowed) {
+          let description = `You've claimed ${rateLimitInfo.transfers_last_day}/${rateLimitInfo.max_per_day} communities today.`;
+          if (rateLimitInfo.hours_since_last_transfer !== null && rateLimitInfo.hours_since_last_transfer < rateLimitInfo.min_hours_between_claims) {
+            description += ` Wait ${Math.ceil(rateLimitInfo.min_hours_between_claims - rateLimitInfo.hours_since_last_transfer)} more hours.`;
+          }
+          toast.error(rateLimitInfo.reason || "Rate limit exceeded", {
+            description,
+          });
+          return;
+        }
+        // Show revive dialog instead of joining directly
+        setIsReviveDialogOpen(true);
+      } else {
+        // Normal join flow
+        toggleMembership();
+      }
+    }
+  };
+
+  const handleReviveAccept = async () => {
+    if (!communityId) return;
+    
+    try {
+      // First join the community (if not already a member)
+      if (!isMember) {
+        // Use the join mutation directly
+        const { error: joinError } = await supabase
+          .from('community_members')
+          .insert({
+            profile_id: viewerProfile?.id,
+            community_id: communityId,
+          });
+        
+        if (joinError) throw joinError;
+      }
+      
+      // Then transfer ownership (this will check rate limits and validate)
+      await transferOwnership.mutateAsync();
+      
+      toast.success("🎉 You're now the host of this community!", {
+        description: "Welcome! You can now manage and grow this community.",
+      });
+      
+      // Refresh community data
+      refetchCommunity();
+    } catch (error: any) {
+      console.error("Error reviving community:", error);
+      // Show the actual error message from the server
+      const errorMessage = error?.message || error?.error || "Failed to become host";
+      toast.error(errorMessage, {
+        description: "Please check the requirements and try again.",
+      });
+    }
+  };
+
+  const handleReviveDecline = () => {
+    // Just join normally without becoming host
     toggleMembership();
   };
 
@@ -2122,6 +2190,19 @@ const CommunityDetail = () => {
           profileCity={viewerProfile?.city || null}
           profileConsentCity={viewerProfile?.consent_city || false}
           communityId={communityId}
+        />
+      )}
+
+      {communityData && (
+        <ReviveCommunityDialog
+          open={isReviveDialogOpen}
+          onOpenChange={setIsReviveDialogOpen}
+          communityName={communityData.name}
+          communityEmoji={communityData.avatar_emoji}
+          onAccept={handleReviveAccept}
+          onDecline={handleReviveDecline}
+          isTransferring={transferOwnership.isPending}
+          rateLimitInfo={rateLimitInfo || undefined}
         />
       )}
     </div>

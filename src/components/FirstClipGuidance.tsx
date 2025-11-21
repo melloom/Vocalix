@@ -1,6 +1,7 @@
 /**
  * First Clip Guidance Component
  * Helps users create their first clip with step-by-step guidance
+ * Only shows after account creation, tutorial completion, and if user hasn't created clips yet
  */
 
 import { useState, useEffect } from "react";
@@ -10,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { announceToScreenReader } from "@/utils/accessibility";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GuidanceStep {
   id: string;
@@ -22,9 +25,9 @@ interface GuidanceStep {
 const GUIDANCE_STEPS: GuidanceStep[] = [
   {
     id: "welcome",
-    title: "Welcome! Ready to share your voice?",
-    description: "Creating your first clip is easy. Let's walk through it together!",
-    actionLabel: "Get Started",
+    title: "Ready to Create Your First Clip? 🎙️",
+    description: "Now that you've explored Echo Garden, let's help you record and share your first voice clip. It's quick and easy!",
+    actionLabel: "Let's Go",
   },
   {
     id: "find-record",
@@ -58,6 +61,8 @@ interface FirstClipGuidanceProps {
   onStartRecording?: () => void;
 }
 
+const TUTORIAL_STORAGE_KEY = "echo_garden_tutorial_completed";
+
 export const FirstClipGuidance = ({
   onComplete,
   onDismiss,
@@ -66,20 +71,80 @@ export const FirstClipGuidance = ({
 }: FirstClipGuidanceProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const { profile, isLoading: isProfileLoading } = useAuth();
 
   useEffect(() => {
-    // Check if user has created a clip or dismissed guidance
-    try {
-      const completed = localStorage.getItem(storageKey);
-      if (!completed) {
+    const checkShouldShow = async () => {
+      setIsChecking(true);
+      
+      try {
+        // 1. Check if guidance was already completed
+        const completed = localStorage.getItem(storageKey);
+        if (completed) {
+          setIsVisible(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // 2. Wait for profile to load
+        if (isProfileLoading) {
+          return; // Will re-run when profile loads
+        }
+
+        // 3. Check if user has created an account (has a profile)
+        if (!profile?.id) {
+          setIsVisible(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // 4. Check if tutorial is completed
+        const tutorialCompleted = localStorage.getItem(TUTORIAL_STORAGE_KEY);
+        if (!tutorialCompleted) {
+          setIsVisible(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // 5. Check if user has already created clips
+        const { data: clips, error } = await supabase
+          .from("clips")
+          .select("id")
+          .eq("profile_id", profile.id)
+          .in("status", ["live", "processing"])
+          .limit(1);
+
+        if (error) {
+          console.warn("Failed to check clips:", error);
+          // If we can't check, don't show guidance to be safe
+          setIsVisible(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // 6. Only show if user hasn't created any clips yet
+        if (clips && clips.length > 0) {
+          // User has clips, mark guidance as completed
+          localStorage.setItem(storageKey, "true");
+          setIsVisible(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // All conditions met - show guidance
         setIsVisible(true);
         announceToScreenReader("First clip guidance available");
+      } catch (error) {
+        console.warn("Failed to check guidance status:", error);
+        setIsVisible(false);
+      } finally {
+        setIsChecking(false);
       }
-    } catch (error) {
-      console.warn("Failed to check guidance status:", error);
-      setIsVisible(true);
-    }
-  }, [storageKey]);
+    };
+
+    checkShouldShow();
+  }, [storageKey, profile?.id, isProfileLoading]);
 
   const markCompleted = () => {
     try {
@@ -127,7 +192,8 @@ export const FirstClipGuidance = ({
     }
   };
 
-  if (!isVisible) {
+  // Don't show anything while checking or if not visible
+  if (isChecking || !isVisible) {
     return null;
   }
 

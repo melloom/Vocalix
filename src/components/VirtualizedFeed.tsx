@@ -205,7 +205,7 @@ export const VirtualizedFeed = ({
                 transform: `translateY(${virtualItem.start}px)`,
               }}
             >
-              <div className="p-2">
+              <div className="px-2 py-3">
                 <ClipCard
                   clip={clip}
                   captionsDefault={captionsDefault}

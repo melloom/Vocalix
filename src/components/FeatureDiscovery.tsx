@@ -20,6 +20,7 @@ interface Feature {
   actionLabel?: string;
   dismissible?: boolean;
   priority?: "high" | "medium" | "low";
+  mobileOnly?: boolean; // Only show on mobile/tablet devices
 }
 
 interface FeatureDiscoveryProps {
@@ -44,6 +45,7 @@ const DEFAULT_FEATURES: Feature[] = [
     description: "Swipe left or right on clips to quickly navigate. Pinch to zoom on images.",
     icon: <Sparkles className="h-5 w-5" />,
     priority: "medium",
+    mobileOnly: true, // Only show on mobile/tablet devices
   },
   {
     id: "undo-redo",
@@ -70,6 +72,23 @@ export const FeatureDiscovery = ({
 }: FeatureDiscoveryProps) => {
   const [visibleFeatures, setVisibleFeatures] = useState<Feature[]>([]);
   const [dismissedFeatures, setDismissedFeatures] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect if device is mobile/tablet
+  useEffect(() => {
+    const checkMobile = () => {
+      // Check for touch support and screen width
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 1024; // Tablets and below
+      const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      setIsMobile(hasTouch && (isSmallScreen || isMobileUserAgent));
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Load dismissed features from storage
   useEffect(() => {
@@ -87,7 +106,13 @@ export const FeatureDiscovery = ({
   // Filter and prioritize features
   useEffect(() => {
     const available = features
-      .filter((f) => !dismissedFeatures.has(f.id))
+      .filter((f) => {
+        // Filter out dismissed features
+        if (dismissedFeatures.has(f.id)) return false;
+        // Filter out mobile-only features on desktop
+        if (f.mobileOnly && !isMobile) return false;
+        return true;
+      })
       .sort((a, b) => {
         const priorityOrder = { high: 0, medium: 1, low: 2 };
         return (
@@ -98,7 +123,7 @@ export const FeatureDiscovery = ({
       .slice(0, maxVisible);
 
     setVisibleFeatures(available);
-  }, [features, dismissedFeatures, maxVisible]);
+  }, [features, dismissedFeatures, maxVisible, isMobile]);
 
   const dismissFeature = useCallback(
     (featureId: string) => {

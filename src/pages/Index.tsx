@@ -21,7 +21,9 @@ import {
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 import { ClipCard } from "@/components/ClipCard";
+import { PostCard } from "@/components/PostCard";
 import { RecordModal } from "@/components/RecordModal";
+import { PostModal } from "@/components/PostModal";
 import { RemixModal } from "@/components/RemixModal";
 import { BulkUploadModal } from "@/components/BulkUploadModal";
 import { ThreadView } from "@/components/ThreadView";
@@ -157,18 +159,70 @@ const getDeterministicJitter = (seed: string, amplitude = 0.05) => {
 
 const generatePromptSeeds = (topic: Topic): string[] => {
   const description = topic.description ?? "";
+  const title = topic.title ?? "";
+  
+  // Helper to check if a seed is too similar to description or title
+  const isTooSimilar = (seed: string): boolean => {
+    const seedLower = seed.toLowerCase();
+    const descLower = description.toLowerCase();
+    const titleLower = title.toLowerCase();
+    
+    // Check if seed is essentially the same as description
+    if ((descLower && seedLower.includes(descLower)) || (descLower && descLower.includes(seedLower))) {
+      return true;
+    }
+    
+    // Check if seed is just title + generic text (redundant)
+    if (titleLower && seedLower.startsWith(titleLower.toLowerCase()) && 
+        (seedLower.includes("share a moment") || seedLower.includes("share a memory"))) {
+      return true;
+    }
+    
+    return false;
+  };
+  
   const segments = description
     .split(/[\n•.;?!]/)
     .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
+    .filter((segment) => segment.length > 0 && segment.length < 100); // Filter out very long segments
 
-  const seeds = [...segments];
+  // Filter out segments that are too similar to the full description
+  const uniqueSegments = segments.filter(segment => {
+    const segmentLower = segment.toLowerCase();
+    const descLower = description.toLowerCase();
+    // Don't include if it's too similar to the full description
+    return !isTooSimilar(segment) && segmentLower !== descLower;
+  });
 
-  if (seeds.length === 0) {
-    seeds.push(`How does "${topic.title}" show up for you?`);
+  const seeds = [...uniqueSegments];
+
+  // Add diverse fallback seeds that aren't redundant
+  const fallbackSeeds = [
+    `How does "${title}" show up for you?`,
+    `Tell a story about "${title}"`,
+    `What comes to mind when you think of "${title}"?`,
+    `Reflect on "${title}"`,
+    `Share your experience with "${title}"`,
+  ];
+
+  // Add fallback seeds that aren't too similar
+  for (const fallback of fallbackSeeds) {
+    if (seeds.length >= 3) break;
+    if (!isTooSimilar(fallback)) {
+      seeds.push(fallback);
+    }
   }
+
+  // If we still don't have enough, add generic prompts (but avoid the redundant one)
   while (seeds.length < 3) {
-    seeds.push(`${topic.title}: share a moment or memory.`);
+    const genericSeed = `Share your thoughts on "${title}"`;
+    if (!isTooSimilar(genericSeed)) {
+      seeds.push(genericSeed);
+    } else {
+      // Last resort - just use a simple prompt
+      seeds.push(`Tell us about it`);
+      break;
+    }
   }
 
   return seeds.slice(0, 3);
@@ -227,13 +281,14 @@ const Index = () => {
   const { isAdmin } = useAdminStatus();
   const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
-  const [allTopicsList, setAllTopicsList] = useState<Topic[]>([]);
   const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestion | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [topicMetrics, setTopicMetrics] = useState<Record<string, TopicMetrics>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you" | null>(null);
@@ -436,8 +491,11 @@ const Index = () => {
     try {
       // Pass current question ID to exclude it (for rotation)
       const excludeId = spotlightQuestion?.id || null;
+      // Get today's topic ID to prioritize questions from today's topic
+      const todayTopicId = todayTopic?.id || null;
       const { data, error } = await supabase.rpc('get_spotlight_question', {
         p_exclude_question_id: excludeId,
+        p_today_topic_id: todayTopicId,
       });
       
       if (error) {
@@ -462,7 +520,7 @@ const Index = () => {
       console.warn("Error fetching spotlight question:", error);
       setSpotlightQuestion(null);
     }
-  }, [spotlightQuestion?.id]);
+  }, [spotlightQuestion?.id, todayTopic?.id]);
 
   const toastRef = useRef(toast);
   useEffect(() => {
@@ -555,9 +613,6 @@ const Index = () => {
       const topicIds = activeTopics.map((topic) => topic.id);
       topicIdsRef.current = topicIds;
 
-      // Store all topics for duplicate checking
-      setAllTopicsList(allTopics);
-
       const metrics = await fetchTopicMetrics(topicIds);
       setTopicMetrics(metrics);
       
@@ -639,6 +694,36 @@ const Index = () => {
       if (clipsData) {
         setClips(clipsData as Clip[]);
         setDisplayedClipsCount(20);
+      }
+
+      // Load posts
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select(`
+          *,
+          profiles (
+            handle,
+            emoji_avatar
+          ),
+          communities (
+            name,
+            slug
+          ),
+          clip_flairs (
+            id,
+            name,
+            color,
+            background_color
+          )
+        `)
+        .eq("status", "live")
+        .eq("visibility", "public")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (!postsError && postsData) {
+        setPosts(postsData);
       }
 
     } catch (error) {
@@ -2751,26 +2836,26 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="max-w-7xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left Sidebar - Hidden on mobile, visible on large screens */}
           <aside className="hidden lg:block lg:col-span-3">
             <LeftSidebar />
           </aside>
 
           {/* Main Content */}
-          <div className="lg:col-span-6 space-y-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="lg:col-span-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border/50 rounded-lg p-2">
           <div className="flex items-center gap-2">
             <div data-tutorial="view-mode">
               <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
             </div>
-            <div className="flex bg-muted/60 rounded-full p-1" data-tutorial="feed-sorting">
+            <div className="flex bg-muted/50 rounded-md p-0.5" data-tutorial="feed-sorting">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={sortMode === "hot" ? "default" : "ghost"}
                     onClick={() => setSortMode(sortMode === "hot" ? null : "hot")}
                   >
@@ -2785,7 +2870,7 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={sortMode === "top" ? "default" : "ghost"}
                     onClick={() => setSortMode(sortMode === "top" ? null : "top")}
                   >
@@ -2800,7 +2885,7 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={sortMode === "controversial" ? "default" : "ghost"}
                     onClick={() => setSortMode(sortMode === "controversial" ? null : "controversial")}
                   >
@@ -2815,7 +2900,7 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={sortMode === "rising" ? "default" : "ghost"}
                     onClick={() => setSortMode(sortMode === "rising" ? null : "rising")}
                   >
@@ -2830,7 +2915,7 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={sortMode === "trending" ? "default" : "ghost"}
                     onClick={() => setSortMode(sortMode === "trending" ? null : "trending")}
                   >
@@ -2846,7 +2931,7 @@ const Index = () => {
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
-                      className="rounded-full px-4"
+                      className="rounded-md px-3 text-xs h-7"
                       variant={sortMode === "for_you" ? "default" : "ghost"}
                       onClick={() => setSortMode(sortMode === "for_you" ? null : "for_you")}
                     >
@@ -2864,7 +2949,7 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <div>
                     <Select value={topTimePeriod} onValueChange={(value: "all" | "week" | "month") => setTopTimePeriod(value)}>
-                      <SelectTrigger className="h-9 w-[120px] rounded-full bg-muted/60 border-transparent">
+                      <SelectTrigger className="h-7 w-[100px] rounded-md bg-muted/50 border-transparent text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -2882,12 +2967,12 @@ const Index = () => {
             )}
           </div>
           {profile?.consent_city && profile.city && (
-            <div className="flex bg-muted/60 rounded-full p-1" data-tutorial="filters">
+            <div className="flex bg-muted/50 rounded-md p-0.5" data-tutorial="filters">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={cityFilter === "global" ? "default" : "ghost"}
                     onClick={() => setCityFilter("global")}
                   >
@@ -2905,6 +2990,7 @@ const Index = () => {
                     className="rounded-full px-4"
                     variant={cityFilter === "local" ? "default" : "ghost"}
                     onClick={() => setCityFilter("local")}
+                    className="rounded-md px-3 text-xs h-7"
                   >
                     Near you
                   </Button>
@@ -3044,8 +3130,8 @@ const Index = () => {
 
         {!isSearching && !sortMode && (spotlightQuestion || todayTopic) && (
           <div className="space-y-4">
-            <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl p-8 text-center space-y-3" data-tutorial="today-topic">
-              <p className="text-sm text-muted-foreground uppercase tracking-wide">
+            <div className="bg-card border-2 border-primary/30 rounded-lg p-6 text-center space-y-3 shadow-sm" data-tutorial="today-topic">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Garden Spotlight
               </p>
               
@@ -3053,16 +3139,16 @@ const Index = () => {
                 // Show spotlight question when we have a good one
                 <>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
-                    <Badge variant="default" className="rounded-full px-3 py-1 bg-primary">
+                    <Badge variant="default" className="rounded-md px-2 py-0.5 text-xs bg-primary">
                       🔥 Hot Question
                     </Badge>
                     {spotlightQuestion.is_answered && (
-                      <Badge variant="secondary" className="rounded-full px-3 py-1">
+                      <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs">
                         ✓ Answered
                       </Badge>
                     )}
                     {!spotlightQuestion.is_answered && (
-                      <Badge variant="outline" className="rounded-full px-3 py-1 border-orange-500 text-orange-600 dark:text-orange-400">
+                      <Badge variant="outline" className="rounded-md px-2 py-0.5 text-xs border-orange-500 text-orange-600 dark:text-orange-400">
                         💭 Need Answers
                       </Badge>
                     )}
@@ -3072,7 +3158,7 @@ const Index = () => {
                       {spotlightQuestion.topic_title}
                     </p>
                   </Link>
-                  <h2 className="text-2xl font-bold mb-3">{spotlightQuestion.content}</h2>
+                  <h2 className="text-xl font-bold mb-3">{spotlightQuestion.content}</h2>
                   {spotlightQuestion.profile_handle && (
                     <p className="text-sm text-muted-foreground mb-3">
                       Asked by @{spotlightQuestion.profile_handle} {spotlightQuestion.profile_emoji_avatar}
@@ -3091,7 +3177,7 @@ const Index = () => {
                   <Link to={`/topic/${spotlightQuestion.topic_id}`}>
                     <Button
                       size="lg"
-                      className="mt-2 h-14 px-8 rounded-2xl"
+                      className="mt-2 h-10 px-6 rounded-md"
                     >
                       Join the Discussion
                     </Button>
@@ -3106,7 +3192,7 @@ const Index = () => {
                         <Button
                           variant={selectedTopicId === todayTopic.id ? "default" : "secondary"}
                           size="sm"
-                          className="rounded-full"
+                          className="rounded-md text-xs h-7"
                           onClick={() => handleTopicToggle(todayTopic.id)}
                         >
                           {selectedTopicId === todayTopic.id ? "Focused on this topic" : "Focus this topic"}
@@ -3116,13 +3202,13 @@ const Index = () => {
                         <p>{selectedTopicId === todayTopic.id ? "Click to show all topics" : "Show only clips about today's topic"}</p>
                       </TooltipContent>
                     </Tooltip>
-                    <Badge variant="secondary" className="rounded-full px-3 py-1">
+                    <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs">
                       {topicMetrics[todayTopic.id]?.listens ?? 0} listeners tuned in
                     </Badge>
                   </div>
                   <Link to={`/topic/${todayTopic.id}`} className="block">
                     <div className="flex items-center gap-2 justify-center mb-2">
-                      <h2 className="text-3xl font-bold hover:underline">{todayTopic.title}</h2>
+                      <h2 className="text-2xl font-bold hover:underline">{todayTopic.title}</h2>
                       {/* Show creator badge if this is a duplicate topic (user-created) */}
                       {todayTopic.user_created_by && todayTopic.creator && (
                         <Tooltip>
@@ -3154,9 +3240,9 @@ const Index = () => {
                       <Button
                         onClick={() => setIsRecordModalOpen(true)}
                         size="lg"
-                        className="mt-4 h-14 px-8 rounded-2xl"
+                        className="mt-4 h-10 px-6 rounded-md"
                       >
-                        <Mic className="mr-2 h-5 w-5" />
+                        <Mic className="mr-2 h-4 w-4" />
                         Share your voice
                       </Button>
                     </TooltipTrigger>
@@ -3171,7 +3257,7 @@ const Index = () => {
                           key={`${seed}-${index}`}
                           variant="outline"
                           size="sm"
-                          className="rounded-full text-xs"
+                          className="rounded-md text-xs h-7"
                         >
                           {seed}
                         </Button>
@@ -3181,88 +3267,16 @@ const Index = () => {
                 </>
               ) : null}
             </div>
-
-            {recentTopics.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Topics</h3>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant={selectedTopicId === null ? "default" : "ghost"}
-                        className="w-full justify-between h-9 px-3 rounded-xl text-xs"
-                        onClick={() => handleTopicToggle(null)}
-                      >
-                        <span className="font-medium">All voices</span>
-                        <span className="text-xs text-muted-foreground">
-                          {totalValidClips}
-                        </span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Show all clips from all topics</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <div className="flex flex-wrap gap-1.5">
-                    {recentTopics.map((topic) => {
-                      const posts = topicMetrics[topic.id]?.posts ?? 0;
-                      const isSelected = selectedTopicId === topic.id;
-                      const isDuplicate = allTopicsList.some(
-                        (t) => t.id !== topic.id && (t.date === topic.date || t.title.toLowerCase() === topic.title.toLowerCase())
-                      );
-                      
-                      return (
-                        <button
-                          key={topic.id}
-                          onClick={() => handleTopicToggle(topic.id)}
-                          className={`text-left rounded-xl border px-3 py-2 transition-all ${
-                            isSelected
-                              ? "border-primary bg-primary/10 text-primary font-medium"
-                              : "border-border/40 bg-card/60 hover:border-primary/30 hover:bg-card/80"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium line-clamp-1">
-                              {topic.title}
-                            </span>
-                            {/* Show small creator badge if this is a duplicate topic */}
-                            {isDuplicate && topic.user_created_by && topic.creator && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="text-[9px] text-muted-foreground/70 flex items-center gap-0.5 px-1 py-0.5 rounded bg-muted/40 border border-border/30">
-                                    <span>{topic.creator.emoji_avatar}</span>
-                                    <span>@{topic.creator.handle}</span>
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Created by @{topic.creator.handle}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                              {posts}
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
         {!isSearching && recommendedClips.length > 0 && (
-          <section className="space-y-4">
+          <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">You might like</h3>
+              <h3 className="text-sm font-semibold">You might like</h3>
               <span className="text-xs text-muted-foreground">Based on your listening history</span>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {recommendedClips.map((clip) => (
                 <ClipCard key={clip.id} clip={clip} showReplyButton={true} viewMode={viewMode} />
               ))}
@@ -3271,12 +3285,12 @@ const Index = () => {
         )}
 
         {!isSearching && similarVoicesClips.length > 0 && (
-          <section className="space-y-4">
+          <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Similar voices</h3>
+              <h3 className="text-sm font-semibold">Similar voices</h3>
               <span className="text-xs text-muted-foreground">Creators you might enjoy</span>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {similarVoicesClips.map((clip) => (
                 <ClipCard key={clip.id} clip={clip} showReplyButton={true} viewMode={viewMode} />
               ))}
@@ -3284,9 +3298,9 @@ const Index = () => {
           </section>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{clipCountLabel}</h3>
+            <h3 className="text-sm font-semibold">{clipCountLabel}</h3>
           </div>
 
           {visibleClips.length === 0 && !isLoading && !(sortMode === "for_you" && isLoadingPersonalized) && (
@@ -3329,12 +3343,23 @@ const Index = () => {
 
           {(isLoading || (sortMode === "for_you" && isLoadingPersonalized)) ? (
             <ClipListSkeleton count={3} compact={viewMode === "compact"} />
-          ) : visibleClips.length > 0 ? (
-            <div className="h-[calc(100vh-300px)] min-h-[600px]">
-              <VirtualizedFeed
-                clips={visibleClips}
-                captionsDefault={profile?.default_captions ?? true}
-                highlightQuery={normalizedQuery}
+          ) : (visibleClips.length > 0 || posts.length > 0) ? (
+            <div className="space-y-4">
+              {/* Posts Section */}
+              {posts.length > 0 && !isSearching && (
+                <div className="space-y-4">
+                  {posts.slice(0, 10).map((post) => (
+                    <PostCard key={post.id} post={post} onPostUpdate={loadData} />
+                  ))}
+                </div>
+              )}
+              {/* Clips Section */}
+              {visibleClips.length > 0 && (
+                <div className="h-[calc(100vh-300px)] min-h-[600px]">
+                  <VirtualizedFeed
+                    clips={visibleClips}
+                    captionsDefault={profile?.default_captions ?? true}
+                    highlightQuery={normalizedQuery}
                 onReply={handleReply}
                 onRemix={handleRemix}
                 onContinueChain={handleContinueChain}
@@ -3343,6 +3368,8 @@ const Index = () => {
                 hasMore={!isSearching && hasMoreClips}
                 prefetchNext={3}
               />
+                </div>
+              )}
             </div>
           ) : null}
         </div>
@@ -3374,6 +3401,21 @@ const Index = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
+              onClick={() => setIsPostModalOpen(true)}
+              size="lg"
+              variant="outline"
+              className="h-14 w-14 rounded-full shadow-lg"
+            >
+              <MessageCircle className="h-6 w-6" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Create a post (text, video, audio, or link)</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
               onClick={() => setIsRecordModalOpen(true)}
               size="lg"
               className="h-16 w-16 rounded-full shadow-lg animate-pulse-glow"
@@ -3400,6 +3442,13 @@ const Index = () => {
         onOpenBulkUpload={() => setIsBulkUploadModalOpen(true)}
         replyingTo={replyingToClip}
         continuingChain={continuingChain}
+      />
+
+      <PostModal
+        isOpen={isPostModalOpen}
+        onClose={() => setIsPostModalOpen(false)}
+        onSuccess={loadData}
+        topicId={(selectedTopicId ?? todayTopic?.id) || null}
       />
 
       {remixingFromClipId && remixingFromClip && (

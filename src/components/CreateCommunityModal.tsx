@@ -32,6 +32,7 @@ export const CreateCommunityModal = ({
   const [avatarEmoji, setAvatarEmoji] = useState("🎙️");
   const [guidelines, setGuidelines] = useState("");
   const [isPublic, setIsPublic] = useState(true);
+  const [isVisiblePublicly, setIsVisiblePublicly] = useState(false);
   const { toast } = useToast();
   const createCommunity = useCreateCommunity();
 
@@ -76,6 +77,7 @@ export const CreateCommunityModal = ({
         avatar_emoji: avatarEmoji,
         guidelines: guidelines.trim() || undefined,
         is_public: isPublic,
+        is_visible_publicly: !isPublic ? isVisiblePublicly : false, // Only relevant for private communities
       });
 
       toast({
@@ -90,6 +92,7 @@ export const CreateCommunityModal = ({
       setAvatarEmoji("🎙️");
       setGuidelines("");
       setIsPublic(true);
+      setIsVisiblePublicly(false);
 
       onSuccess?.();
       onClose();
@@ -110,7 +113,7 @@ export const CreateCommunityModal = ({
         <DialogHeader>
           <DialogTitle>Create Audio Community</DialogTitle>
           <DialogDescription>
-            Create a new community for voice-based discussions.
+            Create a new community for voice-based discussions. You can make it private so only members can see it.
           </DialogDescription>
         </DialogHeader>
 
@@ -184,7 +187,7 @@ export const CreateCommunityModal = ({
             <div className="space-y-0.5">
               <Label htmlFor="isPublic" className="text-sm">Public Community</Label>
               <p className="text-xs text-muted-foreground">
-                Anyone can view and join
+                {isPublic ? "Anyone can view and join" : "Only members can view and join"}
               </p>
             </div>
             <Switch
@@ -193,6 +196,24 @@ export const CreateCommunityModal = ({
               onCheckedChange={setIsPublic}
             />
           </div>
+
+          {!isPublic && (
+            <div className="flex items-center justify-between py-1 border-t border-border pt-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="isVisiblePublicly" className="text-sm">Visible in Public Listings</Label>
+                <p className="text-xs text-muted-foreground">
+                  {isVisiblePublicly 
+                    ? "Community appears in public listings but requires permission to join" 
+                    : "Community is hidden from public listings"}
+                </p>
+              </div>
+              <Switch
+                id="isVisiblePublicly"
+                checked={isVisiblePublicly}
+                onCheckedChange={setIsVisiblePublicly}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>

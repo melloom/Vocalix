@@ -14,6 +14,7 @@ export interface Community {
   clip_count: number;
   follower_count?: number;
   is_public: boolean;
+  is_visible_publicly?: boolean;
   is_active: boolean;
   guidelines: string | null;
   created_at: string;
@@ -33,6 +34,95 @@ export interface CommunityWithDetails extends Community {
   is_creator?: boolean;
   is_following?: boolean;
 }
+
+// Hook to check community status (dead or alive)
+export const useCommunityStatus = (communityId: string | null) => {
+  return useQuery({
+    queryKey: ['community-status', communityId],
+    queryFn: async () => {
+      if (!communityId) return null;
+
+      const { data, error } = await supabase
+        .rpc('check_community_status', { p_community_id: communityId });
+
+      if (error) throw error;
+      return data as { is_dead: boolean; member_count: number; has_creator: boolean } | null;
+    },
+    enabled: !!communityId,
+  });
+};
+
+// Hook to check ownership transfer rate limits
+export const useOwnershipTransferRateLimit = (profileId: string | null) => {
+  return useQuery({
+    queryKey: ['ownership-transfer-rate-limit', profileId],
+    queryFn: async () => {
+      if (!profileId) return null;
+
+      const { data, error } = await supabase
+        .rpc('check_ownership_transfer_rate_limit', { p_profile_id: profileId });
+
+      if (error) throw error;
+      return data as {
+        allowed: boolean;
+        reason: string;
+        transfers_last_6_hours: number;
+        transfers_last_day: number;
+        transfers_last_week: number;
+        communities_owned: number;
+        account_age_days: number;
+        hours_since_last_transfer: number | null;
+        max_per_6_hours: number;
+        max_per_day: number;
+        max_per_week: number;
+        max_total: number;
+        min_account_age_days: number;
+        min_hours_between_claims: number;
+      } | null;
+    },
+    enabled: !!profileId,
+  });
+};
+
+// Hook to transfer community ownership
+export const useTransferCommunityOwnership = (communityId: string | null) => {
+  const { profile: currentProfile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!currentProfile?.id || !communityId) {
+        throw new Error('Missing profile or community');
+      }
+
+      const { data, error } = await supabase
+        .rpc('transfer_community_ownership', {
+          p_community_id: communityId,
+          p_new_owner_profile_id: currentProfile.id,
+        });
+
+      if (error) throw error;
+      
+      // Handle new JSON response format
+      if (data && typeof data === 'object') {
+        const result = data as { success: boolean; error?: string; message?: string };
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to transfer ownership');
+        }
+        return result;
+      }
+      
+      throw new Error('Invalid response from server');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['community-status', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['communities'] });
+      queryClient.invalidateQueries({ queryKey: ['community-membership', currentProfile?.id, communityId] });
+      queryClient.invalidateQueries({ queryKey: ['ownership-transfer-rate-limit', currentProfile?.id] });
+    },
+  });
+};
 
 // Hook to check if user is a member of a community
 export const useCommunityMembership = (communityId: string | null) => {
@@ -80,6 +170,7 @@ export const useCommunityMembership = (communityId: string | null) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['community-membership', currentProfile?.id, communityId] });
       queryClient.invalidateQueries({ queryKey: ['community', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['community-status', communityId] });
       queryClient.invalidateQueries({ queryKey: ['communities'] });
       if (currentProfile?.id) {
         queryClient.invalidateQueries({ queryKey: ['followed-communities', currentProfile.id] });
@@ -296,6 +387,7 @@ export const useCreateCommunity = () => {
       avatar_emoji?: string;
       guidelines?: string;
       is_public?: boolean;
+      is_visible_publicly?: boolean;
     }) => {
       if (!currentProfile?.id) {
         throw new Error('Must be logged in to create a community');
@@ -328,6 +420,7 @@ export const useCreateCommunity = () => {
           avatar_emoji: data.avatar_emoji || '🎙️',
           guidelines: data.guidelines || null,
           is_public: data.is_public !== false,
+          is_visible_publicly: data.is_visible_publicly || false,
           created_by_profile_id: currentProfile.id,
         })
         .select()

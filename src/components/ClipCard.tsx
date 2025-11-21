@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ReportClipDialog } from "@/components/ReportClipDialog";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getEmojiAvatar } from "@/utils/avatar";
 import { useAudioEnhancements } from "@/hooks/useAudioEnhancements";
 import { AudioEnhancementControls } from "@/components/AudioEnhancementControls";
 import { ShareClipDialog } from "@/components/ShareClipDialog";
@@ -793,20 +795,40 @@ export const ClipCard = ({
   };
 
   if (viewMode === "compact") {
+    const compactEmojiAvatar = getEmojiAvatar(clip.profiles?.emoji_avatar, "🎧");
+    const compactProfileHandle = clip.profiles?.handle || "Anonymous";
+    
     return (
-      <Card ref={clipRef} data-clip-id={clip.id} className={`p-3 space-y-2 card-hover ${isReply ? "ml-4 border-l-2 border-l-primary/30" : ""}`}>
+      <Card ref={clipRef} data-clip-id={clip.id} className={`p-3 space-y-2 card-hover bg-card border border-border/50 hover:border-border transition-colors ${isReply ? "ml-4 border-l-2 border-l-primary/30" : ""}`}>
         <div className="flex items-center gap-2">
-          <div className="text-xl">{clip.profiles?.emoji_avatar || "🎧"}</div>
+          <Link to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"} className="flex-shrink-0">
+            <Avatar className="h-6 w-6 border border-border/50">
+              <AvatarFallback className="text-xs bg-muted/50">
+                {compactEmojiAvatar}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">{clip.profiles?.handle || "Anonymous"}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {timeAgo(clip.created_at)}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Link 
+                to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"}
+                className="font-semibold text-xs hover:underline truncate"
+              >
+                {compactProfileHandle}
+              </Link>
+              <span className="text-[10px] text-muted-foreground">•</span>
+              <span className="text-[10px] text-muted-foreground">{timeAgo(clip.created_at)}</span>
               {clip.city && (
-                <span className="ml-1">• {clip.city}</span>
+                <>
+                  <span className="text-[10px] text-muted-foreground">•</span>
+                  <span className="text-[10px] text-muted-foreground">{clip.city}</span>
+                </>
               )}
-            </p>
+            </div>
           </div>
-          <div className="text-lg">{clip.mood_emoji}</div>
+          {clip.mood_emoji && (
+            <div className="text-base flex-shrink-0">{clip.mood_emoji}</div>
+          )}
         </div>
 
         {clip.title && (
@@ -938,95 +960,118 @@ export const ClipCard = ({
     );
   }
 
+  const emojiAvatar = getEmojiAvatar(clip.profiles?.emoji_avatar, "🎧");
+  const profileHandle = clip.profiles?.handle || "Anonymous";
+
   return (
-    <Card ref={clipRef} data-clip-id={clip.id} className={`p-6 space-y-4 card-hover ${isReply ? "ml-8 border-l-2 border-l-primary/30" : ""}`}>
-      <div className="flex items-center gap-3">
-        <div className="text-3xl">{clip.profiles?.emoji_avatar || "🎧"}</div>
-        <div className="flex-1">
-          <p className="font-semibold">{clip.profiles?.handle || "Anonymous"}</p>
-          <p className="text-xs text-muted-foreground">
-            {timeAgo(clip.created_at)}
+    <Card ref={clipRef} data-clip-id={clip.id} className={`p-4 space-y-3 card-hover bg-card border border-border/50 hover:border-border transition-colors ${isReply ? "ml-8 border-l-2 border-l-primary/30" : ""}`}>
+      {/* Reddit-style header with avatar and username */}
+      <div className="flex items-start gap-3">
+        <Link to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"} className="flex-shrink-0">
+          <Avatar className="h-8 w-8 border border-border/50">
+            <AvatarFallback className="text-base bg-muted/50">
+              {emojiAvatar}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link 
+              to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"}
+              className="font-semibold text-sm hover:underline"
+            >
+              {profileHandle}
+            </Link>
+            <span className="text-xs text-muted-foreground">•</span>
+            <span className="text-xs text-muted-foreground">{timeAgo(clip.created_at)}</span>
             {clip.city && (
-              <span className="ml-1 inline-block text-muted-foreground/80">• {clip.city}</span>
+              <>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">{clip.city}</span>
+              </>
             )}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {isReply && (
-              <span className="ml-1 inline-block text-primary/80">• Reply</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">Reply</Badge>
             )}
             {clip.remix_of_clip_id && (
-              <span className="ml-1 inline-block text-primary/80">• Remix</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">Remix</Badge>
             )}
             {clip.duet_of_clip_id && (
-              <span className="ml-1 inline-block text-primary/80">• Duet</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">Duet</Badge>
             )}
             {clip.chain_id && (
-              <span className="ml-1 inline-block text-primary/80">• Chain</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">Chain</Badge>
             )}
             {clip.challenge_id && (
-              <span className="ml-1 inline-block text-primary/80">• Challenge</span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">Challenge</Badge>
             )}
             {clip.uses_cloned_voice && (clip.original_voice_clip || originalVoiceClip) && (
-              <span className="ml-1 inline-flex items-center gap-1 text-primary/80" title="Uses cloned voice">
-                <Copy className="h-3 w-3 inline" />
-                <span className="text-xs">Voice from @{(clip.original_voice_clip || originalVoiceClip)?.profiles?.handle || "Unknown"}</span>
-              </span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="Uses cloned voice">
+                <Copy className="h-2.5 w-2.5 mr-0.5" />
+                Voice from @{(clip.original_voice_clip || originalVoiceClip)?.profiles?.handle || "Unknown"}
+              </Badge>
             )}
             {clip.has_watermark && (
-              <span className="ml-1 inline-flex items-center gap-1 text-muted-foreground" title="AI-generated content (watermarked)">
-                <Sparkles className="h-3 w-3 inline" />
-                <span className="text-xs">AI</span>
-              </span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="AI-generated content">
+                <Sparkles className="h-2.5 w-2.5 mr-0.5" />
+                AI
+              </Badge>
             )}
             {clip.visibility === "private" && (
-              <span className="ml-1 inline-block text-muted-foreground" title="Private clip">
-                <Lock className="h-3 w-3 inline" />
-              </span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="Private clip">
+                <Lock className="h-2.5 w-2.5" />
+              </Badge>
             )}
             {clip.visibility === "followers" && (
-              <span className="ml-1 inline-block text-muted-foreground" title="Followers only">
-                <Users className="h-3 w-3 inline" />
-              </span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="Followers only">
+                <Users className="h-2.5 w-2.5" />
+              </Badge>
             )}
             {clip.sign_language_video_url && (
-              <span className="ml-1 inline-block text-primary/80" title="Sign language available">
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="Sign language available">
                 👋
-              </span>
+              </Badge>
             )}
             {clip.audio_description_url && (
-              <span className="ml-1 inline-block text-primary/80" title="Audio description available">
-                <Volume2 className="h-3 w-3 inline" />
-              </span>
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal" title="Audio description available">
+                <Volume2 className="h-2.5 w-2.5" />
+              </Badge>
             )}
-          </p>
+          </div>
         </div>
-        <div className="text-2xl">{clip.mood_emoji}</div>
+        {clip.mood_emoji && (
+          <div className="text-xl flex-shrink-0">{clip.mood_emoji}</div>
+        )}
       </div>
 
       {clip.title && (
-        <h3 className="text-lg font-semibold">
+        <h3 className="text-base font-semibold leading-snug">
           {highlightText(clip.title, highlightNeedle)}
         </h3>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {clip.is_podcast && (
-          <Badge variant="secondary" className="w-fit">
+          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">
             🎙️ Podcast
           </Badge>
         )}
         {clip.content_rating === "sensitive" && (
-          <Badge variant="destructive" className="w-fit uppercase tracking-wide">
-            Sensitive / NSFW
+          <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-normal uppercase tracking-wide">
+            NSFW
           </Badge>
         )}
         {clip.trending_score && clip.trending_score > 100 && (
-          <Badge variant="default" className="w-fit bg-orange-500 hover:bg-orange-600">
+          <Badge variant="default" className="h-5 px-1.5 text-[10px] font-normal bg-orange-500 hover:bg-orange-600">
             🔥 Trending
           </Badge>
         )}
         {clip.quality_badge && (
           <Badge 
             variant="outline" 
-            className={`w-fit ${
+            className={`h-5 px-1.5 text-[10px] font-normal ${
               clip.quality_badge === "excellent" 
                 ? "border-green-500 text-green-600 bg-green-50 dark:bg-green-950" 
                 : clip.quality_badge === "good"
@@ -1039,12 +1084,12 @@ export const ClipCard = ({
             {clip.quality_badge === "good" && "✨"}
             {clip.quality_badge === "fair" && "🎤"}
             {" "}
-            {clip.quality_badge.charAt(0).toUpperCase() + clip.quality_badge.slice(1)} Quality
+            {clip.quality_badge.charAt(0).toUpperCase() + clip.quality_badge.slice(1)}
           </Badge>
         )}
         {isDownloaded && (
-          <Badge variant="outline" className="w-fit border-primary/50 text-primary">
-            <WifiOff className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal border-primary/50 text-primary">
+            <WifiOff className="h-2.5 w-2.5 mr-0.5" />
             Offline
           </Badge>
         )}
@@ -1056,18 +1101,18 @@ export const ClipCard = ({
           />
         )}
         {clip.crosspost_count && clip.crosspost_count > 0 && (
-          <Badge variant="outline" className="w-fit">
-            <ArrowUpRight className="h-3 w-3 mr-1" />
-            {clip.crosspost_count} crosspost{clip.crosspost_count !== 1 ? "s" : ""}
+          <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+            <ArrowUpRight className="h-2.5 w-2.5 mr-0.5" />
+            {clip.crosspost_count}
           </Badge>
         )}
       </div>
 
       {clipTags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {clipTags.map((tag) => (
             <Link key={tag} to={`/tag/${encodeURIComponent(tag)}`}>
-              <Badge variant="outline" className="rounded-full hover:bg-primary/10 hover:border-primary cursor-pointer transition-colors">
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal rounded-full hover:bg-primary/10 hover:border-primary cursor-pointer transition-colors">
                 #{tag}
               </Badge>
             </Link>
@@ -1076,8 +1121,8 @@ export const ClipCard = ({
       )}
 
       {!isSensitiveHidden && clip.summary && (
-        <p className="text-sm text-muted-foreground italic">
-          "<MentionText text={clip.summary} highlightQuery={highlightNeedle} />"
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          <MentionText text={clip.summary} highlightQuery={highlightNeedle} />
         </p>
       )}
 
@@ -1102,18 +1147,18 @@ export const ClipCard = ({
       ) : (
         <>
           <div className="space-y-3">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Button
                 onClick={togglePlay}
                 disabled={clip.status === "processing"}
                 size="lg"
-                className="h-14 w-14 rounded-full"
+                className="h-12 w-12 rounded-full flex-shrink-0"
               >
-                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
               <div className="flex-1 space-y-1">
                 <div
-                  className="h-2 bg-muted rounded-full cursor-pointer overflow-hidden"
+                  className="h-1.5 bg-muted rounded-full cursor-pointer overflow-hidden"
                   onClick={handleSeek}
                 >
                   <div
@@ -1121,7 +1166,7 @@ export const ClipCard = ({
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>
                     {isPlaying && currentClip?.id === clip.id
                       ? formatTime((globalProgress / 100) * globalDuration)
@@ -1144,12 +1189,12 @@ export const ClipCard = ({
             )}
 
             {showCaptions && getDisplayCaption() && (
-              <div className="p-3 bg-muted rounded-2xl">
-                <p className="text-sm">
+              <div className="p-3 bg-muted/50 rounded-lg border border-border/50">
+                <p className="text-sm leading-relaxed">
                   <MentionText text={getDisplayCaption() || ""} highlightQuery={highlightNeedle} />
                 </p>
                 {clip.detected_language && clip.detected_language !== userPreferredLanguage && clip.translations && clip.translations[userPreferredLanguage] && (
-                  <p className="text-xs text-muted-foreground mt-2 italic">
+                  <p className="text-[10px] text-muted-foreground mt-2 italic">
                     Translated from {clip.detected_language.toUpperCase()}
                   </p>
                 )}
@@ -1193,26 +1238,26 @@ export const ClipCard = ({
             )}
           </div>
 
-          <div className="flex items-center gap-4 pt-2">
+          <div className="flex items-center gap-3 pt-1 border-t border-border/50">
             <VoteButtons
               clipId={clip.id}
               initialVoteScore={clip.vote_score || 0}
               initialUpvotes={clip.upvote_count || 0}
               initialDownvotes={clip.downvote_count || 0}
             />
-            <div className="flex flex-wrap gap-2 flex-1">
+            <div className="flex flex-wrap gap-1.5 flex-1">
               {REACTION_EMOJIS.map((emoji) => {
                 const count = reactions[emoji] || 0;
                 return (
                   <button
                     key={emoji}
                     onClick={() => handleReaction(emoji)}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-full bg-card hover:bg-muted transition-all hover:scale-105 active:scale-95 ${
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-all text-sm ${
                       burstEmoji === emoji ? "animate-bounce-in" : ""
                     }`}
                   >
-                    <span className="text-lg">{emoji}</span>
-                    {count > 0 && <span className="text-xs font-medium">{count}</span>}
+                    <span className="text-base">{emoji}</span>
+                    {count > 0 && <span className="text-[11px] font-medium">{count}</span>}
                   </button>
                 );
               })}
@@ -1286,31 +1331,31 @@ export const ClipCard = ({
         </>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pt-1">
         {isOwner && (
           <Button
             variant="ghost"
             size="sm"
             onClick={handleDelete}
             disabled={isDeleting}
-            className="h-auto px-3 py-1 rounded-full text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="h-7 px-2 rounded-md text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10"
           >
             <Trash2 className="mr-1 h-3 w-3" />
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         )}
-        <div className={`flex items-center gap-2 ${isOwner ? "" : "ml-auto"}`}>
+        <div className={`flex items-center gap-1 ${isOwner ? "" : "ml-auto"}`}>
           {showReplyButton && onReply && !isReply && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onReply(clip.id)}
-              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
             >
               <MessageCircle className="mr-1 h-3 w-3" />
               Reply
               {clip.reply_count && clip.reply_count > 0 && (
-                <span className="ml-1">({clip.reply_count})</span>
+                <span className="ml-0.5">({clip.reply_count})</span>
               )}
             </Button>
           )}
@@ -1319,12 +1364,12 @@ export const ClipCard = ({
               variant="ghost"
               size="sm"
               onClick={() => onRemix(clip.id)}
-              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
             >
               <Repeat2 className="mr-1 h-3 w-3" />
               Remix
               {clip.remix_count && clip.remix_count > 0 && (
-                <span className="ml-1">({clip.remix_count})</span>
+                <span className="ml-0.5">({clip.remix_count})</span>
               )}
             </Button>
           )}
@@ -1333,7 +1378,7 @@ export const ClipCard = ({
               variant="ghost"
               size="sm"
               onClick={() => setIsDuetModalOpen(true)}
-              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
             >
               <Users className="mr-1 h-3 w-3" />
               Duet
@@ -1344,7 +1389,7 @@ export const ClipCard = ({
               variant="ghost"
               size="sm"
               onClick={() => onContinueChain(clip.id)}
-              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
             >
               <Link2 className="mr-1 h-3 w-3" />
               Continue
@@ -1354,7 +1399,7 @@ export const ClipCard = ({
             variant="ghost"
             size="sm"
             onClick={() => setIsShareDialogOpen(true)}
-            className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
           >
             <Share2 className="mr-1 h-3 w-3" />
             Share
@@ -1363,7 +1408,7 @@ export const ClipCard = ({
             variant="ghost"
             size="sm"
             onClick={() => setIsFindVoiceTwinDialogOpen(true)}
-            className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
             title="Find similar voices"
           >
             <Sparkles className="mr-1 h-3 w-3" />
@@ -1374,11 +1419,11 @@ export const ClipCard = ({
               variant="ghost"
               size="sm"
               onClick={() => setIsVoiceCloningRequestDialogOpen(true)}
-              className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
               title="Request to clone this voice"
             >
               <Mic className="mr-1 h-3 w-3" />
-              Clone Voice
+              Clone
             </Button>
           )}
           <Button
@@ -1386,7 +1431,7 @@ export const ClipCard = ({
             size="sm"
             onClick={handleDownload}
             disabled={isDownloading || isOfflineLoading || clip.status === "processing"}
-            className={`h-auto px-3 py-1 rounded-full text-xs ${
+            className={`h-7 px-2 rounded-md text-[11px] ${
               isDownloaded
                 ? "text-primary hover:text-primary hover:bg-primary/10"
                 : "text-muted-foreground hover:text-foreground"
@@ -1409,8 +1454,8 @@ export const ClipCard = ({
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            disabled={isSavingOptimistic}
-            className={`h-auto px-3 py-1 rounded-full text-xs ${
+            disabled={isSaving}
+            className={`h-7 px-2 rounded-md text-[11px] ${
               savedState
                 ? "text-primary hover:text-primary hover:bg-primary/10"
                 : "text-muted-foreground hover:text-foreground"
@@ -1431,7 +1476,7 @@ export const ClipCard = ({
           <ReportClipDialog
             clipId={clip.id}
             trigger={
-              <Button variant="ghost" size="sm" className="h-auto px-3 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground">
                 Report
               </Button>
             }
