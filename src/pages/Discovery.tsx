@@ -206,6 +206,18 @@ const Discovery = () => {
             reason: "Best clips of the week"
           }
         }));
+      } else {
+        // No data - set empty state
+        setSections(prev => ({
+          ...prev,
+          weekly: {
+            title: "Weekly Digest",
+            icon: <Calendar className="h-4 w-4" />,
+            clips: [],
+            isLoading: false,
+            reason: "Best clips of the week"
+          }
+        }));
       }
     } catch (error) {
       logError("Error loading weekly digest", error);
@@ -257,6 +269,18 @@ const Discovery = () => {
             title: "New Voices to Discover",
             icon: <UserPlus className="h-4 w-4" />,
             clips: clips || [],
+            isLoading: false,
+            reason: "Fresh creators to follow"
+          }
+        }));
+      } else {
+        // No data - set empty state
+        setSections(prev => ({
+          ...prev,
+          newVoices: {
+            title: "New Voices to Discover",
+            icon: <UserPlus className="h-4 w-4" />,
+            clips: [],
             isLoading: false,
             reason: "Fresh creators to follow"
           }
@@ -347,6 +371,18 @@ const Discovery = () => {
             title: "Creator Suggestions",
             icon: <UserPlus className="h-4 w-4" />,
             clips: clips || [],
+            isLoading: false,
+            reason: "Similar creators to follow"
+          }
+        }));
+      } else {
+        // No data - set empty state
+        setSections(prev => ({
+          ...prev,
+          creators: {
+            title: "Creator Suggestions",
+            icon: <UserPlus className="h-4 w-4" />,
+            clips: [],
             isLoading: false,
             reason: "Similar creators to follow"
           }
@@ -461,11 +497,79 @@ const Discovery = () => {
             ))}
           </div>
         ) : (
-          <Card className="p-8 text-center text-muted-foreground">
-            <p>No recommendations available at this time.</p>
+          <Card className="p-8 text-center text-muted-foreground rounded-2xl">
+            <div className="flex flex-col items-center gap-3">
+              <Search className="h-12 w-12 opacity-50" />
+              <p className="text-lg font-medium">No recommendations available</p>
+              <p className="text-sm text-muted-foreground">
+                {section.reason || "Check back later for personalized recommendations"}
+              </p>
+            </div>
           </Card>
         )}
       </div>
+    );
+  };
+
+  const renderEmptyState = (tab: string) => {
+    const emptyMessages: Record<string, { icon: React.ReactNode; title: string; message: string; suggestion: string }> = {
+      daily: {
+        icon: <Sparkles className="h-16 w-16 opacity-50" />,
+        title: "No Daily Discoveries Yet",
+        message: "We're still getting to know your preferences. Start listening to clips and we'll personalize your recommendations!",
+        suggestion: "Try exploring topics or following creators to get started."
+      },
+      weekly: {
+        icon: <Calendar className="h-16 w-16 opacity-50" />,
+        title: "No Weekly Digest Available",
+        message: "There aren't enough clips from this week to create a digest yet.",
+        suggestion: "Check back next week or explore the Daily tab for recommendations."
+      },
+      "new-voices": {
+        icon: <UserPlus className="h-16 w-16 opacity-50" />,
+        title: "No New Voices to Discover",
+        message: "We're looking for fresh creators, but there aren't any new voices to recommend right now.",
+        suggestion: "Explore trending clips or check out communities to find new creators."
+      },
+      creators: {
+        icon: <Mic className="h-16 w-16 opacity-50" />,
+        title: "No Creator Suggestions",
+        message: "We don't have enough information yet to suggest similar creators.",
+        suggestion: "Listen to more clips and follow creators you enjoy to get personalized suggestions."
+      }
+    };
+
+    const empty = emptyMessages[tab] || {
+      icon: <Search className="h-16 w-16 opacity-50" />,
+      title: "Nothing to Show",
+      message: "There's no content available in this section right now.",
+      suggestion: "Try refreshing or checking back later."
+    };
+
+    return (
+      <Card className="p-12 text-center rounded-2xl border-dashed">
+        <div className="flex flex-col items-center gap-4 max-w-md mx-auto">
+          {empty.icon}
+          <div>
+            <h2 className="text-xl font-semibold mb-2">{empty.title}</h2>
+            <p className="text-muted-foreground mb-3">{empty.message}</p>
+            <p className="text-sm text-muted-foreground">{empty.suggestion}</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (tab === "daily") loadDailyDiscovery();
+              else if (tab === "weekly") loadWeeklyDigest();
+              else if (tab === "new-voices") loadNewVoices();
+              else if (tab === "creators") loadCreatorSuggestions();
+            }}
+            className="mt-4 rounded-2xl"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </Card>
     );
   };
 
@@ -519,23 +623,45 @@ const Discovery = () => {
           </TabsList>
 
           <TabsContent value="daily" className="space-y-8 mt-6">
-            {renderSection(sections.daily, "daily")}
-            {renderSection(sections.hiddenGems, "hiddenGems")}
-            {renderSection(sections.trendingNetwork, "trendingNetwork")}
-            {renderSection(sections.throwback, "throwback")}
-            {renderSection(sections.similar, "similar")}
+            {sections.daily && !sections.daily.isLoading && (!sections.daily.clips || sections.daily.clips.length === 0) && 
+             (!sections.hiddenGems || sections.hiddenGems.clips?.length === 0) &&
+             (!sections.trendingNetwork || sections.trendingNetwork.clips?.length === 0) &&
+             (!sections.throwback || sections.throwback.clips?.length === 0) &&
+             (!sections.similar || sections.similar.clips?.length === 0) ? (
+              renderEmptyState("daily")
+            ) : (
+              <>
+                {renderSection(sections.daily, "daily")}
+                {renderSection(sections.hiddenGems, "hiddenGems")}
+                {renderSection(sections.trendingNetwork, "trendingNetwork")}
+                {renderSection(sections.throwback, "throwback")}
+                {renderSection(sections.similar, "similar")}
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="weekly" className="space-y-8 mt-6">
-            {renderSection(sections.weekly, "weekly")}
+            {sections.weekly && !sections.weekly.isLoading && (!sections.weekly.clips || sections.weekly.clips.length === 0) ? (
+              renderEmptyState("weekly")
+            ) : (
+              renderSection(sections.weekly, "weekly")
+            )}
           </TabsContent>
 
           <TabsContent value="new-voices" className="space-y-8 mt-6">
-            {renderSection(sections.newVoices, "newVoices")}
+            {sections.newVoices && !sections.newVoices.isLoading && (!sections.newVoices.clips || sections.newVoices.clips.length === 0) ? (
+              renderEmptyState("new-voices")
+            ) : (
+              renderSection(sections.newVoices, "newVoices")
+            )}
           </TabsContent>
 
           <TabsContent value="creators" className="space-y-8 mt-6">
-            {renderSection(sections.creators, "creators")}
+            {sections.creators && !sections.creators.isLoading && (!sections.creators.clips || sections.creators.clips.length === 0) ? (
+              renderEmptyState("creators")
+            ) : (
+              renderSection(sections.creators, "creators")
+            )}
           </TabsContent>
         </Tabs>
       </div>
