@@ -235,10 +235,19 @@ async function handleStaticRequest(request) {
   // Fetch from network
   try {
     // Skip caching Google Fonts CSS - it's loaded via @import and causes CSP issues
-    if (request.url.includes("fonts.googleapis.com")) {
-      return fetch(request).catch(() => {
-        // If fetch fails due to CSP, return a basic response
-        return new Response("", { status: 200, headers: { "Content-Type": "text/css" } });
+    // Just let the browser handle it directly, don't intercept
+    if (request.url.includes("fonts.googleapis.com") || request.url.includes("fonts.gstatic.com")) {
+      // Don't try to cache or fetch through service worker - let browser handle it
+      return fetch(request.clone()).catch(() => {
+        // If fetch fails, return empty response to prevent errors
+        console.warn("Service worker: Skipping Google Fonts due to CSP");
+        return new Response("", { 
+          status: 200, 
+          headers: { 
+            "Content-Type": request.url.includes(".css") ? "text/css" : "font/woff2",
+            "Cache-Control": "no-cache"
+          } 
+        });
       });
     }
     

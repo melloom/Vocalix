@@ -33,21 +33,23 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // CRITICAL: React and all context files MUST be in the main bundle
-          // This prevents "createContext is undefined" errors on mobile browsers
+          // CRITICAL: React and ALL React-dependent code MUST be in the main bundle
+          // This prevents "createContext/forwardRef is undefined" errors on mobile browsers
           
-          // Keep React in main bundle - check multiple patterns
-          if (id.includes("/node_modules/react/") || 
-              id.includes("/node_modules/react-dom/") ||
-              id.includes("react/index") ||
-              id.includes("react-dom/client") ||
-              id.includes("react/jsx-runtime")) {
+          // Keep ALL React code in main bundle - be very aggressive
+          if (id.includes("react") && !id.includes("react-router") && !id.includes("@tanstack/react-query")) {
             return undefined; // undefined = main bundle
           }
           
-          // Keep context files in main bundle (they use React.createContext)
+          // Keep ALL context files in main bundle (they use React.createContext)
           if (id.includes("/context/")) {
-            return undefined; // Keep contexts with React
+            return undefined;
+          }
+          
+          // Keep ALL component files in main bundle - they all use React
+          // UI components use React.forwardRef, ErrorBoundary uses React, etc.
+          if (id.includes("/components/")) {
+            return undefined; // Keep ALL components with React
           }
           
           // Keep main.tsx and App.tsx in main bundle
@@ -55,7 +57,12 @@ export default defineConfig(({ mode }) => ({
             return undefined;
           }
           
-          // Vendor chunks
+          // Keep hooks that use React in main bundle
+          if (id.includes("/hooks/")) {
+            return undefined;
+          }
+          
+          // Vendor chunks - but NOT React
           if (id.includes("node_modules")) {
             // React Router can be separate (it doesn't need to load before contexts)
             if (id.includes("react-router")) {
@@ -80,22 +87,19 @@ export default defineConfig(({ mode }) => ({
             // Everything else in node_modules
             return "vendor";
           }
-          // Page chunks - split by route
+          // Page chunks - split by route (but keep initial pages in main bundle)
+          // Only chunk pages that are lazy-loaded
           if (id.includes("/pages/")) {
+            // Keep the Index page in main bundle since it's the entry point
+            if (id.includes("/pages/Index")) {
+              return undefined;
+            }
             const pageName = id.split("/pages/")[1]?.split("/")[0];
             if (pageName) {
               return `page-${pageName}`;
             }
           }
-          // Component chunks - group large components
-          if (id.includes("/components/")) {
-            if (id.includes("VirtualizedFeed") || id.includes("AudioPlayer")) {
-              return "component-audio";
-            }
-            if (id.includes("Admin") || id.includes("Analytics")) {
-              return "component-admin";
-            }
-          }
+          // All components are kept in main bundle (see above)
         },
         // Optimize chunk file names for better caching
         chunkFileNames: (chunkInfo) => {
