@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ const PERMISSIONS = [
 
 export const CommunitySettings = ({ communityId, isOpen, onOpenChange }: CommunitySettingsProps) => {
   const { profile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("general");
   const [searchQuery, setSearchQuery] = useState("");
@@ -199,7 +201,8 @@ export const CommunitySettings = ({ communityId, isOpen, onOpenChange }: Communi
     },
   });
 
-  const isHost = community?.created_by_profile_id === profile?.id;
+  // Admins are treated as hosts for all communities
+  const isHost = isAdmin || (community?.created_by_profile_id === profile?.id);
 
   const handleEditPermissions = (moderator: Moderator) => {
     setSelectedModerator(moderator);
@@ -306,6 +309,51 @@ export const CommunitySettings = ({ communityId, isOpen, onOpenChange }: Communi
                       />
                     </div>
                   </Card>
+
+                  {/* Admin Delete Section */}
+                  {isAdmin && (
+                    <Card className="p-4 rounded-2xl border-destructive/50 bg-destructive/5">
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-destructive font-semibold">Admin Actions</Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            As an admin, you have full control over this community
+                          </p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full"
+                          onClick={async () => {
+                            if (!confirm("⚠️ ADMIN: Are you sure you want to PERMANENTLY DELETE this community?\n\nThis will:\n- Delete all clips in this community\n- Remove all members\n- Delete all moderators\n- This action CANNOT be undone!\n\nType 'DELETE' to confirm:")) return;
+                            
+                            const confirmation = prompt("Type 'DELETE' to confirm:");
+                            if (confirmation !== "DELETE") {
+                              toast.error("Deletion cancelled - confirmation text did not match");
+                              return;
+                            }
+
+                            try {
+                              const { error } = await supabase
+                                .from("communities")
+                                .delete()
+                                .eq("id", communityId);
+                              if (error) throw error;
+                              toast.success("Community deleted successfully");
+                              onOpenChange(false);
+                              window.location.href = "/communities";
+                            } catch (error: any) {
+                              toast.error("Failed to delete community: " + (error.message || "Unknown error"));
+                              console.error("Error deleting community", error);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Community (Admin Only)
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
                 </>
               )}
             </TabsContent>

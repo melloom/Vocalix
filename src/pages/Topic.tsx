@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useProfile } from "@/hooks/useProfile";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useTopicFollow } from "@/hooks/useTopicFollow";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -86,6 +87,8 @@ interface TopicComment {
 const Topic = () => {
   const { topicId } = useParams<{ topicId: string }>();
   const navigate = useNavigate();
+  const { profile: viewerProfile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,7 +102,6 @@ const Topic = () => {
   const [replyContent, setReplyContent] = useState("");
   const [commentSortBy, setCommentSortBy] = useState<'newest' | 'top' | 'questions'>('newest');
   const [collapsedComments, setCollapsedComments] = useState<Set<string>>(new Set());
-  const { profile: viewerProfile } = useProfile();
   const { isFollowing, toggleFollow, isToggling } = useTopicFollow(topicId || null);
   const queryClient = useQueryClient();
 
@@ -476,9 +478,9 @@ const Topic = () => {
     }
 
     try {
-      // Check if user is the comment author or topic creator
+      // Check if user is the comment author or topic creator (admins can mark any as answered)
       const comment = comments?.find(c => c.id === commentId);
-      if (comment?.profile_id !== viewerProfile.id && topic?.user_created_by !== viewerProfile.id) {
+      if (!isAdmin && comment?.profile_id !== viewerProfile?.id && topic?.user_created_by !== viewerProfile?.id) {
         toast.error("Only the question author or topic creator can mark as answered");
         return;
       }
@@ -890,7 +892,7 @@ const Topic = () => {
                                     <Reply className="w-3 h-3 mr-1" />
                                     Reply
                                   </Button>
-                                  {comment.is_question && !comment.is_answered && (comment.profile_id === viewerProfile?.id || topic?.user_created_by === viewerProfile?.id) && (
+                                  {comment.is_question && !comment.is_answered && (isAdmin || comment.profile_id === viewerProfile?.id || topic?.user_created_by === viewerProfile?.id) && (
                                     <Button
                                       variant="ghost"
                                       size="sm"

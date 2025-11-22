@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from './useProfile';
+import { useAdminStatus } from './useAdminStatus';
 
 export interface Community {
   id: string;
@@ -224,6 +225,7 @@ export const useCommunityMembership = (communityId: string | null) => {
 // Hook to get a single community with details
 export const useCommunity = (communityId: string | null) => {
   const { profile: currentProfile } = useProfile();
+  const { isAdmin } = useAdminStatus();
 
   const {
     data: community,
@@ -231,7 +233,7 @@ export const useCommunity = (communityId: string | null) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['community', communityId],
+    queryKey: ['community', communityId, currentProfile?.id, isAdmin],
     queryFn: async () => {
       if (!communityId) return null;
 
@@ -248,9 +250,10 @@ export const useCommunity = (communityId: string | null) => {
       const community = communityData as Community;
 
       // Check if user is member, moderator, or creator
+      // Admins are treated as creators and moderators for all communities
       let isMember = false;
       let isModerator = false;
-      const isCreator = currentProfile?.id === community.created_by_profile_id;
+      const isCreator = isAdmin || (currentProfile?.id === community.created_by_profile_id);
 
       if (currentProfile?.id) {
         // Check membership
@@ -272,6 +275,11 @@ export const useCommunity = (communityId: string | null) => {
           .maybeSingle();
 
         isModerator = !!moderatorData;
+      }
+
+      // Admins are also treated as moderators
+      if (isAdmin) {
+        isModerator = true;
       }
 
       // Check if following

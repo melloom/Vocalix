@@ -113,15 +113,15 @@ BEGIN
   -- This is for multi-device support (magic login links)
   BEGIN
     -- First, get profiles from profiles table and devices table
-    SELECT ARRAY_AGG(DISTINCT id) INTO user_profile_ids
+    SELECT ARRAY_AGG(DISTINCT profile_id) INTO user_profile_ids
     FROM (
       -- Profiles with matching device_id
-      SELECT id FROM public.profiles WHERE device_id = current_device_id
+      SELECT p.id AS profile_id FROM public.profiles p WHERE p.device_id = current_device_id
       UNION
       -- Profiles linked via devices table
-      SELECT profile_id FROM public.devices 
-      WHERE device_id = current_device_id 
-      AND profile_id IS NOT NULL
+      SELECT d.profile_id FROM public.devices d
+      WHERE d.device_id = current_device_id 
+      AND d.profile_id IS NOT NULL
     ) all_profiles;
     
     -- If NULL, initialize as empty array
@@ -132,15 +132,15 @@ BEGIN
     -- Try to add profiles from profile_ids_for_request (if function exists)
     -- This supports magic login links
     BEGIN
-      SELECT ARRAY_AGG(DISTINCT id) INTO user_profile_ids
+      SELECT ARRAY_AGG(DISTINCT profile_id) INTO user_profile_ids
       FROM (
-        SELECT id FROM public.profiles WHERE device_id = current_device_id
+        SELECT p.id AS profile_id FROM public.profiles p WHERE p.device_id = current_device_id
         UNION
-        SELECT profile_id FROM public.devices 
-        WHERE device_id = current_device_id 
-        AND profile_id IS NOT NULL
+        SELECT d.profile_id FROM public.devices d
+        WHERE d.device_id = current_device_id 
+        AND d.profile_id IS NOT NULL
         UNION
-        SELECT id FROM public.profile_ids_for_request()
+        SELECT pf.id AS profile_id FROM public.profile_ids_for_request() pf
       ) all_profiles;
     EXCEPTION
       WHEN OTHERS THEN

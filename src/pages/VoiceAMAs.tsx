@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Mic, Calendar, Clock, Users, Radio, Play, Plus, Search, TrendingUp, Star, MessageCircle } from "lucide-react";
+import { Mic, Calendar, Clock, Users, Radio, Play, Plus, Search, TrendingUp, Star, MessageCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,7 +81,7 @@ export default function VoiceAMAs() {
         .from("live_rooms")
         .select(`
           *,
-          profiles (
+          host_profile:host_profile_id (
             handle,
             emoji_avatar
           )
@@ -109,7 +109,7 @@ export default function VoiceAMAs() {
 
           return {
             ...ama,
-            profiles: Array.isArray(ama.profiles) ? ama.profiles[0] : ama.profiles,
+            profiles: Array.isArray(ama.host_profile) ? ama.host_profile[0] : ama.host_profile,
             question_count: count || 0,
             upvoted_question_count: upvotedCount || 0,
           };
@@ -185,6 +185,14 @@ export default function VoiceAMAs() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <Mic className="h-8 w-8 text-primary" />
             <div>
               <h1 className="text-3xl font-bold">Voice AMAs</h1>

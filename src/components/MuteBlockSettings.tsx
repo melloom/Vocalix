@@ -68,7 +68,8 @@ export function MuteBlockSettings() {
     } else {
       setMutedTopics([]);
     }
-  }, [profile?.id, mutedTopicIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, mutedTopicIds.join(',')]);
 
   useEffect(() => {
     if (profile?.id && mutedCreatorIds.length > 0) {
@@ -76,7 +77,8 @@ export function MuteBlockSettings() {
     } else {
       setMutedCreators([]);
     }
-  }, [profile?.id, mutedCreatorIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, mutedCreatorIds.join(',')]);
 
   const loadMutedTopics = async () => {
     if (!profile?.id || mutedTopicIds.length === 0) return;

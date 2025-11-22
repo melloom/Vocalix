@@ -1,6 +1,6 @@
 -- Transfer admin rights when magic link is redeemed
--- When a device redeems a magic link, if the device's current profile has admin rights,
--- those admin rights are transferred to the profile from the magic link
+-- When a device redeems a magic link, if the profile that generated the QR code has admin rights,
+-- the scanning device will be linked to that admin profile and will have admin access
 
 CREATE OR REPLACE FUNCTION public.redeem_magic_login_link(link_token TEXT)
 RETURNS TABLE (profile_id UUID, handle TEXT)
@@ -15,7 +15,7 @@ DECLARE
   link_record public.magic_login_links%ROWTYPE;
   linked_profile public.profiles%ROWTYPE;
   current_device_profile_id UUID;
-  has_admin_rights BOOLEAN;
+  linked_profile_has_admin BOOLEAN;
 BEGIN
   request_headers := current_setting('request.headers', true)::json;
   request_device_id := NULLIF(trim(request_headers->>'x-device-id'), '');
@@ -57,8 +57,14 @@ BEGIN
     RAISE EXCEPTION 'Profile not found for login link';
   END IF;
 
-  -- Check if the current device has a profile with admin rights
-  -- Get the current device's profile (if any)
+  -- Check if the profile that generated the QR code has admin rights
+  SELECT EXISTS(
+    SELECT 1
+    FROM public.admins a
+    WHERE a.profile_id = linked_profile.id
+  ) INTO linked_profile_has_admin;
+
+  -- Get the current device's profile (if any) - for cleanup purposes
   SELECT p.id
   INTO current_device_profile_id
   FROM public.profiles p
@@ -75,29 +81,8 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- Check if current device's profile has admin rights
-  IF current_device_profile_id IS NOT NULL THEN
-    SELECT EXISTS(
-      SELECT 1
-      FROM public.admins a
-      WHERE a.profile_id = current_device_profile_id
-    ) INTO has_admin_rights;
-
-    -- If current device's profile has admin rights, transfer them to the linked profile
-    IF has_admin_rights THEN
-      -- Remove admin rights from current device's profile
-      DELETE FROM public.admins
-      WHERE profile_id = current_device_profile_id;
-
-      -- Add admin rights to the linked profile (if not already admin)
-      INSERT INTO public.admins (profile_id, role, created_at)
-      VALUES (linked_profile.id, 'admin', now())
-      ON CONFLICT (profile_id) DO UPDATE 
-      SET role = 'admin', created_at = now();
-    END IF;
-  END IF;
-
   -- Link the device to the profile from the magic link
+  -- This is the key step: the device will be linked to the profile that generated the QR code
   INSERT INTO public.devices (device_id, profile_id)
   VALUES (request_device_id, linked_profile.id)
   ON CONFLICT (device_id)
@@ -110,6 +95,9 @@ BEGIN
   SET redeemed_at = now(),
       redeemed_device_id = request_device_id
   WHERE id = link_record.id;
+
+  -- Note: If linked_profile_has_admin is true, the device will automatically have admin
+  -- because it's now linked to an admin profile. No need to transfer admin rights.
 
   RETURN QUERY
   SELECT linked_profile.id, linked_profile.handle;

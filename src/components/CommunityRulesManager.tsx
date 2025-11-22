@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { Plus, Trash2, Edit, GripVertical } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +33,9 @@ export const CommunityRulesManager = ({
   communityId,
   isHost,
 }: CommunityRulesManagerProps) => {
+  const { isAdmin } = useAdminStatus();
+  // Admins are treated as hosts
+  const canManage = isAdmin || isHost;
   const [rules, setRules] = useState<CommunityRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -161,10 +165,10 @@ export const CommunityRulesManager = ({
     setIsDialogOpen(true);
   };
 
-  if (!isHost) {
+  if (!canManage) {
     return (
       <Card className="p-6 rounded-2xl">
-        <p className="text-muted-foreground">Only community hosts can manage rules.</p>
+        <p className="text-muted-foreground">Only community hosts and admins can manage rules.</p>
       </Card>
     );
   }

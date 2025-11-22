@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLiveRoom, useRoomParticipants, useRoomParticipation } from '@/hooks/useLiveRooms';
 import { useProfile } from '@/hooks/useProfile';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ interface LiveRoomProps {
 
 export const LiveRoom = ({ roomId, onClose }: LiveRoomProps) => {
   const { profile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const { room, isLoading: isLoadingRoom } = useLiveRoom(roomId);
   const { participants, isLoading: isLoadingParticipants } = useRoomParticipants(roomId);
   const {
@@ -31,7 +33,8 @@ export const LiveRoom = ({ roomId, onClose }: LiveRoomProps) => {
 
   // Get user's participation status
   const userParticipation = participants.find((p) => p.profile_id === profile?.id);
-  const isHost = userParticipation?.role === 'host';
+  // Admins are treated as hosts
+  const isHost = isAdmin || (userParticipation?.role === 'host');
   const isSpeaker = userParticipation?.role === 'speaker' || isHost;
   const canSpeak = isSpeaker && !userParticipation?.is_muted;
 

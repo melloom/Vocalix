@@ -9,6 +9,45 @@ import * as Sentry from "@sentry/react";
 // Initialize monitoring (Sentry) first
 initializeMonitoring();
 
+// Intercept console.error to suppress known non-critical errors
+// This must be done before any other code runs
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  // Check if any argument matches our known error patterns
+  const errorString = args.map(arg => {
+    if (typeof arg === 'object' && arg !== null) {
+      // Check for 403 errors in the exact format we're seeing
+      if (arg.code === 403 && arg.httpStatus === 200 && arg.httpError === false && arg.name === 'i') {
+        return 'SUPPRESS_403'; // Marker to suppress
+      }
+      // Check for extension connection errors
+      if (arg.message && (
+        arg.message.includes("Could not establish connection") ||
+        arg.message.includes("Receiving end does not exist")
+      )) {
+        return 'SUPPRESS_EXTENSION'; // Marker to suppress
+      }
+      return JSON.stringify(arg);
+    }
+    return String(arg);
+  }).join(' ');
+
+  // Suppress known non-critical errors
+  if (
+    errorString.includes('SUPPRESS_403') ||
+    errorString.includes('SUPPRESS_EXTENSION') ||
+    errorString.includes('Could not establish connection') ||
+    errorString.includes('Receiving end does not exist') ||
+    (errorString.includes('code') && errorString.includes('403') && errorString.includes('httpStatus') && errorString.includes('200'))
+  ) {
+    // Silently suppress - these are expected errors from browser extensions or RLS policies
+    return;
+  }
+
+  // Log all other errors normally
+  originalConsoleError.apply(console, args);
+};
+
 // Set up error handler FIRST, before any other code runs
 // Global error handler for unhandled promise rejections
 window.addEventListener("unhandledrejection", (event) => {
@@ -34,7 +73,14 @@ window.addEventListener("unhandledrejection", (event) => {
     (httpStatus === 200 && httpStatusText === '' && errorCode === 403) || // Another variant
     (error?.httpError === false && httpStatus === 200 && errorCode === 403) || // Match httpError: false
     (error?.code === 403) || // Direct code check
-    (typeof error === 'object' && error !== null && 'code' in error && error.code === 403); // Additional safety check
+    (typeof error === 'object' && error !== null && 'code' in error && error.code === 403) || // Additional safety check
+    // More permissive checks for the exact format from content.js
+    (typeof error === 'object' && error !== null && 
+     error.name === 'i' && 
+     error.httpError === false && 
+     error.httpStatus === 200 && 
+     (error.httpStatusText === '' || !error.httpStatusText) &&
+     error.code === 403);
   
   const is404Error =
     errorCode === 404 ||
@@ -59,7 +105,14 @@ window.addEventListener("unhandledrejection", (event) => {
     error?.message?.includes("chrome-extension://") ||
     error?.message?.includes("moz-extension://") ||
     String(error).includes("Could not establish connection") ||
-    String(error).includes("Receiving end does not exist");
+    String(error).includes("Receiving end does not exist") ||
+    // Also check error stack/filename for extension-related paths
+    (error?.stack && (
+      error.stack.includes("content.js") ||
+      error.stack.includes("polyfill.js") ||
+      error.stack.includes("chrome-extension://") ||
+      error.stack.includes("moz-extension://")
+    ));
   
   if (is403Error || is404Error || isGenericObjectError || isExtensionError) {
     // Silently handle 403/404/generic Object/extension errors - they're expected in some cases

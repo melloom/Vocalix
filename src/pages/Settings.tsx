@@ -46,7 +46,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Download } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";

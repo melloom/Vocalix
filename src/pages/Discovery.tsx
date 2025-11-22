@@ -12,7 +12,8 @@ import {
   Hash,
   Search,
   Mic,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -153,7 +154,12 @@ const Discovery = () => {
       logError("Error loading daily discovery", error);
       setSections(prev => ({
         ...prev,
-        daily: { ...prev.daily, isLoading: false }
+        daily: { 
+          title: "Daily Discovery",
+          icon: <Sparkles className="h-4 w-4" />,
+          clips: prev.daily?.clips || [],
+          isLoading: false 
+        }
       }));
     }
   };
@@ -430,6 +436,9 @@ const Discovery = () => {
   const renderSection = (section: RecommendationSection | undefined, key: string) => {
     if (!section) return null;
 
+    // Ensure clips is always an array
+    const clips = section.clips || [];
+
     return (
       <div key={key} className="space-y-4">
         <div className="flex items-center justify-between">
@@ -445,9 +454,9 @@ const Discovery = () => {
         </div>
         {section.isLoading ? (
           <ClipListSkeleton count={3} />
-        ) : section.clips.length > 0 ? (
+        ) : clips.length > 0 ? (
           <div className="space-y-4">
-            {section.clips.map((clip) => (
+            {clips.map((clip) => (
               <ClipCard key={clip.id} clip={clip} />
             ))}
           </div>
@@ -474,6 +483,15 @@ const Discovery = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="mb-4 rounded-2xl"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-2">Discovery</h1>

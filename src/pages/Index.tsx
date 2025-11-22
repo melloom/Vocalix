@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Upload, Shield, Trophy, X, MessageCircle, Compass } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -3153,7 +3153,7 @@ const Index = () => {
                   </Tooltip>
                 </div>
               )}
-              {profile?.id && sortMode === "for_you" && (
+              {profile?.id && sortMode === "for_you" && feedFilter !== "for_you" && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -3217,10 +3217,9 @@ const Index = () => {
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-md px-3 text-xs h-7"
                     variant={cityFilter === "local" ? "default" : "ghost"}
                     onClick={() => setCityFilter("local")}
-                    className="rounded-md px-3 text-xs h-7"
                   >
                     Near you
                   </Button>
@@ -3620,21 +3619,6 @@ const Index = () => {
       </main>
 
       <div data-tutorial="record-button" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={() => setIsBulkUploadModalOpen(true)}
-              size="lg"
-              variant="outline"
-              className="h-14 w-14 rounded-full shadow-lg"
-            >
-              <Upload className="h-6 w-6" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left">
-            <p>Bulk Upload - Upload multiple audio files at once</p>
-          </TooltipContent>
-        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

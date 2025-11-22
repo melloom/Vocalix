@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { ReportClipDialog } from "@/components/ReportClipDialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -237,7 +238,9 @@ export const ClipCard = ({
   const burstTimeoutRef = useRef<number | null>(null);
   const { toast } = useToast();
   const profileId = localStorage.getItem("profileId");
-  const isOwner = clip.profile_id === profileId;
+  // Admins are treated as owners
+  const { isAdmin } = useAdminStatus();
+  const isOwner = isAdmin || (clip.profile_id === profileId);
   
   // Offline downloads
   const { isClipDownloaded, downloadClip, deleteDownloadedClip, isLoading: isOfflineLoading } = useOfflineDownloads();

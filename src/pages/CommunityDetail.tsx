@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/useProfile";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useCommunity, useCommunityMembership, useAddModerator, useRemoveModerator, useSearchUsers, useSetCommunitySuccessor, useClearCommunitySuccessor, useCommunityStatus, useTransferCommunityOwnership, useOwnershipTransferRateLimit } from "@/hooks/useCommunity";
 import { ReviveCommunityDialog } from "@/components/ReviveCommunityDialog";
 import { useCommunityFollow } from "@/hooks/useCommunityFollow";
@@ -71,6 +72,7 @@ interface Member {
 const CommunityDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const { profile: viewerProfile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const [clips, setClips] = useState<Clip[]>([]);
   const [isLoadingClips, setIsLoadingClips] = useState(true);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
@@ -720,7 +722,7 @@ const CommunityDetail = () => {
             >
               <Share2 className="h-5 w-5" />
             </Button>
-            {communityData.is_creator && (
+            {(communityData.is_creator || isAdmin) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -760,7 +762,7 @@ const CommunityDetail = () => {
             )}
 
             {/* Announcements - Always visible for creators/moderators */}
-            {(communityData.is_creator || communityData.is_moderator || announcements.filter((a) => a.is_pinned).length > 0) && (
+            {((communityData.is_creator || isAdmin) || communityData.is_moderator || announcements.filter((a) => a.is_pinned).length > 0) && (
               <Card className="p-4 rounded-2xl border-primary/20 bg-primary/5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -768,7 +770,7 @@ const CommunityDetail = () => {
                       <Pin className="w-4 h-4 text-primary" />
                       <h3 className="font-semibold">Announcements</h3>
                     </div>
-                    {(communityData.is_creator || communityData.is_moderator) && (
+                    {((communityData.is_creator || isAdmin) || communityData.is_moderator) && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -802,7 +804,7 @@ const CommunityDetail = () => {
                           </div>
                         </div>
                       ))
-                  ) : (communityData.is_creator || communityData.is_moderator) ? (
+                  ) : ((communityData.is_creator || isAdmin) || communityData.is_moderator) ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       No announcements yet. Click "Create" to add one!
                     </p>
@@ -1454,7 +1456,7 @@ const CommunityDetail = () => {
                   <Shield className="w-4 h-4" />
                   Moderators
                 </h3>
-                {communityData?.is_creator && (
+                {(communityData?.is_creator || isAdmin) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1541,7 +1543,7 @@ const CommunityDetail = () => {
                     <span className="text-sm">You are a moderator</span>
                   </div>
                 )}
-                {communityData.is_creator && (
+                {(communityData.is_creator || isAdmin) && (
                   <div className="flex items-center gap-2 pt-2 border-t">
                     <Shield className="w-4 h-4 text-primary" />
                     <span className="text-sm">You are the creator</span>
@@ -1607,16 +1609,43 @@ const CommunityDetail = () => {
                   <Share2 className="w-4 h-4 mr-2" />
                   Share Community
                 </Button>
-                {communityData.is_creator && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start rounded-xl"
-                    onClick={() => setIsSettingsDialogOpen(true)}
-                  >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Community Settings
-                  </Button>
+                {(communityData.is_creator || isAdmin) && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start rounded-xl"
+                      onClick={() => setIsSettingsDialogOpen(true)}
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Community Settings
+                    </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full justify-start rounded-xl"
+                        onClick={async () => {
+                          if (!confirm("⚠️ ADMIN: Are you sure you want to DELETE this community? This action cannot be undone.")) return;
+                          try {
+                            const { error } = await supabase
+                              .from("communities")
+                              .delete()
+                              .eq("id", communityId);
+                            if (error) throw error;
+                            toast.success("Community deleted successfully");
+                            window.location.href = "/communities";
+                          } catch (error: any) {
+                            toast.error("Failed to delete community: " + (error.message || "Unknown error"));
+                            logError("Error deleting community", error);
+                          }
+                        }}
+                      >
+                        <UserMinus className="w-4 h-4 mr-2" />
+                        Delete Community (Admin)
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </Card>
@@ -2003,7 +2032,7 @@ const CommunityDetail = () => {
       </Dialog>
 
       {/* Settings Dialog (for creators) */}
-      {communityData.is_creator && communityData.id && (
+      {((communityData.is_creator || isAdmin) && communityData.id) && (
         <CommunitySettings
           communityId={communityData.id}
           isOpen={isSettingsDialogOpen}

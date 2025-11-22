@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { logError, logInfo } from "@/lib/logger";
 import { AMAQuestions } from "@/components/AMAQuestions";
@@ -74,6 +75,7 @@ const LiveRoom = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const { toast } = useToast();
   const [room, setRoom] = useState<LiveRoom | null>(null);
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
@@ -166,7 +168,8 @@ const LiveRoom = () => {
       };
 
       setRoom(formattedRoom);
-      setIsHost(profile?.id === formattedRoom.host_profile_id);
+      // Admins are treated as hosts
+      setIsHost(isAdmin || (profile?.id === formattedRoom.host_profile_id));
     } catch (error: any) {
       logError("Error fetching room", error);
       toast({
@@ -346,7 +349,8 @@ const LiveRoom = () => {
   };
 
   const promoteToSpeaker = async (participantId: string) => {
-    if (!id || !isHost && !isModerator) return;
+    // Admins can manage participants
+    if (!id || (!isHost && !isModerator && !isAdmin)) return;
 
     try {
       await supabase
@@ -365,7 +369,8 @@ const LiveRoom = () => {
   };
 
   const removeParticipant = async (participantId: string) => {
-    if (!id || !isHost && !isModerator) return;
+    // Admins can manage participants
+    if (!id || (!isHost && !isModerator && !isAdmin)) return;
 
     try {
       await supabase
@@ -384,7 +389,8 @@ const LiveRoom = () => {
   };
 
   const muteParticipant = async (participantId: string) => {
-    if (!id || !isHost && !isModerator) return;
+    // Admins can manage participants
+    if (!id || (!isHost && !isModerator && !isAdmin)) return;
 
     try {
       await supabase
@@ -403,7 +409,8 @@ const LiveRoom = () => {
   };
 
   const endRoom = async () => {
-    if (!id || !isHost) return;
+    // Admins can end rooms
+    if (!id || (!isHost && !isAdmin)) return;
 
     if (!confirm("Are you sure you want to end this room? All participants will be disconnected.")) {
       return;
@@ -532,7 +539,7 @@ const LiveRoom = () => {
                 LIVE
               </Badge>
             )}
-            {isHost && (
+            {(isHost || isAdmin) && (
               <Button variant="destructive" size="sm" onClick={endRoom} className="rounded-full">
                 End Room
               </Button>
@@ -612,7 +619,7 @@ const LiveRoom = () => {
                         </div>
                       </div>
                     </div>
-                    {(isHost || isModerator) && participant.profile_id !== profile?.id && (
+                    {((isHost || isAdmin) || isModerator) && participant.profile_id !== profile?.id && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="rounded-full">
@@ -656,7 +663,7 @@ const LiveRoom = () => {
                           {participant.profiles?.handle || "Unknown"}
                         </span>
                       </div>
-                      {(isHost || isModerator) && (
+                      {((isHost || isAdmin) || isModerator) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
@@ -750,7 +757,7 @@ const LiveRoom = () => {
                 <h3 className="font-semibold mb-4">AMA Questions</h3>
                 <AMAQuestions
                   roomId={room.id}
-                  isHost={isHost}
+                  isHost={isHost || isAdmin}
                   questionDeadline={room.ama_question_deadline}
                   questionSubmissionEnabled={room.ama_question_submission_enabled}
                 />

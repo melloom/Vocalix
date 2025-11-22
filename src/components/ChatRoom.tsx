@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useChatMessages, useSendChatMessage, useEditChatMessage, ChatMessage } from '@/hooks/useChatRooms';
 import { useProfile } from '@/hooks/useProfile';
+import { useAdminStatus } from '@/hooks/useAdminStatus';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { logError } from '@/lib/logger';
@@ -17,6 +18,7 @@ interface ChatRoomProps {
 
 export const ChatRoom = ({ chatRoomId, onClose }: ChatRoomProps) => {
   const { profile } = useProfile();
+  const { isAdmin } = useAdminStatus();
   const [message, setMessage] = useState('');
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
@@ -120,7 +122,8 @@ export const ChatRoom = ({ chatRoomId, onClose }: ChatRoomProps) => {
         ) : (
           <div className="space-y-3">
             {messages.map((msg) => {
-              const isOwnMessage = msg.profile_id === profile?.id;
+              // Admins can edit/delete any message
+              const isOwnMessage = isAdmin || (msg.profile_id === profile?.id);
               const isDeleted = msg.is_deleted;
 
               return (
