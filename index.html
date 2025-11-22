@@ -45,7 +45,40 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading fallback for mobile - shows immediately while JS loads -->
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
+        <div style="text-align: center; padding: 20px;">
+          <div style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p style="color: #666; font-size: 16px;">Loading Echo Garden...</p>
+        </div>
+      </div>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fallback error handler if main script fails to load (mobile browsers)
+      window.addEventListener('error', function(e) {
+        if (e.filename && e.filename.includes('main.tsx')) {
+          console.error('Failed to load main script:', e);
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Unable to Load</h1><p style="color: #666; margin-bottom: 24px;">There was an error loading the app. Please check your internet connection and try again.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
+          }
+        }
+      }, true);
+      
+      // Timeout fallback - if app doesn't load within 10 seconds, show error
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 1 && root.querySelector('div[style*="Loading Echo Garden"]')) {
+          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Loading Taking Too Long</h1><p style="color: #666; margin-bottom: 24px;">The app is taking longer than expected to load. This might be due to a slow connection. Please try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
+        }
+      }, 10000);
+    </script>
   </body>
 </html>

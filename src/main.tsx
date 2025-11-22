@@ -263,10 +263,22 @@ if ("serviceWorker" in navigator) {
   }
 }
 
-// Wrap app with Sentry's ErrorBoundary for automatic error capture
-createRoot(document.getElementById("root")!).render(
-  <Sentry.ErrorBoundary
-    fallback={({ error, resetError }) => (
+// Ensure DOM is ready before rendering (critical for mobile browsers)
+const initApp = () => {
+  const rootElement = document.getElementById("root");
+  
+  if (!rootElement) {
+    // If root element doesn't exist, wait and retry (mobile browsers may need this)
+    console.error("Root element not found, retrying...");
+    setTimeout(initApp, 100);
+    return;
+  }
+
+  // Wrap app with Sentry's ErrorBoundary for automatic error capture
+  try {
+    createRoot(rootElement).render(
+      <Sentry.ErrorBoundary
+        fallback={({ error, resetError }) => (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
         style={{
@@ -364,4 +376,28 @@ createRoot(document.getElementById("root")!).render(
       <App />
     </UploadQueueProvider>
   </Sentry.ErrorBoundary>,
-);
+    );
+  } catch (error) {
+    // If rendering fails, show a fallback error message
+    console.error("Failed to render app:", error);
+    rootElement.innerHTML = `
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="max-width: 400px; text-align: center;">
+          <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Unable to Load</h1>
+          <p style="color: #666; margin-bottom: 24px;">There was an error loading the app. Please try refreshing the page.</p>
+          <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    `;
+  }
+};
+
+// Wait for DOM to be ready before initializing (critical for mobile)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  // DOM is already ready
+  initApp();
+}
