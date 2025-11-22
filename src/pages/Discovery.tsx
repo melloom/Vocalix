@@ -149,6 +149,41 @@ const Discovery = () => {
             reason: "Similar to clips you enjoyed"
           }
         }));
+      } else {
+        // No data returned - set empty state and stop loading
+        setSections(prev => ({
+          ...prev,
+          daily: { 
+            title: "Daily Discovery",
+            icon: <Sparkles className="h-4 w-4" />,
+            clips: [],
+            isLoading: false 
+          },
+          hiddenGems: {
+            title: "Hidden Gems",
+            icon: <Gem className="h-4 w-4" />,
+            clips: [],
+            isLoading: false
+          },
+          trendingNetwork: {
+            title: "Trending in Your Network",
+            icon: <Users className="h-4 w-4" />,
+            clips: [],
+            isLoading: false
+          },
+          throwback: {
+            title: "Throwback",
+            icon: <Clock className="h-4 w-4" />,
+            clips: [],
+            isLoading: false
+          },
+          similar: {
+            title: "Similar to What You Like",
+            icon: <TrendingUp className="h-4 w-4" />,
+            clips: [],
+            isLoading: false
+          }
+        }));
       }
     } catch (error) {
       logError("Error loading daily discovery", error);
