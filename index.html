@@ -61,24 +61,40 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Track if script loaded
+      window.__APP_SCRIPT_LOADED__ = false;
+      
       // Fallback error handler if main script fails to load (mobile browsers)
       window.addEventListener('error', function(e) {
-        if (e.filename && e.filename.includes('main.tsx')) {
-          console.error('Failed to load main script:', e);
+        console.error('[HTML] Global error caught:', e);
+        // Check if it's a script loading error
+        if (e.filename && (e.filename.includes('main.tsx') || e.filename.includes('.js') || e.filename.includes('.tsx'))) {
+          console.error('[HTML] Script loading error:', e);
           var root = document.getElementById('root');
-          if (root) {
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Unable to Load</h1><p style="color: #666; margin-bottom: 24px;">There was an error loading the app. Please check your internet connection and try again.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
+          if (root && !window.__APP_SCRIPT_LOADED__) {
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Error</h1><p style="color: #666; margin-bottom: 24px;">There was an error loading the app script: ' + (e.message || 'Unknown error') + '. Please check your internet connection and try again.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
           }
         }
       }, true);
       
-      // Timeout fallback - if app doesn't load within 10 seconds, show error
+      // Track unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[HTML] Unhandled promise rejection:', e.reason);
+      });
+      
+      // Timeout fallback - if app doesn't load within 15 seconds, show error
       setTimeout(function() {
         var root = document.getElementById('root');
-        if (root && root.children.length === 1 && root.querySelector('div[style*="Loading Echo Garden"]')) {
-          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Loading Taking Too Long</h1><p style="color: #666; margin-bottom: 24px;">The app is taking longer than expected to load. This might be due to a slow connection. Please try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
+        // Check if still showing loading screen OR if root is empty (app didn't render)
+        var stillLoading = root && (
+          (root.children.length === 1 && root.querySelector('div[style*="Loading Echo Garden"]')) ||
+          (root.children.length === 0 && root.innerHTML.includes('Loading Echo Garden'))
+        );
+        if (stillLoading) {
+          console.error('[App] Timeout: App did not load within 15 seconds');
+          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Loading Taking Too Long</h1><p style="color: #666; margin-bottom: 24px;">The app is taking longer than expected to load. This might be due to a slow connection or a JavaScript error. Please check the browser console and try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
         }
-      }, 10000);
+      }, 15000);
     </script>
   </body>
 </html>

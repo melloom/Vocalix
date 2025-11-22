@@ -6,8 +6,17 @@ import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { initializeMonitoring, captureException } from "@/lib/monitoring";
 import * as Sentry from "@sentry/react";
 
-// Initialize monitoring (Sentry) first
-initializeMonitoring();
+// Mark that script has loaded
+if (typeof window !== 'undefined') {
+  (window as any).__APP_SCRIPT_LOADED__ = true;
+}
+
+// Initialize monitoring (Sentry) first - wrap in try-catch to prevent blocking
+try {
+  initializeMonitoring();
+} catch (error) {
+  console.warn("[App] Monitoring initialization failed, continuing anyway:", error);
+}
 
 // Intercept console.error to suppress known non-critical errors
 // This must be done before any other code runs
@@ -265,18 +274,26 @@ if ("serviceWorker" in navigator) {
 
 // Ensure DOM is ready before rendering (critical for mobile browsers)
 const initApp = () => {
+  console.log("[App] Initializing app...");
   const rootElement = document.getElementById("root");
   
   if (!rootElement) {
     // If root element doesn't exist, wait and retry (mobile browsers may need this)
-    console.error("Root element not found, retrying...");
+    console.warn("[App] Root element not found, retrying...");
     setTimeout(initApp, 100);
     return;
   }
 
+  console.log("[App] Root element found, rendering app...");
+  
   // Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
-    createRoot(rootElement).render(
+    // Clear the loading indicator AFTER we're ready to render
+    rootElement.innerHTML = '';
+    
+    const root = createRoot(rootElement);
+    console.log("[App] React root created, rendering components...");
+    root.render(
       <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
       <div 
@@ -377,9 +394,28 @@ const initApp = () => {
     </UploadQueueProvider>
   </Sentry.ErrorBoundary>,
     );
+    console.log("[App] App rendered successfully!");
+    
+    // Double-check that the app actually rendered after a short delay
+    setTimeout(() => {
+      if (rootElement && rootElement.children.length === 0) {
+        console.error("[App] App rendered but root is empty! This indicates a rendering error.");
+        rootElement.innerHTML = `
+          <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="max-width: 400px; text-align: center;">
+              <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Rendering Error</h1>
+              <p style="color: #666; margin-bottom: 24px;">The app failed to render. Please check the browser console for errors and try refreshing.</p>
+              <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    }, 2000);
   } catch (error) {
     // If rendering fails, show a fallback error message
-    console.error("Failed to render app:", error);
+    console.error("[App] Failed to render app:", error);
     rootElement.innerHTML = `
       <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="max-width: 400px; text-align: center;">
@@ -395,9 +431,16 @@ const initApp = () => {
 };
 
 // Wait for DOM to be ready before initializing (critical for mobile)
+console.log("[App] DOM ready state:", document.readyState);
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  console.log("[App] Waiting for DOMContentLoaded...");
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log("[App] DOMContentLoaded fired");
+    initApp();
+  });
 } else {
   // DOM is already ready
-  initApp();
+  console.log("[App] DOM already ready, initializing immediately");
+  // Use setTimeout to ensure all scripts are loaded
+  setTimeout(initApp, 0);
 }
