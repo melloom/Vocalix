@@ -33,11 +33,25 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // CRITICAL: React MUST be in the main bundle, not a separate chunk
+          // CRITICAL: React and all context files MUST be in the main bundle
           // This prevents "createContext is undefined" errors on mobile browsers
-          // Check for any React-related imports
-          if (id.includes("react") && !id.includes("react-router") && !id.includes("react-query")) {
-            // Return undefined to keep React in the main bundle
+          
+          // Keep React in main bundle - check multiple patterns
+          if (id.includes("/node_modules/react/") || 
+              id.includes("/node_modules/react-dom/") ||
+              id.includes("react/index") ||
+              id.includes("react-dom/client") ||
+              id.includes("react/jsx-runtime")) {
+            return undefined; // undefined = main bundle
+          }
+          
+          // Keep context files in main bundle (they use React.createContext)
+          if (id.includes("/context/")) {
+            return undefined; // Keep contexts with React
+          }
+          
+          // Keep main.tsx and App.tsx in main bundle
+          if (id.includes("/main.tsx") || id.includes("/App.tsx")) {
             return undefined;
           }
           

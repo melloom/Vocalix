@@ -234,6 +234,14 @@ async function handleStaticRequest(request) {
 
   // Fetch from network
   try {
+    // Skip caching Google Fonts CSS - it's loaded via @import and causes CSP issues
+    if (request.url.includes("fonts.googleapis.com")) {
+      return fetch(request).catch(() => {
+        // If fetch fails due to CSP, return a basic response
+        return new Response("", { status: 200, headers: { "Content-Type": "text/css" } });
+      });
+    }
+    
     const networkResponse = await fetch(request);
     if (networkResponse.status === 200) {
       // Double-check: Don't cache chrome-extension URLs
