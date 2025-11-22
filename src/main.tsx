@@ -1,7 +1,24 @@
+// Ensure React loads first - critical for mobile browsers
+import * as React from "react";
 import { createRoot } from "react-dom/client";
+
+// Verify React is loaded before proceeding
+if (!React || typeof React.createContext === 'undefined') {
+  const errorMsg = "React failed to load. createContext is not available. This usually means React didn't load properly on mobile browsers.";
+  console.error("[App]", errorMsg);
+  throw new Error(errorMsg);
+}
+
+console.log("[App] React verified:", {
+  hasCreateContext: typeof React.createContext !== 'undefined',
+  hasCreateElement: typeof React.createElement !== 'undefined',
+  version: (React as any).version
+});
+
 import App from "./App.tsx";
 import "./index.css";
 import { updateSupabaseDeviceHeader, initializeRpcFunctionCheck } from "@/integrations/supabase/client";
+// Import contexts AFTER React is verified
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { initializeMonitoring, captureException } from "@/lib/monitoring";
 import * as Sentry from "@sentry/react";
@@ -288,6 +305,12 @@ const initApp = () => {
   
   // Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
+    // Verify React is loaded before proceeding
+    if (typeof createRoot === 'undefined') {
+      throw new Error("React is not loaded. createRoot is undefined.");
+    }
+    
+    console.log("[App] React verified, clearing loading screen...");
     // Clear the loading indicator AFTER we're ready to render
     rootElement.innerHTML = '';
     
@@ -413,9 +436,30 @@ const initApp = () => {
         `;
       }
     }, 2000);
-  } catch (error) {
+  } catch (error: any) {
     // If rendering fails, show a fallback error message
     console.error("[App] Failed to render app:", error);
+    
+    // Check if it's the React createContext error
+    const isReactError = error?.message?.includes('createContext') || 
+                         error?.message?.includes('undefined is not an object') ||
+                         error?.stack?.includes('createContext');
+    
+    if (isReactError) {
+      rootElement.innerHTML = `
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 400px; text-align: center;">
+            <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Loading Error</h1>
+            <p style="color: #666; margin-bottom: 16px;">The app failed to load React properly. This can happen on mobile browsers with slow connections.</p>
+            <p style="color: #666; margin-bottom: 24px; font-size: 14px;">Error: ${error?.message || 'Unknown error'}</p>
+            <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button>
+            <button onclick="if(confirm('Clear cache and reload?')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Cache</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
     rootElement.innerHTML = `
       <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="max-width: 400px; text-align: center;">

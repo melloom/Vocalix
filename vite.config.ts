@@ -110,6 +110,11 @@ export default defineConfig(({ mode }) => ({
     },
     // Target modern browsers for smaller bundles
     target: "esnext",
+    // Ensure React is bundled together to prevent loading order issues on mobile
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
+    },
   },
   // Optimize dependencies
   optimizeDeps: {
