@@ -6,7 +6,6 @@ const STATIC_CACHE_NAME = `echo-garden-static-${CACHE_VERSION}`;
 const HTML_CACHE_NAME = `echo-garden-html-${CACHE_VERSION}`;
 const API_CACHE_NAME = `echo-garden-api-${CACHE_VERSION}`;
 const PREFETCH_CACHE_NAME = `echo-garden-prefetch-${CACHE_VERSION}`;
-const PREFETCH_CACHE_NAME = `echo-garden-prefetch-${CACHE_VERSION}`;
 
 // Cache duration settings
 const AUDIO_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days

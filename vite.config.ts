@@ -33,11 +33,19 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
+          // CRITICAL: React MUST be in the main bundle, not a separate chunk
+          // This prevents "createContext is undefined" errors on mobile browsers
+          // Check for any React-related imports
+          if (id.includes("react") && !id.includes("react-router") && !id.includes("react-query")) {
+            // Return undefined to keep React in the main bundle
+            return undefined;
+          }
+          
           // Vendor chunks
           if (id.includes("node_modules")) {
-            // React core
-            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
-              return "vendor-react";
+            // React Router can be separate (it doesn't need to load before contexts)
+            if (id.includes("react-router")) {
+              return "vendor-router";
             }
             // UI libraries
             if (id.includes("@radix-ui")) {
@@ -121,6 +129,8 @@ export default defineConfig(({ mode }) => ({
     include: [
       "react",
       "react-dom",
+      "react/jsx-runtime",
+      "react-dom/client",
       "react-router-dom",
       "@supabase/supabase-js",
       "@radix-ui/react-tooltip",
@@ -129,6 +139,10 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom"],
     // Force re-optimization
     force: false,
+    // Ensure React is pre-bundled and available immediately
+    esbuildOptions: {
+      target: "es2020",
+    },
   },
   // Vitest configuration
   test: {
