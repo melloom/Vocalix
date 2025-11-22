@@ -20,14 +20,50 @@ export const AuthGuard = ({
 
   // Show loading state while auth is initializing
   // Don't require userId - anonymous auth might fail, but we can still show the app
+  // Use inline styles as fallback in case CSS doesn't load on mobile
   if (!isInitialized || isLoading) {
     return (
       fallback || (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="text-muted-foreground">Loading...</p>
+        <div 
+          className="min-h-screen bg-background flex items-center justify-center"
+          style={{
+            minHeight: '100vh',
+            backgroundColor: 'hsl(30, 40%, 97%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            padding: '20px'
+          }}
+        >
+          <div className="text-center space-y-4" style={{ textAlign: 'center' }}>
+            <div 
+              className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '2px solid hsl(15, 85%, 62%)',
+                borderTop: '2px solid transparent',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto'
+              }}
+            ></div>
+            <p 
+              className="text-muted-foreground"
+              style={{
+                color: 'hsl(20, 10%, 45%)',
+                marginTop: '16px'
+              }}
+            >
+              Loading...
+            </p>
           </div>
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       )
     );

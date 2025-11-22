@@ -4,7 +4,7 @@
  * Only shows after account creation, tutorial completion, and if user hasn't created clips yet
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Mic, ArrowRight, X, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,10 +73,26 @@ export const FirstClipGuidance = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const { profile, isLoading: isProfileLoading } = useAuth();
+  const checkingRef = useRef(false);
+  const profileIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Prevent multiple simultaneous checks
+    if (checkingRef.current) {
+      return;
+    }
+
+    const profileId = profile?.id || null;
+    
+    // Skip if profile ID hasn't changed and we've already checked
+    if (profileId === profileIdRef.current && !isProfileLoading) {
+      return;
+    }
+
     const checkShouldShow = async () => {
+      checkingRef.current = true;
       setIsChecking(true);
+      profileIdRef.current = profileId;
       
       try {
         // 1. Check if guidance was already completed
@@ -84,18 +100,22 @@ export const FirstClipGuidance = ({
         if (completed) {
           setIsVisible(false);
           setIsChecking(false);
+          checkingRef.current = false;
           return;
         }
 
         // 2. Wait for profile to load
         if (isProfileLoading) {
+          setIsChecking(false);
+          checkingRef.current = false;
           return; // Will re-run when profile loads
         }
 
         // 3. Check if user has created an account (has a profile)
-        if (!profile?.id) {
+        if (!profileId) {
           setIsVisible(false);
           setIsChecking(false);
+          checkingRef.current = false;
           return;
         }
 
@@ -104,6 +124,7 @@ export const FirstClipGuidance = ({
         if (!tutorialCompleted) {
           setIsVisible(false);
           setIsChecking(false);
+          checkingRef.current = false;
           return;
         }
 
@@ -111,7 +132,7 @@ export const FirstClipGuidance = ({
         const { data: clips, error } = await supabase
           .from("clips")
           .select("id")
-          .eq("profile_id", profile.id)
+          .eq("profile_id", profileId)
           .in("status", ["live", "processing"])
           .limit(1);
 
@@ -120,6 +141,7 @@ export const FirstClipGuidance = ({
           // If we can't check, don't show guidance to be safe
           setIsVisible(false);
           setIsChecking(false);
+          checkingRef.current = false;
           return;
         }
 
@@ -129,17 +151,20 @@ export const FirstClipGuidance = ({
           localStorage.setItem(storageKey, "true");
           setIsVisible(false);
           setIsChecking(false);
+          checkingRef.current = false;
           return;
         }
 
         // All conditions met - show guidance
         setIsVisible(true);
+        setIsChecking(false);
         announceToScreenReader("First clip guidance available");
       } catch (error) {
         console.warn("Failed to check guidance status:", error);
         setIsVisible(false);
-      } finally {
         setIsChecking(false);
+      } finally {
+        checkingRef.current = false;
       }
     };
 

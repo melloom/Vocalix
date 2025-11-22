@@ -107,9 +107,19 @@ All colors MUST be HSL.
     @apply border-border selection:bg-primary/20 selection:text-primary-foreground;
   }
 
+  html {
+    height: 100%;
+    background-color: hsl(30 40% 97%);
+    @apply bg-background;
+  }
+
   body {
     font-family: var(--font-sans);
+    background-color: hsl(30 40% 97%);
     @apply bg-background text-foreground antialiased;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
     /* Performance optimization for theme switching */
     will-change: background-color, color;
   }

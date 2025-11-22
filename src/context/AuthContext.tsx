@@ -61,28 +61,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Initialize auth state
+  // Initialize auth state with timeout for mobile
   useEffect(() => {
     let mounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let initialized = false;
+
+    // Set a timeout to force initialization after 3 seconds (mobile fallback)
+    const forceInit = () => {
+      if (mounted && !initialized) {
+        initialized = true;
+        setIsInitialized(true);
+      }
+    };
+    timeoutId = setTimeout(forceInit, 3000);
+
+    // Helper to mark as initialized
+    const markInitialized = () => {
+      if (mounted && !initialized) {
+        initialized = true;
+        setIsInitialized(true);
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    };
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      if (session?.user) {
-        setUserId(session.user.id);
-        setIsInitialized(true);
-      } else {
-        // No session - try to sign in anonymously
-        // But don't block initialization if it fails (anonymous auth might not be enabled)
-        signInAnonymously().then(() => {
-          if (mounted) setIsInitialized(true);
-        }).catch(() => {
-          // Silently fail - anonymous auth might not be enabled
-          // App can still work, just won't have auth
-          if (mounted) setIsInitialized(true);
-        });
-      }
+    Promise.race([
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted) return;
+        
+        if (session?.user) {
+          setUserId(session.user.id);
+          markInitialized();
+        } else {
+          // No session - try to sign in anonymously (with timeout)
+          Promise.race([
+            signInAnonymously(),
+            new Promise<void>((resolve) => setTimeout(resolve, 2000)) // 2 second timeout
+          ]).then(() => {
+            markInitialized();
+          }).catch(() => {
+            // Silently fail - anonymous auth might not be enabled
+            // App can still work, just won't have auth
+            markInitialized();
+          });
+        }
+      }),
+      new Promise<void>((resolve) => setTimeout(resolve, 2500)) // Backup timeout
+    ]).catch(() => {
+      // If everything fails, still initialize after timeout
+      markInitialized();
     });
 
     // Listen for auth changes
@@ -110,6 +138,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);

@@ -267,8 +267,29 @@ if ("serviceWorker" in navigator) {
 createRoot(document.getElementById("root")!).render(
   <Sentry.ErrorBoundary
     fallback={({ error, resetError }) => (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="max-w-md w-full p-6 rounded-3xl space-y-4 border border-destructive">
+      <div 
+        className="min-h-screen bg-background flex items-center justify-center p-4"
+        style={{
+          minHeight: '100vh',
+          backgroundColor: 'hsl(30, 40%, 97%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          width: '100%'
+        }}
+      >
+        <div 
+          className="max-w-md w-full p-6 rounded-3xl space-y-4 border border-destructive"
+          style={{
+            maxWidth: '28rem',
+            width: '100%',
+            padding: '24px',
+            borderRadius: '24px',
+            border: '1px solid hsl(0, 72%, 51%)',
+            backgroundColor: 'hsl(30, 50%, 99%)'
+          }}
+        >
           <h2 className="text-xl font-semibold text-destructive">Something went wrong</h2>
           <p className="text-sm text-muted-foreground">
             We've been notified about this error. Please try refreshing the page.
