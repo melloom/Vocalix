@@ -468,38 +468,53 @@ const initApp = () => {
     </UploadQueueProvider>
   </Sentry.ErrorBoundary>
       );
-      console.log("[App] App render() called successfully!");
-      window.__APP_RENDERED__ = true;
-      window.__REACT_RENDERING__ = false;
+      console.log("[App] root.render() call completed!");
       
-      // Double-check that the app actually rendered after a short delay
-      setTimeout(() => {
+      // Use requestAnimationFrame to check if render actually happened
+      requestAnimationFrame(() => {
         const hasContent = rootElement && (
           rootElement.children.length > 0 ||
           rootElement.textContent?.trim().length > 0 ||
           rootElement.querySelector('*')
         );
         
-        if (!hasContent) {
-          console.error("[App] App rendered but root is empty! This indicates a rendering error.");
-          window.__APP_RENDERED__ = false;
-          rootElement.innerHTML = `
-            <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-              <div style="max-width: 400px; text-align: center;">
-                <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Rendering Error</h1>
-                <p style="color: #666; margin-bottom: 12px;">The app failed to render content.</p>
-                <p style="color: #999; font-size: 12px; margin-bottom: 24px;">React loaded but didn't produce any output. Check the browser console (📱 Debug button) for errors.</p>
-                <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
-                  <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
-                  <button onclick="if(confirm('Reset all caches?')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button>
-                </div>
-              </div>
-            </div>
-          `;
+        if (hasContent) {
+          console.log("[App] ✅ App successfully rendered with content!");
+          window.__APP_RENDERED__ = true;
+          window.__REACT_RENDERING__ = false;
         } else {
-          console.log("[App] App successfully rendered with content!");
+          console.warn("[App] ⚠️ root.render() completed but no content detected yet, will check again...");
+          // Check again after a short delay
+          setTimeout(() => {
+            const stillNoContent = rootElement && (
+              rootElement.children.length === 0 &&
+              (!rootElement.textContent || rootElement.textContent.trim().length === 0)
+            );
+            if (stillNoContent) {
+              console.error("[App] ❌ App render() completed but root is still empty after delay!");
+              window.__APP_RENDERED__ = false;
+              window.__REACT_RENDERING__ = false;
+              rootElement.innerHTML = `
+                <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                  <div style="max-width: 400px; text-align: center;">
+                    <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Rendering Error</h1>
+                    <p style="color: #666; margin-bottom: 12px;">The app failed to render content.</p>
+                    <p style="color: #999; font-size: 12px; margin-bottom: 24px;">React loaded but didn't produce any output. Check the browser console (📱 Debug button) for errors.</p>
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+                      <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
+                      <button onclick="if(confirm('Reset all caches?')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            } else {
+              console.log("[App] ✅ Content appeared after delay!");
+              window.__APP_RENDERED__ = true;
+              window.__REACT_RENDERING__ = false;
+            }
+          }, 500);
         }
-      }, 1000);
+      });
     } catch (renderError) {
       window.__REACT_RENDERING__ = false;
       console.error("[App] Error during root.render():", renderError);
