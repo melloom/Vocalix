@@ -237,6 +237,18 @@ async function handleStaticRequest(request) {
     return fetch(request);
   }
 
+  // NEVER cache module scripts - always fetch fresh from network
+  const url = new URL(request.url);
+  if (
+    url.pathname.includes('/src/main.tsx') ||
+    url.pathname.includes('/src/') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.ts') ||
+    (request.headers.get('accept')?.includes('application/javascript') && url.pathname.includes('/src/'))
+  ) {
+    return fetch(request.clone());
+  }
+
   const cache = await caches.open(STATIC_CACHE_NAME);
 
   // Try cache first
