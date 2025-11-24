@@ -384,8 +384,10 @@ const initApp = () => {
       console.log("[App] App component:", typeof App, App?.name);
       
       // Render the app - if it fails, the error boundary will catch it
-      root.render(
-        <Sentry.ErrorBoundary
+      // Wrap in try-catch to catch any synchronous errors during render
+      try {
+        root.render(
+          <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
