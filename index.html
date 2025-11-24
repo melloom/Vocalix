@@ -75,8 +75,13 @@
           }
         };
         
-        // Clear after 5 seconds if React hasn't mounted (give it more time)
-        setTimeout(clearLoading, 5000);
+        // Clear after 4 seconds if React hasn't mounted
+        setTimeout(function() {
+          if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
+            console.log('[HTML] Timeout: React did not render, clearing loading screen');
+            clearLoading();
+          }
+        }, 4000);
         
         // Also listen for when React should have mounted
         window.addEventListener('load', function() {
@@ -86,14 +91,17 @@
             const hasReactContent = root && (
               root.querySelector('[data-reactroot]') ||
               root.querySelector('._react') ||
-              root.children.length > 0 && !root.innerHTML.includes('Loading Echo Garden') && !root.innerHTML.includes('App Loading')
+              (root.children.length > 0 && 
+               !root.innerHTML.includes('Loading Echo Garden') && 
+               !root.innerHTML.includes('App Loading') &&
+               !root.innerHTML.includes('Rendering Error'))
             );
             
-            if (!hasReactContent && !window.__APP_RENDERED__) {
-              console.log('[HTML] React did not render, showing error');
+            if (!hasReactContent && !window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
+              console.log('[HTML] React did not render after window load, showing error');
               clearLoading();
             }
-          }, 4000);
+          }, 3000);
         });
       })();
     </script>
