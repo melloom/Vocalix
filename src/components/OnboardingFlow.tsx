@@ -388,24 +388,63 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [honeypot, setHoneypot] = useState("");
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
-  const { toast } = useToast();
-  const { userId, signInAnonymously } = useAuth();
-  const deviceId = useDeviceId();
+  
+  // CRITICAL: Always call hooks (React rules), but handle errors gracefully
+  let toast: any;
+  let userId: string | null = null;
+  let signInAnonymously: (() => Promise<void>) | null = null;
+  
+  // Wrap hook calls in try-catch to prevent crashes
+  try {
+    const toastHook = useToast();
+    toast = toastHook.toast;
+  } catch (e) {
+    console.warn("[OnboardingFlow] useToast failed, using fallback:", e);
+    toast = ({ title, description, variant }: any) => {
+      console.log(`[Toast ${variant || 'default'}]: ${title} - ${description}`);
+    };
+  }
+  
+  try {
+    const auth = useAuth();
+    userId = auth.userId || null;
+    signInAnonymously = auth.signInAnonymously || null;
+  } catch (e) {
+    console.warn("[OnboardingFlow] useAuth failed, continuing without auth:", e);
+  }
+  
+  // Get deviceId from hook, with fallback state
+  const hookDeviceId = useDeviceId();
+  const [deviceId, setDeviceId] = useState<string | null>(hookDeviceId);
+  
+  // Generate deviceId manually if hook failed or returned null
+  useEffect(() => {
+    if (!deviceId) {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const stored = localStorage.getItem('deviceId');
+          if (stored) {
+            setDeviceId(stored);
+          } else {
+            const newId = crypto.randomUUID();
+            localStorage.setItem('deviceId', newId);
+            setDeviceId(newId);
+          }
+        } else {
+          const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          setDeviceId(tempId);
+        }
+      } catch (storageError) {
+        console.warn("[OnboardingFlow] localStorage failed, generating temp ID:", storageError);
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        setDeviceId(tempId);
+      }
+    } else if (hookDeviceId && hookDeviceId !== deviceId) {
+      setDeviceId(hookDeviceId);
+    }
+  }, [hookDeviceId, deviceId]);
 
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-
-  // Ensure auth is initialized when onboarding loads
-  useEffect(() => {
-    // If no userId, try to sign in anonymously immediately
-    // This ensures auth is ready when user submits the form
-    if (!userId) {
-      console.log('[OnboardingFlow] No userId, signing in anonymously...');
-      signInAnonymously().catch((error) => {
-        // Don't show error to user - they can still try to submit
-        console.warn('[OnboardingFlow] Failed to sign in anonymously on mount:', error);
-      });
-    }
-  }, [userId, signInAnonymously]);
 
   // Update avatar when handle changes
   useEffect(() => {
@@ -509,9 +548,24 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       // Map avatar type to emoji for storage
       const avatarEmoji = AVATAR_TYPE_TO_EMOJI[avatarType] || '🎧';
 
-      // Ensure we have a device ID
-      if (!deviceId) {
-        throw new Error("Device ID is required. Please refresh the page and try again.");
+      // Ensure we have a device ID - generate one if missing
+      let finalDeviceId = deviceId;
+      if (!finalDeviceId) {
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const stored = localStorage.getItem('deviceId');
+            if (stored) {
+              finalDeviceId = stored;
+            } else {
+              finalDeviceId = crypto.randomUUID();
+              localStorage.setItem('deviceId', finalDeviceId);
+            }
+          } else {
+            finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          }
+        } catch (e) {
+          finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        }
       }
 
       // Create profile
@@ -519,7 +573,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         .from("profiles")
         .insert({
           auth_user_id: currentUserId,
-          device_id: deviceId,
+          device_id: finalDeviceId,
           handle: normalizedHandle,
           emoji_avatar: avatarEmoji, // Store as emoji instead of type name
         } as any)
@@ -584,8 +638,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
   };
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-green-50/60 via-emerald-50/40 via-teal-50/30 to-amber-50/20 dark:from-green-950/30 dark:via-emerald-950/20 dark:via-teal-950/15 dark:to-amber-950/10">
+  // CRITICAL: Wrap entire render in try-catch to prevent crashes
+  try {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-green-50/60 via-emerald-50/40 via-teal-50/30 to-amber-50/20 dark:from-green-950/30 dark:via-emerald-950/20 dark:via-teal-950/15 dark:to-amber-950/10">
       {/* Enhanced Nature-themed background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {/* Animated gradient orbs */}
@@ -916,5 +972,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (error: any) {
+    // CRITICAL: If anything crashes, show a simple fallback onboarding
+    console.error("[OnboardingFlow] Render error, showing fallback:", error);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full space-y-6 text-center">
+          <h1 className="text-3xl font-bold text-green-700 dark:text-green-300">Welcome to Echo Garden</h1>
+          <p className="text-muted-foreground">Something went wrong loading the full onboarding. Please refresh the page.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 };
