@@ -135,13 +135,15 @@
       // Catch errors from the module script
       window.addEventListener('error', function(e) {
         // Ignore reCAPTCHA and other third-party script errors
-        if (e.filename && (
-          e.filename.includes('recaptcha') ||
-          e.filename.includes('google.com') ||
-          e.filename.includes('gstatic.com') ||
-          e.filename.includes('googleapis.com')
+        // Check both filename and target.src (some errors only have target.src)
+        const errorSource = e.filename || (e.target && (e.target.src || e.target.href)) || '';
+        if (errorSource && (
+          errorSource.includes('recaptcha') ||
+          errorSource.includes('google.com') ||
+          errorSource.includes('gstatic.com') ||
+          errorSource.includes('googleapis.com')
         )) {
-          console.warn('[HTML] Ignoring third-party script error:', e.filename);
+          // Silently ignore - don't even log it
           return; // Don't handle these errors
         }
         
@@ -413,16 +415,18 @@
       // Fallback error handler if main script fails to load (mobile browsers)
       window.addEventListener('error', function(e) {
         // FIRST: Ignore third-party script errors immediately
-        const isThirdPartyScript = e.filename && (
-          e.filename.includes('recaptcha') ||
-          e.filename.includes('google.com') ||
-          e.filename.includes('gstatic.com') ||
-          e.filename.includes('googleapis.com') ||
-          e.filename.includes('facebook.com') ||
-          e.filename.includes('twitter.com') ||
-          e.filename.includes('analytics') ||
-          e.filename.includes('doubleclick') ||
-          e.filename.includes('googletagmanager')
+        // Check both filename and target.src (some errors only have target.src)
+        const errorSource = e.filename || (e.target && (e.target.src || e.target.href)) || '';
+        const isThirdPartyScript = errorSource && (
+          errorSource.includes('recaptcha') ||
+          errorSource.includes('google.com') ||
+          errorSource.includes('gstatic.com') ||
+          errorSource.includes('googleapis.com') ||
+          errorSource.includes('facebook.com') ||
+          errorSource.includes('twitter.com') ||
+          errorSource.includes('analytics') ||
+          errorSource.includes('doubleclick') ||
+          errorSource.includes('googletagmanager')
         );
         
         if (isThirdPartyScript) {
