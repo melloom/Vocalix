@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -139,6 +145,7 @@ const Settings = () => {
   const [magicLinkType, setMagicLinkType] = useState<"standard" | "extended" | "one_time">("standard");
   const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
   const [showQRCode, setShowQRCode] = useState(true); // Show QR code by default for easy sharing
+  const [showSiteQRCode, setShowSiteQRCode] = useState(false); // QR code for current site URL
   const emailSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isExportingAudio, setIsExportingAudio] = useState(false);
@@ -153,6 +160,7 @@ const Settings = () => {
   const [allowVoiceCloning, setAllowVoiceCloning] = useState(false);
   const [voiceCloningAutoApprove, setVoiceCloningAutoApprove] = useState(false);
   const [voiceCloningRevenueShare, setVoiceCloningRevenueShare] = useState(20);
+  const [activeTab, setActiveTab] = useState("preferences");
 
   // Auto-update device user_agent when Settings page loads
   useEffect(() => {
@@ -1284,7 +1292,7 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="rounded-full">
             <Link to="/">
@@ -1295,9 +1303,36 @@ const Settings = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Preferences</h2>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+          <div className="max-w-2xl mx-auto px-4">
+            <TabsList className="w-full h-auto p-1 bg-muted/50 rounded-2xl grid grid-cols-3 lg:grid-cols-6 gap-1">
+              <TabsTrigger value="preferences" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Preferences
+              </TabsTrigger>
+              <TabsTrigger value="personalization" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Personalization
+              </TabsTrigger>
+              <TabsTrigger value="content" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Content
+              </TabsTrigger>
+              <TabsTrigger value="account" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Account
+              </TabsTrigger>
+              <TabsTrigger value="security" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="downloads" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                Downloads
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </div>
+
+      <main className="max-w-2xl mx-auto px-4 py-6">
+        <TabsContent value="preferences" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Preferences</h2>
           <Card className="p-6 rounded-3xl space-y-6">
             <div className="flex items-center justify-between gap-6">
               <div>
@@ -1773,19 +1808,23 @@ const Settings = () => {
           </Card>
 
           <NotificationPreferences />
-        </section>
+          </section>
+        </TabsContent>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Personalization</h2>
+        <TabsContent value="personalization" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Personalization</h2>
           <PersonalizationPreferences />
           
           <FeedCustomizationSettings />
           
           <MuteBlockSettings />
-        </section>
+          </section>
+        </TabsContent>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Content</h2>
+        <TabsContent value="content" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Content</h2>
           <Card className="p-6 rounded-3xl space-y-6">
             <div className="flex items-start justify-between gap-6">
               <div>
@@ -1819,10 +1858,10 @@ const Settings = () => {
               </div>
             </div>
           </Card>
-        </section>
+          </section>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Blocked Users</h2>
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Blocked Users</h2>
           <Card className="p-6 rounded-3xl space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-4">
@@ -1853,10 +1892,12 @@ const Settings = () => {
               )}
             </div>
           </Card>
-        </section>
+          </section>
+        </TabsContent>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Account</h2>
+        <TabsContent value="account" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Account</h2>
           <Card className="p-6 rounded-3xl space-y-4">
             <div className="flex items-start justify-between gap-6">
               <div>
@@ -1963,10 +2004,12 @@ const Settings = () => {
               </AlertDialogContent>
             </AlertDialog>
           </Card>
-        </section>
+          </section>
+        </TabsContent>
 
-        {/* Device Activity Section - Always visible */}
-        <section className="space-y-4" id="device-activity">
+        <TabsContent value="security" className="space-y-8 mt-6">
+          {/* Device Activity Section */}
+          <section className="space-y-4" id="device-activity">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Device Activity</h2>
             <Button
@@ -2504,11 +2547,11 @@ const Settings = () => {
               </div>
             )}
           </Card>
-        </section>
+          </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Active Sessions</h2>
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Active Sessions</h2>
             <Button
               variant="ghost"
               size="sm"
@@ -2757,10 +2800,12 @@ const Settings = () => {
               </div>
             )}
           </Card>
-        </section>
+          </section>
+        </TabsContent>
 
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Offline Downloads</h2>
+        <TabsContent value="downloads" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Offline Downloads</h2>
           <Card className="p-6 rounded-3xl space-y-4">
             <div className="flex items-start justify-between gap-6">
               <div>
@@ -2896,8 +2941,10 @@ const Settings = () => {
               </Button>
             </div>
           </Card>
-        </section>
+          </section>
+        </TabsContent>
       </main>
+      </Tabs>
 
       <Dialog open={isMagicLinkDialogOpen} onOpenChange={setIsMagicLinkDialogOpen}>
         <DialogContent className="sm:max-w-lg rounded-3xl">
