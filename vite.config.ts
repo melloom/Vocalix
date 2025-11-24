@@ -32,11 +32,34 @@ export default defineConfig(({ mode }) => ({
     // Optimize chunks for better caching and code splitting
     rollupOptions: {
       output: {
-        // CRITICAL: Disable automatic chunking for React to prevent splitting
-        // We'll manually control chunking but React MUST stay in main bundle
+        // CRITICAL: Force React to stay in main bundle
+        // Use a function that explicitly checks for React
         manualChunks: (id) => {
           // Log chunking decisions for debugging (remove in production)
           // console.log('Chunking decision for:', id);
+          
+          // ABSOLUTE FIRST CHECK: If it's React or React-related, NEVER chunk it
+          // Check both the full path and lowercase version
+          const idLower = id.toLowerCase();
+          const isReact = 
+            id.includes('react') || 
+            idLower.includes('react') ||
+            id.includes('react-dom') ||
+            idLower.includes('react-dom') ||
+            id.includes('react/jsx-runtime') ||
+            idLower.includes('react/jsx-runtime') ||
+            id.includes('scheduler') ||
+            idLower.includes('scheduler') ||
+            id.includes('react-router') ||
+            idLower.includes('react-router') ||
+            id.includes('@tanstack/react') ||
+            idLower.includes('@tanstack/react') ||
+            id.includes('@sentry/react') ||
+            idLower.includes('@sentry/react');
+          
+          if (isReact) {
+            return undefined; // Force into main bundle
+          }
           // CRITICAL: React and ALL React-dependent code MUST be in the main bundle
           // This prevents "createContext/forwardRef is undefined" errors on mobile browsers
           
