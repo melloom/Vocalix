@@ -568,15 +568,58 @@ const initApp = () => {
 
 // Wait for DOM to be ready before initializing (critical for mobile)
 console.log("[App] DOM ready state:", document.readyState);
-if (document.readyState === 'loading') {
-  console.log("[App] Waiting for DOMContentLoaded...");
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log("[App] DOMContentLoaded fired");
+console.log("[App] About to initialize app...");
+
+// Multiple ways to ensure initApp runs
+const runInit = () => {
+  console.log("[App] runInit() called, calling initApp()...");
+  try {
     initApp();
+  } catch (initError) {
+    console.error("[App] Error in initApp():", initError);
+    const root = document.getElementById("root");
+    if (root) {
+      root.innerHTML = `
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 500px; text-align: center;">
+            <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Initialization Error</h1>
+            <p style="color: #666; margin-bottom: 12px;">Failed to initialize app.</p>
+            <p style="color: #999; font-size: 12px; margin-bottom: 24px;">Error: ${String(initError?.message || initError)}</p>
+            <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
+          </div>
+        </div>
+      `;
+    }
+  }
+};
+
+if (document.readyState === 'loading') {
+  console.log("[App] DOM still loading, waiting for DOMContentLoaded...");
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log("[App] DOMContentLoaded fired, initializing...");
+    runInit();
   });
 } else {
   // DOM is already ready
   console.log("[App] DOM already ready, initializing immediately");
   // Use setTimeout to ensure all scripts are loaded
-  setTimeout(initApp, 0);
+  setTimeout(runInit, 0);
 }
+
+// Also try on window load as backup
+window.addEventListener('load', () => {
+  console.log("[App] Window load event fired");
+  if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
+    console.log("[App] App not rendered yet, trying initApp again...");
+    setTimeout(runInit, 100);
+  }
+});
+
+// Emergency fallback - if nothing happens after 2 seconds, try again
+setTimeout(() => {
+  if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__ && !window.__INIT_ATTEMPTED__) {
+    console.log("[App] Emergency fallback: App not initialized after 2 seconds, trying again...");
+    window.__INIT_ATTEMPTED__ = true;
+    runInit();
+  }
+}, 2000);
