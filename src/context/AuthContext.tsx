@@ -67,14 +67,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let initialized = false;
 
-    // Set a timeout to force initialization after 3 seconds (mobile fallback)
+    // Set a timeout to force initialization after 1.5 seconds (mobile fallback)
+    // This ensures the app renders even if auth hangs
     const forceInit = () => {
       if (mounted && !initialized) {
+        console.log('[Auth] Force initializing after timeout');
         initialized = true;
         setIsInitialized(true);
       }
     };
-    timeoutId = setTimeout(forceInit, 3000);
+    timeoutId = setTimeout(forceInit, 1500);
 
     // Helper to mark as initialized
     const markInitialized = () => {

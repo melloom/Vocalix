@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 interface AuthGuardProps {
@@ -21,7 +21,20 @@ export const AuthGuard = ({
   // Show loading state while auth is initializing
   // Don't require userId - anonymous auth might fail, but we can still show the app
   // Use inline styles as fallback in case CSS doesn't load on mobile
-  if (!isInitialized || isLoading) {
+  // Add timeout fallback - if auth takes too long, show app anyway
+  const [forceShow, setForceShow] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isInitialized) {
+        console.log('[AuthGuard] Force showing app after 2 seconds');
+        setForceShow(true);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isInitialized]);
+  
+  if ((!isInitialized || isLoading) && !forceShow) {
     return (
       fallback || (
         <div 
