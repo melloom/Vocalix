@@ -2718,7 +2718,11 @@ const Index = () => {
 
   // Only show onboarding if there's no profile (auth is already loaded by AuthGuard)
   if (!profileId) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+    return (
+      <ErrorBoundary>
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      </ErrorBoundary>
+    );
   }
 
   return (
