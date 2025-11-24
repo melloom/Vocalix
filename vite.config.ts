@@ -32,7 +32,11 @@ export default defineConfig(({ mode }) => ({
     // Optimize chunks for better caching and code splitting
     rollupOptions: {
       output: {
+        // CRITICAL: Disable automatic chunking for React to prevent splitting
+        // We'll manually control chunking but React MUST stay in main bundle
         manualChunks: (id) => {
+          // Log chunking decisions for debugging (remove in production)
+          // console.log('Chunking decision for:', id);
           // CRITICAL: React and ALL React-dependent code MUST be in the main bundle
           // This prevents "createContext/forwardRef is undefined" errors on mobile browsers
           
