@@ -31,6 +31,7 @@ import { updateSupabaseDeviceHeader, initializeRpcFunctionCheck } from "@/integr
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { initializeMonitoring, captureException } from "@/lib/monitoring";
 import * as Sentry from "@sentry/react";
+console.log("[App] All imports completed successfully");
 
 // Mark that script has loaded
 if (typeof window !== 'undefined') {
@@ -389,22 +390,14 @@ const initApp = () => {
     }
     
     try {
-      console.log("[App] ===== ABOUT TO CALL ROOT.RENDER() =====");
+      console.log("[App] ===== RENDERING APP NOW =====");
       console.log("[App] React version:", React?.version);
       console.log("[App] createRoot available:", typeof createRoot !== 'undefined');
       console.log("[App] App component:", typeof App, App?.name);
       
-      // Try rendering a simple test first
-      console.log("[App] Testing React with simple div...");
-      try {
-        root.render(<div style={{padding: '20px', textAlign: 'center'}}>React Test</div>);
-        console.log("[App] ✅ Simple test render succeeded!");
-        
-        // Wait a moment then render full app
-        setTimeout(() => {
-          console.log("[App] Now rendering full app...");
-          root.render(
-            <Sentry.ErrorBoundary
+      // Render the app - if it fails, the error boundary will catch it
+      root.render(
+        <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
@@ -503,45 +496,10 @@ const initApp = () => {
                 <App />
               </UploadQueueProvider>
             </Sentry.ErrorBoundary>
-            );
-            console.log("[App] ✅ Full app render() call completed!");
-          } else {
-            console.error("[App] ❌ Test render failed - React didn't produce content!");
-            rootElement.innerHTML = `
-              <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <div style="max-width: 500px; text-align: center;">
-                  <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Render Failed</h1>
-                  <p style="color: #666; margin-bottom: 12px;">React loaded but failed to render even a simple test component.</p>
-                  <p style="color: #999; font-size: 12px; margin-bottom: 24px;">This indicates a serious React issue. Check the debug panel for errors.</p>
-                  <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
-                </div>
-              </div>
-            `;
-            window.__REACT_RENDERING__ = false;
-          }
-        }, 500);
-      } catch (testError) {
-        console.error("[App] ❌ Test render threw error:", testError);
-        rootElement.innerHTML = `
-          <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="max-width: 500px; text-align: center;">
-              <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Render Error</h1>
-              <p style="color: #666; margin-bottom: 12px;">React failed to render test component.</p>
-              <p style="color: #999; font-size: 12px; margin-bottom: 24px;">Error: ${String(testError?.message || testError)}</p>
-              <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
-            </div>
-          </div>
-        `;
-        window.__REACT_RENDERING__ = false;
-        throw testError;
-      }
-      
-      // Original render code (now in setTimeout above)
-      /*
-      root.render(
-        <Sentry.ErrorBoundary
-      
-      // Use requestAnimationFrame to check if render actually happened
+        );
+        console.log("[App] ✅ App render() call completed!");
+        
+        // Use requestAnimationFrame to check if render actually happened
       requestAnimationFrame(() => {
         const hasContent = rootElement && (
           rootElement.children.length > 0 ||
