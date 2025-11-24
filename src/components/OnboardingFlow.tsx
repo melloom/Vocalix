@@ -389,12 +389,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
-  // useAuth must be called unconditionally (React rules)
-  // But AuthContext should handle errors gracefully
   const { userId, signInAnonymously } = useAuth();
   const deviceId = useDeviceId();
 
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+  // Ensure auth is initialized when onboarding loads
+  useEffect(() => {
+    // If no userId, try to sign in anonymously immediately
+    // This ensures auth is ready when user submits the form
+    if (!userId) {
+      console.log('[OnboardingFlow] No userId, signing in anonymously...');
+      signInAnonymously().catch((error) => {
+        // Don't show error to user - they can still try to submit
+        console.warn('[OnboardingFlow] Failed to sign in anonymously on mount:', error);
+      });
+    }
+  }, [userId, signInAnonymously]);
 
   // Update avatar when handle changes
   useEffect(() => {
