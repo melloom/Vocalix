@@ -1,57 +1,33 @@
--- Complete Admin & Device Setup - All-in-One SQL Script (Optimized)
+-- Complete Admin & Device Setup - Fast & Simple
 -- 
--- This script does everything in one transaction:
--- 1. Sets up 2 admin accounts (local + production)
--- 2. Links devices to admin accounts
--- 3. Supports multiple devices per admin account
---
 -- Account IDs:
 -- - Local Admin: a8c24193-3912-4a7e-af33-328b3c756a32
 -- - Production Admin: 1de6dfce-8d08-4bc0-a91b-61128a25fa97
 --
--- INSTRUCTIONS:
--- 1. Run this entire script in your Supabase Production SQL Editor
--- 2. Refresh your app - both accounts will have admin access
--- 3. All linked devices will appear in Settings → Security → Active Devices
-
-BEGIN;
+-- INSTRUCTIONS: Run each section separately if needed
 
 -- ============================================================================
--- STEP 1: Grant admin access to BOTH accounts (fast, no checks)
+-- STEP 1: Grant admin to local account
 -- ============================================================================
-
 INSERT INTO public.admins (profile_id, role, created_at)
-VALUES 
-  ('a8c24193-3912-4a7e-af33-328b3c756a32'::uuid, 'admin', now()),
-  ('1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid, 'admin', now())
-ON CONFLICT (profile_id) DO UPDATE 
-SET role = 'admin';
+VALUES ('a8c24193-3912-4a7e-af33-328b3c756a32'::uuid, 'admin', now())
+ON CONFLICT (profile_id) DO UPDATE SET role = 'admin';
 
 -- ============================================================================
--- STEP 2: Link production device to local admin account (fast)
+-- STEP 2: Grant admin to production account
 -- ============================================================================
+INSERT INTO public.admins (profile_id, role, created_at)
+VALUES ('1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid, 'admin', now())
+ON CONFLICT (profile_id) DO UPDATE SET role = 'admin';
 
--- Link device_id from production profile to local admin account
+-- ============================================================================
+-- STEP 3: Link production device to local admin (if device_id exists)
+-- ============================================================================
 INSERT INTO public.devices (device_id, profile_id)
-SELECT 
-  p.device_id,
-  'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid
-FROM public.profiles p
-WHERE p.id = '1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid
-  AND p.device_id IS NOT NULL
-ON CONFLICT (device_id) 
-DO UPDATE SET
-  profile_id = 'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid,
-  updated_at = now();
-
--- Update any existing device links for production profile
-UPDATE public.devices
-SET 
-  profile_id = 'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid,
-  updated_at = now()
-WHERE profile_id = '1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid;
-
-COMMIT;
+SELECT device_id, 'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid
+FROM public.profiles
+WHERE id = '1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid AND device_id IS NOT NULL
+ON CONFLICT (device_id) DO UPDATE SET profile_id = 'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid;
 
 -- ============================================================================
 -- VERIFICATION (Optional - run separately if needed)
