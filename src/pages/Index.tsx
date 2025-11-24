@@ -1140,6 +1140,10 @@ const IndexInner = () => {
       setIsLoadingSimilarVoices(false);
     }
   }, [profileId, profile]);
+  
+  // handleOnboardingComplete is already defined at the top of the component (line 290)
+  // The early return for onboarding uses that one, which reloads the page
+  // No need to redeclare it here
 
   // Check if tutorial should be shown on mount (for existing users who haven't seen it)
   useEffect(() => {

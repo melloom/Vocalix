@@ -40,7 +40,7 @@ if (typeof window !== 'undefined') {
 
 // Initialize monitoring (Sentry) first - wrap in try-catch to prevent blocking
 try {
-  initializeMonitoring();
+initializeMonitoring();
 } catch (error) {
   console.warn("[App] Monitoring initialization failed, continuing anyway:", error);
 }
@@ -327,8 +327,8 @@ const initApp = () => {
   }
   
   console.log("[App] About to render app...");
-  
-  // Wrap app with Sentry's ErrorBoundary for automatic error capture
+
+// Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
     // Verify React is loaded before proceeding
     console.log("[App] Checking React availability...", {
@@ -387,8 +387,8 @@ const initApp = () => {
       // Wrap in try-catch to catch any synchronous errors during render
       try {
         root.render(
-          <Sentry.ErrorBoundary
-        fallback={({ error, resetError }) => (
+  <Sentry.ErrorBoundary
+    fallback={({ error, resetError }) => (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
         style={{
@@ -508,9 +508,9 @@ const initApp = () => {
     )}
     showDialog={false}
   >
-              <UploadQueueProvider>
-                <App />
-              </UploadQueueProvider>
+    <UploadQueueProvider>
+      <App />
+    </UploadQueueProvider>
             </Sentry.ErrorBoundary>
         );
         console.log("[App] ✅ App render() call completed!");
@@ -565,11 +565,12 @@ const initApp = () => {
       console.error("[App] Error during root.render():", renderError);
       throw renderError; // Re-throw to be caught by outer catch
     }
-  } catch (innerError) {
-    window.__REACT_RENDERING__ = false;
-    console.error("[App] Error in inner try block:", innerError);
-    throw innerError; // Re-throw to be caught by outer catch
-  }
+    } catch (innerError: any) {
+      // Catch errors from the inner try block (line 380)
+      window.__REACT_RENDERING__ = false;
+      console.error("[App] Error in inner render block:", innerError);
+      throw innerError; // Re-throw to be caught by outer catch
+    }
   } catch (error: any) {
     // If rendering fails, show a fallback error message
     console.error("[App] Failed to render app:", error);
