@@ -134,6 +134,17 @@
       
       // Catch errors from the module script
       window.addEventListener('error', function(e) {
+        // Ignore reCAPTCHA and other third-party script errors
+        if (e.filename && (
+          e.filename.includes('recaptcha') ||
+          e.filename.includes('google.com') ||
+          e.filename.includes('gstatic.com') ||
+          e.filename.includes('googleapis.com')
+        )) {
+          console.warn('[HTML] Ignoring third-party script error:', e.filename);
+          return; // Don't handle these errors
+        }
+        
         // Check if it's an error from our main module
         if (e.filename && (e.filename.includes('main.tsx') || e.filename.includes('index-') || e.filename.includes('assets/js/'))) {
           console.error('[HTML] ❌ MODULE SCRIPT ERROR:', {
@@ -397,6 +408,21 @@
         );
         
         // Check if it's a script loading error (network failure, 404, etc.)
+        // BUT ignore third-party scripts like reCAPTCHA
+        const isThirdPartyScript = e.filename && (
+          e.filename.includes('recaptcha') ||
+          e.filename.includes('google.com') ||
+          e.filename.includes('gstatic.com') ||
+          e.filename.includes('googleapis.com') ||
+          e.filename.includes('facebook.com') ||
+          e.filename.includes('twitter.com')
+        );
+        
+        if (isThirdPartyScript) {
+          console.warn('[HTML] Ignoring third-party script error:', e.filename);
+          return; // Don't handle third-party script errors
+        }
+        
         const isScriptError = e.target && (
           e.target.tagName === 'SCRIPT' ||
           e.target.tagName === 'LINK' ||
