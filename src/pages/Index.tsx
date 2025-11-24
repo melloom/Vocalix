@@ -276,13 +276,22 @@ const CreatorSearchResult = ({ profile, viewerProfileId }: { profile: SearchProf
 };
 
 const Index = () => {
+  console.log('[Index] Component rendering...');
+  
   const navigate = useNavigate();
   // Use centralized auth context instead of localStorage
   const { profileId, profile, isLoading: isAuthLoading, deviceId } = useAuth();
+  console.log('[Index] Auth loaded, profileId:', profileId);
+  
   const location = useLocation();
   const search = useSearch(profileId);
+  console.log('[Index] Search hook loaded');
+  
   const { blockedUsers } = useBlockedUsers();
+  console.log('[Index] BlockedUsers hook loaded');
+  
   const { isAdmin } = useAdminStatus();
+  console.log('[Index] AdminStatus hook loaded');
   const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   
