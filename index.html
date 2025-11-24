@@ -59,47 +59,70 @@
         }
       </style>
     </div>
+    <!-- Vite will inject the correct script tag here during build -->
+    <!-- In development, this loads /src/main.tsx directly -->
+    <!-- In production, Vite replaces this with the bundled script -->
+    <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Enhanced script loader with error detection for mobile
+      // Track script loading for error detection
       (function() {
-        const script = document.createElement('script');
-        script.type = 'module';
-        script.src = '/src/main.tsx';
-        script.crossOrigin = 'anonymous';
+        // Find the script tag that Vite injected (or the one we just added)
+        const scripts = document.querySelectorAll('script[type="module"]');
+        let mainScript = null;
         
-        let loadTimeout;
-        let hasLoaded = false;
+        for (let script of scripts) {
+          if (script.src && (script.src.includes('/src/main.tsx') || script.src.includes('/assets/js/'))) {
+            mainScript = script;
+            break;
+          }
+        }
         
-        script.onload = function() {
-          hasLoaded = true;
-          if (loadTimeout) clearTimeout(loadTimeout);
-          window.__APP_SCRIPT_LOADED__ = true;
-          console.log('[HTML] Main script loaded successfully');
-        };
-        
-        script.onerror = function(e) {
-          console.error('[HTML] Script failed to load:', {
-            src: script.src,
-            error: e,
-            readyState: script.readyState
-          });
+        if (mainScript) {
+          let loadTimeout;
+          let hasLoaded = false;
           
-          var root = document.getElementById('root');
-          if (root) {
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main application script could not be loaded.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">File: /src/main.tsx</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+          const markLoaded = function() {
+            hasLoaded = true;
+            if (loadTimeout) clearTimeout(loadTimeout);
+            window.__APP_SCRIPT_LOADED__ = true;
+            console.log('[HTML] Main script loaded successfully');
+          };
+          
+          const handleError = function(e) {
+            if (hasLoaded) return; // Already handled
+            
+            console.error('[HTML] Script failed to load:', {
+              src: mainScript.src,
+              error: e,
+              readyState: mainScript.readyState
+            });
+            
+            var root = document.getElementById('root');
+            if (root && !window.__ERROR_SHOWN__) {
+              window.__ERROR_SHOWN__ = true;
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main application script could not be loaded.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">File: ' + (mainScript.src || '/src/main.tsx') + '</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            }
+          };
+          
+          // Monitor the script
+          if (mainScript.addEventListener) {
+            mainScript.addEventListener('load', markLoaded);
+            mainScript.addEventListener('error', handleError);
           }
-        };
-        
-        // Timeout after 10 seconds
-        loadTimeout = setTimeout(function() {
-          if (!hasLoaded) {
-            console.error('[HTML] Script load timeout after 10 seconds');
-            script.onerror(new Error('Load timeout'));
+          
+          // Fallback timeout
+          loadTimeout = setTimeout(function() {
+            if (!hasLoaded && mainScript.readyState !== 'complete' && mainScript.readyState !== 'loaded') {
+              console.error('[HTML] Script load timeout after 15 seconds');
+              handleError(new Error('Load timeout'));
+            }
+          }, 15000);
+          
+          // Check if already loaded
+          if (mainScript.readyState === 'complete' || mainScript.readyState === 'loaded') {
+            markLoaded();
           }
-        }, 10000);
-        
-        // Try to load the script
-        document.head.appendChild(script);
+        }
       })();
     </script>
     <script>
@@ -281,13 +304,32 @@
           
           var root = document.getElementById('root');
           if (root && (!window.__APP_SCRIPT_LOADED__ || isReactError || isScriptError)) {
-            // Try auto-reset once
-            if (!window.__RESET_ATTEMPTED__ && (navigator.serviceWorker || window.caches)) {
+            // Try auto-reset once - but only if we haven't already tried
+            // Also check if we're in a reload loop (multiple errors in quick succession)
+            const now = Date.now();
+            const lastErrorTime = window.__LAST_ERROR_TIME__ || 0;
+            const timeSinceLastError = now - lastErrorTime;
+            window.__LAST_ERROR_TIME__ = now;
+            
+            // Only auto-reset ONCE - prevent infinite loops
+            // Check if we're in a reload loop (errors happening too quickly)
+            if (!window.__RESET_ATTEMPTED__ && timeSinceLastError > 3000 && (navigator.serviceWorker || window.caches)) {
               window.__RESET_ATTEMPTED__ = true;
-              console.log('[HTML] Attempting automatic cache reset...');
-              resetAppCacheAndReload(true);
+              console.log('[HTML] Attempting automatic cache reset (one time only)...');
+              // Don't reload immediately - let user see the error first
+              resetAppCacheAndReload(false);
+              // Show message that cache was reset
+              setTimeout(() => {
+                var root = document.getElementById('root');
+                if (root) {
+                  var existing = root.innerHTML;
+                  root.innerHTML = existing.replace('</h1>', '</h1><p style="color: #667eea; margin-bottom: 12px; font-size: 14px;">Cache has been reset. Please refresh the page.</p>');
+                }
+              }, 1000);
               return;
             }
+            
+            // If we've already tried resetting, or we're in a loop, just show the error (no auto-reload)
             
             // Build detailed error message
             var errorDetails = '';
