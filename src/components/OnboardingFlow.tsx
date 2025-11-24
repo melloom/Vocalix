@@ -387,6 +387,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaAvailable, setRecaptchaAvailable] = useState(false);
+  const [recaptchaError, setRecaptchaError] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   
   // CRITICAL: Always call hooks (React rules), but handle errors gracefully
@@ -461,13 +463,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return;
     }
 
-    if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
+    // Only require reCAPTCHA if it's available and loaded successfully
+    // If reCAPTCHA failed to load or isn't available, allow submission without it
+    if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
       toast({
         title: "Verification required",
         description: "Please complete the reCAPTCHA verification",
         variant: "destructive",
       });
       return;
+    }
+    
+    // If reCAPTCHA had an error, log it but allow submission
+    if (RECAPTCHA_SITE_KEY && recaptchaError) {
+      console.warn('[OnboardingFlow] reCAPTCHA unavailable, proceeding without verification');
     }
 
     const normalizedHandle = handle.toLowerCase().trim();
@@ -923,24 +932,48 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 />
               </div>
 
-              {/* reCAPTCHA */}
-              {RECAPTCHA_SITE_KEY && (
+              {/* reCAPTCHA - Optional, won't block if it fails */}
+              {RECAPTCHA_SITE_KEY && !recaptchaError && (
                 <div className="flex justify-center">
-                  <ReCAPTCHA
-                    ref={recaptchaRef}
-                    sitekey={RECAPTCHA_SITE_KEY}
-                    onChange={(token) => setRecaptchaToken(token)}
-                    onExpired={() => setRecaptchaToken(null)}
-                    onError={(error) => {
-                      // Silently handle reCAPTCHA errors - don't block the app
-                      console.warn('[OnboardingFlow] reCAPTCHA error (non-critical):', error);
-                      setRecaptchaToken(null);
-                    }}
-                    asyncScriptOnLoad={() => {
-                      console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
-                    }}
-                    theme="light"
-                  />
+                  <div className="relative">
+                    <ReCAPTCHA
+                      ref={recaptchaRef}
+                      sitekey={RECAPTCHA_SITE_KEY}
+                      onChange={(token) => {
+                        setRecaptchaToken(token);
+                        setRecaptchaAvailable(true);
+                        setRecaptchaError(false);
+                      }}
+                      onExpired={() => {
+                        setRecaptchaToken(null);
+                        setRecaptchaAvailable(false);
+                      }}
+                      onError={(error) => {
+                        // reCAPTCHA failed - mark as unavailable but don't block
+                        console.warn('[OnboardingFlow] reCAPTCHA error (non-critical, continuing without it):', error);
+                        setRecaptchaToken(null);
+                        setRecaptchaAvailable(false);
+                        setRecaptchaError(true);
+                      }}
+                      asyncScriptOnLoad={() => {
+                        console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
+                        setRecaptchaAvailable(true);
+                        setRecaptchaError(false);
+                      }}
+                      asyncScriptOnError={() => {
+                        // Script failed to load entirely
+                        console.warn('[OnboardingFlow] reCAPTCHA script failed to load (non-critical)');
+                        setRecaptchaAvailable(false);
+                        setRecaptchaError(true);
+                      }}
+                      theme="light"
+                    />
+                  </div>
+                </div>
+              )}
+              {RECAPTCHA_SITE_KEY && recaptchaError && (
+                <div className="text-xs text-muted-foreground text-center">
+                  <p>reCAPTCHA unavailable - you can still create your account</p>
                 </div>
               )}
             </CardContent>
