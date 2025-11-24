@@ -14,14 +14,24 @@ import { useCallback } from "react";
  */
 export const AuthenticatedLayout = () => {
   const location = useLocation();
-  const { profileId } = useAuth();
+  
+  // CRITICAL: Wrap useAuth in try-catch to prevent crashes on mobile
+  let profileId: string | null = null;
+  try {
+    const auth = useAuth();
+    profileId = auth.profileId || null;
+  } catch (e) {
+    console.warn("[AuthenticatedLayout] useAuth failed, showing onboarding:", e);
+    // If auth fails, show onboarding immediately
+    profileId = null;
+  }
   
   const handleOnboardingComplete = useCallback((newProfileId: string) => {
     console.log('[AuthenticatedLayout] Onboarding complete, reloading...');
     window.location.reload();
   }, []);
   
-  // If no profileId, show onboarding immediately - bypass everything
+  // If no profileId OR auth failed, show onboarding immediately - bypass everything
   if (!profileId) {
     return (
       <ErrorBoundary
