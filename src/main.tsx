@@ -414,13 +414,32 @@ const initApp = () => {
           <p className="text-sm text-muted-foreground">
             We've been notified about this error. Please try refreshing the page.
           </p>
-          <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48">
-            <summary className="cursor-pointer font-semibold mb-2">Error Details</summary>
-            <pre className="whitespace-pre-wrap text-[10px] mt-1">
-              {error?.toString() || 'Unknown error'}
-              {error?.stack && `\n\nStack:\n${error.stack}`}
-              {error?.message && `\n\nMessage: ${error.message}`}
-            </pre>
+          <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48" open>
+            <summary className="cursor-pointer font-semibold mb-2">Error Details (Click to expand)</summary>
+            <div className="mt-2 space-y-2">
+              <div>
+                <strong>Error:</strong>
+                <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded">
+                  {error?.toString() || 'Unknown error'}
+                </pre>
+              </div>
+              {error?.message && (
+                <div>
+                  <strong>Message:</strong>
+                  <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded">
+                    {error.message}
+                  </pre>
+                </div>
+              )}
+              {error?.stack && (
+                <div>
+                  <strong>Stack Trace:</strong>
+                  <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded overflow-auto max-h-32">
+                    {error.stack}
+                  </pre>
+                </div>
+              )}
+            </div>
           </details>
           <div className="flex flex-col gap-3 pt-2">
             <button
