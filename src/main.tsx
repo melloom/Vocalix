@@ -354,7 +354,19 @@ const initApp = () => {
     // Set flag that we're attempting to render
     window.__REACT_RENDERING__ = true;
     
+    // Verify App component is available
+    console.log("[App] Checking App component:", {
+      hasApp: typeof App !== 'undefined',
+      AppType: typeof App,
+      AppName: App?.name || 'unknown'
+    });
+    
+    if (typeof App === 'undefined') {
+      throw new Error("App component is not defined. Import may have failed.");
+    }
+    
     try {
+      console.log("[App] Calling root.render()...");
       root.render(
         <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
