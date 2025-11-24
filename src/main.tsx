@@ -303,6 +303,13 @@ const initApp = () => {
 
   console.log("[App] Root element found, rendering app...");
   
+  // IMMEDIATELY clear the loading screen HTML - don't wait
+  // This prevents the "Loading Echo Garden" screen from staying visible
+  if (rootElement.innerHTML.includes('Loading Echo Garden')) {
+    console.log("[App] Clearing loading screen HTML immediately...");
+    rootElement.innerHTML = '';
+  }
+  
   // Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
     // Verify React is loaded before proceeding
@@ -310,9 +317,7 @@ const initApp = () => {
       throw new Error("React is not loaded. createRoot is undefined.");
     }
     
-    console.log("[App] React verified, clearing loading screen...");
-    // Clear the loading indicator AFTER we're ready to render
-    rootElement.innerHTML = '';
+    console.log("[App] React verified, creating root...");
     
     const root = createRoot(rootElement);
     console.log("[App] React root created, rendering components...");

@@ -25,14 +25,23 @@ export const AuthGuard = ({
   const [forceShow, setForceShow] = useState(false);
   
   useEffect(() => {
+    // Very aggressive timeout - show app after 500ms to prevent stuck loading
     const timer = setTimeout(() => {
       if (!isInitialized) {
-        console.log('[AuthGuard] Force showing app after 2 seconds');
+        console.log('[AuthGuard] Force showing app after 500ms timeout');
         setForceShow(true);
       }
-    }, 2000);
+    }, 500);
     return () => clearTimeout(timer);
   }, [isInitialized]);
+  
+  // Also force show if we've been loading for more than 1 second total
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceShow(true);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
   
   if ((!isInitialized || isLoading) && !forceShow) {
     return (
