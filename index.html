@@ -116,8 +116,26 @@
     <!-- In production, Vite replaces this with the bundled script -->
     <script type="module" src="/src/main.tsx" id="main-module-script"></script>
     <script>
-      // Track when script loads
-      var mainScript = document.getElementById('main-module-script');
+      // Track when script loads - works for both dev and production
+      // In production, Vite injects the script without the ID, so we need to find it by src
+      function findMainScript() {
+        // First try by ID (dev mode)
+        var script = document.getElementById('main-module-script');
+        if (script) return script;
+        
+        // Then try to find by src pattern (production mode)
+        var scripts = document.querySelectorAll('script[type="module"]');
+        for (var i = 0; i < scripts.length; i++) {
+          var src = scripts[i].src || scripts[i].getAttribute('src') || '';
+          if (src.includes('/src/main.tsx') || src.includes('/assets/js/index-') || src.includes('/assets/js/main-')) {
+            return scripts[i];
+          }
+        }
+        return null;
+      }
+      
+      // Try to find and monitor the script immediately
+      var mainScript = findMainScript();
       if (mainScript) {
         mainScript.onload = function() {
           console.log('[HTML] ✅ Main script file loaded successfully');
@@ -126,14 +144,75 @@
         mainScript.onerror = function(e) {
           console.error('[HTML] ❌ Main script file failed to load:', e);
           var root = document.getElementById('root');
-          if (root) {
+          if (root && !window.__ERROR_SHOWN__) {
+            window.__ERROR_SHOWN__ = true;
             root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script File Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main script file could not be loaded from the server.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">This might be a network issue or the file doesn\'t exist.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
           }
         };
+      } else {
+        // Script not found yet, try again after DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+              mainScript = findMainScript();
+              if (mainScript && !mainScript.onload) {
+                mainScript.onload = function() {
+                  console.log('[HTML] ✅ Main script file loaded successfully');
+                  window.__MAIN_SCRIPT_LOADED__ = true;
+                };
+                mainScript.onerror = function(e) {
+                  console.error('[HTML] ❌ Main script file failed to load:', e);
+                };
+              }
+            }, 100);
+          });
+        } else {
+          // DOM already ready, try after a short delay (Vite might inject it)
+          setTimeout(function() {
+            mainScript = findMainScript();
+            if (mainScript && !mainScript.onload) {
+              mainScript.onload = function() {
+                console.log('[HTML] ✅ Main script file loaded successfully');
+                window.__MAIN_SCRIPT_LOADED__ = true;
+              };
+              mainScript.onerror = function(e) {
+                console.error('[HTML] ❌ Main script file failed to load:', e);
+              };
+            }
+          }, 100);
+        }
       }
       
       // Catch errors from the module script
       window.addEventListener('error', function(e) {
+        // Ignore browser extension errors (Teflon, content scripts, etc.)
+        const errorMessage = e.message || '';
+        const errorFilename = e.filename || '';
+        const errorStack1 = e.error?.stack || '';
+        
+        const isExtensionError = 
+          errorMessage.includes('Teflon') ||
+          errorMessage.includes('Content Script') ||
+          errorMessage.includes('chrome-extension://') ||
+          errorMessage.includes('moz-extension://') ||
+          errorMessage.includes('safari-extension://') ||
+          errorFilename.includes('chrome-extension://') ||
+          errorFilename.includes('moz-extension://') ||
+          errorFilename.includes('safari-extension://') ||
+          errorFilename.includes('extension://') ||
+          errorStack1.includes('Teflon') ||
+          errorStack1.includes('Content Script') ||
+          errorStack1.includes('chrome-extension://') ||
+          errorStack1.includes('moz-extension://') ||
+          errorMessage.includes('messenger') ||
+          errorMessage.includes('Could not establish connection') ||
+          errorMessage.includes('Receiving end does not exist');
+        
+        if (isExtensionError) {
+          // Silently ignore browser extension errors
+          return;
+        }
+        
         // Ignore reCAPTCHA and other third-party script errors
         if (e.filename && (
           e.filename.includes('recaptcha') ||
@@ -192,11 +271,17 @@
       // Track script loading for error detection
       (function() {
         // Find the script tag that Vite injected (or the one we just added)
+        // In dev: /src/main.tsx
+        // In production: /assets/js/index-*.js (the main entry point)
         const scripts = document.querySelectorAll('script[type="module"]');
         let mainScript = null;
         
         for (let script of scripts) {
-          if (script.src && (script.src.includes('/src/main.tsx') || script.src.includes('/assets/js/'))) {
+          const src = script.src || script.getAttribute('src') || '';
+          // Check for dev mode script or production main entry script
+          if (src.includes('/src/main.tsx') || 
+              (src.includes('/assets/js/index-') && src.endsWith('.js')) ||
+              (src.includes('/assets/js/main-') && src.endsWith('.js'))) {
             mainScript = script;
             break;
           }
@@ -338,7 +423,16 @@
         
         console.error = function(...args) {
           originalError.apply(console, args);
-          addLog('error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          // Filter out browser extension errors from debug panel
+          const errorStr = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+          if (!errorStr.includes('Teflon') && 
+              !errorStr.includes('Content Script') && 
+              !errorStr.includes('chrome-extension://') &&
+              !errorStr.includes('moz-extension://') &&
+              !errorStr.includes('Could not establish connection') &&
+              !errorStr.includes('Receiving end does not exist')) {
+            addLog('error', errorStr);
+          }
         };
         
         console.info = function(...args) {
@@ -411,7 +505,36 @@
       
       // Fallback error handler if main script fails to load (mobile browsers)
       window.addEventListener('error', function(e) {
-        // FIRST: Ignore third-party script errors immediately
+        // FIRST: Ignore browser extension errors (Teflon, content scripts, etc.)
+        const errorMessage = e.message || '';
+        const errorFilename = e.filename || '';
+        const errorStack1 = e.error?.stack || '';
+        
+        const isExtensionError = 
+          errorMessage.includes('Teflon') ||
+          errorMessage.includes('Content Script') ||
+          errorMessage.includes('chrome-extension://') ||
+          errorMessage.includes('moz-extension://') ||
+          errorMessage.includes('safari-extension://') ||
+          errorFilename.includes('chrome-extension://') ||
+          errorFilename.includes('moz-extension://') ||
+          errorFilename.includes('safari-extension://') ||
+          errorFilename.includes('extension://') ||
+          errorStack1.includes('Teflon') ||
+          errorStack1.includes('Content Script') ||
+          errorStack1.includes('chrome-extension://') ||
+          errorStack1.includes('moz-extension://') ||
+          errorMessage.includes('messenger') ||
+          errorMessage.includes('Could not establish connection') ||
+          errorMessage.includes('Receiving end does not exist') ||
+          errorMessage.includes('Extension context invalidated');
+        
+        if (isExtensionError) {
+          // Silently ignore browser extension errors
+          return;
+        }
+        
+        // SECOND: Ignore third-party script errors
         const isThirdPartyScript = e.filename && (
           e.filename.includes('recaptcha') ||
           e.filename.includes('google.com') ||
@@ -430,7 +553,7 @@
         }
         
         // If error object is empty but we have a message, log it
-        const errorDetails = {
+        const errorDetails1 = {
           message: e.message || 'No error message',
           filename: e.filename || 'Unknown file',
           lineno: e.lineno || 'Unknown line',
@@ -451,11 +574,11 @@
           } : 'No target'
         };
         
-        console.error('[HTML] Global error caught:', errorDetails);
+        console.error('[HTML] Global error caught:', errorDetails1);
         
         // If this is a React/app error and we have details, show them
         if (e.filename && (e.filename.includes('assets/js/') || e.filename.includes('index-'))) {
-          console.error('[HTML] This appears to be an app error. Full details:', errorDetails);
+          console.error('[HTML] This appears to be an app error. Full details:', errorDetails1);
         }
         
         // Check for React loading errors specifically
