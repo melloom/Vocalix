@@ -279,20 +279,79 @@ const Index = () => {
   console.log('[Index] Component rendering...');
   
   const navigate = useNavigate();
-  // Use centralized auth context instead of localStorage
-  const { profileId, profile, isLoading: isAuthLoading, deviceId } = useAuth();
-  console.log('[Index] Auth loaded, profileId:', profileId);
-  
   const location = useLocation();
-  const search = useSearch(profileId);
-  console.log('[Index] Search hook loaded');
   
-  const { blockedUsers } = useBlockedUsers();
-  console.log('[Index] BlockedUsers hook loaded');
+  // Use centralized auth context - wrap in try-catch via ErrorBoundary
+  let profileId: string | null = null;
+  let profile: any = null;
+  let isAuthLoading = false;
+  let deviceId: string | null = null;
+  let search: any = null;
+  let blockedUsers: any[] = [];
+  let isAdmin = false;
   
-  const { isAdmin } = useAdminStatus();
-  console.log('[Index] AdminStatus hook loaded');
-  const blockedUserIds = useMemo(() => new Set(blockedUsers.map(b => b.blocked_id)), [blockedUsers]);
+  try {
+    const authData = useAuth();
+    profileId = authData?.profileId || null;
+    profile = authData?.profile || null;
+    isAuthLoading = authData?.isLoading || false;
+    deviceId = authData?.deviceId || null;
+    console.log('[Index] Auth loaded, profileId:', profileId);
+  } catch (authError) {
+    console.error('[Index] useAuth failed:', authError);
+    // Continue without auth - show onboarding
+  }
+  
+  // Define handleOnboardingComplete early so we can use it
+  const handleOnboardingComplete = useCallback((newProfileId: string) => {
+    console.log('[Index] Onboarding complete, profileId:', newProfileId);
+    // Force a reload to refresh the page with the new profile
+    window.location.reload();
+  }, []);
+  
+  // Early return for onboarding - do this BEFORE other hooks that might fail
+  if (!profileId) {
+    console.log('[Index] No profileId, showing onboarding');
+    return (
+      <ErrorBoundary>
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      </ErrorBoundary>
+    );
+  }
+  
+  try {
+    search = useSearch(profileId);
+    console.log('[Index] Search hook loaded');
+  } catch (searchError) {
+    console.error('[Index] useSearch failed:', searchError);
+    search = { searchClips: { mutateAsync: async () => [] }, saveSearchHistory: { mutateAsync: async () => null } };
+  }
+  
+  try {
+    const blockedData = useBlockedUsers();
+    blockedUsers = blockedData?.blockedUsers || [];
+    console.log('[Index] BlockedUsers hook loaded');
+  } catch (blockedError) {
+    console.error('[Index] useBlockedUsers failed:', blockedError);
+    blockedUsers = [];
+  }
+  
+  try {
+    const adminData = useAdminStatus();
+    isAdmin = adminData?.isAdmin || false;
+    console.log('[Index] AdminStatus hook loaded');
+  } catch (adminError) {
+    console.error('[Index] useAdminStatus failed:', adminError);
+    isAdmin = false;
+  }
+  
+  const blockedUserIds = useMemo(() => {
+    try {
+      return new Set(blockedUsers.map(b => b.blocked_id));
+    } catch {
+      return new Set();
+    }
+  }, [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   
   // Listen for record modal trigger from BottomNavigation
