@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
 import { ClipCard } from "@/components/ClipCard";
 import { PostCard } from "@/components/PostCard";
