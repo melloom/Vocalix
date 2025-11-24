@@ -275,7 +275,8 @@ const CreatorSearchResult = ({ profile, viewerProfileId }: { profile: SearchProf
   );
 };
 
-const Index = () => {
+// Inner component that does the actual work
+const IndexInner = () => {
   console.log('[Index] Component rendering...');
   
   const navigate = useNavigate();
@@ -296,11 +297,7 @@ const Index = () => {
   // This prevents hooks from running if user hasn't onboarded yet
   if (!profileId) {
     console.log('[Index] No profileId, showing onboarding immediately');
-    return (
-      <ErrorBoundary>
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
-      </ErrorBoundary>
-    );
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
   
   // Only call these hooks if we have a profileId (after early return)
