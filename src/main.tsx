@@ -560,10 +560,15 @@ const initApp = () => {
           }, 500);
         }
       });
-    } catch (renderError) {
+      } catch (renderError) {
+        window.__REACT_RENDERING__ = false;
+        console.error("[App] Error during root.render():", renderError);
+        throw renderError; // Re-throw to be caught by outer catch
+      }
+    } catch (innerError) {
       window.__REACT_RENDERING__ = false;
-      console.error("[App] Error during root.render():", renderError);
-      throw renderError; // Re-throw to be caught by outer catch
+      console.error("[App] Error in inner try block:", innerError);
+      throw innerError; // Re-throw to be caught by outer catch
     }
   } catch (error: any) {
     // If rendering fails, show a fallback error message
