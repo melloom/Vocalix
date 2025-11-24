@@ -1,6 +1,12 @@
+// CRITICAL: Log that this module is loading
+console.log("[App] ===== MAIN.TSX MODULE LOADING ===== ");
+console.log("[App] Module execution started at:", new Date().toISOString());
+
 // Ensure React loads first - critical for mobile browsers
 import * as React from "react";
 import { createRoot } from "react-dom/client";
+
+console.log("[App] React imports completed");
 
 // Verify React is loaded before proceeding
 if (!React || typeof React.createContext === 'undefined') {
@@ -15,8 +21,11 @@ console.log("[App] React verified:", {
   version: (React as any).version
 });
 
+console.log("[App] About to import App component...");
 import App from "./App.tsx";
+console.log("[App] App component imported:", typeof App, App?.name);
 import "./index.css";
+console.log("[App] CSS imported");
 import { updateSupabaseDeviceHeader, initializeRpcFunctionCheck } from "@/integrations/supabase/client";
 // Import contexts AFTER React is verified
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
