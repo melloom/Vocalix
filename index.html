@@ -59,7 +59,49 @@
         }
       </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Enhanced script loader with error detection for mobile
+      (function() {
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = '/src/main.tsx';
+        script.crossOrigin = 'anonymous';
+        
+        let loadTimeout;
+        let hasLoaded = false;
+        
+        script.onload = function() {
+          hasLoaded = true;
+          if (loadTimeout) clearTimeout(loadTimeout);
+          window.__APP_SCRIPT_LOADED__ = true;
+          console.log('[HTML] Main script loaded successfully');
+        };
+        
+        script.onerror = function(e) {
+          console.error('[HTML] Script failed to load:', {
+            src: script.src,
+            error: e,
+            readyState: script.readyState
+          });
+          
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main application script could not be loaded.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">File: /src/main.tsx</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+          }
+        };
+        
+        // Timeout after 10 seconds
+        loadTimeout = setTimeout(function() {
+          if (!hasLoaded) {
+            console.error('[HTML] Script load timeout after 10 seconds');
+            script.onerror(new Error('Load timeout'));
+          }
+        }, 10000);
+        
+        // Try to load the script
+        document.head.appendChild(script);
+      })();
+    </script>
     <script>
       // Mobile Debug Panel - Shows logs on screen for iPhone debugging
       (function() {
@@ -166,10 +208,48 @@
       
       // Track if script loaded
       window.__APP_SCRIPT_LOADED__ = false;
+      window.__RESET_ATTEMPTED__ = false;
+      window.__RESET_IN_PROGRESS__ = false;
+      
+      async function resetAppCacheAndReload(forceReload = true) {
+        if (window.__RESET_IN_PROGRESS__) return;
+        window.__RESET_IN_PROGRESS__ = true;
+        
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((reg) => reg.unregister()));
+          }
+          
+          if (window.caches && typeof window.caches.keys === "function") {
+            const cacheNames = await window.caches.keys();
+            await Promise.all(cacheNames.map((cacheName) => window.caches.delete(cacheName)));
+          }
+        } catch (resetError) {
+          console.error("[HTML] Failed to reset caches:", resetError);
+        } finally {
+          if (forceReload) {
+            setTimeout(() => window.location.reload(), 100);
+          } else {
+            window.__RESET_IN_PROGRESS__ = false;
+          }
+        }
+      }
+      
+      window.__resetAppCache = resetAppCacheAndReload;
       
       // Fallback error handler if main script fails to load (mobile browsers)
       window.addEventListener('error', function(e) {
-        console.error('[HTML] Global error caught:', e);
+        console.error('[HTML] Global error caught:', {
+          message: e.message,
+          filename: e.filename,
+          lineno: e.lineno,
+          colno: e.colno,
+          error: e.error,
+          isTrusted: e.isTrusted,
+          type: e.type,
+          target: e.target
+        });
         
         // Check for React loading errors specifically
         const isReactError = e.message && (
@@ -179,16 +259,47 @@
           e.filename?.includes('react')
         );
         
-        // Check if it's a script loading error
-        if (e.filename && (e.filename.includes('main.tsx') || e.filename.includes('.js') || e.filename.includes('.tsx') || isReactError)) {
-          console.error('[HTML] Script loading error:', e);
+        // Check if it's a script loading error (network failure, 404, etc.)
+        const isScriptError = e.target && (
+          e.target.tagName === 'SCRIPT' ||
+          e.target.tagName === 'LINK' ||
+          e.filename?.includes('main.tsx') ||
+          e.filename?.includes('.js') ||
+          e.filename?.includes('.tsx') ||
+          e.filename?.includes('.mjs') ||
+          e.message?.includes('Failed to fetch') ||
+          e.message?.includes('NetworkError') ||
+          e.message?.includes('Load failed')
+        );
+        
+        if (isScriptError || isReactError) {
+          console.error('[HTML] Script loading error detected:', {
+            filename: e.filename || (e.target ? e.target.src || e.target.href : 'unknown'),
+            message: e.message,
+            error: e.error
+          });
+          
           var root = document.getElementById('root');
-          if (root && (!window.__APP_SCRIPT_LOADED__ || isReactError)) {
-            var errorMsg = isReactError 
-              ? 'React failed to load. This can happen on mobile browsers. Try refreshing or clearing your cache.'
-              : 'There was an error loading the app script: ' + (e.message || 'Unknown error') + '. Please check your internet connection and try again.';
+          if (root && (!window.__APP_SCRIPT_LOADED__ || isReactError || isScriptError)) {
+            // Try auto-reset once
+            if (!window.__RESET_ATTEMPTED__ && (navigator.serviceWorker || window.caches)) {
+              window.__RESET_ATTEMPTED__ = true;
+              console.log('[HTML] Attempting automatic cache reset...');
+              resetAppCacheAndReload(true);
+              return;
+            }
             
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">' + (isReactError ? 'React Loading Error' : 'Script Error') + '</h1><p style="color: #666; margin-bottom: 24px;">' + errorMsg + '</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(confirm(\'Clear cache and reload?\')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Cache</button></div></div>';
+            // Build detailed error message
+            var errorDetails = '';
+            if (e.filename) errorDetails += '<br><small style="color: #999;">File: ' + e.filename + '</small>';
+            if (e.message) errorDetails += '<br><small style="color: #999;">Error: ' + e.message + '</small>';
+            if (e.target && e.target.src) errorDetails += '<br><small style="color: #999;">URL: ' + e.target.src + '</small>';
+            
+            var errorMsg = isReactError 
+              ? 'React failed to load. This can happen on mobile browsers with cached files.'
+              : 'Script failed to load. This might be a network issue or cached file problem.';
+            
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">' + (isReactError ? 'React Loading Error' : 'Script Loading Error') + '</h1><p style="color: #666; margin-bottom: 12px;">' + errorMsg + '</p>' + errorDetails + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Completely reset cached files?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset App Cache</button><button onclick="if(confirm(\'Clear local/session storage?\')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Storage</button></div></div></div>';
           }
         }
       }, true);

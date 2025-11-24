@@ -1,5 +1,5 @@
 // Service Worker for caching audio files and assets
-const CACHE_VERSION = "v3"; // Incremented for enhanced prefetching
+const CACHE_VERSION = "v4"; // Incremented to bust stale caches on mobile
 const CACHE_NAME = `echo-garden-${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = `echo-garden-audio-${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `echo-garden-static-${CACHE_VERSION}`;
@@ -93,6 +93,26 @@ self.addEventListener("fetch", (event) => {
   // Skip Vite HMR WebSocket connections
   if (url.protocol === "ws:" || url.protocol === "wss:") {
     return; // Let Vite handle WebSocket connections
+  }
+
+  // CRITICAL: Never intercept module scripts or main.tsx - always fetch from network
+  // This prevents cached broken scripts on mobile browsers
+  if (
+    url.pathname.includes('/src/main.tsx') ||
+    url.pathname.includes('/src/') ||
+    url.pathname.endsWith('.tsx') ||
+    url.pathname.endsWith('.ts') ||
+    (event.request.destination === 'script' && event.request.mode === 'cors') ||
+    (event.request.headers.get('accept')?.includes('application/javascript') && url.pathname.includes('/src/'))
+  ) {
+    // Always fetch from network, never cache module scripts
+    event.respondWith(
+      fetch(event.request.clone()).catch(() => {
+        // If network fails, don't serve stale cache - let browser handle it
+        return new Response('Script load failed', { status: 404 });
+      })
+    );
+    return;
   }
 
   // Handle audio files
