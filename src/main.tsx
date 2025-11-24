@@ -454,7 +454,7 @@ const initApp = () => {
     <UploadQueueProvider>
       <App />
     </UploadQueueProvider>
-  </Sentry.ErrorBoundary>,
+  </Sentry.ErrorBoundary>
       );
       console.log("[App] App render() called successfully!");
       window.__APP_RENDERED__ = true;
