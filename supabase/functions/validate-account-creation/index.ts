@@ -296,17 +296,33 @@ serve(async (req) => {
         const recaptchaData = await recaptchaResponse.json();
 
         if (!recaptchaData.success) {
-          // Log failed verification attempts
-          logErrorSafely("recaptcha_failed", new Error("reCAPTCHA verification failed"), {
+          const errorCodes = recaptchaData["error-codes"] || [];
+          
+          // Log failed verification attempts with detailed error codes
+          logErrorSafely("recaptcha_failed", new Error(`reCAPTCHA verification failed: ${errorCodes.join(", ")}`), {
             handle: handle.toLowerCase().trim(),
             device_id,
-            error_codes: recaptchaData["error-codes"] || [],
+            error_codes: errorCodes,
           });
+
+          // Provide more helpful error message based on error codes
+          let errorMessage = "reCAPTCHA verification failed. Please try again.";
+          if (errorCodes.includes("invalid-input-secret")) {
+            errorMessage = "reCAPTCHA configuration error. Please contact support.";
+          } else if (errorCodes.includes("invalid-input-response")) {
+            errorMessage = "reCAPTCHA token is invalid. Please complete the verification again.";
+          } else if (errorCodes.includes("timeout-or-duplicate")) {
+            errorMessage = "reCAPTCHA token expired. Please complete the verification again.";
+          } else if (errorCodes.includes("bad-request")) {
+            errorMessage = "reCAPTCHA request error. Please try again.";
+          }
 
           return new Response(
             JSON.stringify({
               allowed: false,
-              reason: "reCAPTCHA verification failed. Please try again.",
+              reason: errorMessage,
+              // Include error codes in development for debugging (not in production)
+              ...(Deno.env.get("ENVIRONMENT") === "development" && { error_codes: errorCodes }),
             }),
             {
               status: 400,

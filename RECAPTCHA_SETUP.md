@@ -125,6 +125,10 @@ When deploying to production:
 
 ## 🐛 Troubleshooting
 
+### For Production Issues
+
+**👉 See [RECAPTCHA_PRODUCTION_TROUBLESHOOTING.md](./RECAPTCHA_PRODUCTION_TROUBLESHOOTING.md) for comprehensive production troubleshooting guide.**
+
 ### reCAPTCHA not showing
 
 1. **Check environment variable**:

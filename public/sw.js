@@ -147,12 +147,31 @@ self.addEventListener("fetch", (event) => {
   }
   
   // For non-GET API requests, just pass through to network
+  // CRITICAL: Preserve CORS headers for Supabase RPC calls
   if (
     url.pathname.startsWith("/rest/") ||
     url.hostname.includes("supabase") ||
     event.request.url.includes("/api/")
   ) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+      (async () => {
+        try {
+          // Clone request to preserve headers and CORS settings
+          const fetchRequest = new Request(event.request, {
+            mode: 'cors', // Explicitly set CORS mode
+            credentials: 'omit', // Don't send credentials (Supabase uses headers, not cookies)
+            headers: event.request.headers, // Preserve all headers
+          });
+          return await fetch(fetchRequest);
+        } catch (error) {
+          console.warn("API fetch failed:", event.request.url, error);
+          return new Response(JSON.stringify({ error: "Network request failed" }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      })()
+    );
     return;
   }
 
@@ -473,9 +492,16 @@ async function handleAPIRequest(request) {
   const isGetRequest = request.method === "GET";
   
   // For non-GET requests, just fetch from network without caching
+  // CRITICAL: Preserve CORS headers by cloning request with correct mode
   if (!isGetRequest) {
     try {
-      return await fetch(request);
+      // Clone request to preserve headers and CORS settings
+      const fetchRequest = new Request(request, {
+        mode: 'cors', // Explicitly set CORS mode
+        credentials: 'omit', // Don't send credentials (Supabase uses headers, not cookies)
+        headers: request.headers, // Preserve all headers
+      });
+      return await fetch(fetchRequest);
     } catch (error) {
       console.warn("API fetch failed:", request.url, error);
       return new Response(JSON.stringify({ error: "Network request failed" }), {
@@ -491,7 +517,13 @@ async function handleAPIRequest(request) {
   const cachedResponse = await cache.match(request);
   
   // Fetch from network in background (don't await)
-  const networkFetch = fetch(request)
+  // CRITICAL: Preserve CORS headers for GET requests too
+  const fetchRequest = new Request(request, {
+    mode: 'cors', // Explicitly set CORS mode
+    credentials: 'omit', // Don't send credentials (Supabase uses headers, not cookies)
+    headers: request.headers, // Preserve all headers
+  });
+  const networkFetch = fetch(fetchRequest)
     .then((networkResponse) => {
       if (networkResponse.status === 200 && isGetRequest) {
         // Clone and cache the fresh response (only for GET requests)

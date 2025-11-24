@@ -1013,6 +1013,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         onError={(error) => {
                           // Try to recover - reset and allow retry
                           console.error('[OnboardingFlow] reCAPTCHA error:', error);
+                          console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+                          console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
                           setRecaptchaToken(null);
                           // Don't mark as error immediately - allow retry
                           setTimeout(() => {
@@ -1023,6 +1025,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         }}
                         asyncScriptOnLoad={() => {
                           console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
+                          console.log('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+                          console.log('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
                           setRecaptchaLoading(false);
                           setRecaptchaAvailable(true);
                           setRecaptchaError(false);
@@ -1030,6 +1034,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         asyncScriptOnError={() => {
                           // Script failed to load - try to recover
                           console.error('[OnboardingFlow] reCAPTCHA script failed to load');
+                          console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+                          console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+                          console.error('[OnboardingFlow] Possible causes:');
+                          console.error('  1. Domain not registered in reCAPTCHA console');
+                          console.error('  2. Network/CSP blocking Google scripts');
+                          console.error('  3. Invalid site key');
                           setRecaptchaLoading(false);
                           setRecaptchaAvailable(false);
                           setRecaptchaError(true);

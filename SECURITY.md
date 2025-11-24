@@ -82,6 +82,7 @@ Before deploying to production:
 - [ ] CORS is configured to allow only trusted origins
   - ⚠️ **Action Required**: Configure CORS in Supabase Dashboard → Settings → API
   - ⚠️ **Action Required**: Add your production domain to allowed origins
+  - 📖 **See**: [CORS_PRODUCTION_FIX.md](./CORS_PRODUCTION_FIX.md) for step-by-step instructions
 - [ ] Security headers are configured on your hosting provider
   - 📋 See "Security Headers" section above for required headers
   - ⚠️ **Action Required**: Configure on hosting provider (Vercel, Netlify, etc.)
