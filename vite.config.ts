@@ -36,15 +36,20 @@ export default defineConfig(({ mode }) => ({
           // CRITICAL: React and ALL React-dependent code MUST be in the main bundle
           // This prevents "createContext/forwardRef is undefined" errors on mobile browsers
           
-          // Keep ALL React code in main bundle - be VERY aggressive
-          // Check for ANY React-related imports
+          // FIRST: Check for React BEFORE checking node_modules
+          // Keep ALL React code in main bundle - be EXTREMELY aggressive
+          // Check for ANY React-related imports (case-insensitive check)
+          const lowerId = id.toLowerCase();
           if (
-            id.includes("react") || 
-            id.includes("react-dom") ||
-            id.includes("react/jsx-runtime") ||
-            id.includes("scheduler")
+            lowerId.includes("react") || 
+            lowerId.includes("react-dom") ||
+            lowerId.includes("react/jsx-runtime") ||
+            lowerId.includes("scheduler") ||
+            lowerId.includes("react-router") ||
+            lowerId.includes("@tanstack/react") ||
+            lowerId.includes("@sentry/react")
           ) {
-            return undefined; // undefined = main bundle
+            return undefined; // undefined = main bundle - React MUST stay here
           }
           
           // Keep ALL context files in main bundle (they use React.createContext)
@@ -68,27 +73,8 @@ export default defineConfig(({ mode }) => ({
             return undefined;
           }
           
-          // Keep Sentry React integration in main bundle (uses React)
-          if (id.includes("@sentry/react")) {
-            return undefined;
-          }
-          
-          // Keep React Router in main bundle too (uses React)
-          if (id.includes("react-router")) {
-            return undefined;
-          }
-          
-          // Keep React Query in main bundle (uses React)
-          if (id.includes("@tanstack/react-query")) {
-            return undefined;
-          }
-          
           // Vendor chunks - but NOT React or React-dependent libraries
           if (id.includes("node_modules")) {
-            // React Router can be separate (it doesn't need to load before contexts)
-            if (id.includes("react-router")) {
-              return "vendor-router";
-            }
             // UI libraries
             if (id.includes("@radix-ui")) {
               return "vendor-ui";
@@ -97,8 +83,8 @@ export default defineConfig(({ mode }) => ({
             if (id.includes("@supabase")) {
               return "vendor-supabase";
             }
-            // TanStack (React Query, Virtual)
-            if (id.includes("@tanstack")) {
+            // TanStack Virtual (NOT React Query - that's already in main bundle)
+            if (id.includes("@tanstack/virtual")) {
               return "vendor-tanstack";
             }
             // Other large vendor libraries
