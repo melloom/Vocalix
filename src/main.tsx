@@ -314,31 +314,19 @@ const initApp = () => {
   console.log("[App] Root element found:", rootElement);
   console.log("[App] Root innerHTML length:", rootElement.innerHTML.length);
   
-  // Clear loading screen immediately
-  const loadingScreen = rootElement.querySelector('#loading-screen');
-  if (loadingScreen) {
-    console.log("[App] Removing loading screen element...");
-    loadingScreen.remove();
-  }
-  if (rootElement.innerHTML.includes('Loading Echo Garden')) {
-    console.log("[App] Clearing loading screen HTML...");
-    rootElement.innerHTML = '';
-  }
-  
-  console.log("[App] About to render app...");
-  
   // IMMEDIATELY clear the loading screen HTML - don't wait
   // This prevents the "Loading Echo Garden" screen from staying visible
-  // Clear it aggressively - check multiple ways
-  const loadingScreen = rootElement.querySelector('#loading-screen');
-  if (loadingScreen) {
+  const loadingScreenEl = rootElement.querySelector('#loading-screen');
+  if (loadingScreenEl) {
     console.log("[App] Found loading-screen element, removing it...");
-    loadingScreen.remove();
+    loadingScreenEl.remove();
   }
   if (rootElement.innerHTML.includes('Loading Echo Garden')) {
     console.log("[App] Clearing loading screen HTML immediately...");
     rootElement.innerHTML = '';
   }
+  
+  console.log("[App] About to render app...");
   
   // Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
