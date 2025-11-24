@@ -2,15 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-// Target ES2018 to support older iOS/Safari browsers that struggle with esnext bundles
-const legacyTarget = "es2018";
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Ensure dev builds also respect the legacy target for best compatibility
-  esbuild: {
-    target: legacyTarget,
-  },
   server: {
     host: "::",
     port: 8080,
@@ -43,8 +36,14 @@ export default defineConfig(({ mode }) => ({
           // CRITICAL: React and ALL React-dependent code MUST be in the main bundle
           // This prevents "createContext/forwardRef is undefined" errors on mobile browsers
           
-          // Keep ALL React code in main bundle - be very aggressive
-          if (id.includes("react") && !id.includes("react-router") && !id.includes("@tanstack/react-query")) {
+          // Keep ALL React code in main bundle - be VERY aggressive
+          // Check for ANY React-related imports
+          if (
+            id.includes("react") || 
+            id.includes("react-dom") ||
+            id.includes("react/jsx-runtime") ||
+            id.includes("scheduler")
+          ) {
             return undefined; // undefined = main bundle
           }
           
@@ -69,7 +68,22 @@ export default defineConfig(({ mode }) => ({
             return undefined;
           }
           
-          // Vendor chunks - but NOT React
+          // Keep Sentry React integration in main bundle (uses React)
+          if (id.includes("@sentry/react")) {
+            return undefined;
+          }
+          
+          // Keep React Router in main bundle too (uses React)
+          if (id.includes("react-router")) {
+            return undefined;
+          }
+          
+          // Keep React Query in main bundle (uses React)
+          if (id.includes("@tanstack/react-query")) {
+            return undefined;
+          }
+          
+          // Vendor chunks - but NOT React or React-dependent libraries
           if (id.includes("node_modules")) {
             // React Router can be separate (it doesn't need to load before contexts)
             if (id.includes("react-router")) {
@@ -141,8 +155,8 @@ export default defineConfig(({ mode }) => ({
         drop_debugger: true,
       },
     },
-    // Target slightly older browsers (iOS 13+/Safari 13+) to prevent script parse errors
-    target: legacyTarget,
+    // Target modern browsers for smaller bundles
+    target: "esnext",
     // Ensure React is bundled together to prevent loading order issues on mobile
     commonjsOptions: {
       include: [/node_modules/],
@@ -166,7 +180,7 @@ export default defineConfig(({ mode }) => ({
     force: false,
     // Ensure React is pre-bundled and available immediately
     esbuildOptions: {
-      target: legacyTarget,
+      target: "es2020",
     },
   },
   // Vitest configuration
