@@ -108,25 +108,30 @@
     <!-- Vite will inject the correct script tag here during build -->
     <!-- In development, this loads /src/main.tsx directly -->
     <!-- In production, Vite replaces this with the bundled script -->
-    <script type="module">
-      // Wrap the import in try-catch to catch module loading errors
-      try {
-        console.log('[HTML] About to import main.tsx module...');
-        import('/src/main.tsx').catch(function(importError) {
-          console.error('[HTML] ❌ FAILED TO IMPORT MAIN.TSX MODULE:', importError);
-          var root = document.getElementById('root');
-          if (root) {
-            var errorMsg = importError?.message || String(importError) || 'Unknown error';
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Module Import Failed</h1><p style="color: #666; margin-bottom: 12px;">Failed to import the main application module.</p><p style="color: #999; font-size: 12px; margin-bottom: 12px; word-break: break-all;">Error: ' + errorMsg + '</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">This usually means there is a syntax error or import error in the module.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Catch errors from the module script
+      window.addEventListener('error', function(e) {
+        // Check if it's an error from our main module
+        if (e.filename && (e.filename.includes('main.tsx') || e.filename.includes('index-') || e.filename.includes('assets/js/'))) {
+          console.error('[HTML] ❌ MODULE SCRIPT ERROR:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            error: e.error
+          });
+          
+          // Only show error if module didn't execute at all
+          if (!window.__APP_SCRIPT_LOADED__) {
+            var root = document.getElementById('root');
+            if (root && !root.innerHTML.includes('Module Failed') && !root.innerHTML.includes('Module Import')) {
+              var errorMsg = e.message || 'Unknown error';
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Module Error</h1><p style="color: #666; margin-bottom: 12px;">An error occurred while loading the application module.</p><p style="color: #999; font-size: 12px; margin-bottom: 12px; word-break: break-all;">Error: ' + errorMsg + '</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">File: ' + (e.filename || 'unknown') + '</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            }
           }
-        });
-      } catch (e) {
-        console.error('[HTML] ❌ ERROR LOADING MODULE SCRIPT:', e);
-        var root = document.getElementById('root');
-        if (root) {
-          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Error</h1><p style="color: #666; margin-bottom: 12px;">Error loading the application script.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">Error: ' + String(e?.message || e) + '</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
         }
-      }
+      }, true);
     </script>
     <script>
       // EMERGENCY: If main.tsx doesn't execute, try to render something
