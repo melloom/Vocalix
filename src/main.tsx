@@ -291,7 +291,7 @@ if ("serviceWorker" in navigator) {
 
 // Ensure DOM is ready before rendering (critical for mobile browsers)
 const initApp = () => {
-  console.log("[App] Initializing app...");
+  console.log("[App] ===== INIT APP CALLED =====");
   const rootElement = document.getElementById("root");
   
   if (!rootElement) {
@@ -301,7 +301,21 @@ const initApp = () => {
     return;
   }
 
-  console.log("[App] Root element found, rendering app...");
+  console.log("[App] Root element found:", rootElement);
+  console.log("[App] Root innerHTML length:", rootElement.innerHTML.length);
+  
+  // Clear loading screen immediately
+  const loadingScreen = rootElement.querySelector('#loading-screen');
+  if (loadingScreen) {
+    console.log("[App] Removing loading screen element...");
+    loadingScreen.remove();
+  }
+  if (rootElement.innerHTML.includes('Loading Echo Garden')) {
+    console.log("[App] Clearing loading screen HTML...");
+    rootElement.innerHTML = '';
+  }
+  
+  console.log("[App] About to render app...");
   
   // IMMEDIATELY clear the loading screen HTML - don't wait
   // This prevents the "Loading Echo Garden" screen from staying visible
@@ -366,9 +380,22 @@ const initApp = () => {
     }
     
     try {
-      console.log("[App] Calling root.render()...");
-      root.render(
-        <Sentry.ErrorBoundary
+      console.log("[App] ===== ABOUT TO CALL ROOT.RENDER() =====");
+      console.log("[App] React version:", React?.version);
+      console.log("[App] createRoot available:", typeof createRoot !== 'undefined');
+      console.log("[App] App component:", typeof App, App?.name);
+      
+      // Try rendering a simple test first
+      console.log("[App] Testing React with simple div...");
+      try {
+        root.render(<div style={{padding: '20px', textAlign: 'center'}}>React Test</div>);
+        console.log("[App] ✅ Simple test render succeeded!");
+        
+        // Wait a moment then render full app
+        setTimeout(() => {
+          console.log("[App] Now rendering full app...");
+          root.render(
+            <Sentry.ErrorBoundary
         fallback={({ error, resetError }) => (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
@@ -463,12 +490,47 @@ const initApp = () => {
     )}
     showDialog={false}
   >
-    <UploadQueueProvider>
-      <App />
-    </UploadQueueProvider>
-  </Sentry.ErrorBoundary>
-      );
-      console.log("[App] root.render() call completed!");
+              <UploadQueueProvider>
+                <App />
+              </UploadQueueProvider>
+            </Sentry.ErrorBoundary>
+            );
+            console.log("[App] ✅ Full app render() call completed!");
+          } else {
+            console.error("[App] ❌ Test render failed - React didn't produce content!");
+            rootElement.innerHTML = `
+              <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <div style="max-width: 500px; text-align: center;">
+                  <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Render Failed</h1>
+                  <p style="color: #666; margin-bottom: 12px;">React loaded but failed to render even a simple test component.</p>
+                  <p style="color: #999; font-size: 12px; margin-bottom: 24px;">This indicates a serious React issue. Check the debug panel for errors.</p>
+                  <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
+                </div>
+              </div>
+            `;
+            window.__REACT_RENDERING__ = false;
+          }
+        }, 500);
+      } catch (testError) {
+        console.error("[App] ❌ Test render threw error:", testError);
+        rootElement.innerHTML = `
+          <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="max-width: 500px; text-align: center;">
+              <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Render Error</h1>
+              <p style="color: #666; margin-bottom: 12px;">React failed to render test component.</p>
+              <p style="color: #999; font-size: 12px; margin-bottom: 24px;">Error: ${String(testError?.message || testError)}</p>
+              <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
+            </div>
+          </div>
+        `;
+        window.__REACT_RENDERING__ = false;
+        throw testError;
+      }
+      
+      // Original render code (now in setTimeout above)
+      /*
+      root.render(
+        <Sentry.ErrorBoundary
       
       // Use requestAnimationFrame to check if render actually happened
       requestAnimationFrame(() => {
