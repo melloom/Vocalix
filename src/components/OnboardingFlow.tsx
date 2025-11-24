@@ -389,6 +389,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [recaptchaAvailable, setRecaptchaAvailable] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
+  const [recaptchaLoading, setRecaptchaLoading] = useState(true);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   
   // CRITICAL: Always call hooks (React rules), but handle errors gracefully
@@ -453,6 +454,47 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setSelectedAvatar(generateAvatarFromHandle(handle));
   }, [handle]);
 
+  // Check if reCAPTCHA script is loaded
+  useEffect(() => {
+    if (!RECAPTCHA_SITE_KEY) {
+      setRecaptchaLoading(false);
+      return;
+    }
+
+    // Check if reCAPTCHA script is already loaded
+    const checkRecaptchaLoaded = () => {
+      if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+        setRecaptchaLoading(false);
+        setRecaptchaAvailable(true);
+        setRecaptchaError(false);
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately
+    if (checkRecaptchaLoaded()) {
+      return;
+    }
+
+    // Wait for script to load (with timeout)
+    let attempts = 0;
+    const maxAttempts = 20; // 10 seconds max
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (checkRecaptchaLoaded() || attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        if (attempts >= maxAttempts && !checkRecaptchaLoaded()) {
+          console.warn('[OnboardingFlow] reCAPTCHA script did not load within timeout');
+          setRecaptchaLoading(false);
+          setRecaptchaError(true);
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(checkInterval);
+  }, [RECAPTCHA_SITE_KEY]);
+
   const handleSubmit = async () => {
     if (!handle.trim()) {
       toast({
@@ -463,8 +505,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return;
     }
 
-    // Only require reCAPTCHA if it's available and loaded successfully
-    // If reCAPTCHA failed to load or isn't available, allow submission without it
+    // Require reCAPTCHA if it's configured and available
+    // Only skip if it failed to load or isn't available
     if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
       toast({
         title: "Verification required",
@@ -474,7 +516,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return;
     }
     
-    // If reCAPTCHA had an error, log it but allow submission
+    // If reCAPTCHA is still loading, wait a bit
+    if (RECAPTCHA_SITE_KEY && recaptchaLoading) {
+      toast({
+        title: "Loading verification",
+        description: "Please wait for reCAPTCHA to load",
+        variant: "default",
+      });
+      return;
+    }
+    
+    // If reCAPTCHA had an error, log it but allow submission (fallback)
     if (RECAPTCHA_SITE_KEY && recaptchaError) {
       console.warn('[OnboardingFlow] reCAPTCHA unavailable, proceeding without verification');
     }
@@ -932,48 +984,93 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 />
               </div>
 
-              {/* reCAPTCHA - Optional, won't block if it fails */}
-              {RECAPTCHA_SITE_KEY && !recaptchaError && (
-                <div className="flex justify-center">
-                  <div className="relative">
-                    <ReCAPTCHA
-                      ref={recaptchaRef}
-                      sitekey={RECAPTCHA_SITE_KEY}
-                      onChange={(token) => {
-                        setRecaptchaToken(token);
-                        setRecaptchaAvailable(true);
-                        setRecaptchaError(false);
-                      }}
-                      onExpired={() => {
-                        setRecaptchaToken(null);
-                        setRecaptchaAvailable(false);
-                      }}
-                      onError={(error) => {
-                        // reCAPTCHA failed - mark as unavailable but don't block
-                        console.warn('[OnboardingFlow] reCAPTCHA error (non-critical, continuing without it):', error);
-                        setRecaptchaToken(null);
-                        setRecaptchaAvailable(false);
-                        setRecaptchaError(true);
-                      }}
-                      asyncScriptOnLoad={() => {
-                        console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
-                        setRecaptchaAvailable(true);
-                        setRecaptchaError(false);
-                      }}
-                      asyncScriptOnError={() => {
-                        // Script failed to load entirely
-                        console.warn('[OnboardingFlow] reCAPTCHA script failed to load (non-critical)');
-                        setRecaptchaAvailable(false);
-                        setRecaptchaError(true);
-                      }}
-                      theme="light"
-                    />
-                  </div>
-                </div>
-              )}
-              {RECAPTCHA_SITE_KEY && recaptchaError && (
-                <div className="text-xs text-muted-foreground text-center">
-                  <p>reCAPTCHA unavailable - you can still create your account</p>
+              {/* reCAPTCHA */}
+              {RECAPTCHA_SITE_KEY && (
+                <div className="flex flex-col items-center gap-2">
+                  {recaptchaLoading && (
+                    <div className="text-xs text-muted-foreground text-center">
+                      <p>Loading verification...</p>
+                    </div>
+                  )}
+                  {!recaptchaError && !recaptchaLoading && (
+                    <div className="flex justify-center">
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        onChange={(token) => {
+                          if (token) {
+                            setRecaptchaToken(token);
+                            setRecaptchaAvailable(true);
+                            setRecaptchaError(false);
+                            console.log('[OnboardingFlow] reCAPTCHA verified successfully');
+                          }
+                        }}
+                        onExpired={() => {
+                          console.log('[OnboardingFlow] reCAPTCHA expired, resetting');
+                          setRecaptchaToken(null);
+                          setRecaptchaAvailable(false);
+                        }}
+                        onError={(error) => {
+                          // Try to recover - reset and allow retry
+                          console.error('[OnboardingFlow] reCAPTCHA error:', error);
+                          setRecaptchaToken(null);
+                          // Don't mark as error immediately - allow retry
+                          setTimeout(() => {
+                            if (!recaptchaToken) {
+                              setRecaptchaError(true);
+                            }
+                          }, 2000);
+                        }}
+                        asyncScriptOnLoad={() => {
+                          console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
+                          setRecaptchaLoading(false);
+                          setRecaptchaAvailable(true);
+                          setRecaptchaError(false);
+                        }}
+                        asyncScriptOnError={() => {
+                          // Script failed to load - try to recover
+                          console.error('[OnboardingFlow] reCAPTCHA script failed to load');
+                          setRecaptchaLoading(false);
+                          setRecaptchaAvailable(false);
+                          setRecaptchaError(true);
+                        }}
+                        theme="light"
+                        size="normal"
+                      />
+                    </div>
+                  )}
+                  {recaptchaError && !recaptchaLoading && (
+                    <div className="text-xs text-muted-foreground text-center space-y-2">
+                      <p>reCAPTCHA unavailable - you can still create your account</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecaptchaError(false);
+                          setRecaptchaLoading(true);
+                          setRecaptchaAvailable(false);
+                          setRecaptchaToken(null);
+                          // Force reload by resetting the component
+                          if (recaptchaRef.current) {
+                            recaptchaRef.current.reset();
+                          }
+                          // Re-check if script loaded
+                          setTimeout(() => {
+                            if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+                              setRecaptchaLoading(false);
+                              setRecaptchaAvailable(true);
+                              setRecaptchaError(false);
+                            } else {
+                              setRecaptchaLoading(false);
+                              setRecaptchaError(true);
+                            }
+                          }, 1000);
+                        }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Retry reCAPTCHA
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
