@@ -862,7 +862,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     sitekey={RECAPTCHA_SITE_KEY}
                     onChange={(token) => setRecaptchaToken(token)}
                     onExpired={() => setRecaptchaToken(null)}
-                    onError={() => setRecaptchaToken(null)}
+                    onError={(error) => {
+                      // Silently handle reCAPTCHA errors - don't block the app
+                      console.warn('[OnboardingFlow] reCAPTCHA error (non-critical):', error);
+                      setRecaptchaToken(null);
+                    }}
+                    asyncScriptOnLoad={() => {
+                      console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
+                    }}
                     theme="light"
                   />
                 </div>
