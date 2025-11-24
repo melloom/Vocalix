@@ -278,8 +278,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+  // Don't throw on mobile - return safe defaults instead
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    console.warn("[AuthContext] useAuth called outside AuthProvider, returning defaults");
+    return {
+      userId: null,
+      profileId: null,
+      profile: null,
+      isLoading: false,
+      isInitialized: true, // Pretend initialized so app doesn't wait
+      refetchProfile: () => {},
+      signInAnonymously: async () => {},
+      deviceId: null,
+    };
   }
   return context;
 };

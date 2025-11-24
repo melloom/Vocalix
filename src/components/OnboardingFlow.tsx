@@ -389,18 +389,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const { toast } = useToast();
-  
-  // Make auth optional - don't crash if it fails on mobile
-  let userId: string | null = null;
-  let signInAnonymously: (() => Promise<void>) | null = null;
-  try {
-    const authData = useAuth();
-    userId = authData?.userId || null;
-    signInAnonymously = authData?.signInAnonymously || null;
-  } catch (authError) {
-    console.warn('[OnboardingFlow] Auth not available, continuing without it:', authError);
-  }
-  
+  // useAuth must be called unconditionally (React rules)
+  // But AuthContext should handle errors gracefully
+  const { userId, signInAnonymously } = useAuth();
   const deviceId = useDeviceId();
 
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
