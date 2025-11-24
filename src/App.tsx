@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +15,7 @@ import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FirstClipGuidance } from "@/components/FirstClipGuidance";
 import { FeatureDiscovery } from "@/components/FeatureDiscovery";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
 
 // Helper function to retry lazy imports on failure
 const retryLazyImport = (importFn: () => Promise<any>, retries = 2) => {
@@ -127,9 +128,21 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  
+  // Fallback for any error - show onboarding so users can always access it
+  const handleOnboardingComplete = useCallback((newProfileId: string) => {
+    console.log('[App] Onboarding complete from error boundary, reloading...');
+    window.location.reload();
+  }, []);
+  
+  const onboardingFallback = (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <OnboardingFlow onComplete={handleOnboardingComplete} />
+    </div>
+  );
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary fallback={onboardingFallback}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider 
           attribute="class" 
@@ -156,35 +169,11 @@ const App = () => {
                   maxVisible={1}
                 />
                 <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: false }}>
-                <ErrorBoundary>
+                <ErrorBoundary fallback={onboardingFallback}>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/login-link" element={<LoginLink />} />
                       <Route path="/embed/:clipId" element={<Embed />} />
-                      {/* Onboarding route - completely independent, no auth needed */}
-                      <Route 
-                        path="/onboarding" 
-                        element={
-                          <ErrorBoundary
-                            fallback={
-                              <div className="min-h-screen bg-background flex items-center justify-center p-4">
-                                <div className="text-center">
-                                  <h1 className="text-2xl font-bold mb-4">Welcome to Echo Garden</h1>
-                                  <p className="text-muted-foreground mb-4">Please refresh the page to try again.</p>
-                                  <button 
-                                    onClick={() => window.location.reload()} 
-                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
-                                  >
-                                    Refresh
-                                  </button>
-                                </div>
-                              </div>
-                            }
-                          >
-                            <OnboardingFlow onComplete={(id) => window.location.href = '/'} />
-                          </ErrorBoundary>
-                        } 
-                      />
                       <Route element={<AuthenticatedLayout />}>
                         <Route path="/" element={<Index />} />
                         <Route path="/profile/:handle" element={<Profile />} />
