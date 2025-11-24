@@ -3785,4 +3785,30 @@ const Mic = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default Index;
+// Wrapper component with error boundary that shows onboarding on error
+const IndexWrapper = () => {
+  const handleOnboardingComplete = useCallback((newProfileId: string) => {
+    console.log('[Index] Onboarding complete from error boundary, profileId:', newProfileId);
+    window.location.reload();
+  }, []);
+  
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="max-w-md w-full p-6 rounded-3xl space-y-4 border border-destructive">
+            <h2 className="text-xl font-semibold text-destructive">Error Loading App</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              There was an error loading the app. Showing onboarding instead.
+            </p>
+            <OnboardingFlow onComplete={handleOnboardingComplete} />
+          </div>
+        </div>
+      }
+    >
+      <Index />
+    </ErrorBoundary>
+  );
+};
+
+export default IndexWrapper;
