@@ -282,36 +282,21 @@ const IndexInner = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Define handleOnboardingComplete early - BEFORE auth check
+  // Use centralized auth context - MUST be called unconditionally (React rules)
+  const { profileId, profile, isLoading: isAuthLoading, deviceId } = useAuth();
+  console.log('[Index] Auth loaded, profileId:', profileId, 'isLoading:', isAuthLoading);
+  
+  // Define handleOnboardingComplete early
   const handleOnboardingComplete = useCallback((newProfileId: string) => {
     console.log('[Index] Onboarding complete, profileId:', newProfileId);
     // Force a reload to refresh the page with the new profile
     window.location.reload();
   }, []);
   
-  // CRITICAL: Try to get auth, but don't let it block onboarding
-  let profileId: string | null = null;
-  let profile: any = null;
-  let isAuthLoading = false;
-  let deviceId: string | null = null;
-  
-  try {
-    const authData = useAuth();
-    profileId = authData?.profileId || null;
-    profile = authData?.profile || null;
-    isAuthLoading = authData?.isLoading || false;
-    deviceId = authData?.deviceId || null;
-    console.log('[Index] Auth loaded, profileId:', profileId);
-  } catch (authError) {
-    console.error('[Index] Auth failed, showing onboarding:', authError);
-    // If auth fails, show onboarding anyway
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
-  }
-  
   // CRITICAL: Early return for onboarding - do this BEFORE other hooks that might fail
-  // Show onboarding if no profileId OR if auth is still loading (don't wait)
-  if (!profileId || isAuthLoading) {
-    console.log('[Index] No profileId or auth loading, showing onboarding immediately');
+  // Show onboarding immediately if no profileId - don't wait for auth to finish
+  if (!profileId) {
+    console.log('[Index] No profileId, showing onboarding immediately (not waiting for auth)');
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
   
