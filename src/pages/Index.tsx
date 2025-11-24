@@ -3795,7 +3795,7 @@ const IndexWrapper = () => {
         </div>
       }
     >
-      <Index />
+      <IndexInner />
     </ErrorBoundary>
   );
 };
