@@ -2,8 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+// Target ES2018 to support older iOS/Safari browsers that struggle with esnext bundles
+const legacyTarget = "es2018";
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Ensure dev builds also respect the legacy target for best compatibility
+  esbuild: {
+    target: legacyTarget,
+  },
   server: {
     host: "::",
     port: 8080,
@@ -134,8 +141,8 @@ export default defineConfig(({ mode }) => ({
         drop_debugger: true,
       },
     },
-    // Target modern browsers for smaller bundles
-    target: "esnext",
+    // Target slightly older browsers (iOS 13+/Safari 13+) to prevent script parse errors
+    target: legacyTarget,
     // Ensure React is bundled together to prevent loading order issues on mobile
     commonjsOptions: {
       include: [/node_modules/],
@@ -159,7 +166,7 @@ export default defineConfig(({ mode }) => ({
     force: false,
     // Ensure React is pre-bundled and available immediately
     esbuildOptions: {
-      target: "es2020",
+      target: legacyTarget,
     },
   },
   // Vitest configuration
