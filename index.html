@@ -388,6 +388,24 @@
       
       // Fallback error handler if main script fails to load (mobile browsers)
       window.addEventListener('error', function(e) {
+        // FIRST: Ignore third-party script errors immediately
+        const isThirdPartyScript = e.filename && (
+          e.filename.includes('recaptcha') ||
+          e.filename.includes('google.com') ||
+          e.filename.includes('gstatic.com') ||
+          e.filename.includes('googleapis.com') ||
+          e.filename.includes('facebook.com') ||
+          e.filename.includes('twitter.com') ||
+          e.filename.includes('analytics') ||
+          e.filename.includes('doubleclick') ||
+          e.filename.includes('googletagmanager')
+        );
+        
+        if (isThirdPartyScript) {
+          // Silently ignore - don't even log it
+          return;
+        }
+        
         console.error('[HTML] Global error caught:', {
           message: e.message,
           filename: e.filename,
@@ -408,31 +426,22 @@
         );
         
         // Check if it's a script loading error (network failure, 404, etc.)
-        // BUT ignore third-party scripts like reCAPTCHA
-        const isThirdPartyScript = e.filename && (
-          e.filename.includes('recaptcha') ||
-          e.filename.includes('google.com') ||
-          e.filename.includes('gstatic.com') ||
-          e.filename.includes('googleapis.com') ||
-          e.filename.includes('facebook.com') ||
-          e.filename.includes('twitter.com')
-        );
-        
-        if (isThirdPartyScript) {
-          console.warn('[HTML] Ignoring third-party script error:', e.filename);
-          return; // Don't handle third-party script errors
-        }
-        
+        // Only for OUR scripts, not third-party
         const isScriptError = e.target && (
-          e.target.tagName === 'SCRIPT' ||
-          e.target.tagName === 'LINK' ||
+          (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK') &&
+          (e.filename?.includes('main.tsx') ||
+           e.filename?.includes('index-') ||
+           e.filename?.includes('assets/js/') ||
+           e.filename?.includes('assets/css/'))
+        ) || (
           e.filename?.includes('main.tsx') ||
-          e.filename?.includes('.js') ||
-          e.filename?.includes('.tsx') ||
-          e.filename?.includes('.mjs') ||
-          e.message?.includes('Failed to fetch') ||
-          e.message?.includes('NetworkError') ||
-          e.message?.includes('Load failed')
+          (e.filename?.includes('.js') && e.filename?.includes('assets/js/')) ||
+          (e.filename?.includes('.tsx') && !isThirdPartyScript) ||
+          (e.filename?.includes('.mjs') && !isThirdPartyScript)
+        ) || (
+          e.message?.includes('Failed to fetch') && !isThirdPartyScript ||
+          e.message?.includes('NetworkError') && !isThirdPartyScript ||
+          e.message?.includes('Load failed') && !isThirdPartyScript
         );
         
         if (isScriptError || isReactError) {
