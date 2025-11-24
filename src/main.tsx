@@ -319,8 +319,31 @@ const initApp = () => {
   // Wrap app with Sentry's ErrorBoundary for automatic error capture
   try {
     // Verify React is loaded before proceeding
+    console.log("[App] Checking React availability...", {
+      hasCreateRoot: typeof createRoot !== 'undefined',
+      hasReact: typeof React !== 'undefined',
+      hasReactDOM: typeof ReactDOM !== 'undefined'
+    });
+    
     if (typeof createRoot === 'undefined') {
-      throw new Error("React is not loaded. createRoot is undefined.");
+      const errorMsg = "React is not loaded. createRoot is undefined. React may have failed to load.";
+      console.error("[App]", errorMsg);
+      
+      // Show detailed error to user
+      rootElement.innerHTML = `
+        <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="max-width: 500px; text-align: center;">
+            <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">React Failed to Load</h1>
+            <p style="color: #666; margin-bottom: 12px;">React could not be loaded. This usually means there's a JavaScript error or the React library failed to download.</p>
+            <p style="color: #999; font-size: 12px; margin-bottom: 24px;">Check the browser console (📱 Debug button) for more details.</p>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+              <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
+              <button onclick="if(confirm('Reset all caches?')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button>
+            </div>
+          </div>
+        </div>
+      `;
+      throw new Error(errorMsg);
     }
     
     console.log("[App] React verified, creating root...");
@@ -450,11 +473,19 @@ const initApp = () => {
   } catch (error: any) {
     // If rendering fails, show a fallback error message
     console.error("[App] Failed to render app:", error);
+    console.error("[App] Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      toString: String(error)
+    });
     
     // Check if it's the React createContext error
     const isReactError = error?.message?.includes('createContext') || 
                          error?.message?.includes('undefined is not an object') ||
-                         error?.stack?.includes('createContext');
+                         error?.message?.includes('React') ||
+                         error?.stack?.includes('createContext') ||
+                         error?.stack?.includes('react');
     
     if (isReactError) {
       rootElement.innerHTML = `

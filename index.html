@@ -75,16 +75,25 @@
           }
         };
         
-        // Clear after 3 seconds if React hasn't mounted
-        setTimeout(clearLoading, 3000);
+        // Clear after 5 seconds if React hasn't mounted (give it more time)
+        setTimeout(clearLoading, 5000);
         
         // Also listen for when React should have mounted
         window.addEventListener('load', function() {
           setTimeout(function() {
-            if (!window.__APP_SCRIPT_LOADED__) {
+            // Check if React actually mounted by looking for React content
+            const root = document.getElementById('root');
+            const hasReactContent = root && (
+              root.querySelector('[data-reactroot]') ||
+              root.querySelector('._react') ||
+              root.children.length > 0 && !root.innerHTML.includes('Loading Echo Garden') && !root.innerHTML.includes('App Loading')
+            );
+            
+            if (!hasReactContent && !window.__APP_RENDERED__) {
+              console.log('[HTML] React did not render, showing error');
               clearLoading();
             }
-          }, 2000);
+          }, 4000);
         });
       })();
     </script>
