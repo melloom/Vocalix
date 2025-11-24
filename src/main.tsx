@@ -414,12 +414,14 @@ const initApp = () => {
           <p className="text-sm text-muted-foreground">
             We've been notified about this error. Please try refreshing the page.
           </p>
-          {import.meta.env.DEV && (
-            <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48">
-              <summary className="cursor-pointer font-semibold mb-2">Error Details (Dev Only)</summary>
-              <pre className="whitespace-pre-wrap text-[10px] mt-1">{error?.toString()}</pre>
-            </details>
-          )}
+          <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48">
+            <summary className="cursor-pointer font-semibold mb-2">Error Details</summary>
+            <pre className="whitespace-pre-wrap text-[10px] mt-1">
+              {error?.toString() || 'Unknown error'}
+              {error?.stack && `\n\nStack:\n${error.stack}`}
+              {error?.message && `\n\nMessage: ${error.message}`}
+            </pre>
+          </details>
           <div className="flex flex-col gap-3 pt-2">
             <button
               onClick={() => {
