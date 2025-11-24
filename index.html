@@ -406,16 +406,34 @@
           return;
         }
         
-        console.error('[HTML] Global error caught:', {
-          message: e.message,
-          filename: e.filename,
-          lineno: e.lineno,
-          colno: e.colno,
-          error: e.error,
+        // If error object is empty but we have a message, log it
+        const errorDetails = {
+          message: e.message || 'No error message',
+          filename: e.filename || 'Unknown file',
+          lineno: e.lineno || 'Unknown line',
+          colno: e.colno || 'Unknown column',
+          error: e.error ? {
+            message: e.error.message,
+            stack: e.error.stack,
+            name: e.error.name,
+            toString: String(e.error)
+          } : 'No error object',
           isTrusted: e.isTrusted,
           type: e.type,
-          target: e.target
-        });
+          target: e.target ? {
+            tagName: e.target.tagName,
+            src: e.target.src,
+            href: e.target.href,
+            id: e.target.id
+          } : 'No target'
+        };
+        
+        console.error('[HTML] Global error caught:', errorDetails);
+        
+        // If this is a React/app error and we have details, show them
+        if (e.filename && (e.filename.includes('assets/js/') || e.filename.includes('index-'))) {
+          console.error('[HTML] This appears to be an app error. Full details:', errorDetails);
+        }
         
         // Check for React loading errors specifically
         const isReactError = e.message && (
