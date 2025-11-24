@@ -1305,27 +1305,29 @@ const Settings = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="max-w-2xl mx-auto px-4">
-            <TabsList className="w-full h-auto p-1 bg-muted/50 rounded-2xl grid grid-cols-3 lg:grid-cols-6 gap-1">
-              <TabsTrigger value="preferences" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Preferences
-              </TabsTrigger>
-              <TabsTrigger value="personalization" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Personalization
-              </TabsTrigger>
-              <TabsTrigger value="content" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Content
-              </TabsTrigger>
-              <TabsTrigger value="account" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Account
-              </TabsTrigger>
-              <TabsTrigger value="security" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Security
-              </TabsTrigger>
-              <TabsTrigger value="downloads" className="rounded-xl text-xs sm:text-sm px-2 sm:px-3 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                Downloads
-              </TabsTrigger>
-            </TabsList>
+          <div className="max-w-2xl mx-auto px-4 py-3">
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <TabsList className="w-full h-auto p-1.5 bg-muted/50 rounded-2xl inline-flex min-w-max gap-1.5">
+                <TabsTrigger value="preferences" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Preferences
+                </TabsTrigger>
+                <TabsTrigger value="personalization" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Personalization
+                </TabsTrigger>
+                <TabsTrigger value="content" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Content
+                </TabsTrigger>
+                <TabsTrigger value="account" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Account
+                </TabsTrigger>
+                <TabsTrigger value="security" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Security
+                </TabsTrigger>
+                <TabsTrigger value="downloads" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Downloads
+                </TabsTrigger>
+              </TabsList>
+            </div>
           </div>
         </div>
 
@@ -1899,6 +1901,38 @@ const Settings = () => {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Account</h2>
           <Card className="p-6 rounded-3xl space-y-4">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Access on your phone</p>
+                <p className="text-sm text-muted-foreground">
+                  Scan this QR code to open Echo Garden on your phone
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() => setShowSiteQRCode(!showSiteQRCode)}
+              >
+                <QrCode className="mr-2 h-4 w-4" />
+                {showSiteQRCode ? "Hide QR" : "Show QR"}
+              </Button>
+            </div>
+            {showSiteQRCode && (
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
+                  <QRCodeSVG 
+                    value={window.location.origin} 
+                    size={200}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                  Scan with your phone camera to open Echo Garden
+                </p>
+              </div>
+            )}
+
             <div className="flex items-start justify-between gap-6">
               <div>
                 <p className="font-medium">Change pseudonym</p>
