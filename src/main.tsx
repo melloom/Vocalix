@@ -305,6 +305,12 @@ const initApp = () => {
   
   // IMMEDIATELY clear the loading screen HTML - don't wait
   // This prevents the "Loading Echo Garden" screen from staying visible
+  // Clear it aggressively - check multiple ways
+  const loadingScreen = rootElement.querySelector('#loading-screen');
+  if (loadingScreen) {
+    console.log("[App] Found loading-screen element, removing it...");
+    loadingScreen.remove();
+  }
   if (rootElement.innerHTML.includes('Loading Echo Garden')) {
     console.log("[App] Clearing loading screen HTML immediately...");
     rootElement.innerHTML = '';
