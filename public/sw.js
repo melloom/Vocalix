@@ -1,5 +1,5 @@
 // Service Worker for caching audio files and assets
-const CACHE_VERSION = "v4"; // Incremented to bust stale caches on mobile
+const CACHE_VERSION = "v5"; // Incremented to bust stale caches and fix POST caching issue
 const CACHE_NAME = `echo-garden-${CACHE_VERSION}`;
 const AUDIO_CACHE_NAME = `echo-garden-audio-${CACHE_VERSION}`;
 const STATIC_CACHE_NAME = `echo-garden-static-${CACHE_VERSION}`;
@@ -135,12 +135,24 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Handle API requests with stale-while-revalidate strategy
+  // Skip POST/PUT/DELETE requests from caching - they can't be cached
+  if (
+    (url.pathname.startsWith("/rest/") ||
+    url.hostname.includes("supabase") ||
+    event.request.url.includes("/api/")) &&
+    event.request.method === "GET"
+  ) {
+    event.respondWith(handleAPIRequest(event.request));
+    return;
+  }
+  
+  // For non-GET API requests, just pass through to network
   if (
     url.pathname.startsWith("/rest/") ||
     url.hostname.includes("supabase") ||
     event.request.url.includes("/api/")
   ) {
-    event.respondWith(handleAPIRequest(event.request));
+    event.respondWith(fetch(event.request));
     return;
   }
 
@@ -457,16 +469,32 @@ async function handleHTMLRequest(request) {
 
 // Handle API requests with stale-while-revalidate strategy
 async function handleAPIRequest(request) {
+  // CRITICAL: Only cache GET requests - Cache API doesn't support POST/PUT/DELETE
+  const isGetRequest = request.method === "GET";
+  
+  // For non-GET requests, just fetch from network without caching
+  if (!isGetRequest) {
+    try {
+      return await fetch(request);
+    } catch (error) {
+      console.warn("API fetch failed:", request.url, error);
+      return new Response(JSON.stringify({ error: "Network request failed" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }
+  
   const cache = await caches.open(API_CACHE_NAME);
   
-  // Try cache first for immediate response
+  // Try cache first for immediate response (GET requests only)
   const cachedResponse = await cache.match(request);
   
   // Fetch from network in background (don't await)
   const networkFetch = fetch(request)
     .then((networkResponse) => {
-      if (networkResponse.status === 200) {
-        // Clone and cache the fresh response
+      if (networkResponse.status === 200 && isGetRequest) {
+        // Clone and cache the fresh response (only for GET requests)
         const responseToCache = networkResponse.clone();
         const headers = new Headers(responseToCache.headers);
         headers.set("sw-cached-date", Date.now().toString());
