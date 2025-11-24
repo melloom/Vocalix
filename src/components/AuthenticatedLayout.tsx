@@ -14,33 +14,19 @@ import { useCallback } from "react";
  */
 export const AuthenticatedLayout = () => {
   const location = useLocation();
-  const { profileId } = useAuth();
   
-  const handleOnboardingComplete = useCallback((newProfileId: string) => {
-    console.log('[AuthenticatedLayout] Onboarding complete, reloading...');
-    window.location.reload();
-  }, []);
-  
-  // If no profileId, show onboarding immediately - bypass everything
-  if (!profileId) {
-    return (
-      <ErrorBoundary
-        fallback={
-          <div className="min-h-screen bg-background flex items-center justify-center p-4">
-            <OnboardingFlow onComplete={handleOnboardingComplete} />
-          </div>
-        }
-      >
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
-      </ErrorBoundary>
-    );
-  }
-  
+  // Wrap everything in error boundary that redirects to onboarding on error
   return (
     <ErrorBoundary
       fallback={
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <OnboardingFlow onComplete={handleOnboardingComplete} />
+          <div className="text-center space-y-4">
+            <h2 className="text-xl font-semibold">Error Loading App</h2>
+            <p className="text-sm text-muted-foreground">
+              Redirecting to onboarding...
+            </p>
+            <script dangerouslySetInnerHTML={{__html: `setTimeout(() => window.location.href = '/onboarding', 1000)`}} />
+          </div>
         </div>
       }
     >

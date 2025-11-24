@@ -161,6 +161,30 @@ const App = () => {
                     <Routes>
                       <Route path="/login-link" element={<LoginLink />} />
                       <Route path="/embed/:clipId" element={<Embed />} />
+                      {/* Onboarding route - completely independent, no auth needed */}
+                      <Route 
+                        path="/onboarding" 
+                        element={
+                          <ErrorBoundary
+                            fallback={
+                              <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                                <div className="text-center">
+                                  <h1 className="text-2xl font-bold mb-4">Welcome to Echo Garden</h1>
+                                  <p className="text-muted-foreground mb-4">Please refresh the page to try again.</p>
+                                  <button 
+                                    onClick={() => window.location.reload()} 
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+                                  >
+                                    Refresh
+                                  </button>
+                                </div>
+                              </div>
+                            }
+                          >
+                            <OnboardingFlow onComplete={(id) => window.location.href = '/'} />
+                          </ErrorBoundary>
+                        } 
+                      />
                       <Route element={<AuthenticatedLayout />}>
                         <Route path="/" element={<Index />} />
                         <Route path="/profile/:handle" element={<Profile />} />
