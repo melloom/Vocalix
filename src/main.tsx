@@ -411,36 +411,41 @@ const initApp = () => {
           }}
         >
           <h2 className="text-xl font-semibold text-destructive">Something went wrong</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             We've been notified about this error. Please try refreshing the page.
           </p>
-          <details className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono overflow-auto max-h-48" open>
-            <summary className="cursor-pointer font-semibold mb-2">Error Details (Click to expand)</summary>
-            <div className="mt-2 space-y-2">
+          
+          {/* Error Details - Always visible, not in details tag */}
+          <div className="mt-4 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+            <h3 className="text-sm font-semibold text-destructive mb-2">Error Details:</h3>
+            <div className="space-y-2 text-xs">
               <div>
-                <strong>Error:</strong>
-                <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded">
+                <strong className="text-destructive">Error:</strong>
+                <pre className="whitespace-pre-wrap text-[11px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
                   {error?.toString() || 'Unknown error'}
                 </pre>
               </div>
               {error?.message && (
                 <div>
-                  <strong>Message:</strong>
-                  <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded">
+                  <strong className="text-destructive">Message:</strong>
+                  <pre className="whitespace-pre-wrap text-[11px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
                     {error.message}
                   </pre>
                 </div>
               )}
               {error?.stack && (
                 <div>
-                  <strong>Stack Trace:</strong>
-                  <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background p-2 rounded overflow-auto max-h-32">
+                  <strong className="text-destructive">Stack Trace:</strong>
+                  <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
                     {error.stack}
                   </pre>
                 </div>
               )}
+              {!error && (
+                <p className="text-muted-foreground italic">No error details available</p>
+              )}
             </div>
-          </details>
+          </div>
           <div className="flex flex-col gap-3 pt-2">
             <button
               onClick={() => {
