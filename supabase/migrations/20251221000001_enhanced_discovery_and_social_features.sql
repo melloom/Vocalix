@@ -279,6 +279,26 @@ CREATE TABLE IF NOT EXISTS public.mentions (
   )
 );
 
+-- Ensure mentioned_by column exists (in case table was created without it)
+-- Add as nullable first, then set to NOT NULL if needed
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'mentions' 
+    AND column_name = 'mentioned_by'
+  ) THEN
+    ALTER TABLE public.mentions 
+    ADD COLUMN mentioned_by UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+    
+    -- If there are existing rows, we'd need to set a value, but since this is new, it should be empty
+    -- Set to NOT NULL only if table is empty or all rows have values
+    ALTER TABLE public.mentions 
+    ALTER COLUMN mentioned_by SET NOT NULL;
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_mentions_mentioned_profile ON public.mentions(mentioned_profile_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mentions_clip ON public.mentions(clip_id);
 CREATE INDEX IF NOT EXISTS idx_mentions_comment ON public.mentions(comment_id);
