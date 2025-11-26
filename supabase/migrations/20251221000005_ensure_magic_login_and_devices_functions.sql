@@ -99,8 +99,12 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.create_magic_login_link(TEXT, TEXT, INTEGER) TO authenticated, anon;
+-- Grant execute permission to all roles that need it
+GRANT EXECUTE ON FUNCTION public.create_magic_login_link(TEXT, TEXT, INTEGER) TO authenticated, anon, service_role;
+
+-- Add comment to help with visibility
+COMMENT ON FUNCTION public.create_magic_login_link(TEXT, TEXT, INTEGER) IS 
+'Creates a magic login link for cross-device authentication. Returns token, expires_at, and link_type.';
 
 -- ============================================================================
 -- PART 2: Ensure get_user_devices exists
@@ -207,8 +211,12 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission
+-- Grant execute permission to all roles that need it
 GRANT EXECUTE ON FUNCTION public.get_user_devices() TO authenticated, anon, service_role;
+
+-- Add comment to help with visibility
+COMMENT ON FUNCTION public.get_user_devices() IS 
+'Returns all devices associated with the current user profile(s).';
 
 -- ============================================================================
 -- PART 3: Ensure get_active_sessions exists
@@ -319,6 +327,50 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission
-GRANT EXECUTE ON FUNCTION public.get_active_sessions(UUID) TO authenticated, anon;
+-- Grant execute permission to all roles that need it
+GRANT EXECUTE ON FUNCTION public.get_active_sessions(UUID) TO authenticated, anon, service_role;
+
+-- Add comment to help with visibility
+COMMENT ON FUNCTION public.get_active_sessions(UUID) IS 
+'Returns all active sessions for a profile, including the current session.';
+
+-- ============================================================================
+-- VERIFICATION: Verify functions exist and are accessible
+-- ============================================================================
+
+-- This query will help verify the functions were created successfully
+-- Run this after the migration to confirm:
+DO $$
+BEGIN
+  -- Check if functions exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public' 
+      AND p.proname = 'create_magic_login_link'
+      AND pg_get_function_identity_arguments(p.oid) = 'target_email text DEFAULT NULL::text, p_link_type text DEFAULT ''standard''::text, p_duration_hours integer DEFAULT NULL::integer'
+  ) THEN
+    RAISE WARNING 'create_magic_login_link function not found!';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public' 
+      AND p.proname = 'get_user_devices'
+      AND pg_get_function_identity_arguments(p.oid) = ''
+  ) THEN
+    RAISE WARNING 'get_user_devices function not found!';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public' 
+      AND p.proname = 'get_active_sessions'
+      AND pg_get_function_identity_arguments(p.oid) = 'p_profile_id uuid'
+  ) THEN
+    RAISE WARNING 'get_active_sessions function not found!';
+  END IF;
+END $$;
 
