@@ -159,11 +159,11 @@ BEGIN
       -- Profiles with matching device_id
       SELECT id FROM public.profiles WHERE device_id = current_device_id
       UNION
-      -- Profiles linked via devices table
-      SELECT profile_id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
+      -- Profiles linked via devices table (alias profile_id as id to avoid ambiguity)
+      SELECT profile_id AS id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
       UNION
       -- Also get from profile_ids_for_request for magic login links
-      SELECT id FROM public.profile_ids_for_request()
+      SELECT id FROM public.profile_ids_for_request(current_device_id, NULL)
     ) all_profiles;
   EXCEPTION
     WHEN OTHERS THEN
@@ -172,7 +172,7 @@ BEGIN
       FROM (
         SELECT id FROM public.profiles WHERE device_id = current_device_id
         UNION
-        SELECT profile_id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
+        SELECT profile_id AS id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
       ) all_profiles;
   END;
   
