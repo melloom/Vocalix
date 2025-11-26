@@ -1428,6 +1428,22 @@ serve(async (req) => {
         .select("id", { count: "exact", head: true })
         .eq("is_banned", true);
 
+      // Get app settings (e.g., daily topic AI toggle)
+      const { data: settingsData, error: settingsError } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["use_ai_daily_topics"]);
+
+      if (settingsError) {
+        console.warn("[admin-review] Error loading app_settings:", settingsError);
+      }
+
+      const useAiDailyTopicsSetting = settingsData?.find((s: any) => s.key === "use_ai_daily_topics");
+      const useAiDailyTopics =
+        useAiDailyTopicsSetting && useAiDailyTopicsSetting.value && typeof useAiDailyTopicsSetting.value.value === "boolean"
+          ? useAiDailyTopicsSetting.value.value
+          : true;
+
       return new Response(
         JSON.stringify({
           totalUsers: totalUsers || 0,
@@ -1436,7 +1452,83 @@ serve(async (req) => {
           bannedUsers: bannedUsers || 0,
           clipsByStatus: clipsByStatus || {},
           reportsByStatus: reportsByStatus || {},
+          appSettings: {
+            useAiDailyTopics,
+          },
         }),
+        {
+          headers: {
+            ...corsHeaders,
+            ...createVersionHeaders(apiVersion),
+            "content-type": "application/json",
+          },
+        }
+      );
+    }
+
+    if (action === "updateAppSettings") {
+      const { key, value } = body as { key?: string; value?: unknown };
+
+      if (!key || typeof key !== "string") {
+        return new Response(
+          JSON.stringify({ error: "Setting key is required" }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          }
+        );
+      }
+
+      // Only allow known keys to be updated for safety
+      const allowedKeys = ["use_ai_daily_topics"];
+      if (!allowedKeys.includes(key)) {
+        return new Response(
+          JSON.stringify({ error: "Unsupported setting key" }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          }
+        );
+      }
+
+      // Upsert app setting
+      const { error: upsertError } = await supabase
+        .from("app_settings")
+        .upsert(
+          {
+            key,
+            value: { value },
+          },
+          { onConflict: "key" }
+        );
+
+      if (upsertError) {
+        console.error("[admin-review] Failed to update app_settings:", upsertError);
+        return new Response(
+          JSON.stringify({ error: "Failed to update setting" }),
+          {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          }
+        );
+      }
+
+      await logAdminAction(adminProfileId, deviceId, "update_app_settings", { key, value }, req);
+
+      return new Response(
+        JSON.stringify({ success: true }),
         {
           headers: {
             ...corsHeaders,

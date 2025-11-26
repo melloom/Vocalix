@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, startTransition } fr
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
@@ -368,6 +369,17 @@ const IndexInner = () => {
   const [isLoadingRecommendedClips, setIsLoadingRecommendedClips] = useState(false);
   const [similarVoicesClips, setSimilarVoicesClips] = useState<Clip[]>([]);
   const [isLoadingSimilarVoices, setIsLoadingSimilarVoices] = useState(false);
+  const [newVoicesClips, setNewVoicesClips] = useState<Clip[]>([]);
+  const [welcomeGardenTopicId, setWelcomeGardenTopicId] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState<{
+    listenedOnce: boolean;
+    answeredToday: boolean;
+    saidHiWelcomeGarden: boolean;
+  }>({
+    listenedOnce: false,
+    answeredToday: false,
+    saidHiWelcomeGarden: false,
+  });
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [savedClipsCount, setSavedClipsCount] = useState<number | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<SearchFilters>({
@@ -721,8 +733,60 @@ const IndexInner = () => {
       
       applyTopicCuration(activeTopics, metrics);
 
+      // Find or load Welcome Garden topic id for onboarding checklist and intro
+      try {
+        let welcomeTopic =
+          activeTopics.find(
+            (t) => t.title === "Welcome Garden" && t.user_created_by === null
+          ) || null;
+
+        if (!welcomeTopic) {
+          const { data: welcomeData, error: welcomeError } = await supabase
+            .from("topics")
+            .select("*")
+            .eq("title", "Welcome Garden")
+            .is("user_created_by", null)
+            .maybeSingle();
+
+          if (!welcomeError && welcomeData) {
+            welcomeTopic = welcomeData as Topic;
+          }
+        }
+
+        if (welcomeTopic) {
+          setWelcomeGardenTopicId(welcomeTopic.id);
+        }
+      } catch (welcomeErr) {
+        console.debug("Could not load Welcome Garden topic:", welcomeErr);
+      }
+
       // Fetch spotlight question (best/most engaging question)
       await fetchSpotlightQuestion();
+
+      // Load new voices (clips with very few listens) to highlight first-time creators
+      try {
+        const { data: newVoicesData, error: newVoicesError } = await supabase
+          .from("clips")
+          .select(`
+            *,
+            profiles (
+              handle,
+              emoji_avatar
+            )
+          `)
+          .eq("status", "live")
+          .lte("listens_count", 3)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (!newVoicesError && newVoicesData) {
+          setNewVoicesClips(newVoicesData as Clip[]);
+        } else if (newVoicesError) {
+          console.debug("Could not load new voices clips:", newVoicesError);
+        }
+      } catch (err) {
+        console.debug("Error loading new voices clips:", err);
+      }
 
       // Load saved clips count if user is logged in
       if (profileId) {
@@ -738,6 +802,49 @@ const IndexInner = () => {
         } catch (err) {
           // Silently fail - bookmark count is not critical
           console.debug("Could not load saved clips count:", err);
+        }
+
+        // Onboarding checklist: check listens and participation
+        try {
+          // 1) Has listened to at least one clip
+          const { count: listensCount } = await supabase
+            .from("listens")
+            .select("*", { count: "exact", head: true })
+            .eq("profile_id", profileId);
+
+          const listenedOnce = !!(listensCount && listensCount > 0);
+
+          // 2) Has answered today's question
+          let answeredToday = false;
+          if (todayTopic && todayTopic.id) {
+            const { count: answerCount } = await supabase
+              .from("clips")
+              .select("*", { count: "exact", head: true })
+              .eq("profile_id", profileId)
+              .eq("topic_id", todayTopic.id)
+              .in("status", ["live", "processing"]);
+            answeredToday = !!(answerCount && answerCount > 0);
+          }
+
+          // 3) Has said hi in Welcome Garden
+          let saidHiWelcomeGarden = false;
+          if (welcomeGardenTopicId) {
+            const { count: welcomeCount } = await supabase
+              .from("clips")
+              .select("*", { count: "exact", head: true })
+              .eq("profile_id", profileId)
+              .eq("topic_id", welcomeGardenTopicId)
+              .in("status", ["live", "processing"]);
+            saidHiWelcomeGarden = !!(welcomeCount && welcomeCount > 0);
+          }
+
+          setChecklist({
+            listenedOnce,
+            answeredToday,
+            saidHiWelcomeGarden,
+          });
+        } catch (checkErr) {
+          console.debug("Could not load onboarding checklist state:", checkErr);
         }
       }
 
@@ -2751,7 +2858,7 @@ const IndexInner = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
+        <div className="w-full px-4 lg:px-8 py-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold">Echo Garden</h1>
             <div className="flex items-center gap-2" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
@@ -3094,21 +3201,21 @@ const IndexInner = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-4">
+      <main className="w-full px-4 lg:px-8 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Left Sidebar - Hidden on mobile, visible on large screens */}
-          <aside className="hidden lg:block lg:col-span-3">
+          <aside className="hidden lg:block lg:col-span-2">
             <LeftSidebar />
           </aside>
 
           {/* Main Content */}
-          <div className="lg:col-span-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-card border border-border/50 rounded-lg p-2">
+          <div className="lg:col-span-8 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card border border-border/50 rounded-lg p-2">
           <div className="flex items-center gap-2">
             <div data-tutorial="view-mode">
               <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
             </div>
-            <div data-tutorial="feed-sorting">
+            <div data-tutorial="feed-sorting" className="flex items-center gap-2 flex-wrap md:flex-nowrap">
               <FeedFilterSelector
                 currentFilter={feedFilter}
                 timePeriod={feedTimePeriod}
@@ -3130,9 +3237,19 @@ const IndexInner = () => {
                 onTimePeriodChange={(period) => setFeedTimePeriod(period)}
                 showTimePeriod={feedFilter === "best"}
               />
+              {welcomeGardenTopicId && (
+                <Button
+                  size="sm"
+                  className="rounded-md px-3 text-[11px] h-7"
+                  variant={selectedTopicId === welcomeGardenTopicId ? "default" : "outline"}
+                  onClick={() => handleTopicToggle(welcomeGardenTopicId)}
+                >
+                  Welcome Garden
+                </Button>
+              )}
               {/* Legacy sort mode buttons for backward compatibility */}
               {sortMode && sortMode !== "for_you" && (
-                <div className="flex bg-muted/50 rounded-md p-0.5 mt-2">
+                <div className="flex bg-muted/50 rounded-md p-0.5 mt-2 overflow-x-auto whitespace-nowrap w-full md:w-auto">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -3384,12 +3501,66 @@ const IndexInner = () => {
           </>
         )}
 
+        {!isSearching && !sortMode && profileId && (
+          <Card className="p-4 rounded-2xl border-primary/40 bg-primary/5">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Today&apos;s check-in</h3>
+                <p className="text-xs text-muted-foreground">
+                  A gentle path to get started: listen, share, and say hello.
+                </p>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <span>{checklist.listenedOnce ? "✅" : "⭕"}</span>
+                  <span>Listen to at least one clip</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>{checklist.answeredToday ? "✅" : "⭕"}</span>
+                  <button
+                    type="button"
+                    className="text-left underline-offset-2 hover:underline text-xs"
+                    disabled={!todayTopic}
+                    onClick={() => {
+                      if (!todayTopic) return;
+                      setSelectedTopicId(todayTopic.id);
+                      setIsRecordModalOpen(true);
+                    }}
+                  >
+                    Answer today&apos;s question
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>{checklist.saidHiWelcomeGarden ? "✅" : "⭕"}</span>
+                  <button
+                    type="button"
+                    className="text-left underline-offset-2 hover:underline text-xs"
+                    disabled={!welcomeGardenTopicId}
+                    onClick={() => {
+                      if (!welcomeGardenTopicId) return;
+                      setSelectedTopicId(welcomeGardenTopicId);
+                      setIsRecordModalOpen(true);
+                    }}
+                  >
+                    Say hi in the Welcome Garden
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {!isSearching && !sortMode && (spotlightQuestion || todayTopic) && (
           <div className="space-y-4">
             <div className="bg-card border-2 border-primary/30 rounded-lg p-6 text-center space-y-3 shadow-sm" data-tutorial="today-topic">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Garden Spotlight
               </p>
+              {profile?.current_streak_days && profile.current_streak_days > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Day {profile.current_streak_days}: You showed up again today. 🌱
+                </p>
+              )}
               
               {spotlightQuestion ? (
                 // Show spotlight question when we have a good one
@@ -3526,6 +3697,142 @@ const IndexInner = () => {
           </div>
         )}
 
+        {/* Welcome Garden highlight card - only when Welcome Garden is focused */}
+        {!isSearching && welcomeGardenTopicId && selectedTopicId === welcomeGardenTopicId && (
+          <Card className="relative overflow-hidden border border-emerald-400/70 bg-gradient-to-br from-emerald-50 via-background to-emerald-100/60 dark:from-emerald-950/70 dark:via-background dark:to-emerald-900/60 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="pointer-events-none absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
+            <div className="flex items-center justify-between gap-4 flex-wrap relative">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-500/15 flex items-center justify-center border border-emerald-500/40">
+                  <span className="text-2xl" aria-hidden="true">🌱</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-200 border border-emerald-500/40">
+                      Welcome Home
+                    </span>
+                    <span className="hidden md:inline text-[11px] text-emerald-800/80 dark:text-emerald-200/90">
+                      Gentle intros • low pressure • kind listeners
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold tracking-wide text-emerald-900 dark:text-emerald-100">
+                    Welcome Garden
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                    A softer corner of Echo Garden to say hi, share how you&apos;re really doing,
+                    and meet new voices without the pressure of a big audience.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 text-[11px]">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
+                  Best for first impressions &amp; gentle check‑ins
+                </span>
+                {checklist.saidHiWelcomeGarden ? (
+                  <span className="flex items-center gap-1 text-emerald-800 dark:text-emerald-200">
+                    <span>✅</span>
+                    You&apos;ve already said hi here today
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    <span>⭕</span>
+                    You haven&apos;t said hi here yet
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
+                <span aria-hidden="true">🎧</span>
+                Listen to a few welcoming voices
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
+                <span aria-hidden="true">🎙️</span>
+                Drop a short hello – no need to be perfect
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
+                <span aria-hidden="true">🤝</span>
+                Follow someone whose vibe you like
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[11px] md:text-xs text-muted-foreground max-w-md">
+                Think of it as the front porch of Echo Garden: low‑stakes, welcoming, and
+                designed for first steps instead of viral hits.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="rounded-full text-[11px] h-8"
+                  onClick={() => {
+                    if (!welcomeGardenTopicId) return;
+                    navigate(`/topic/${welcomeGardenTopicId}`);
+                  }}
+                >
+                  Enter Welcome Garden
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {!isSearching && recentTopics.length > 0 && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Past week&apos;s questions
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recentTopics
+                .slice(0, 7)
+                .filter((topic) => !todayTopic || topic.id !== todayTopic.id)
+                .map((topic) => (
+                  <Button
+                    key={topic.id}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full h-7 px-3 text-xs"
+                    onClick={() => navigate(`/topic/${topic.id}`)}
+                  >
+                    {(() => {
+                      const [year, month, day] = topic.date.split("-").map(Number);
+                      const localDate = new Date(year, month - 1, day);
+                      const label = localDate.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      });
+                      return `${label}: ${topic.title}`;
+                    })()}
+                  </Button>
+                ))}
+            </div>
+          </section>
+        )}
+
+        {!isSearching && newVoicesClips.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">New voices</h3>
+              <span className="text-xs text-muted-foreground">
+                Be someone&apos;s first listener today
+              </span>
+            </div>
+            <div className="space-y-3">
+              {newVoicesClips.map((clip) => (
+                <ClipCard
+                  key={clip.id}
+                  clip={clip}
+                  showReplyButton={true}
+                  viewMode={viewMode}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {!isSearching && recommendedClips.length > 0 && (
           <section className="space-y-3">
             <div className="flex items-center justify-between">
@@ -3639,7 +3946,7 @@ const IndexInner = () => {
           </div>
 
           {/* Right Sidebar - Hidden on mobile, visible on large screens */}
-          <aside className="hidden lg:block lg:col-span-3">
+          <aside className="hidden lg:block lg:col-span-2">
             <CommunityRecommendationsSidebar />
           </aside>
         </div>

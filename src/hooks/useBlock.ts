@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from './useProfile';
 
@@ -101,6 +102,9 @@ export const useBlock = (targetProfileId: string | null) => {
   };
 };
 
+// Empty array constant to avoid creating new array references on each render
+const EMPTY_BLOCKED_USERS: any[] = [];
+
 // Hook to get list of blocked users
 export const useBlockedUsers = () => {
   const { profile: currentProfile } = useProfile();
@@ -142,8 +146,14 @@ export const useBlockedUsers = () => {
     enabled: !!currentProfile?.id,
   });
 
+  // Memoize the blockedUsers array to prevent unnecessary re-renders
+  // Use a stable empty array constant instead of creating a new array on each render
+  const memoizedBlockedUsers = useMemo(() => {
+    return blockedUsers ?? EMPTY_BLOCKED_USERS;
+  }, [blockedUsers]);
+
   return {
-    blockedUsers: blockedUsers || [],
+    blockedUsers: memoizedBlockedUsers,
     isLoading,
     error,
     refetch,

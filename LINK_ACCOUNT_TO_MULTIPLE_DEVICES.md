@@ -111,3 +111,4 @@ After linking:
 **To verify devices are linked:**
 - Settings → Security → Active Devices (should show all linked devices)
 
+

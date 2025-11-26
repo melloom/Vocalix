@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { logError } from "@/lib/logger";
@@ -163,8 +164,16 @@ export function useFeedFilters(options: UseFeedFiltersOptions) {
     staleTime: 30000, // 30 seconds
   });
 
+  // Empty array constant to avoid creating new array references on each render
+  const EMPTY_CLIPS: FeedClip[] = [];
+
+  // Memoize the clips array to prevent unnecessary re-renders
+  const memoizedClips = useMemo(() => {
+    return data ?? EMPTY_CLIPS;
+  }, [data]);
+
   return {
-    clips: data || [],
+    clips: memoizedClips,
     isLoading,
     error,
     refetch,

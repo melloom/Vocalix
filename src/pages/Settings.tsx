@@ -65,6 +65,8 @@ import { OnboardingProgress, useOnboardingProgress } from "@/components/Onboardi
 import { PersonalizationPreferences } from "@/components/PersonalizationPreferences";
 import { FeedCustomizationSettings } from "@/components/FeedCustomizationSettings";
 import { MuteBlockSettings } from "@/components/MuteBlockSettings";
+import { useAdminStatus } from "@/hooks/useAdminStatus";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -146,6 +148,10 @@ const Settings = () => {
   const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
   const [showQRCode, setShowQRCode] = useState(true); // Show QR code by default for easy sharing
   const [showSiteQRCode, setShowSiteQRCode] = useState(false); // QR code for current site URL
+  const [phoneQRCodeUrl, setPhoneQRCodeUrl] = useState<string | null>(null);
+  const [isGeneratingPhoneQR, setIsGeneratingPhoneQR] = useState(false);
+  const { isAdmin } = useAdminStatus();
+  const isMobile = useIsMobile();
   const emailSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isExportingAudio, setIsExportingAudio] = useState(false);
@@ -610,6 +616,45 @@ const Settings = () => {
       `Use this link to sign back in to Echo Garden on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
     );
     window.open(`mailto:${trimmedEmail}?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleGeneratePhoneQRCode = async () => {
+    if (phoneQRCodeUrl) {
+      setShowSiteQRCode(!showSiteQRCode);
+      return;
+    }
+    
+    if (isGeneratingPhoneQR) return;
+    setIsGeneratingPhoneQR(true);
+    try {
+      const { data, error } = await supabase.rpc("create_magic_login_link", {
+        target_email: null,
+        p_link_type: "standard",
+        p_duration_hours: null,
+      });
+      if (error) throw error;
+
+      const result = data?.[0];
+      if (!result?.token) {
+        throw new Error("Login link was not created");
+      }
+
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const loginUrl =
+        origin.length > 0 ? `${origin}/login-link?token=${result.token}` : `/login-link?token=${result.token}`;
+
+      setPhoneQRCodeUrl(loginUrl);
+      setShowSiteQRCode(true);
+    } catch (error) {
+      logError("Failed to create phone QR code link", error);
+      toast({
+        title: "Couldn't create QR code",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPhoneQR(false);
+    }
   };
 
   const handleEmailToMyself = () => {
@@ -1903,32 +1948,59 @@ const Settings = () => {
           <Card className="p-6 rounded-3xl space-y-4">
             <div className="flex items-start justify-between gap-6">
               <div>
-                <p className="font-medium">Access on your phone</p>
+                <p className="font-medium">
+                  {isMobile ? "Access on your computer" : "Access on your phone"}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Scan this QR code to open Echo Garden on your phone
+                  {isMobile 
+                    ? "Generate a login link to link your computer to this account" + (isAdmin ? " (admin access will be transferred)" : "")
+                    : "Scan this QR code to link your phone to this account" + (isAdmin ? " (admin access will be transferred)" : "")
+                  }
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={() => setShowSiteQRCode(!showSiteQRCode)}
-              >
-                <QrCode className="mr-2 h-4 w-4" />
-                {showSiteQRCode ? "Hide QR" : "Show QR"}
-              </Button>
+              {isMobile ? (
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => setIsMagicLinkDialogOpen(true)}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Generate Link
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={handleGeneratePhoneQRCode}
+                  disabled={isGeneratingPhoneQR}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  {isGeneratingPhoneQR ? "Generating..." : showSiteQRCode ? "Hide QR" : "Show QR"}
+                </Button>
+              )}
             </div>
-            {showSiteQRCode && (
+            {!isMobile && showSiteQRCode && phoneQRCodeUrl && (
               <div className="space-y-3 pt-2 border-t">
+                {isAdmin && (
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-3">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                      ⚠️ Admin Account
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      This device will receive admin access when you scan this QR code. Only scan on trusted devices.
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
                   <QRCodeSVG 
-                    value={window.location.origin} 
+                    value={phoneQRCodeUrl} 
                     size={200}
                     level="M"
                     includeMargin={true}
                   />
                 </div>
                 <p className="text-xs text-center text-muted-foreground">
-                  Scan with your phone camera to open Echo Garden
+                  Scan with your phone camera to link this device to your account
                 </p>
               </div>
             )}

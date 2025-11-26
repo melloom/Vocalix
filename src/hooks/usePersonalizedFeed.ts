@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { logError } from '@/lib/logger';
@@ -45,10 +46,13 @@ interface PersonalizedClip {
   is_podcast?: boolean;
 }
 
+// Empty array constant to avoid creating new array references on each render
+const EMPTY_PERSONALIZED_CLIPS: PersonalizedClip[] = [];
+
 export const usePersonalizedFeed = (limit: number = 50) => {
   const { profile } = useProfile();
 
-  const { data: personalizedClips = [], isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['personalized-feed', profile?.id, limit],
     queryFn: async () => {
       if (!profile?.id) {
@@ -182,8 +186,13 @@ export const usePersonalizedFeed = (limit: number = 50) => {
     gcTime: 300000, // Keep in cache for 5 minutes
   });
 
+  // Memoize the personalizedClips array to prevent unnecessary re-renders
+  const memoizedPersonalizedClips = useMemo(() => {
+    return data ?? EMPTY_PERSONALIZED_CLIPS;
+  }, [data]);
+
   return {
-    personalizedClips,
+    personalizedClips: memoizedPersonalizedClips,
     isLoading,
     error: error ? (error as Error).message : null,
     refetch: () => {}, // React Query handles refetching automatically

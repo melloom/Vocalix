@@ -584,7 +584,9 @@ const Topic = () => {
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex items-start gap-4 mb-6">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-              {topic.communities ? (
+              {topic.title === "Welcome Garden" ? (
+                <span className="text-4xl" aria-hidden="true">🌱</span>
+              ) : topic.communities ? (
                 <span className="text-4xl">{topic.communities.avatar_emoji}</span>
               ) : (
                 <Sparkles className="w-8 h-8 text-primary" />
@@ -593,10 +595,23 @@ const Topic = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1">
-                  <h1 className="text-4xl font-bold mb-3 leading-tight">{topic.title}</h1>
-                  {topic.description && (
+                  <h1 className="text-4xl font-bold mb-3 leading-tight">
+                    {topic.title === "Welcome Garden" ? "Welcome Garden" : topic.title}
+                  </h1>
+                  {topic.title === "Welcome Garden" ? (
+                    <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
+                      <p>
+                        This is the gentle front door of Echo Garden — a space to say hi,
+                        share a small moment from your day, and get comfortable using your voice.
+                      </p>
+                      <p>
+                        No need for perfect takes or big ideas here. Just short, honest check‑ins:
+                        how you&apos;re feeling, what&apos;s on your mind, or something that made you smile.
+                      </p>
+                    </div>
+                  ) : topic.description ? (
                     <p className="text-lg text-muted-foreground leading-relaxed">{topic.description}</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -671,8 +686,17 @@ const Topic = () => {
           {/* Main Content */}
           <div className="lg:col-span-8 space-y-8">
 
-        {/* Discussion & Questions Section (Reddit-style) */}
+          {/* Discussion & Questions Section (Reddit-style) */}
         <section className="space-y-4">
+          {/* Daily reflection helper for today’s topic */}
+          {topic.date === new Date().toISOString().slice(0, 10) && (
+            <Card className="p-4 rounded-2xl bg-muted/60 border-dashed border-primary/40">
+              <p className="text-sm font-medium">Daily reflection</p>
+              <p className="text-xs text-muted-foreground">
+                How did today feel? Share a short voice or comment about your day.
+              </p>
+            </Card>
+          )}
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2 mb-1">

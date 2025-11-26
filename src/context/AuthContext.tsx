@@ -145,35 +145,128 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Load profile when userId changes
+  // Backward compatibility: Get deviceId from localStorage if it exists
+  const deviceId = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem("deviceId");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Load profile when userId changes or deviceId exists
   const {
     data: profile,
     isLoading: isProfileLoading,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: ["profile", userId, profileId],
+    queryKey: ["profile", userId, profileId, deviceId],
     queryFn: async () => {
-      if (!userId) return null;
+      console.log('[AuthContext] Profile query running with:', { 
+        userId: userId ? 'exists' : 'null', 
+        profileId, 
+        deviceId: deviceId ? 'exists' : 'null',
+        isInitialized 
+      });
+      
+      // CRITICAL: Check by device_id FIRST if we have it, since that's more reliable
+      // This ensures we find existing accounts even if auth_user_id lookup fails
+      if (deviceId) {
+        console.log('[AuthContext] Checking for profile by device_id FIRST:', deviceId);
+        try {
+          const { data: deviceProfile, error: deviceError } = await Promise.race([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("device_id", deviceId)
+              .maybeSingle(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Device profile lookup timeout')), 3000)
+            )
+          ]) as any;
 
-      // Try to get profile by auth_user_id first (new way)
-      // Note: auth_user_id may not be in TypeScript types yet, but exists in DB
-      const { data: authProfile, error: authError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("auth_user_id" as any, userId)
-        .maybeSingle();
-
-      if (authError && authError.code !== "PGRST116") {
-        logError("Error loading profile by auth_user_id", authError);
-      }
-
-      if (authProfile) {
-        const profileIdFromDb = authProfile.id;
-        if (profileIdFromDb !== profileId) {
-          localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDb);
-          setProfileId(profileIdFromDb);
+          if (deviceError) {
+            if (deviceError.code !== "PGRST116" && deviceError.message !== 'Device profile lookup timeout') {
+              logError("Error loading profile by device_id", deviceError);
+              console.error('[AuthContext] Device profile lookup error:', {
+                code: deviceError.code,
+                message: deviceError.message
+              });
+            } else if (deviceError.code === "PGRST116") {
+              console.log('[AuthContext] No profile found by device_id (PGRST116 - not found)');
+            } else {
+              console.log('[AuthContext] Device profile lookup timed out, continuing...');
+            }
+          } else if (deviceProfile) {
+            console.log('[AuthContext] ✅ Found profile by device_id:', deviceProfile.id, deviceProfile.handle);
+            const profileIdFromDevice = deviceProfile.id;
+            localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDevice);
+            setProfileId(profileIdFromDevice);
+            
+            // Link this profile to the auth user if not already linked
+            const profileWithAuth = deviceProfile as any;
+            if (!profileWithAuth.auth_user_id && userId) {
+              console.log('[AuthContext] Linking profile to auth user:', userId.substring(0, 8) + '...');
+              try {
+                await supabase
+                  .from("profiles")
+                  .update({ auth_user_id: userId } as any)
+                  .eq("id", profileIdFromDevice);
+                console.log('[AuthContext] Successfully linked profile to auth user');
+              } catch (linkError) {
+                console.error('[AuthContext] Failed to link profile to auth user:', linkError);
+                // Continue anyway - profile is still valid
+              }
+            }
+            
+            return deviceProfile as ProfileRow;
+          }
+        } catch (deviceLookupError: any) {
+          console.error('[AuthContext] Exception in device_id lookup:', deviceLookupError?.message || deviceLookupError);
+          // Continue to check by auth_user_id
         }
-        return authProfile as ProfileRow;
+      }
+      
+      // Fallback: Try by auth_user_id if we have userId
+      if (userId) {
+        console.log('[AuthContext] Checking for profile by auth_user_id:', userId.substring(0, 8) + '...');
+        try {
+          const { data: authProfile, error: authError } = await Promise.race([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("auth_user_id" as any, userId)
+              .maybeSingle(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Auth profile lookup timeout')), 3000)
+            )
+          ]) as any;
+
+          if (authError) {
+            if (authError.code !== "PGRST116" && authError.message !== 'Auth profile lookup timeout') {
+              logError("Error loading profile by auth_user_id", authError);
+              console.error('[AuthContext] Error loading profile by auth_user_id:', {
+                code: authError.code,
+                message: authError.message
+              });
+            } else if (authError.code === "PGRST116") {
+              console.log('[AuthContext] No profile found by auth_user_id (PGRST116 - not found)');
+            } else {
+              console.log('[AuthContext] Auth profile lookup timed out');
+            }
+          } else if (authProfile) {
+            console.log('[AuthContext] ✅ Found profile by auth_user_id:', authProfile.id, authProfile.handle);
+            const profileIdFromDb = authProfile.id;
+            if (profileIdFromDb !== profileId) {
+              localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDb);
+              setProfileId(profileIdFromDb);
+            }
+            return authProfile as ProfileRow;
+          }
+        } catch (authLookupError: any) {
+          console.error('[AuthContext] Exception in auth_user_id lookup:', authLookupError?.message || authLookupError);
+        }
       }
 
       // Fallback: Try by profileId if it exists (backward compatibility)
@@ -202,32 +295,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
+      console.log('[AuthContext] ⚠️ No profile found by any method, returning null');
       return null;
     },
-    enabled: !!userId && isInitialized,
+    // Enable query if we have userId OR deviceId (to find existing profiles by device)
+    enabled: (!!userId || !!deviceId) && isInitialized,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 1,
     refetchOnMount: false,
   });
 
+  // Debug: Log when query enabled condition changes
+  useEffect(() => {
+    const queryEnabled = (!!userId || !!deviceId) && isInitialized;
+    console.log('[AuthContext] Query enabled condition:', {
+      queryEnabled,
+      hasUserId: !!userId,
+      hasDeviceId: !!deviceId,
+      isInitialized,
+      deviceId: deviceId ? deviceId.substring(0, 8) + '...' : 'null'
+    });
+  }, [userId, deviceId, isInitialized]);
+
   // Update profileId when profile loads
   useEffect(() => {
+    // In development, Supabase profile lookups can fail (500) even when the profile exists.
+    // To avoid constantly logging the user out, we ONLY update profileId when we successfully
+    // load a profile, and we DO NOT clear profileId when profile is null.
+    //
+    // This means:
+    // - If we find a profile, we sync profileId with that value.
+    // - If we don't find a profile (or the request fails), we keep whatever profileId
+    //   we already have (usually from localStorage), so existing accounts stay logged in.
     if (profile?.id && profile.id !== profileId) {
+      console.log('[AuthContext] ✅ Profile loaded, updating profileId:', profile.id, profile.handle);
       setProfileId(profile.id);
       try {
         localStorage.setItem(PROFILE_STORAGE_KEY, profile.id);
       } catch (error) {
         logError("Failed to save profileId", error);
       }
-    } else if (!profile && profileId) {
-      // Profile not found - clear it
-      setProfileId(null);
-      try {
-        localStorage.removeItem(PROFILE_STORAGE_KEY);
-      } catch (error) {
-        logError("Failed to clear profileId", error);
-      }
+    } else if (profile) {
+      console.log('[AuthContext] Profile already set:', profile.id, profile.handle);
     }
   }, [profile, profileId]);
 
@@ -245,16 +355,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [userId, queryClient]);
-
-  // Backward compatibility: Get deviceId from localStorage if it exists
-  const deviceId = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem("deviceId");
-    } catch {
-      return null;
-    }
-  }, []);
 
   const value = useMemo(
     () => ({
@@ -278,19 +378,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  // Don't throw on mobile - return safe defaults instead
   if (context === undefined) {
-    console.warn("[AuthContext] useAuth called outside AuthProvider, returning defaults");
-    return {
-      userId: null,
-      profileId: null,
-      profile: null,
-      isLoading: false,
-      isInitialized: true, // Pretend initialized so app doesn't wait
-      refetchProfile: () => {},
-      signInAnonymously: async () => {},
-      deviceId: null,
-    };
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

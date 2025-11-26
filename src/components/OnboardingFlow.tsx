@@ -485,7 +485,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       if (checkRecaptchaLoaded() || attempts >= maxAttempts) {
         clearInterval(checkInterval);
         if (attempts >= maxAttempts && !checkRecaptchaLoaded()) {
-          console.warn('[OnboardingFlow] reCAPTCHA script did not load within timeout');
+          // Only warn in production - in development it's expected if key isn't set
+          const isDevelopment = typeof window !== 'undefined' && 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+          if (!isDevelopment) {
+            console.warn('[OnboardingFlow] reCAPTCHA script did not load within timeout');
+          } else {
+            console.debug('[OnboardingFlow] reCAPTCHA not configured for development (this is normal)');
+          }
           setRecaptchaLoading(false);
           setRecaptchaError(true);
         }
@@ -610,6 +617,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       const avatarEmoji = AVATAR_TYPE_TO_EMOJI[avatarType] || '🎧';
 
       // Ensure we have a device ID - generate one if missing
+      // CRITICAL: Must save to localStorage BEFORE creating profile so RLS policy can read x-device-id header
       let finalDeviceId = deviceId;
       if (!finalDeviceId) {
         try {
@@ -619,17 +627,46 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               finalDeviceId = stored;
             } else {
               finalDeviceId = crypto.randomUUID();
+              // CRITICAL: Save to localStorage immediately so the x-device-id header is set
               localStorage.setItem('deviceId', finalDeviceId);
             }
           } else {
             finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+            // Try to save even if localStorage might not work
+            try {
+              if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.setItem('deviceId', finalDeviceId);
+              }
+            } catch (e) {
+              // Ignore - will use temp ID
+            }
           }
         } catch (e) {
           finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         }
+      } else {
+        // Ensure deviceId is in localStorage even if we got it from useAuth
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const stored = localStorage.getItem('deviceId');
+            if (stored !== finalDeviceId) {
+              localStorage.setItem('deviceId', finalDeviceId);
+            }
+          }
+        } catch (e) {
+          // Ignore - continue with existing deviceId
+        }
       }
 
       // Create profile
+      // Log debug info to help diagnose RLS issues
+      console.log('[OnboardingFlow] Creating profile with:', {
+        auth_user_id: currentUserId,
+        device_id: finalDeviceId,
+        handle: normalizedHandle,
+        deviceIdInStorage: localStorage.getItem('deviceId'),
+      });
+
       const { data, error } = await supabase
         .from("profiles")
         .insert({
@@ -642,6 +679,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         .single();
 
       if (error) {
+        console.error('[OnboardingFlow] Profile creation error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          device_id: finalDeviceId,
+          deviceIdInStorage: localStorage.getItem('deviceId'),
+        });
+
         if (error.code === "23505") {
           if (error.message?.includes("handle") || error.message?.includes("idx_profiles_handle_lower")) {
             toast({
@@ -657,10 +703,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               variant: "destructive",
             });
           }
-        } else if (error.code === "42501" || error.message?.includes("permission denied") || error.message?.includes("403")) {
+        } else if (error.code === "42501" || error.code === "PGRST301" || error.message?.includes("permission denied") || error.message?.includes("403") || error.code === 403) {
+          // RLS policy violation - provide helpful error message
+          console.error('[OnboardingFlow] RLS policy violation. Check:');
+          console.error('  1. Device ID in localStorage:', localStorage.getItem('deviceId'));
+          console.error('  2. Device ID in insert:', finalDeviceId);
+          console.error('  3. x-device-id header should be set automatically by supabase client');
           toast({
             title: "Permission denied",
-            description: "Unable to create account. Please check RLS policies or contact support.",
+            description: "Unable to create account. The device ID header may not match. Please refresh and try again.",
             variant: "destructive",
           });
         } else {
@@ -1011,10 +1062,25 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                           setRecaptchaAvailable(false);
                         }}
                         onError={(error) => {
-                          // Try to recover - reset and allow retry
-                          console.error('[OnboardingFlow] reCAPTCHA error:', error);
-                          console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-                          console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+                          // Check if we're in development
+                          const isDevelopment = typeof window !== 'undefined' && 
+                            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                          
+                          if (isDevelopment) {
+                            // In development, log as warning and provide helpful guidance
+                            console.warn('[OnboardingFlow] reCAPTCHA error in development:', error);
+                            console.warn('[OnboardingFlow] This is normal if:');
+                            console.warn('  1. No reCAPTCHA site key is configured (app will work without it)');
+                            console.warn('  2. Site key is invalid or not registered for localhost');
+                            console.warn('  3. To fix: Add localhost to your reCAPTCHA site domains at https://www.google.com/recaptcha/admin');
+                            console.warn('[OnboardingFlow] The app will continue to work - reCAPTCHA is optional in development');
+                          } else {
+                            // In production, log as error
+                            console.error('[OnboardingFlow] reCAPTCHA error:', error);
+                            console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+                            console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+                          }
+                          
                           setRecaptchaToken(null);
                           // Don't mark as error immediately - allow retry
                           setTimeout(() => {
@@ -1032,14 +1098,27 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                           setRecaptchaError(false);
                         }}
                         asyncScriptOnError={() => {
-                          // Script failed to load - try to recover
-                          console.error('[OnboardingFlow] reCAPTCHA script failed to load');
-                          console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-                          console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
-                          console.error('[OnboardingFlow] Possible causes:');
-                          console.error('  1. Domain not registered in reCAPTCHA console');
-                          console.error('  2. Network/CSP blocking Google scripts');
-                          console.error('  3. Invalid site key');
+                          // Check if we're in development
+                          const isDevelopment = typeof window !== 'undefined' && 
+                            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                          
+                          if (isDevelopment) {
+                            // In development, log as warning
+                            console.warn('[OnboardingFlow] reCAPTCHA script failed to load (development mode)');
+                            console.warn('[OnboardingFlow] This is normal if reCAPTCHA is not configured for localhost');
+                            console.warn('[OnboardingFlow] The app will work without reCAPTCHA - it\'s optional in development');
+                            console.warn('[OnboardingFlow] To enable: Add localhost to your reCAPTCHA site at https://www.google.com/recaptcha/admin');
+                          } else {
+                            // In production, log as error
+                            console.error('[OnboardingFlow] reCAPTCHA script failed to load');
+                            console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+                            console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+                            console.error('[OnboardingFlow] Possible causes:');
+                            console.error('  1. Domain not registered in reCAPTCHA console');
+                            console.error('  2. Network/CSP blocking Google scripts');
+                            console.error('  3. Invalid site key');
+                          }
+                          
                           setRecaptchaLoading(false);
                           setRecaptchaAvailable(false);
                           setRecaptchaError(true);

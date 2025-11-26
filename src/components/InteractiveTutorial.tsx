@@ -187,6 +187,51 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     return !completed;
   }, []);
 
+  // Disable body scroll when tutorial is active
+  useEffect(() => {
+    const isShowing = shouldShowTutorial();
+    if (!isShowing) {
+      return;
+    }
+
+    // Store original overflow style
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const originalWidth = document.body.style.width;
+
+    // Disable scrolling - prevent background from scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    // Save current scroll position
+    const scrollY = window.scrollY;
+    document.body.style.top = `-${scrollY}px`;
+
+    // Prevent scroll events on the document
+    const preventScroll = (e: WheelEvent | TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Prevent wheel and touch scroll events
+    document.addEventListener('wheel', preventScroll, { passive: false });
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      // Re-enable scrolling when tutorial is closed
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = originalWidth;
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+      // Remove event listeners
+      document.removeEventListener('wheel', preventScroll);
+      document.removeEventListener('touchmove', preventScroll);
+    };
+  }, [shouldShowTutorial]);
+
   // Mark tutorial as completed
   const markCompleted = useCallback(() => {
     localStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
@@ -269,32 +314,50 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       const tooltipWidth = Math.min(400, window.innerWidth - 40);
       const tooltipHeight = 280;
-      const spacing = 24;
+      const spacing = 48; // Increased from 24 to give more space from highlighted elements
+      const highlightPadding = 12; // Padding around highlight ring
       const viewportPadding = 20;
 
       let top = 0;
       let left = 0;
 
+      // Calculate spacing that accounts for highlight ring
+      const effectiveSpacing = spacing + (step.highlight ? highlightPadding : 0);
+
       switch (step.position) {
         case "top":
-          top = rect.top - tooltipHeight - spacing;
+          top = rect.top - tooltipHeight - effectiveSpacing;
           left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case "bottom":
-          top = rect.bottom + spacing;
+          top = rect.bottom + effectiveSpacing;
           left = rect.left + rect.width / 2 - tooltipWidth / 2;
           break;
         case "left":
           top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.left - tooltipWidth - spacing;
+          left = rect.left - tooltipWidth - effectiveSpacing;
           break;
         case "right":
           top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.right + spacing;
+          left = rect.right + effectiveSpacing;
           break;
         default:
           top = window.innerHeight / 2 - tooltipHeight / 2;
           left = window.innerWidth / 2 - tooltipWidth / 2;
+      }
+
+      // Special handling for record button at bottom-right - move tooltip to left side
+      if (step.id === "record-button") {
+        // Position tooltip to the left of the record button
+        left = Math.max(viewportPadding, rect.left - tooltipWidth - effectiveSpacing);
+        top = rect.top + rect.height / 2 - tooltipHeight / 2;
+        // Keep within viewport
+        if (top + tooltipHeight > window.innerHeight - viewportPadding) {
+          top = window.innerHeight - tooltipHeight - viewportPadding;
+        }
+        if (top < viewportPadding) {
+          top = viewportPadding;
+        }
       }
 
       // Keep tooltip within viewport with smart positioning
@@ -307,31 +370,43 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         top = window.innerHeight - tooltipHeight - viewportPadding;
       }
 
-      // Adjust if tooltip would overlap with highlighted element
-      if (step.highlight && highlightRect) {
+      // Adjust if tooltip would overlap with highlighted element (with more generous spacing)
+      if (step.highlight && rect) {
         const tooltipBottom = top + tooltipHeight;
         const tooltipRight = left + tooltipWidth;
-        const elementTop = highlightRect.top;
-        const elementBottom = highlightRect.bottom;
-        const elementLeft = highlightRect.left;
-        const elementRight = highlightRect.right;
+        const elementTop = rect.top - highlightPadding;
+        const elementBottom = rect.bottom + highlightPadding;
+        const elementLeft = rect.left - highlightPadding;
+        const elementRight = rect.right + highlightPadding;
 
-        // If tooltip overlaps, adjust position
+        // If tooltip overlaps, adjust position more aggressively
         if (
-          top < elementBottom + spacing &&
-          tooltipBottom > elementTop - spacing &&
-          left < elementRight + spacing &&
-          tooltipRight > elementLeft - spacing
+          top < elementBottom + effectiveSpacing &&
+          tooltipBottom > elementTop - effectiveSpacing &&
+          left < elementRight + effectiveSpacing &&
+          tooltipRight > elementLeft - effectiveSpacing
         ) {
-          // Move tooltip to a better position
-          if (step.position === "bottom" || step.position === "top") {
-            // Try moving to the side
-            if (elementRight + spacing + tooltipWidth < window.innerWidth - viewportPadding) {
-              left = elementRight + spacing;
-              top = elementTop + element.height / 2 - tooltipHeight / 2;
-            } else if (elementLeft - spacing - tooltipWidth > viewportPadding) {
-              left = elementLeft - spacing - tooltipWidth;
-              top = elementTop + element.height / 2 - tooltipHeight / 2;
+          // Move tooltip to a better position - prefer side positioning
+          if (step.position === "top" || step.position === "bottom") {
+            // Try moving to the right side first
+            if (elementRight + effectiveSpacing + tooltipWidth < window.innerWidth - viewportPadding) {
+              left = elementRight + effectiveSpacing;
+              top = elementTop + (elementBottom - elementTop) / 2 - tooltipHeight / 2;
+              // Keep within bounds
+              top = Math.max(viewportPadding, Math.min(top, window.innerHeight - tooltipHeight - viewportPadding));
+            } else if (elementLeft - effectiveSpacing - tooltipWidth > viewportPadding) {
+              // Move to the left side
+              left = elementLeft - effectiveSpacing - tooltipWidth;
+              top = elementTop + (elementBottom - elementTop) / 2 - tooltipHeight / 2;
+              // Keep within bounds
+              top = Math.max(viewportPadding, Math.min(top, window.innerHeight - tooltipHeight - viewportPadding));
+            } else {
+              // If can't fit on sides, move further away vertically
+              if (step.position === "top") {
+                top = elementTop - tooltipHeight - effectiveSpacing * 1.5;
+              } else {
+                top = elementBottom + effectiveSpacing * 1.5;
+              }
             }
           }
         }
@@ -339,7 +414,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       setTooltipPosition({ top, left });
     });
-  }, [step, highlightRect]);
+  }, [step]);
 
   // Update position on scroll/resize with debouncing
   useEffect(() => {
@@ -559,7 +634,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   }, [highlightRect, step.highlight]);
 
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-none">
+    <div className="fixed inset-0 z-[99999] pointer-events-none">
       {/* Overlay with spotlight effect */}
       <div
         ref={overlayRef}
@@ -572,7 +647,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       {/* Highlight ring around target element with smooth animation */}
       {highlightRect && step.highlight && highlightStyle && (
         <div
-          className="absolute pointer-events-none rounded-2xl z-[10001]"
+          className="absolute pointer-events-none rounded-2xl z-[99998]"
           style={highlightStyle}
         >
           <div className="absolute inset-0 border-4 border-primary rounded-2xl shadow-[0_0_30px_rgba(var(--primary),0.6)] animate-pulse" />
@@ -585,7 +660,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       <div
         ref={tooltipRef}
         className={cn(
-          "absolute pointer-events-auto transition-all duration-300 ease-in-out"
+          "absolute pointer-events-auto transition-all duration-300 ease-in-out z-[99999]"
         )}
         style={
           tooltipPosition

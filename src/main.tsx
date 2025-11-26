@@ -74,7 +74,11 @@ console.error = (...args: any[]) => {
     errorString.includes('SUPPRESS_EXTENSION') ||
     errorString.includes('Could not establish connection') ||
     errorString.includes('Receiving end does not exist') ||
-    (errorString.includes('code') && errorString.includes('403') && errorString.includes('httpStatus') && errorString.includes('200'))
+    (errorString.includes('code') && errorString.includes('403') && errorString.includes('httpStatus') && errorString.includes('200')) ||
+    // Suppress React warning about asyncScriptOnError (sometimes logged as error)
+    errorString.includes('asyncScriptOnError') ||
+    errorString.includes('asyncScriptOnLoad') ||
+    (errorString.includes('React does not recognize') && errorString.includes('prop on a DOM element'))
   ) {
     // Silently suppress - these are expected errors from browser extensions or RLS policies
     return;
@@ -82,6 +86,36 @@ console.error = (...args: any[]) => {
 
   // Log all other errors normally
   originalConsoleError.apply(console, args);
+};
+
+// Intercept console.warn to suppress known harmless warnings
+// This suppresses warnings from third-party libraries that we can't control
+const originalConsoleWarn = console.warn;
+console.warn = (...args: any[]) => {
+  const warnString = args.map(arg => String(arg)).join(' ');
+
+  // Suppress React warning about asyncScriptOnError prop from react-google-recaptcha
+  // This is a known issue with the library passing props to DOM elements
+  if (
+    warnString.includes('asyncScriptOnError') ||
+    warnString.includes('asyncScriptOnLoad') ||
+    (warnString.includes('React does not recognize') && warnString.includes('prop on a DOM element'))
+  ) {
+    // Silently suppress - this is a harmless warning from react-google-recaptcha library
+    return;
+  }
+  
+  // Also suppress the same warning when it comes through console.error (React logs it as error in some cases)
+  if (
+    warnString.includes('asyncScriptOnError') ||
+    warnString.includes('asyncScriptOnLoad') ||
+    (warnString.includes('React does not recognize') && warnString.includes('prop on a DOM element'))
+  ) {
+    return;
+  }
+
+  // Log all other warnings normally
+  originalConsoleWarn.apply(console, args);
 };
 
 // Set up error handler FIRST, before any other code runs
@@ -98,6 +132,7 @@ window.addEventListener("unhandledrejection", (event) => {
   // Check if this is a 403 or 404 error in any format
   // 403 errors: {name: 'i', httpError: false, httpStatus: 200, httpStatusText: '', code: 403}
   // 404 errors: Expected when RPC functions don't exist (migrations not run)
+  // Be very permissive - check for 403 in any form
   const is403Error = 
     errorCode === 403 || 
     errorCode === "403" ||
@@ -116,7 +151,11 @@ window.addEventListener("unhandledrejection", (event) => {
      error.httpError === false && 
      error.httpStatus === 200 && 
      (error.httpStatusText === '' || !error.httpStatusText) &&
-     error.code === 403);
+     error.code === 403) ||
+    // Ultra-permissive: any object with code 403
+    (typeof error === 'object' && error !== null && error.code === 403) ||
+    // Check string representation
+    (String(error).includes('403') && String(error).includes('code'));
   
   const is404Error =
     errorCode === 404 ||

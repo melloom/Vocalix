@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,7 +15,6 @@ import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FirstClipGuidance } from "@/components/FirstClipGuidance";
 import { FeatureDiscovery } from "@/components/FeatureDiscovery";
-import { OnboardingFlow } from "@/components/OnboardingFlow";
 
 // Helper function to retry lazy imports on failure
 const retryLazyImport = (importFn: () => Promise<any>, retries = 2) => {
@@ -128,21 +127,9 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
-  
-  // Fallback for any error - show onboarding so users can always access it
-  const handleOnboardingComplete = useCallback((newProfileId: string) => {
-    console.log('[App] Onboarding complete from error boundary, reloading...');
-    window.location.reload();
-  }, []);
-  
-  const onboardingFallback = (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <OnboardingFlow onComplete={handleOnboardingComplete} />
-    </div>
-  );
 
   return (
-    <ErrorBoundary fallback={onboardingFallback}>
+    <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider 
           attribute="class" 
@@ -169,7 +156,7 @@ const App = () => {
                   maxVisible={1}
                 />
                 <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: false }}>
-                <ErrorBoundary fallback={onboardingFallback}>
+                <ErrorBoundary>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/login-link" element={<LoginLink />} />

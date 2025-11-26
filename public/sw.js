@@ -95,6 +95,12 @@ self.addEventListener("fetch", (event) => {
     return; // Let Vite handle WebSocket connections
   }
 
+  // CRITICAL: Skip service worker for localhost development to avoid CORS issues
+  // In development, let the browser handle all requests directly
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname.includes("localhost")) {
+    return; // Let the browser handle it directly - don't intercept
+  }
+
   // CRITICAL: Never intercept module scripts or main.tsx - always fetch from network
   // This prevents cached broken scripts on mobile browsers
   if (
