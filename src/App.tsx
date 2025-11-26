@@ -3,9 +3,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useGlobalColorScheme } from "@/hooks/useGlobalColorScheme";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -97,6 +98,7 @@ const VoiceAMAs = retryLazyImport(() => import("./pages/VoiceAMAs"));
 const Discovery = retryLazyImport(() => import("./pages/Discovery"));
 const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreation"));
 const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
+const Diary = retryLazyImport(() => import("./pages/Diary"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -125,6 +127,21 @@ const queryClient = new QueryClient({
   },
 });
 
+// Redirect component for /my-recordings
+const MyRecordingsRedirect = () => {
+  const { profile } = useAuth();
+  if (profile?.handle) {
+    return <Navigate to={`/profile/${profile.handle}`} replace />;
+  }
+  return <Navigate to="/settings" replace />;
+};
+
+// Component to apply global color scheme
+const GlobalColorScheme = () => {
+  useGlobalColorScheme();
+  return null;
+};
+
 const App = () => {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
 
@@ -139,6 +156,7 @@ const App = () => {
           enableColorScheme={false}
         >
           <AuthProvider>
+            <GlobalColorScheme />
             <UploadQueueProvider>
               <TooltipProvider>
                 <Toaster />
@@ -167,7 +185,8 @@ const App = () => {
                         <Route path="/topic/:topicId" element={<Topic />} />
                         <Route path="/topics" element={<AllTopics />} />
                         <Route path="/settings" element={<Settings />} />
-                        <Route path="/my-recordings" element={<MyRecordings />} />
+                        <Route path="/diary" element={<Diary />} />
+                        <Route path="/my-recordings" element={<MyRecordingsRedirect />} />
                         <Route path="/saved" element={<SavedClips />} />
                         <Route path="/playlists" element={<Playlists />} />
                         <Route path="/playlist/:playlistId" element={<PlaylistDetail />} />

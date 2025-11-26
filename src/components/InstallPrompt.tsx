@@ -84,7 +84,7 @@ export function InstallPrompt() {
   }
 
   return (
-    <Card className="fixed bottom-4 left-4 right-4 z-50 p-4 shadow-lg md:left-auto md:right-4 md:w-96">
+    <Card className="fixed bottom-4 left-4 right-4 z-[100] p-4 shadow-lg md:left-auto md:right-4 md:w-96">
       <div className="flex items-start gap-3">
         <div className="flex-1">
           <h3 className="font-semibold text-sm mb-1">Install Echo Garden</h3>

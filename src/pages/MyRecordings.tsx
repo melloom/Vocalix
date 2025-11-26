@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Trophy, Flame, TrendingUp, Users, Target, Award, Star, Zap, BarChart3, Calendar, Clock, Sparkles, Crown, TrendingDown, Edit2 } from "lucide-react";
+import { ArrowLeft, Trophy, Flame, TrendingUp, Users, Target, Award, Star, Zap, BarChart3, Calendar, Clock, Sparkles, Crown, TrendingDown, Edit2, Settings, Share2, MoreVertical, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,13 @@ import { logError } from "@/lib/logger";
 import { getEmojiAvatar } from "@/utils/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { ClipAnalyticsDialog } from "@/components/ClipAnalyticsDialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ProfileMetrics {
   clipCount: number;
@@ -698,146 +705,200 @@ const MyRecordings = () => {
   const recentBadges = userBadges.slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
+      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-sm">
+        <div className="w-full px-4 md:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10">
               <Link to="/">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold">My Profile</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">{profile.handle}</h1>
           </div>
-          <Button variant="outline" size="sm" asChild className="rounded-2xl">
-            <Link to="/analytics">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10">
+              <Link to="/settings">
+                <Settings className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10">
+              <Link to={`/profile/${profile.handle}`}>
+                <User className="h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Profile Header */}
-        <section className="space-y-4">
-          <Card className="p-6 rounded-3xl bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-              <div className="text-8xl">{getEmojiAvatar(profile.emoji_avatar, "🎧")}</div>
-              <div className="flex-1 text-center md:text-left space-y-2">
-                <h2 className="text-3xl font-bold">{profile.handle}</h2>
-                <p className="text-sm text-muted-foreground">Joined {formatDate(profile.joined_at)}</p>
-                {profile.consent_city && profile.city && (
-                  <p className="text-sm text-muted-foreground">📍 {profile.city}</p>
-                )}
-                {leaderboardPos && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">#{leaderboardPos.rank}</span>
-                    <span className="text-muted-foreground">of {leaderboardPos.total} creators</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
+      <main className="w-full">
+        {/* Cover Image - Instagram/TikTok Style */}
+        {profile.cover_image_url ? (
+          <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden">
+            <img
+              src={profile.cover_image_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          </div>
+        ) : (
+          <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/15 to-primary/10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          </div>
+        )}
 
-          {/* Level & XP Card */}
-          <Card className="p-6 rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-primary/20">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Level</p>
-                  <p className="text-3xl font-bold flex items-center gap-2">
-                    {metrics.level}
-                    {metrics.level >= 50 && <Crown className="h-6 w-6 text-yellow-500" />}
-                    {metrics.level >= 20 && metrics.level < 50 && <Star className="h-5 w-5 text-purple-500" />}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Karma</p>
-                <p className="text-2xl font-bold text-primary">{metrics.totalKarma.toLocaleString()}</p>
-              </div>
+        {/* Profile Header - Instagram/TikTok Style */}
+        <section className={`px-4 md:px-6 lg:px-8 ${profile.cover_image_url ? '-mt-16 md:-mt-20' : 'pt-6'} relative z-10`}>
+          <div className="flex flex-col md:flex-row items-start md:items-end gap-4 pb-6">
+            {/* Profile Picture */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-75 group-hover:opacity-100 blur-sm transition-opacity duration-300 animate-pulse" />
+              <Avatar className="relative h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-2xl ring-4 ring-primary/20">
+                {profile.profile_picture_url ? (
+                  <AvatarImage src={profile.profile_picture_url} alt={profile.handle} />
+                ) : (
+                  <AvatarFallback className="text-4xl md:text-5xl bg-gradient-to-br from-primary/20 to-accent/20">
+                    {getEmojiAvatar(profile.emoji_avatar, "🎧")}
+                  </AvatarFallback>
+                )}
+              </Avatar>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">XP Progress</span>
-                <span className="font-semibold">
-                  {metrics.xp.toLocaleString()} / {metrics.xpForNextLevel.toLocaleString()} XP
-                </span>
-              </div>
-              <Progress 
-                value={Math.min(100, (metrics.xpInCurrentLevel / metrics.xpForNextLevel) * 100)} 
-                className="h-3"
-              />
-              <p className="text-xs text-muted-foreground text-center">
-                {Math.max(0, metrics.xpForNextLevel - metrics.xpInCurrentLevel).toLocaleString()} XP until Level {metrics.level + 1}
-              </p>
-            </div>
-          </Card>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="p-4 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Zap className="h-4 w-4 text-primary" />
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Clips</p>
+            {/* Profile Info */}
+            <div className="flex-1 space-y-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">{profile.handle}</h2>
+                <Button variant="outline" size="sm" asChild className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/50 transition-all">
+                  <Link to="/settings">
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit Profile
+                  </Link>
+                </Button>
+                <Button variant="outline" size="icon" className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/50 transition-all">
+                  <Share2 className="h-4 w-4" />
+                </Button>
               </div>
-              <p className="text-2xl font-bold">{metrics.clipCount}</p>
-            </Card>
-            <Card className="p-4 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <BarChart3 className="h-4 w-4 text-primary" />
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Listens</p>
+              
+              {/* Stats Grid - Instagram Style with Enhanced Design */}
+              <div className="flex items-center gap-4 md:gap-8">
+                <div className="text-center group cursor-pointer">
+                  <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent group-hover:scale-110 transition-transform">{metrics.clipCount}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium">Clips</p>
+                </div>
+                <div className="text-center group cursor-pointer">
+                  <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent group-hover:scale-110 transition-transform">{metrics.listens.toLocaleString()}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium">Listens</p>
+                </div>
+                <div className="text-center group cursor-pointer">
+                  <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent group-hover:scale-110 transition-transform">{metrics.reputation.toLocaleString()}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium">Reputation</p>
+                </div>
+                <div className="text-center group cursor-pointer">
+                  <p className="text-lg md:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent group-hover:scale-110 transition-transform">{metrics.communityPoints}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium">Points</p>
+                </div>
               </div>
-              <p className="text-2xl font-bold">{metrics.listens.toLocaleString()}</p>
-            </Card>
-            <Card className="p-4 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Star className="h-4 w-4 text-primary" />
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Reputation</p>
+
+              {/* Bio & Info */}
+              <div className="space-y-1">
+                {profile.bio && (
+                  <p className="text-sm md:text-base font-medium">{profile.bio}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-muted-foreground">
+                  <span>Joined {formatDate(profile.joined_at)}</span>
+                  {profile.consent_city && profile.city && (
+                    <>
+                      <span>•</span>
+                      <span>📍 {profile.city}</span>
+                    </>
+                  )}
+                  {leaderboardPos && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        #{leaderboardPos.rank} of {leaderboardPos.total}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
-              <p className="text-2xl font-bold">{metrics.reputation.toLocaleString()}</p>
-            </Card>
-            <Card className="p-4 rounded-2xl text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Users className="h-4 w-4 text-primary" />
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Points</p>
-              </div>
-              <p className="text-2xl font-bold">{metrics.communityPoints}</p>
-            </Card>
+            </div>
           </div>
 
-          {/* Streak Card */}
-          {metrics.currentStreak > 0 && (
-            <Card className="p-6 rounded-3xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border-orange-500/20">
-              <div className="flex items-center justify-between">
+          {/* Level & XP Card - Enhanced with Better Colors */}
+          <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border-2 border-primary/30 shadow-xl shadow-primary/10 mb-4 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-2xl bg-orange-500/20">
-                    <Flame className="h-6 w-6 text-orange-500" />
+                  <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 shadow-lg">
+                    <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary drop-shadow-lg" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Current Streak</p>
-                    <p className="text-3xl font-bold">{metrics.currentStreak} days</p>
-                    {metrics.longestStreak > metrics.currentStreak && (
-                      <p className="text-xs text-muted-foreground">Best: {metrics.longestStreak} days</p>
-                    )}
+                    <p className="text-xs text-muted-foreground font-medium">Level</p>
+                    <p className="text-2xl md:text-3xl font-bold flex items-center gap-2 bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
+                      {metrics.level}
+                      {metrics.level >= 50 && <Crown className="h-5 w-5 md:h-6 md:w-6 text-yellow-500 drop-shadow-lg animate-pulse" />}
+                      {metrics.level >= 20 && metrics.level < 50 && <Star className="h-4 w-4 md:h-5 md:w-5 text-purple-500 drop-shadow-lg" />}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">Keep it going! 🔥</p>
+                  <p className="text-xs text-muted-foreground font-medium">Total Karma</p>
+                  <p className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">{metrics.totalKarma.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground font-medium">XP Progress</span>
+                  <span className="font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    {metrics.xp.toLocaleString()} / {metrics.xpForNextLevel.toLocaleString()} XP
+                  </span>
+                </div>
+                <div className="relative">
+                  <Progress 
+                    value={Math.min(100, (metrics.xpInCurrentLevel / metrics.xpForNextLevel) * 100)} 
+                    className="h-2 md:h-3 bg-muted/50"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary opacity-20 rounded-full" />
+                </div>
+                <p className="text-[10px] md:text-xs text-muted-foreground text-center font-medium">
+                  {Math.max(0, metrics.xpForNextLevel - metrics.xpInCurrentLevel).toLocaleString()} XP until Level {metrics.level + 1}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Streak Card - Enhanced with Fire Effects */}
+          {metrics.currentStreak > 0 && (
+            <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-500/20 border-2 border-orange-500/40 shadow-xl shadow-orange-500/20 mb-4 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-red-500/10 to-orange-500/10 animate-pulse" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 md:p-3 rounded-xl bg-gradient-to-br from-orange-500/40 to-red-500/40 shadow-lg">
+                      <Flame className="h-5 w-5 md:h-6 md:w-6 text-orange-500 drop-shadow-lg animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground font-medium">Current Streak</p>
+                      <p className="text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">{metrics.currentStreak} days 🔥</p>
+                      {metrics.longestStreak > metrics.currentStreak && (
+                        <p className="text-[10px] md:text-xs text-muted-foreground font-medium">Best: {metrics.longestStreak} days</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </Card>
           )}
         </section>
 
-        {/* Tabs */}
-        <Tabs defaultValue="badges" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 rounded-2xl">
+        {/* Tabs - Enhanced with Better Styling */}
+        <Tabs defaultValue="recordings" className="w-full px-4 md:px-6 lg:px-8">
+          <TabsList className="grid w-full grid-cols-5 rounded-2xl border-b-2 border-primary/20 bg-gradient-to-r from-background via-background to-primary/5 backdrop-blur-sm">
             <TabsTrigger value="badges" className="rounded-xl">
               <Trophy className="h-4 w-4 mr-2" />
               Badges
@@ -861,21 +922,23 @@ const MyRecordings = () => {
           </TabsList>
 
           {/* Badges Tab */}
-          <TabsContent value="badges" className="space-y-6 mt-6">
-            {/* Recent Achievements */}
+          <TabsContent value="badges" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
+            {/* Recent Achievements - Enhanced */}
             {recentBadges.length > 0 && (
-              <Card className="p-6 rounded-3xl">
+              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl shadow-primary/5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-4">
-                  <Award className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Recent Achievements</h3>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
+                    <Award className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">Recent Achievements</h3>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   {recentBadges.map((userBadge) => (
                     <div
                       key={userBadge.id}
-                      className={`p-4 rounded-2xl border-2 ${getRarityColor(userBadge.badges.rarity)} text-center transition-transform hover:scale-105`}
+                      className={`p-4 rounded-2xl border-2 ${getRarityColor(userBadge.badges.rarity)} text-center transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-primary/20 cursor-pointer`}
                     >
-                      <div className="text-4xl mb-2">{userBadge.badges.icon_emoji}</div>
+                      <div className="text-4xl mb-2 drop-shadow-lg">{userBadge.badges.icon_emoji}</div>
                       <p className="text-xs font-semibold mb-1">{userBadge.badges.name}</p>
                       <p className="text-[10px] text-muted-foreground line-clamp-2">
                         {userBadge.badges.description}
@@ -895,15 +958,15 @@ const MyRecordings = () => {
                 if (categoryBadges.length === 0) return null;
 
                 return (
-                  <Card key={category} className="p-6 rounded-3xl">
-                    <h3 className="text-lg font-semibold mb-4 capitalize">{category} Badges</h3>
+                  <Card key={category} className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <h3 className="text-lg font-semibold mb-4 capitalize bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">{category} Badges</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {categoryBadges.map((bp) => (
                         <div
                           key={bp.badge.code}
-                          className={`p-4 rounded-2xl border-2 ${getRarityColor(bp.badge.rarity)} text-center`}
+                          className={`p-4 rounded-2xl border-2 ${getRarityColor(bp.badge.rarity)} text-center transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer`}
                         >
-                          <div className="text-4xl mb-2">{bp.badge.icon_emoji}</div>
+                          <div className="text-4xl mb-2 drop-shadow-lg">{bp.badge.icon_emoji}</div>
                           <p className="text-xs font-semibold">{bp.badge.name}</p>
                         </div>
                       ))}
@@ -914,21 +977,25 @@ const MyRecordings = () => {
             </div>
 
             {unlockedBadges.length === 0 && (
-              <Card className="p-12 rounded-3xl text-center">
-                <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">No badges yet. Start creating to unlock achievements!</p>
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+                <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
+                  <Trophy className="h-12 w-12 text-primary" />
+                </div>
+                <p className="text-muted-foreground font-medium">No badges yet. Start creating to unlock achievements!</p>
               </Card>
             )}
           </TabsContent>
 
           {/* Progress Tab */}
-          <TabsContent value="progress" className="space-y-6 mt-6">
+          <TabsContent value="progress" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             {/* Next Badges */}
             {nextBadges.length > 0 && (
-              <Card className="p-6 rounded-3xl">
+              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center gap-2 mb-4">
-                  <Target className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Next Badges</h3>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
+                    <Target className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">Next Badges</h3>
                 </div>
                 <div className="space-y-4">
                   {nextBadges.map((bp) => (
@@ -961,8 +1028,8 @@ const MyRecordings = () => {
             )}
 
             {/* All Progress */}
-            <Card className="p-6 rounded-3xl">
-              <h3 className="text-lg font-semibold mb-4">All Badge Progress</h3>
+            <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+              <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">All Badge Progress</h3>
               <div className="space-y-4">
                 {badgeProgress
                   .filter((bp) => !bp.unlocked)
@@ -987,7 +1054,7 @@ const MyRecordings = () => {
           </TabsContent>
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6 mt-6">
+          <TabsContent value="analytics" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Clip Analytics</h3>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -1009,10 +1076,12 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.filter(c => c.status === 'live').length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">No published clips yet.</p>
-                <Button asChild className="rounded-2xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+                <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
+                  <BarChart3 className="h-12 w-12 text-primary" />
+                </div>
+                <p className="text-muted-foreground mb-4 font-medium">No published clips yet.</p>
+                <Button asChild className="rounded-2xl bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
                   <Link to="/">Start Recording</Link>
                 </Button>
               </Card>
@@ -1024,7 +1093,7 @@ const MyRecordings = () => {
                     .map((clip) => (
                       <Card 
                         key={clip.id} 
-                        className="p-4 rounded-2xl cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="p-4 rounded-2xl cursor-pointer bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.02]"
                         onClick={() => {
                           setAnalyticsClip(clip);
                           setIsAnalyticsOpen(true);
@@ -1081,7 +1150,7 @@ const MyRecordings = () => {
           </TabsContent>
 
           {/* Recordings Tab */}
-          <TabsContent value="recordings" className="space-y-6 mt-6">
+          <TabsContent value="recordings" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">All Recordings</h3>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -1109,10 +1178,12 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">No recordings yet.</p>
-                <Button asChild className="rounded-2xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+                <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
+                  <Calendar className="h-12 w-12 text-primary" />
+                </div>
+                <p className="text-muted-foreground mb-4 font-medium">No recordings yet.</p>
+                <Button asChild className="rounded-2xl bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
                   <Link to="/">Start Recording</Link>
                 </Button>
               </Card>
@@ -1120,7 +1191,7 @@ const MyRecordings = () => {
               <>
                 <div className="space-y-4">
                   {paginatedClips.map((clip) => (
-                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3">
+                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3 bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
                       <ClipCard
                         clip={clip}
                         captionsDefault={profile.default_captions ?? true}
@@ -1197,7 +1268,7 @@ const MyRecordings = () => {
           </TabsContent>
 
           {/* Scheduled Tab */}
-          <TabsContent value="scheduled" className="space-y-6 mt-6">
+          <TabsContent value="scheduled" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Scheduled Posts</h3>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -1219,10 +1290,12 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.filter(c => c.status === 'draft' && c.scheduled_for).length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center">
-                <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-4">No scheduled posts yet.</p>
-                <Button asChild className="rounded-2xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+                <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
+                  <Clock className="h-12 w-12 text-primary" />
+                </div>
+                <p className="text-muted-foreground mb-4 font-medium">No scheduled posts yet.</p>
+                <Button asChild className="rounded-2xl bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90">
                   <Link to="/">Schedule a Post</Link>
                 </Button>
               </Card>
@@ -1237,7 +1310,7 @@ const MyRecordings = () => {
                       return aTime - bTime;
                     })
                     .map((clip) => (
-                      <Card key={clip.id} className="p-4 rounded-2xl border-2 border-primary/20">
+                      <Card key={clip.id} className="p-4 rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-card via-card/95 to-primary/5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
                         <div className="flex items-start gap-4">
                           <div className="flex-1">
                             <ClipCard

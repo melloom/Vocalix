@@ -63,6 +63,11 @@ console.error = (...args: any[]) => {
       )) {
         return 'SUPPRESS_EXTENSION'; // Marker to suppress
       }
+      // Check for timeout errors
+      if (arg === "Timeout" || arg.error === "Timeout" || 
+          (arg.message && (arg.message.includes("timeout") || arg.message.includes("Timeout")))) {
+        return 'SUPPRESS_TIMEOUT'; // Marker to suppress
+      }
       return JSON.stringify(arg);
     }
     return String(arg);
@@ -72,8 +77,10 @@ console.error = (...args: any[]) => {
   if (
     errorString.includes('SUPPRESS_403') ||
     errorString.includes('SUPPRESS_EXTENSION') ||
+    errorString.includes('SUPPRESS_TIMEOUT') ||
     errorString.includes('Could not establish connection') ||
     errorString.includes('Receiving end does not exist') ||
+    errorString.includes('Timeout') ||
     (errorString.includes('code') && errorString.includes('403') && errorString.includes('httpStatus') && errorString.includes('200')) ||
     // Suppress React warning about asyncScriptOnError (sometimes logged as error)
     errorString.includes('asyncScriptOnError') ||
@@ -189,12 +196,31 @@ window.addEventListener("unhandledrejection", (event) => {
       error.stack.includes("moz-extension://")
     ));
   
-  if (is403Error || is404Error || isGenericObjectError || isExtensionError) {
-    // Silently handle 403/404/generic Object/extension errors - they're expected in some cases
+  // Check for timeout errors - these are often non-critical network issues
+  // Timeout errors can occur from:
+  // - Network requests taking too long
+  // - useOptimistic hook timeouts
+  // - Auth initialization timeouts
+  // - Other async operations with timeout protection
+  const isTimeoutError = 
+    error === "Timeout" ||
+    error?.error === "Timeout" ||
+    error?.message === "Timeout" ||
+    error?.message?.includes("timeout") ||
+    error?.message?.includes("Timeout") ||
+    error?.message?.includes("Request timeout") ||
+    error?.name === "Timeout" ||
+    String(error).includes("Timeout") ||
+    String(error).includes("timeout") ||
+    (typeof error === 'object' && error !== null && error.error === 'Timeout');
+  
+  if (is403Error || is404Error || isGenericObjectError || isExtensionError || isTimeoutError) {
+    // Silently handle 403/404/generic Object/extension/timeout errors - they're expected in some cases
     // 404 errors are expected when RPC functions don't exist (migrations not run)
     // 403 errors can come from RLS policies or browser extensions (content.js)
     // Generic Object errors are often from browser extensions
     // Extension errors occur when extensions try to communicate with disconnected scripts
+    // Timeout errors occur from network requests, optimistic updates, or auth initialization timeouts
     // Don't log to avoid console spam, just prevent the uncaught error
     event.preventDefault();
     event.stopPropagation();

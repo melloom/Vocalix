@@ -102,6 +102,485 @@ All colors MUST be HSL.
   }
 }
 
+/* Premium Color Schemes - 4K Quality - MUST be outside @layer for maximum priority */
+
+/* Ocean Theme - Deep blue to cyan gradient - Enhanced vibrant blue */
+html.theme-ocean,
+html.theme-ocean :root,
+html.theme-ocean *,
+:root.theme-ocean,
+body.theme-ocean,
+body.theme-ocean * {
+    --background: 200 60% 96% !important;
+    --foreground: 210 40% 12% !important;
+    --card: 200 55% 98% !important;
+    --card-foreground: 210 35% 12% !important;
+    --popover: 200 55% 98% !important;
+    --popover-foreground: 210 35% 12% !important;
+    --primary: 195 95% 50% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 180 50% 80% !important;
+    --secondary-foreground: 210 40% 12% !important;
+    --muted: 200 40% 90% !important;
+    --muted-foreground: 210 30% 40% !important;
+    --accent: 190 95% 45% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 200 40% 85% !important;
+    --input: 200 40% 85% !important;
+    --ring: 195 95% 50% !important;
+    --record-pulse: 195 95% 50% !important;
+    --waveform: 190 85% 45% !important;
+    --emoji-glow: 195 100% 55% !important;
+  }
+
+  html.theme-ocean.dark,
+  html.theme-ocean.dark :root,
+  html.theme-ocean.dark *,
+  :root.theme-ocean.dark,
+  body.theme-ocean.dark,
+  body.theme-ocean.dark * {
+    --background: 210 40% 8% !important;
+    --foreground: 200 30% 95% !important;
+    --card: 210 35% 12% !important;
+    --card-foreground: 200 30% 95% !important;
+    --popover: 210 35% 12% !important;
+    --popover-foreground: 200 30% 95% !important;
+    --primary: 195 85% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 200 25% 20% !important;
+    --secondary-foreground: 200 30% 95% !important;
+    --muted: 210 25% 18% !important;
+    --muted-foreground: 200 20% 60% !important;
+    --accent: 190 90% 50% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 200 30% 95% !important;
+    --border: 210 25% 18% !important;
+    --input: 210 25% 18% !important;
+    --ring: 195 85% 55% !important;
+    --record-pulse: 195 85% 55% !important;
+    --waveform: 190 75% 50% !important;
+    --emoji-glow: 195 100% 60% !important;
+  }
+
+  /* Sunset Theme - Warm orange to pink gradient - Enhanced vibrant colors */
+  html.theme-sunset,
+  html.theme-sunset :root,
+  html.theme-sunset *,
+  :root.theme-sunset,
+  body.theme-sunset,
+  body.theme-sunset * {
+    --background: 25 60% 96% !important;
+    --foreground: 20 35% 12% !important;
+    --card: 25 55% 98% !important;
+    --card-foreground: 20 35% 12% !important;
+    --popover: 25 55% 98% !important;
+    --popover-foreground: 20 35% 12% !important;
+    --primary: 15 95% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 30 70% 85% !important;
+    --secondary-foreground: 20 35% 12% !important;
+    --muted: 25 45% 90% !important;
+    --muted-foreground: 20 30% 40% !important;
+    --accent: 350 90% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 25 40% 85% !important;
+    --input: 25 40% 85% !important;
+    --ring: 15 95% 55% !important;
+    --record-pulse: 15 95% 55% !important;
+    --waveform: 10 85% 50% !important;
+    --emoji-glow: 20 100% 60% !important;
+  }
+
+  html.theme-sunset.dark,
+  html.theme-sunset.dark :root,
+  html.theme-sunset.dark *,
+  :root.theme-sunset.dark,
+  body.theme-sunset.dark,
+  body.theme-sunset.dark * {
+    --background: 20 30% 8% !important;
+    --foreground: 25 25% 95% !important;
+    --card: 20 25% 12% !important;
+    --card-foreground: 25 25% 95% !important;
+    --popover: 20 25% 12% !important;
+    --popover-foreground: 25 25% 95% !important;
+    --primary: 15 90% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 25 20% 20% !important;
+    --secondary-foreground: 25 25% 95% !important;
+    --muted: 20 20% 18% !important;
+    --muted-foreground: 25 15% 60% !important;
+    --accent: 350 85% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 25 25% 95% !important;
+    --border: 20 20% 18% !important;
+    --input: 20 20% 18% !important;
+    --ring: 15 90% 60% !important;
+    --record-pulse: 15 90% 60% !important;
+    --waveform: 10 80% 55% !important;
+    --emoji-glow: 20 100% 65% !important;
+  }
+
+  /* Forest Theme - Green to teal gradient - Enhanced vibrant green */
+  html.theme-forest,
+  html.theme-forest :root,
+  html.theme-forest *,
+  :root.theme-forest,
+  body.theme-forest,
+  body.theme-forest * {
+    --background: 150 50% 96% !important;
+    --foreground: 160 40% 12% !important;
+    --card: 150 45% 98% !important;
+    --card-foreground: 160 40% 12% !important;
+    --popover: 150 45% 98% !important;
+    --popover-foreground: 160 40% 12% !important;
+    --primary: 145 80% 40% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 160 50% 80% !important;
+    --secondary-foreground: 160 40% 12% !important;
+    --muted: 150 40% 90% !important;
+    --muted-foreground: 160 30% 40% !important;
+    --accent: 170 80% 45% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 150 40% 85% !important;
+    --input: 150 40% 85% !important;
+    --ring: 145 80% 40% !important;
+    --record-pulse: 145 80% 40% !important;
+    --waveform: 150 70% 35% !important;
+    --emoji-glow: 155 100% 45% !important;
+  }
+
+  html.theme-forest.dark,
+  html.theme-forest.dark :root,
+  html.theme-forest.dark *,
+  :root.theme-forest.dark,
+  body.theme-forest.dark,
+  body.theme-forest.dark * {
+    --background: 160 40% 8% !important;
+    --foreground: 150 30% 95% !important;
+    --card: 160 35% 12% !important;
+    --card-foreground: 150 30% 95% !important;
+    --popover: 160 35% 12% !important;
+    --popover-foreground: 150 30% 95% !important;
+    --primary: 145 70% 45% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 160 25% 20% !important;
+    --secondary-foreground: 150 30% 95% !important;
+    --muted: 160 25% 18% !important;
+    --muted-foreground: 150 20% 60% !important;
+    --accent: 170 75% 50% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 150 30% 95% !important;
+    --border: 160 25% 18% !important;
+    --input: 160 25% 18% !important;
+    --ring: 145 70% 45% !important;
+    --record-pulse: 145 70% 45% !important;
+    --waveform: 150 65% 40% !important;
+    --emoji-glow: 155 100% 50% !important;
+  }
+
+  /* Neon Theme - Vibrant purple to pink gradient - Enhanced vibrant colors */
+  html.theme-neon,
+  html.theme-neon :root,
+  html.theme-neon *,
+  :root.theme-neon,
+  body.theme-neon,
+  body.theme-neon * {
+    --background: 280 60% 96% !important;
+    --foreground: 270 40% 12% !important;
+    --card: 280 55% 98% !important;
+    --card-foreground: 270 40% 12% !important;
+    --popover: 280 55% 98% !important;
+    --popover-foreground: 270 40% 12% !important;
+    --primary: 280 95% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 300 60% 85% !important;
+    --secondary-foreground: 270 40% 12% !important;
+    --muted: 280 45% 90% !important;
+    --muted-foreground: 270 30% 40% !important;
+    --accent: 320 90% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 280 40% 85% !important;
+    --input: 280 40% 85% !important;
+    --ring: 280 95% 60% !important;
+    --record-pulse: 280 95% 60% !important;
+    --waveform: 290 85% 55% !important;
+    --emoji-glow: 285 100% 65% !important;
+  }
+
+  html.theme-neon.dark,
+  html.theme-neon.dark :root,
+  html.theme-neon.dark *,
+  :root.theme-neon.dark,
+  body.theme-neon.dark,
+  body.theme-neon.dark * {
+    --background: 270 40% 8% !important;
+    --foreground: 280 30% 95% !important;
+    --card: 270 35% 12% !important;
+    --card-foreground: 280 30% 95% !important;
+    --popover: 270 35% 12% !important;
+    --popover-foreground: 280 30% 95% !important;
+    --primary: 280 90% 65% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 25% 20% !important;
+    --secondary-foreground: 280 30% 95% !important;
+    --muted: 270 25% 18% !important;
+    --muted-foreground: 280 20% 60% !important;
+    --accent: 320 85% 70% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 280 30% 95% !important;
+    --border: 270 25% 18% !important;
+    --input: 270 25% 18% !important;
+    --ring: 280 90% 65% !important;
+    --record-pulse: 280 90% 65% !important;
+    --waveform: 290 80% 60% !important;
+    --emoji-glow: 285 100% 70% !important;
+  }
+
+  /* Midnight Theme - Deep purple to blue gradient */
+  html.theme-midnight,
+  html.theme-midnight :root,
+  html.theme-midnight *,
+  :root.theme-midnight,
+  body.theme-midnight,
+  body.theme-midnight * {
+    --background: 240 50% 98% !important;
+    --foreground: 240 30% 15% !important;
+    --card: 240 45% 99% !important;
+    --card-foreground: 240 30% 15% !important;
+    --popover: 240 45% 99% !important;
+    --popover-foreground: 240 30% 15% !important;
+    --primary: 230 75% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 250 40% 85% !important;
+    --secondary-foreground: 240 30% 15% !important;
+    --muted: 240 35% 92% !important;
+    --muted-foreground: 240 25% 45% !important;
+    --accent: 260 80% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 240 30% 88% !important;
+    --input: 240 30% 88% !important;
+    --ring: 230 75% 55% !important;
+    --record-pulse: 230 75% 55% !important;
+    --waveform: 235 70% 50% !important;
+    --emoji-glow: 240 100% 60% !important;
+  }
+
+  html.theme-midnight.dark,
+  html.theme-midnight.dark :root,
+  html.theme-midnight.dark *,
+  :root.theme-midnight.dark,
+  body.theme-midnight.dark,
+  body.theme-midnight.dark * {
+    --background: 240 40% 8% !important;
+    --foreground: 230 30% 95% !important;
+    --card: 240 35% 12% !important;
+    --card-foreground: 230 30% 95% !important;
+    --popover: 240 35% 12% !important;
+    --popover-foreground: 230 30% 95% !important;
+    --primary: 230 75% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 240 25% 20% !important;
+    --secondary-foreground: 230 30% 95% !important;
+    --muted: 240 25% 18% !important;
+    --muted-foreground: 230 20% 60% !important;
+    --accent: 260 80% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 230 30% 95% !important;
+    --border: 240 25% 18% !important;
+    --input: 240 25% 18% !important;
+    --ring: 230 75% 55% !important;
+    --record-pulse: 230 75% 55% !important;
+    --waveform: 235 70% 50% !important;
+    --emoji-glow: 240 100% 60% !important;
+  }
+
+  /* Aurora Theme - Cyan to purple gradient - Enhanced vibrant colors */
+  html.theme-aurora,
+  html.theme-aurora :root,
+  html.theme-aurora *,
+  :root.theme-aurora,
+  body.theme-aurora,
+  body.theme-aurora * {
+    --background: 200 60% 96% !important;
+    --foreground: 220 40% 12% !important;
+    --card: 200 55% 98% !important;
+    --card-foreground: 220 40% 12% !important;
+    --popover: 200 55% 98% !important;
+    --popover-foreground: 220 40% 12% !important;
+    --primary: 195 95% 50% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 50% 85% !important;
+    --secondary-foreground: 220 40% 12% !important;
+    --muted: 200 45% 90% !important;
+    --muted-foreground: 220 30% 40% !important;
+    --accent: 270 80% 55% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 200 40% 85% !important;
+    --input: 200 40% 85% !important;
+    --ring: 195 95% 50% !important;
+    --record-pulse: 195 95% 50% !important;
+    --waveform: 200 80% 45% !important;
+    --emoji-glow: 195 100% 55% !important;
+  }
+
+  html.theme-aurora.dark,
+  html.theme-aurora.dark :root,
+  html.theme-aurora.dark *,
+  :root.theme-aurora.dark,
+  body.theme-aurora.dark,
+  body.theme-aurora.dark * {
+    --background: 220 40% 8% !important;
+    --foreground: 200 30% 95% !important;
+    --card: 220 35% 12% !important;
+    --card-foreground: 200 30% 95% !important;
+    --popover: 220 35% 12% !important;
+    --popover-foreground: 200 30% 95% !important;
+    --primary: 195 85% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 25% 20% !important;
+    --secondary-foreground: 200 30% 95% !important;
+    --muted: 220 25% 18% !important;
+    --muted-foreground: 200 20% 60% !important;
+    --accent: 270 75% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 200 30% 95% !important;
+    --border: 220 25% 18% !important;
+    --input: 220 25% 18% !important;
+    --ring: 195 85% 55% !important;
+    --record-pulse: 195 85% 55% !important;
+    --waveform: 200 75% 50% !important;
+    --emoji-glow: 195 100% 60% !important;
+  }
+
+  /* Rose Theme - Soft pink to rose gradient - Enhanced vibrant colors */
+  html.theme-rose,
+  html.theme-rose :root,
+  html.theme-rose *,
+  :root.theme-rose,
+  body.theme-rose,
+  body.theme-rose * {
+    --background: 340 60% 96% !important;
+    --foreground: 330 40% 12% !important;
+    --card: 340 55% 98% !important;
+    --card-foreground: 330 40% 12% !important;
+    --popover: 340 55% 98% !important;
+    --popover-foreground: 330 40% 12% !important;
+    --primary: 330 80% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 350 60% 85% !important;
+    --secondary-foreground: 330 40% 12% !important;
+    --muted: 340 45% 90% !important;
+    --muted-foreground: 330 30% 40% !important;
+    --accent: 320 85% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 340 40% 85% !important;
+    --input: 340 40% 85% !important;
+    --ring: 330 80% 55% !important;
+    --record-pulse: 330 80% 55% !important;
+    --waveform: 335 75% 50% !important;
+    --emoji-glow: 330 100% 60% !important;
+  }
+
+  html.theme-rose.dark,
+  html.theme-rose.dark :root,
+  html.theme-rose.dark *,
+  :root.theme-rose.dark,
+  body.theme-rose.dark,
+  body.theme-rose.dark * {
+    --background: 330 40% 8% !important;
+    --foreground: 340 30% 95% !important;
+    --card: 330 35% 12% !important;
+    --card-foreground: 340 30% 95% !important;
+    --popover: 330 35% 12% !important;
+    --popover-foreground: 340 30% 95% !important;
+    --primary: 330 75% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 340 25% 20% !important;
+    --secondary-foreground: 340 30% 95% !important;
+    --muted: 330 25% 18% !important;
+    --muted-foreground: 340 20% 60% !important;
+    --accent: 320 80% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 340 30% 95% !important;
+    --border: 330 25% 18% !important;
+    --input: 330 25% 18% !important;
+    --ring: 330 75% 60% !important;
+    --record-pulse: 330 75% 60% !important;
+    --waveform: 335 70% 55% !important;
+    --emoji-glow: 330 100% 65% !important;
+  }
+
+/* Force theme application with higher specificity - outside @layer for maximum priority */
+html.theme-ocean,
+html.theme-ocean *,
+body.theme-ocean,
+body.theme-ocean * {
+  color-scheme: light;
+}
+
+html.theme-sunset,
+html.theme-sunset *,
+body.theme-sunset,
+body.theme-sunset * {
+  color-scheme: light;
+}
+
+html.theme-forest,
+html.theme-forest *,
+body.theme-forest,
+body.theme-forest * {
+  color-scheme: light;
+}
+
+html.theme-neon,
+html.theme-neon *,
+body.theme-neon,
+body.theme-neon * {
+  color-scheme: light;
+}
+
+html.theme-aurora,
+html.theme-aurora *,
+body.theme-aurora,
+body.theme-aurora * {
+  color-scheme: light;
+}
+
+html.theme-rose,
+html.theme-rose *,
+body.theme-rose,
+body.theme-rose * {
+  color-scheme: light;
+}
+
+html.theme-midnight,
+html.theme-midnight *,
+body.theme-midnight,
+body.theme-midnight * {
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border selection:bg-primary/20 selection:text-primary-foreground;

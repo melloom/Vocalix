@@ -648,12 +648,13 @@ serve(async (req) => {
       );
     }
 
-    const body = await req.json();
-    const action = body?.action as string;
-
-    if (!action) {
+    let body;
+    try {
+      body = await req.json();
+    } catch (error) {
+      console.error("Failed to parse request body:", error);
       return new Response(
-        JSON.stringify({ error: "Action is required" }), 
+        JSON.stringify({ error: "Invalid JSON in request body" }), 
         { 
           status: 400,
           headers: {
@@ -664,6 +665,25 @@ serve(async (req) => {
         }
       );
     }
+    
+    const action = body?.action as string;
+
+    if (!action) {
+      console.error("No action provided in request body:", body);
+      return new Response(
+        JSON.stringify({ error: "Action is required", receivedBody: body }), 
+        { 
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            ...createVersionHeaders(apiVersion),
+            "content-type": "application/json",
+          },
+        }
+      );
+    }
+    
+    console.log("Processing action:", action);
 
     if (action === "list") {
       const sortBy = body?.sortBy || "priority";
@@ -1384,6 +1404,149 @@ serve(async (req) => {
           },
         }
       );
+    }
+
+    if (action === "getSuspiciousDevices") {
+      const { filter = "all" } = body; // "all", "suspicious", "revoked"
+      
+      try {
+        console.log("getSuspiciousDevices called with filter:", filter);
+        
+        // Build query based on filter
+        let devices;
+        let devicesError;
+
+        if (filter === "suspicious") {
+          const result = await supabase
+            .from("devices")
+            .select("*")
+            .eq("is_suspicious", true)
+            .order("last_seen_at", { ascending: false });
+          devices = result.data;
+          devicesError = result.error;
+        } else if (filter === "revoked") {
+          const result = await supabase
+            .from("devices")
+            .select("*")
+            .eq("is_revoked", true)
+            .order("last_seen_at", { ascending: false });
+          devices = result.data;
+          devicesError = result.error;
+        } else {
+          // For "all", get both suspicious and revoked
+          const result = await supabase
+            .from("devices")
+            .select("*")
+            .or("is_suspicious.eq.true,is_revoked.eq.true")
+            .order("last_seen_at", { ascending: false });
+          devices = result.data;
+          devicesError = result.error;
+        }
+
+        if (devicesError) {
+          console.error("Error fetching devices:", JSON.stringify(devicesError, null, 2));
+          return new Response(
+            JSON.stringify({ 
+              error: "Failed to fetch devices",
+              details: devicesError.message || String(devicesError),
+              code: devicesError.code,
+              hint: devicesError.hint
+            }), 
+            {
+              status: 500,
+              headers: {
+                ...corsHeaders,
+                ...createVersionHeaders(apiVersion),
+                "content-type": "application/json",
+              },
+            }
+          );
+        }
+
+        if (!devices || devices.length === 0) {
+          return new Response(JSON.stringify({ devices: [] }), {
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          });
+        }
+
+        // Get profile IDs from devices
+        const profileIds = devices
+          .map(d => d.profile_id)
+          .filter((id): id is string => id !== null && id !== undefined);
+
+        // Fetch profiles separately if we have profile IDs
+        let profilesMap: Record<string, any> = {};
+        if (profileIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, handle, display_name, is_banned")
+            .in("id", profileIds);
+
+          if (!profilesError && profiles) {
+            profiles.forEach(profile => {
+              profilesMap[profile.id] = profile;
+            });
+          }
+        }
+
+        // Get security audit logs for these devices
+        const deviceIds = devices.map(d => d.device_id);
+        const { data: auditLogs, error: logsError } = await supabase
+          .from("security_audit_log")
+          .select("*")
+          .in("device_id", deviceIds)
+          .order("created_at", { ascending: false })
+          .limit(1000);
+
+        if (logsError) {
+          console.error("Error fetching audit logs:", logsError);
+        }
+
+        // Group audit logs by device
+        const logsByDevice: Record<string, any[]> = {};
+        auditLogs?.forEach(log => {
+          if (!logsByDevice[log.device_id]) {
+            logsByDevice[log.device_id] = [];
+          }
+          logsByDevice[log.device_id].push(log);
+        });
+
+        // Enrich devices with profiles and audit logs
+        const enrichedDevices = devices.map(device => ({
+          ...device,
+          profile: device.profile_id ? profilesMap[device.profile_id] || null : null,
+          auditLogs: logsByDevice[device.device_id] || [],
+          recentEvents: (logsByDevice[device.device_id] || []).slice(0, 10),
+        }));
+
+        return new Response(JSON.stringify({ devices: enrichedDevices }), {
+          headers: {
+            ...corsHeaders,
+            ...createVersionHeaders(apiVersion),
+            "content-type": "application/json",
+          },
+        });
+      } catch (error) {
+        console.error("Error in getSuspiciousDevices:", error);
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to fetch suspicious devices",
+            details: error instanceof Error ? error.message : String(error)
+          }), 
+          {
+            status: 500,
+            headers: {
+              ...corsHeaders,
+              ...createVersionHeaders(apiVersion),
+              "content-type": "application/json",
+            },
+          }
+        );
+      }
     }
 
     if (action === "getSystemStats") {

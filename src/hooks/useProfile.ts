@@ -81,6 +81,15 @@ export const useProfile = () => {
       if (updates.default_captions !== undefined) {
         updatesJsonb.default_captions = updates.default_captions;
       }
+      if (updates.profile_picture_url !== undefined) {
+        updatesJsonb.profile_picture_url = updates.profile_picture_url;
+      }
+      if (updates.cover_image_url !== undefined) {
+        updatesJsonb.cover_image_url = updates.cover_image_url;
+      }
+      if (updates.color_scheme !== undefined) {
+        updatesJsonb.color_scheme = updates.color_scheme;
+      }
 
       // If only handle is being updated, use change_pseudonym function instead
       if (updates.handle !== undefined && Object.keys(updatesJsonb).length === 0) {

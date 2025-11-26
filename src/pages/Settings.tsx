@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,6 +65,10 @@ import { OnboardingProgress, useOnboardingProgress } from "@/components/Onboardi
 import { PersonalizationPreferences } from "@/components/PersonalizationPreferences";
 import { FeedCustomizationSettings } from "@/components/FeedCustomizationSettings";
 import { MuteBlockSettings } from "@/components/MuteBlockSettings";
+import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
+import { CoverImageUpload } from "@/components/CoverImageUpload";
+import { ColorSchemePicker } from "@/components/ColorSchemePicker";
+import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -109,6 +113,7 @@ const BlockedUserItem = ({ block, onUnblock }: { block: any; onUnblock: () => vo
 
 const Settings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { profile, isLoading, updateProfile, isUpdating, refetch } = useProfile();
@@ -167,7 +172,22 @@ const Settings = () => {
   const [allowVoiceCloning, setAllowVoiceCloning] = useState(false);
   const [voiceCloningAutoApprove, setVoiceCloningAutoApprove] = useState(false);
   const [voiceCloningRevenueShare, setVoiceCloningRevenueShare] = useState(20);
-  const [activeTab, setActiveTab] = useState("preferences");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "preferences");
+
+  // Update tab when URL param changes
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value });
+  };
 
   // Auto-update device user_agent when Settings page loads
   useEffect(() => {
@@ -1368,16 +1388,32 @@ const Settings = () => {
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to="/">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full"
+            onClick={() => {
+              // Check if we came from a specific page (like profile)
+              const state = location.state as { from?: string } | null;
+              if (state?.from) {
+                navigate(state.from);
+              } else {
+                // Try to go back, fallback to home
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate("/");
+                }
+              }
+            }}
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Settings</h1>
         </div>
       </header>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3">
             <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
@@ -1909,6 +1945,14 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="personalization" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Profile Customization</h2>
+            <ProfileBioEditor />
+            <ProfilePictureUpload />
+            <CoverImageUpload />
+            <ColorSchemePicker />
+          </section>
+          
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Personalization</h2>
           <PersonalizationPreferences />

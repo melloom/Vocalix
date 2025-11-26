@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Search, Mic, Bookmark, User } from "lucide-react";
+import { Home, Search, Mic, Bookmark, User, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 
@@ -44,6 +44,11 @@ export const BottomNavigation = () => {
       path: "/saved",
       icon: Bookmark,
       label: "Saved",
+    },
+    {
+      path: "/diary",
+      icon: BookOpen,
+      label: "Diary",
     },
     {
       path: profile?.handle ? `/profile/${profile.handle}` : "/settings",

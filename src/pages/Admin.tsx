@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download } from "lucide-react";
+import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -348,6 +348,10 @@ const Admin = () => {
   const [scanningReports, setScanningReports] = useState<Set<string>>(new Set());
   const [scanningAll, setScanningAll] = useState(false);
   const [scanReports, setScanReports] = useState<Record<string, any>>({});
+  const [securityDevices, setSecurityDevices] = useState<any[]>([]);
+  const [securityDevicesLoading, setSecurityDevicesLoading] = useState(false);
+  const [securityFilter, setSecurityFilter] = useState<"all" | "suspicious" | "revoked">("all");
+  const [selectedSecurityMetric, setSelectedSecurityMetric] = useState<string | null>(null);
   const { toast } = useToast();
 
   const applyQueues = useCallback((payload?: ModerationPayload | null) => {
@@ -1222,6 +1226,30 @@ const Admin = () => {
     });
   }, [scanReports, toast]);
 
+  const loadSecurityDevices = useCallback(async (filter: "all" | "suspicious" | "revoked" = "all") => {
+    setSecurityDevicesLoading(true);
+    try {
+      const deviceId = localStorage.getItem("deviceId");
+      const { data, error } = await supabase.functions.invoke("admin-review", {
+        body: { action: "getSuspiciousDevices", filter },
+        headers: deviceId ? { "x-device-id": deviceId } : undefined,
+      });
+
+      if (error) throw error;
+
+      setSecurityDevices(data?.devices || []);
+    } catch (error) {
+      console.error("Error loading security devices:", error);
+      toast({
+        title: "Failed to load security devices",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSecurityDevicesLoading(false);
+    }
+  }, [toast]);
+
   const loadSystemStats = useCallback(async () => {
     try {
       const deviceId = localStorage.getItem("deviceId");
@@ -1418,7 +1446,10 @@ const Admin = () => {
       loadSystemStats();
       loadIPBans(0);
     }
-  }, [activeTab, loadUsers, loadReports, loadClips, loadSystemStats, loadIPBans, users.length, usersSearch, reports.length, reportsStatus, clips.length, clipsStatus, clipsSearch]);
+    if (activeTab === "security" && securityDevices.length === 0) {
+      loadSecurityDevices(securityFilter);
+    }
+  }, [activeTab, loadUsers, loadReports, loadClips, loadSystemStats, loadIPBans, loadSecurityDevices, users.length, usersSearch, reports.length, reportsStatus, clips.length, clipsStatus, clipsSearch, securityDevices.length, securityFilter]);
 
   const flaggedCount = useMemo(() => flaggedClips.length, [flaggedClips]);
   const reportsCount = useMemo(() => openReports.length, [openReports]);
@@ -1443,8 +1474,8 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="border-b border-border bg-background/80 backdrop-blur-lg sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-24">
+      <header className="border-b border-border bg-background/95 backdrop-blur-xl sticky top-0 z-10 shadow-sm">
       <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Button
@@ -1457,13 +1488,16 @@ const Admin = () => {
               Back to Hub
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Admin Dashboard
+              </h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {activeTab === "moderation" && `${flaggedCount} flagged • ${reportsCount} reports waiting`}
               {activeTab === "users" && `${usersTotal} total users`}
               {activeTab === "reports" && `${reportsTotal} total reports`}
               {activeTab === "clips" && `${clipsTotal} total clips`}
-              {activeTab === "stats" && "System overview"}
+              {activeTab === "security" && `${securityDevices.length} ${securityFilter === "all" ? "security issues" : securityFilter === "suspicious" ? "suspicious devices" : "revoked devices"}`}
+              {activeTab === "stats" && "System overview & analytics"}
             </p>
             </div>
           </div>
@@ -1516,13 +1550,23 @@ const Admin = () => {
                 Refresh
               </Button>
             )}
+            {activeTab === "security" && (
+              <Button variant="outline" onClick={() => loadSecurityDevices(securityFilter)} disabled={securityDevicesLoading} className="rounded-2xl">
+                {securityDevicesLoading ? "Refreshing…" : "Refresh"}
+              </Button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="w-full px-4 lg:px-8 py-6 space-y-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 rounded-2xl">
+        <Tabs value={activeTab} onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === "security") {
+            loadSecurityDevices(securityFilter);
+          }
+        }} className="w-full">
+          <TabsList className="grid w-full grid-cols-6 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">
               <FileText className="w-4 h-4 mr-2" />
               Moderation
@@ -1539,6 +1583,10 @@ const Admin = () => {
               <Film className="w-4 h-4 mr-2" />
               Clips
             </TabsTrigger>
+            <TabsTrigger value="security" className="rounded-2xl">
+              <Shield className="w-4 h-4 mr-2" />
+              Security
+            </TabsTrigger>
             <TabsTrigger value="stats" className="rounded-2xl">
               <BarChart3 className="w-4 h-4 mr-2" />
               Stats
@@ -1549,39 +1597,133 @@ const Admin = () => {
         {/* Abuse Pattern Monitoring Dashboard */}
         {showMetrics && abuseMetrics && (
           <section className="space-y-6">
-            <h2 className="text-xl font-semibold">Security Metrics</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Security Metrics</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMetrics(false)}
+                className="text-muted-foreground"
+              >
+                Hide
+              </Button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Critical Events (24h)</div>
-                <div className="text-2xl font-bold text-red-500">{abuseMetrics.security.criticalEvents24h}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("all");
+                  loadSecurityDevices("all");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Critical Events</div>
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                </div>
+                <div className="text-3xl font-bold text-red-600">{abuseMetrics.security.criticalEvents24h}</div>
+                <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Error Events (24h)</div>
-                <div className="text-2xl font-bold text-orange-500">{abuseMetrics.security.errorEvents24h}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-orange-500/50 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/20 dark:to-orange-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("all");
+                  loadSecurityDevices("all");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Error Events</div>
+                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                </div>
+                <div className="text-3xl font-bold text-orange-600">{abuseMetrics.security.errorEvents24h}</div>
+                <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Total Banned</div>
-                <div className="text-2xl font-bold">{abuseMetrics.security.totalBanned}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-purple-500/50 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/20 dark:to-purple-900/10"
+                onClick={() => {
+                  setActiveTab("users");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Total Banned</div>
+                  <Ban className="w-4 h-4 text-purple-500" />
+                </div>
+                <div className="text-3xl font-bold text-purple-600">{abuseMetrics.security.totalBanned}</div>
+                <div className="text-xs text-muted-foreground mt-1">All time</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Recently Banned (24h)</div>
-                <div className="text-2xl font-bold">{abuseMetrics.security.recentlyBanned}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-pink-500/50 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-950/20 dark:to-pink-900/10"
+                onClick={() => {
+                  setActiveTab("users");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Recently Banned</div>
+                  <TrendingUp className="w-4 h-4 text-pink-500" />
+                </div>
+                <div className="text-3xl font-bold text-pink-600">{abuseMetrics.security.recentlyBanned}</div>
+                <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Suspicious Devices</div>
-                <div className="text-2xl font-bold text-yellow-500">{abuseMetrics.security.suspiciousDevices}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-yellow-500/50 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/20 dark:to-yellow-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("suspicious");
+                  loadSecurityDevices("suspicious");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Suspicious Devices</div>
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                </div>
+                <div className="text-3xl font-bold text-yellow-600">{abuseMetrics.security.suspiciousDevices}</div>
+                <div className="text-xs text-muted-foreground mt-1">Click to view details</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Revoked Devices</div>
-                <div className="text-2xl font-bold">{abuseMetrics.security.revokedDevices}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("revoked");
+                  loadSecurityDevices("revoked");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Revoked Devices</div>
+                  <Lock className="w-4 h-4 text-red-500" />
+                </div>
+                <div className="text-3xl font-bold text-red-600">{abuseMetrics.security.revokedDevices}</div>
+                <div className="text-xs text-muted-foreground mt-1">Click to view details</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">Blacklisted IPs</div>
-                <div className="text-2xl font-bold text-red-500">{abuseMetrics.security.blacklistedIPs || 0}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("all");
+                  loadSecurityDevices("all");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">Blacklisted IPs</div>
+                  <Globe className="w-4 h-4 text-red-500" />
+                </div>
+                <div className="text-3xl font-bold text-red-600">{abuseMetrics.security.blacklistedIPs || 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">Blocked addresses</div>
               </Card>
-              <Card className="p-4 rounded-2xl">
-                <div className="text-sm text-muted-foreground">IP Activity (24h)</div>
-                <div className="text-2xl font-bold">{abuseMetrics.abusePatterns?.totalIPActivity24h || 0}</div>
+              <Card 
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-blue-500/50 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10"
+                onClick={() => {
+                  setActiveTab("security");
+                  setSecurityFilter("all");
+                  loadSecurityDevices("all");
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium text-muted-foreground">IP Activity</div>
+                  <Activity className="w-4 h-4 text-blue-500" />
+                </div>
+                <div className="text-3xl font-bold text-blue-600">{abuseMetrics.abusePatterns?.totalIPActivity24h || 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
             </div>
 
@@ -2373,6 +2515,15 @@ const Admin = () => {
                             {user.is_banned && (
                               <Badge variant="destructive">Banned</Badge>
                             )}
+                            {user.is_muted && (
+                              <Badge variant="outline" className="text-orange-600">Muted</Badge>
+                            )}
+                            {user.is_paused && (
+                              <Badge variant="outline" className="text-yellow-600">Paused</Badge>
+                            )}
+                            {user.is_deleted && (
+                              <Badge variant="destructive">Deleted</Badge>
+                            )}
                             {user.statistics?.suspiciousDevicesCount > 0 && (
                               <Badge variant="outline" className="text-yellow-600">
                                 {user.statistics.suspiciousDevicesCount} Suspicious Devices
@@ -2455,6 +2606,17 @@ const Admin = () => {
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            window.location.href = `/profile/${user.handle}`;
+                          }}
+                          className="rounded-full"
+                        >
+                          <User className="w-4 h-4 mr-2" />
+                          View Profile
                         </Button>
                         <Button
                           size="sm"
@@ -3357,6 +3519,176 @@ const Admin = () => {
                     Next
                   </Button>
                 </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Security Dashboard</h2>
+                <p className="text-sm text-muted-foreground mt-1">Monitor and manage suspicious devices, security events, and threats</p>
+              </div>
+              <div className="flex gap-2">
+                <Select value={securityFilter} onValueChange={(value: "all" | "suspicious" | "revoked") => {
+                  setSecurityFilter(value);
+                  loadSecurityDevices(value);
+                }}>
+                  <SelectTrigger className="w-[180px] rounded-2xl">
+                    <SelectValue placeholder="Filter devices" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Devices</SelectItem>
+                    <SelectItem value="suspicious">Suspicious Only</SelectItem>
+                    <SelectItem value="revoked">Revoked Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {securityDevicesLoading ? (
+              <Card className="p-6 rounded-2xl text-center">Loading security devices...</Card>
+            ) : securityDevices.length === 0 ? (
+              <Card className="p-6 rounded-2xl text-center text-muted-foreground">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                <p className="text-lg font-medium">No security issues found</p>
+                <p className="text-sm mt-2">All devices appear to be secure.</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {securityDevices.map((device) => (
+                  <Card key={device.device_id} className="p-6 rounded-2xl border-2 hover:shadow-lg transition-all">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${device.is_revoked ? 'bg-red-100 dark:bg-red-950/30' : 'bg-yellow-100 dark:bg-yellow-950/30'}`}>
+                            {device.is_revoked ? (
+                              <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
+                            ) : (
+                              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <code className="font-mono text-sm font-semibold bg-muted px-2 py-1 rounded">{device.device_id}</code>
+                              {device.is_suspicious && (
+                                <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                                  Suspicious
+                                </Badge>
+                              )}
+                              {device.is_revoked && (
+                                <Badge variant="outline" className="text-red-600 border-red-600">
+                                  Revoked
+                                </Badge>
+                              )}
+                            </div>
+                            {device.profile && (
+                              <div className="text-sm text-muted-foreground">
+                                User: <span className="font-medium">{device.profile.handle || device.profile.display_name || 'Unknown'}</span>
+                                {device.profile.is_banned && (
+                                  <Badge variant="destructive" className="ml-2">Banned</Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                          {device.ip_address && (
+                            <div className="space-y-1">
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Globe className="w-3 h-3" />
+                                IP Address
+                              </div>
+                              <div className="font-mono text-sm font-medium">{device.ip_address}</div>
+                            </div>
+                          )}
+                          {device.user_agent && (
+                            <div className="space-y-1">
+                              <div className="text-xs text-muted-foreground">User Agent</div>
+                              <div className="text-sm truncate" title={device.user_agent}>
+                                {device.user_agent.substring(0, 50)}...
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Last Seen
+                            </div>
+                            <div className="text-sm">
+                              {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "Never"}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Activity className="w-3 h-3" />
+                              First Seen
+                            </div>
+                            <div className="text-sm">
+                              {device.first_seen_at ? new Date(device.first_seen_at).toLocaleString() : "Unknown"}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground">Request Count</div>
+                            <div className="text-lg font-semibold">{device.request_count || 0}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground">Failed Auth Attempts</div>
+                            <div className="text-lg font-semibold text-red-600">{device.failed_auth_count || 0}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground">Security Events</div>
+                            <div className="text-lg font-semibold">{device.auditLogs?.length || 0}</div>
+                          </div>
+                        </div>
+
+                        {device.recentEvents && device.recentEvents.length > 0 && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="text-sm font-semibold mb-2">Recent Security Events</div>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                              {device.recentEvents.slice(0, 5).map((event: any, idx: number) => (
+                                <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 text-xs">
+                                  <div className={`w-2 h-2 rounded-full mt-1.5 ${
+                                    event.severity === 'critical' ? 'bg-red-500' :
+                                    event.severity === 'error' ? 'bg-orange-500' :
+                                    event.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+                                  }`} />
+                                  <div className="flex-1">
+                                    <div className="font-medium">{event.event_type}</div>
+                                    <div className="text-muted-foreground">
+                                      {new Date(event.created_at).toLocaleString()}
+                                    </div>
+                                    {event.event_details && Object.keys(event.event_details).length > 0 && (
+                                      <div className="text-muted-foreground mt-1">
+                                        {JSON.stringify(event.event_details).substring(0, 100)}...
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {device.revoked_reason && (
+                          <div className="mt-4 pt-4 border-t">
+                            <div className="text-sm font-semibold mb-1">Revocation Reason</div>
+                            <div className="text-sm text-muted-foreground">{device.revoked_reason}</div>
+                            {device.revoked_at && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Revoked: {new Date(device.revoked_at).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>

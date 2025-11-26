@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -2972,6 +2972,18 @@ const IndexInner = () => {
                   <p>Discovery - Personalized recommendations</p>
                 </TooltipContent>
               </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Link to="/diary" aria-label="Diary">
+                      <BookOpen className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Diary - Your private encrypted journal</p>
+                </TooltipContent>
+              </Tooltip>
               {/* @ts-ignore - show_18_plus_content exists but not in generated types */}
               {profile?.show_18_plus_content && (
                 <Tooltip>
@@ -3011,18 +3023,6 @@ const IndexInner = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                    <Link to="/my-recordings" aria-label="My Recordings">
-                      <Mic className="h-5 w-5" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>My Recordings - Manage your published clips</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
                     <Link to="/settings" aria-label="Settings">
                       <Settings className="h-5 w-5" />
                     </Link>
@@ -3032,6 +3032,20 @@ const IndexInner = () => {
                   <p>Settings - Configure your account and preferences</p>
                 </TooltipContent>
               </Tooltip>
+              {profile && !location.pathname.startsWith('/profile/') && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                      <Link to={`/profile/${profile.handle}`} aria-label="My Profile">
+                        <User className="h-5 w-5" />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>My Profile - View your public profile</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -3702,7 +3716,7 @@ const IndexInner = () => {
                         size="lg"
                         className="mt-4 h-10 px-6 rounded-md"
                       >
-                        <Mic className="mr-2 h-4 w-4" />
+                        <MicIcon className="mr-2 h-4 w-4" />
                         Share your voice
                       </Button>
                     </TooltipTrigger>
