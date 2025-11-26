@@ -274,11 +274,11 @@ const DirectMessages = () => {
     return (
       <div className="min-h-screen bg-background pb-24">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="w-full px-4 lg:px-8 py-4">
             <Skeleton className="h-10 w-32" />
           </div>
         </header>
-        <main className="max-w-4xl mx-auto px-4 py-6">
+        <main className="w-full px-4 lg:px-8 py-6">
           <Skeleton className="h-96 w-full rounded-3xl" />
         </main>
       </div>
@@ -289,7 +289,7 @@ const DirectMessages = () => {
     return (
       <div className="min-h-screen bg-background pb-24">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="w-full px-4 lg:px-8 py-4">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link to="/">
                 <ArrowLeft className="h-5 w-5" />
@@ -297,7 +297,7 @@ const DirectMessages = () => {
             </Button>
           </div>
         </header>
-        <main className="max-w-4xl mx-auto px-4 py-6">
+        <main className="w-full px-4 lg:px-8 py-6">
           <Card className="p-6 rounded-3xl text-center">
             <p className="text-muted-foreground">Please sign in to view messages.</p>
           </Card>
@@ -313,7 +313,7 @@ const DirectMessages = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="rounded-full">
             <Link to="/">
               <ArrowLeft className="h-5 w-5" />

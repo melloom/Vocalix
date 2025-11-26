@@ -8,7 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { OfflineIndicator } from "@/components/OfflineIndicator";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
@@ -143,7 +143,7 @@ const App = () => {
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
-                <OfflineIndicator />
+                <OfflineBanner />
                 <InstallPrompt />
                 {/* First Clip Guidance */}
                 <FirstClipGuidance

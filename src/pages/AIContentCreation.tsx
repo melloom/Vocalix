@@ -32,7 +32,7 @@ export default function AIContentCreation() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="w-full px-4 lg:px-8 py-8">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <Sparkles className="w-8 h-8 text-primary" />

@@ -678,13 +678,83 @@ const Topic = () => {
               <p className="text-2xl font-bold">{subscriberCount}</p>
             </Card>
           </div>
+
+          {/* Extra onboarding content for Welcome Garden */}
+          {topic.title === "Welcome Garden" && (
+            <div className="mt-8 space-y-4">
+              <Card className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 via-background to-emerald-100/70 dark:from-emerald-950/70 dark:via-background dark:to-emerald-900/60 border border-emerald-500/40 space-y-3">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold tracking-wide uppercase text-emerald-800 dark:text-emerald-200">
+                      How to use this space
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Think of Welcome Garden as a cozy check‑in circle. Short, honest shares beat polished performances.
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-900 dark:text-emerald-100">
+                    Low‑stakes • Supportive • Slow
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-muted-foreground">
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground flex items-center gap-1">
+                      <span aria-hidden="true">🎧</span> Step 1 – Listen in
+                    </p>
+                    <p>
+                      Play a few voices to get a feel for the space. Notice how varied and imperfect they are — that&apos;s the point.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground flex items-center gap-1">
+                      <span aria-hidden="true">🎙️</span> Step 2 – Share a tiny moment
+                    </p>
+                    <p>
+                      20–40 seconds is enough. Say your name or pseudonym, where you&apos;re at today, or one thing on your mind.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground flex items-center gap-1">
+                      <span aria-hidden="true">🤝</span> Step 3 – Gently respond
+                    </p>
+                    <p>
+                      If something resonates, leave a kind reply or reaction. Treat every voice like a person you&apos;re meeting for the first time.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4 rounded-3xl bg-muted/60 border-dashed border-emerald-400/60 space-y-3">
+                <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+                  Ideas for your first hello
+                </p>
+                <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
+                    “One thing that made me smile today was…”
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
+                    “Right now I&apos;m feeling…”
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
+                    “If we were on a walk together, I&apos;d probably talk about…”
+                  </span>
+                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
+                    “Something small I&apos;m looking forward to is…”
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  You don&apos;t have to use any of these exactly — they&apos;re just gentle prompts if you feel stuck.
+                </p>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="w-full px-4 lg:px-8 py-8">
+        <div className="w-full">
           {/* Main Content */}
-          <div className="lg:col-span-8 space-y-8">
+          <div className="space-y-8">
 
           {/* Discussion & Questions Section (Reddit-style) */}
         <section className="space-y-4">

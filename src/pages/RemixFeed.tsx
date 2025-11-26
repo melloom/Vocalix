@@ -139,7 +139,7 @@ export default function RemixFeed() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="w-full px-4 lg:px-8 py-6">
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Sparkles className="h-8 w-8 text-primary" />

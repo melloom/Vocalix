@@ -145,6 +145,7 @@ const MyRecordings = () => {
   const [isUpdatingSchedule, setIsUpdatingSchedule] = useState(false);
   const [analyticsClip, setAnalyticsClip] = useState<Clip | null>(null);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [updatingClipId, setUpdatingClipId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [freshProfileData, setFreshProfileData] = useState<{
@@ -216,6 +217,154 @@ const MyRecordings = () => {
       xpInCurrentLevel: xpInCurrentLevel,
     } as ProfileMetrics;
   }, [clips, profile, freshProfileData]);
+
+  const handleHideClip = useCallback(
+    async (clipId: string) => {
+      if (!clipId) return;
+      setUpdatingClipId(clipId);
+      try {
+        const { error } = await supabase
+          .from("clips")
+          .update({ status: "hidden" })
+          .eq("id", clipId);
+
+        if (error) throw error;
+
+        setClips((prev) =>
+          prev.map((clip) =>
+            clip.id === clipId ? { ...clip, status: "hidden" } : clip,
+          ),
+        );
+        toast({
+          title: "Clip hidden",
+          description: "This clip is now hidden from public feeds.",
+        });
+      } catch (error) {
+        logError("Failed to hide clip", error);
+        toast({
+          title: "Could not hide clip",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setUpdatingClipId(null);
+      }
+    },
+    [toast],
+  );
+
+  const handleMakePrivate = useCallback(
+    async (clipId: string) => {
+      if (!clipId) return;
+      setUpdatingClipId(clipId);
+      try {
+        const { error } = await supabase
+          .from("clips")
+          .update({ visibility: "private", is_private: true })
+          .eq("id", clipId);
+
+        if (error) throw error;
+
+        setClips((prev) =>
+          prev.map((clip) =>
+            clip.id === clipId
+              ? { ...clip, visibility: "private", is_private: true as any }
+              : clip,
+          ),
+        );
+        toast({
+          title: "Clip set to private",
+          description: "Only you will be able to see this clip.",
+        });
+      } catch (error) {
+        logError("Failed to set clip private", error);
+        toast({
+          title: "Could not update privacy",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setUpdatingClipId(null);
+      }
+    },
+    [toast],
+  );
+
+  const handleAnonymizeClip = useCallback(
+    async (clipId: string) => {
+      if (!clipId) return;
+      setUpdatingClipId(clipId);
+      try {
+        const { error } = await supabase
+          .from("clips")
+          .update({
+            title: null,
+            summary: null,
+            captions: null,
+            tags: null,
+          })
+          .eq("id", clipId);
+
+        if (error) throw error;
+
+        setClips((prev) =>
+          prev.map((clip) =>
+            clip.id === clipId
+              ? { ...clip, title: null, summary: null, captions: null, tags: null as any }
+              : clip,
+          ),
+        );
+        toast({
+          title: "Clip anonymized",
+          description: "We removed the title and description from this clip.",
+        });
+      } catch (error) {
+        logError("Failed to anonymize clip", error);
+        toast({
+          title: "Could not anonymize clip",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setUpdatingClipId(null);
+      }
+    },
+    [toast],
+  );
+
+  const handleDeleteClip = useCallback(
+    async (clipId: string) => {
+      if (!clipId) return;
+      if (!window.confirm("Delete this clip permanently? This cannot be undone.")) {
+        return;
+      }
+      setUpdatingClipId(clipId);
+      try {
+        const { error } = await supabase
+          .from("clips")
+          .delete()
+          .eq("id", clipId);
+
+        if (error) throw error;
+
+        setClips((prev) => prev.filter((clip) => clip.id !== clipId));
+        toast({
+          title: "Clip deleted",
+          description: "The clip has been removed from your recordings.",
+        });
+      } catch (error) {
+        logError("Failed to delete clip", error);
+        toast({
+          title: "Could not delete clip",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setUpdatingClipId(null);
+      }
+    },
+    [toast],
+  );
 
   useEffect(() => {
     const loadAllData = async () => {
@@ -971,11 +1120,67 @@ const MyRecordings = () => {
               <>
                 <div className="space-y-4">
                   {paginatedClips.map((clip) => (
-                    <ClipCard
-                      key={clip.id}
-                      clip={clip}
-                      captionsDefault={profile.default_captions ?? true}
-                    />
+                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3">
+                      <ClipCard
+                        clip={clip}
+                        captionsDefault={profile.default_captions ?? true}
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <Badge variant="outline" className="rounded-full px-2 py-0.5 capitalize">
+                            {clip.status === 'draft'
+                              ? 'Draft'
+                              : clip.status === 'hidden'
+                              ? 'Hidden'
+                              : 'Published'}
+                          </Badge>
+                          {/* @ts-ignore - visibility fields exist on clips */}
+                          {clip.visibility === 'private' && (
+                            <Badge variant="secondary" className="rounded-full px-2 py-0.5">
+                              🔒 Private practice
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            disabled={updatingClipId === clip.id}
+                            onClick={() => handleHideClip(clip.id)}
+                          >
+                            Hide
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            disabled={updatingClipId === clip.id}
+                            onClick={() => handleMakePrivate(clip.id)}
+                          >
+                            Private
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full"
+                            disabled={updatingClipId === clip.id}
+                            onClick={() => handleAnonymizeClip(clip.id)}
+                          >
+                            Anonymize
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full text-destructive border-destructive/40"
+                            disabled={updatingClipId === clip.id}
+                            onClick={() => handleDeleteClip(clip.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
                   ))}
                 </div>
                 {totalPages > 1 && (

@@ -456,7 +456,7 @@ const Analytics = () => {
   if (!profile) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="w-full px-4 lg:px-8 py-6">
           <ErrorDisplay
             title="Authentication required"
             message="Please log in to view your analytics"
@@ -470,7 +470,7 @@ const Analytics = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link to="/recordings">
@@ -525,7 +525,7 @@ const Analytics = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="w-full px-4 lg:px-8 py-6">
         {isLoading ? (
           <div className="space-y-6">
             <Skeleton className="h-32 w-full rounded-3xl" />

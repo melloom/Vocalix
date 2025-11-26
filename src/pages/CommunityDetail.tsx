@@ -703,7 +703,7 @@ const CommunityDetail = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="rounded-full">
             <Link to="/communities">
               <ArrowLeft className="h-5 w-5" />
@@ -736,7 +736,7 @@ const CommunityDetail = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="w-full px-4 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">

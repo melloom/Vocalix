@@ -135,7 +135,7 @@ export default function AllTopics() {
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 pb-24">
       {/* Header with gradient */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button
@@ -172,10 +172,10 @@ export default function AllTopics() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full">
           {/* Main Content */}
-          <div className="lg:col-span-8">
+          <div>
         {/* Search and Filters */}
         <div className="space-y-6 mb-8">
           {/* Search Bar */}

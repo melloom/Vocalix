@@ -206,12 +206,12 @@ const LiveRooms = () => {
     return (
       <div className="min-h-screen bg-background pb-24">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+          <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
             <Skeleton className="h-10 w-10 rounded-full" />
             <Skeleton className="h-8 w-32" />
           </div>
         </header>
-        <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
+        <main className="w-full px-4 lg:px-8 py-6 space-y-8">
           <Skeleton className="h-32 w-full rounded-3xl" />
           <Skeleton className="h-24 w-full rounded-3xl" />
         </main>
@@ -222,7 +222,7 @@ const LiveRooms = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link to="/">
@@ -245,7 +245,7 @@ const LiveRooms = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="w-full px-4 lg:px-8 py-6 space-y-6">
         {/* Search and Filters */}
         <div className="space-y-4">
           <div className="relative">

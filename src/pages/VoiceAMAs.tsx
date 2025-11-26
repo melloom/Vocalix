@@ -181,7 +181,7 @@ export default function VoiceAMAs() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="w-full px-4 lg:px-8 py-6">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">

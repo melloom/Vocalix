@@ -133,6 +133,7 @@ const Settings = () => {
   const [show18PlusContent, setShow18PlusContent] = useState(false);
   const [digestEnabled, setDigestEnabled] = useState(false);
   const [digestFrequency, setDigestFrequency] = useState<'never' | 'daily' | 'weekly'>('daily');
+  const [digestStyle, setDigestStyle] = useState<'quiet' | 'normal' | 'energizing'>('normal');
   const [digestEmail, setDigestEmail] = useState("");
   const [isHandleDialogOpen, setIsHandleDialogOpen] = useState(false);
   const [pendingHandle, setPendingHandle] = useState("");
@@ -239,6 +240,8 @@ const Settings = () => {
       setDigestFrequency(profile.digest_frequency ?? 'daily');
       // @ts-ignore
       setDigestEmail(profile.email ?? "");
+      // @ts-ignore - digest_style exists but not in generated types
+      setDigestStyle(profile.digest_style ?? 'normal');
       // @ts-ignore
       setVoiceCloningEnabled(profile.voice_cloning_enabled ?? false);
       // @ts-ignore
@@ -440,6 +443,32 @@ const Settings = () => {
       logError("Failed to update digest frequency", error);
       toast({
         title: "Couldn't update digest frequency",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDigestStyleChange = async (style: 'quiet' | 'normal' | 'energizing') => {
+    setDigestStyle(style);
+    try {
+      // @ts-ignore - digest_style exists but not in generated types
+      await updateProfile({
+        digest_style: style,
+      });
+      toast({
+        title: "Digest style updated",
+        description:
+          style === 'quiet'
+            ? "We'll keep your digests very minimal."
+            : style === 'energizing'
+            ? "We'll include more highlights in your digests."
+            : "You'll receive a balanced digest.",
+      });
+    } catch (error) {
+      logError("Failed to update digest style", error);
+      toast({
+        title: "Couldn't update digest style",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -1510,35 +1539,56 @@ const Settings = () => {
 
               {/* Digest settings section */}
               <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
-                <div className="flex-1">
-                  <p className="font-medium">Email digest</p>
-                  <p className="text-sm text-muted-foreground">
-                    Get a daily or weekly email with the best clips from topics you follow.
-                  </p>
-                  {digestEnabled && (
-                    <div className="mt-3 space-y-2">
-                    <div>
-                      <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
-                        Frequency
-                      </Label>
-                      <Select
-                        value={digestFrequency}
-                        onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
-                        disabled={isUpdating}
-                      >
-                        <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="never">Never</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <p className="font-medium">Email digest</p>
+                    <p className="text-sm text-muted-foreground">
+                      Get a daily or weekly email with gentle highlights from topics you follow.
+                    </p>
                   </div>
-                )}
-              </div>
+                  {digestEnabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
+                          Frequency
+                        </Label>
+                        <Select
+                          value={digestFrequency}
+                          onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
+                          disabled={isUpdating}
+                        >
+                          <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="never">Never</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="digest-style" className="text-xs text-muted-foreground">
+                          Style
+                        </Label>
+                        <Select
+                          value={digestStyle}
+                          onValueChange={(value: 'quiet' | 'normal' | 'energizing') => handleDigestStyleChange(value)}
+                          disabled={isUpdating}
+                        >
+                          <SelectTrigger id="digest-style" className="mt-1 rounded-2xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="quiet">Quiet (very minimal)</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="energizing">Energizing (more highlights)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
               <Switch
                 checked={digestEnabled}
                 onCheckedChange={handleDigestToggle}

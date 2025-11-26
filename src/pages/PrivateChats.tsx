@@ -29,7 +29,7 @@ const PrivateChats = () => {
     return (
       <div className="min-h-screen bg-background pb-24">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link to="/private-chats">
                 <ArrowLeft className="h-5 w-5" />
@@ -40,7 +40,7 @@ const PrivateChats = () => {
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto px-4 py-6">
+        <main className="w-full px-4 lg:px-8 py-6">
           <PrivateChatRoom chatId={chatId} />
         </main>
       </div>
@@ -50,7 +50,7 @@ const PrivateChats = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
               <Link to="/">
@@ -72,7 +72,7 @@ const PrivateChats = () => {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <main className="w-full px-4 lg:px-8 py-6 space-y-6">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />

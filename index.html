@@ -276,6 +276,9 @@
         const maxLogs = 50;
         
         function createDebugPanel() {
+          // Debug panel disabled - return early to prevent UI creation
+          return;
+          
           if (logContainer) return;
           
           logContainer = document.createElement('div');
@@ -364,35 +367,34 @@
           addLog('info', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
         };
         
-        // Show panel automatically if there are errors
-        setTimeout(function() {
-          if (logs.some(l => l.level === 'error')) {
-            if (logContainer) logContainer.style.display = 'block';
-          }
-        }, 3000);
+        // Debug panel disabled - no longer showing automatically
+        // setTimeout(function() {
+        //   if (logs.some(l => l.level === 'error')) {
+        //     if (logContainer) logContainer.style.display = 'block';
+        //   }
+        // }, 3000);
         
-        // Keep debug panel visible - don't let React remove it
-        // Check every 500ms and re-add if removed
-        setInterval(function() {
-          if (!logContainer) createDebugPanel();
-          if (logContainer && !document.body.contains(logContainer)) {
-            document.body.appendChild(logContainer);
-          }
-          if (toggleBtn && !document.body.contains(toggleBtn)) {
-            document.body.appendChild(toggleBtn);
-          }
-        }, 500);
+        // Debug panel disabled - no longer keeping it visible
+        // setInterval(function() {
+        //   if (!logContainer) createDebugPanel();
+        //   if (logContainer && !document.body.contains(logContainer)) {
+        //     document.body.appendChild(logContainer);
+        //   }
+        //   if (toggleBtn && !document.body.contains(toggleBtn)) {
+        //     document.body.appendChild(toggleBtn);
+        //   }
+        // }, 500);
         
         // Also re-add on any DOM mutations (React might remove it)
-        const observer = new MutationObserver(function() {
-          if (logContainer && !document.body.contains(logContainer)) {
-            document.body.appendChild(logContainer);
-          }
-          if (toggleBtn && !document.body.contains(toggleBtn)) {
-            document.body.appendChild(toggleBtn);
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
+        // const observer = new MutationObserver(function() {
+        //   if (logContainer && !document.body.contains(logContainer)) {
+        //     document.body.appendChild(logContainer);
+        //   }
+        //   if (toggleBtn && !document.body.contains(toggleBtn)) {
+        //     document.body.appendChild(toggleBtn);
+        //   }
+        // });
+        // observer.observe(document.body, { childList: true, subtree: true });
       })();
       
       // Track if script loaded

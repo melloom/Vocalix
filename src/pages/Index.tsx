@@ -380,6 +380,72 @@ const IndexInner = () => {
     answeredToday: false,
     saidHiWelcomeGarden: false,
   });
+
+  // Enhanced feed filters
+  const { clips: bestClips, isLoading: isLoadingBest } = useFeedFilters({
+    filterType: "best",
+    limit: 100,
+    timePeriod: feedTimePeriod,
+  });
+
+  const { clips: risingClips, isLoading: isLoadingRising } = useFeedFilters({
+    filterType: "rising",
+    limit: 100,
+  });
+
+  const { clips: controversialClips, isLoading: isLoadingControversial } = useFeedFilters({
+    filterType: "controversial",
+    limit: 100,
+  });
+
+  const { clips: followedClips, isLoading: isLoadingFollowed } = useFeedFilters({
+    filterType: "from_followed",
+    limit: 100,
+  });
+
+  const { clips: unheardClips, isLoading: isLoadingUnheard } = useFeedFilters({
+    filterType: "unheard",
+    limit: 100,
+  });
+
+  const { clips: cityClips, isLoading: isLoadingCity } = useFeedFilters({
+    filterType: "from_city",
+    limit: 100,
+    city: profile?.city || undefined,
+  });
+
+  const todaysMixClips = useMemo(() => {
+    const mix: Clip[] = [];
+    const seen = new Set<string>();
+
+    const addClip = (clip: Clip | null | undefined) => {
+      if (!clip || seen.has(clip.id)) return;
+      seen.add(clip.id);
+      mix.push(clip);
+    };
+
+    // 1. Today’s topic clips near top of main feed
+    if (todayTopic) {
+      clips
+        .filter((c) => c.topic_id === todayTopic.id)
+        .slice(0, 2)
+        .forEach(addClip);
+    }
+
+    // 2. New voices
+    newVoicesClips.slice(0, 3).forEach(addClip);
+
+    // 3. One trending clip (highest trending_score)
+    const trendingCandidate = [...clips]
+      .filter((c) => typeof c.trending_score === "number")
+      .sort((a, b) => (b.trending_score || 0) - (a.trending_score || 0))[0];
+    addClip(trendingCandidate);
+
+    // 4. One from followed creators
+    (followedClips ?? []).slice(0, 2).forEach(addClip);
+
+    return mix.slice(0, 10);
+  }, [clips, newVoicesClips, todayTopic, followedClips]);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [savedClipsCount, setSavedClipsCount] = useState<number | null>(null);
   const [advancedFilters, setAdvancedFilters] = useState<SearchFilters>({
@@ -414,39 +480,6 @@ const IndexInner = () => {
   // Personalized feed
   const { personalizedClips, isLoading: isLoadingPersonalized, error: personalizedError } = usePersonalizedFeed(100);
   
-  // Enhanced feed filters
-  const { clips: bestClips, isLoading: isLoadingBest } = useFeedFilters({
-    filterType: "best",
-    limit: 100,
-    timePeriod: feedTimePeriod,
-  });
-  
-  const { clips: risingClips, isLoading: isLoadingRising } = useFeedFilters({
-    filterType: "rising",
-    limit: 100,
-  });
-  
-  const { clips: controversialClips, isLoading: isLoadingControversial } = useFeedFilters({
-    filterType: "controversial",
-    limit: 100,
-  });
-  
-  const { clips: followedClips, isLoading: isLoadingFollowed } = useFeedFilters({
-    filterType: "from_followed",
-    limit: 100,
-  });
-  
-  const { clips: unheardClips, isLoading: isLoadingUnheard } = useFeedFilters({
-    filterType: "unheard",
-    limit: 100,
-  });
-  
-  const { clips: cityClips, isLoading: isLoadingCity } = useFeedFilters({
-    filterType: "from_city",
-    limit: 100,
-    city: profile?.city || undefined,
-  });
-
   const topicIdsRef = useRef<string[]>([]);
   const topicsRef = useRef<Topic[]>([]);
 
@@ -3808,6 +3841,27 @@ const IndexInner = () => {
                     })()}
                   </Button>
                 ))}
+            </div>
+          </section>
+        )}
+
+        {!isSearching && todaysMixClips.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Today&apos;s mix</h3>
+              <span className="text-xs text-muted-foreground">
+                A little of everything
+              </span>
+            </div>
+            <div className="space-y-3">
+              {todaysMixClips.map((clip) => (
+                <ClipCard
+                  key={clip.id}
+                  clip={clip}
+                  showReplyButton={true}
+                  viewMode={viewMode}
+                />
+              ))}
             </div>
           </section>
         )}

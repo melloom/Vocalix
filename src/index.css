@@ -239,6 +239,10 @@ All colors MUST be HSL.
     animation: fade-in 0.3s ease-out;
   }
 
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
   /* Mobile swipe gestures hint - only show on touch devices */
   .swipe-hint {
     @apply relative overflow-hidden;
@@ -441,6 +445,40 @@ All colors MUST be HSL.
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    /* Reduce animations on mobile for better performance */
+    .hover-lift:hover {
+      transform: none;
+    }
+    
+    /* Optimize touch targets */
+    button, a, [role="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Reduce shadow complexity on mobile */
+    .shadow-soft {
+      box-shadow: 0 2px 8px -2px hsl(var(--foreground) / 0.1);
+    }
+  }
+
+  /* Performance optimizations */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-opacity {
+    will-change: opacity;
+  }
+
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 
   /* Focus visible improvements */

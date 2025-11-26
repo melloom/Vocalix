@@ -501,7 +501,7 @@ const LiveRoom = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div className="w-full px-4 lg:px-8 py-6 space-y-6">
           <Skeleton className="h-32 w-full rounded-3xl" />
           <Skeleton className="h-64 w-full rounded-3xl" />
         </div>
@@ -520,7 +520,7 @@ const LiveRoom = () => {
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate("/live-rooms")} className="rounded-full">
               <X className="h-5 w-5" />
@@ -548,7 +548,7 @@ const LiveRoom = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <main className="w-full px-4 lg:px-8 py-6 space-y-6">
         {/* Room Info */}
         <Card className="p-6 rounded-3xl">
           <div className="flex items-center justify-between">

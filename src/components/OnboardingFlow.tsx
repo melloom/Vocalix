@@ -832,7 +832,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }} />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 lg:items-center">
           {/* Left side - Enhanced Nature-themed welcome */}
           <div className="space-y-8 text-center lg:text-left relative z-10">

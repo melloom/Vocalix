@@ -71,6 +71,8 @@ interface Clip {
   city?: string | null;
   content_rating?: "general" | "sensitive";
   title?: string | null;
+  cover_emoji?: string | null;
+  series_name?: string | null;
   tags?: string[] | null;
   parent_clip_id?: string | null;
   reply_count?: number;
@@ -126,7 +128,8 @@ interface ClipCardProps {
   viewMode?: "list" | "compact";
 }
 
-const REACTION_EMOJIS = ["😊", "🔥", "❤️", "🙏", "😔", "😂", "😮", "🧘", "💡"];
+// Core reactions plus a couple of soft, presence-focused reactions
+const REACTION_EMOJIS = ["😊", "🔥", "❤️", "🙏", "😔", "😂", "😮", "🧘", "💡", "💚", "🎧"];
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -831,14 +834,21 @@ export const ClipCard = ({
               )}
             </div>
           </div>
-          {clip.mood_emoji && (
-            <div className="text-base flex-shrink-0">{clip.mood_emoji}</div>
+          {(clip.cover_emoji || clip.mood_emoji) && (
+            <div className="text-base flex-shrink-0">
+              {clip.cover_emoji || clip.mood_emoji}
+            </div>
           )}
         </div>
 
         {clip.title && (
           <h3 className="text-sm font-semibold line-clamp-1">
             <MentionText text={clip.title} highlightQuery={highlightNeedle} />
+          </h3>
+        )}
+        {!clip.title && clip.series_name && (
+          <h3 className="text-xs font-semibold text-muted-foreground line-clamp-1">
+            {clip.series_name}
           </h3>
         )}
 
@@ -969,7 +979,7 @@ export const ClipCard = ({
   const profileHandle = clip.profiles?.handle || "Anonymous";
 
   return (
-    <Card ref={clipRef} data-clip-id={clip.id} className={`p-4 space-y-3 card-hover bg-card border border-border/50 hover:border-border transition-colors ${isReply ? "ml-8 border-l-2 border-l-primary/30" : ""}`}>
+    <Card ref={clipRef} data-clip-id={clip.id} className={`p-4 space-y-3 card-hover bg-card border border-border/50 hover:border-border transition-all duration-300 animate-fade-in ${isReply ? "ml-8 border-l-2 border-l-primary/30" : ""}`}>
       {/* Reddit-style header with avatar and username */}
       <div className="flex items-start gap-3">
         <Link to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"} className="flex-shrink-0">

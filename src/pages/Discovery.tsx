@@ -583,7 +583,7 @@ const Discovery = () => {
 
     return (
       <Card className="p-12 text-center rounded-2xl border-dashed">
-        <div className="flex flex-col items-center gap-4 max-w-md mx-auto">
+        <div className="flex flex-col items-center gap-4 w-full px-4 lg:px-8">
           {empty.icon}
           <div>
             <h2 className="text-xl font-semibold mb-2">{empty.title}</h2>
@@ -611,7 +611,7 @@ const Discovery = () => {
   if (!profile) {
     return (
       <div className="min-h-screen bg-background pb-24">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="w-full px-4 lg:px-8 py-8">
           <Skeleton className="h-12 w-64 mb-8" />
           <ClipListSkeleton count={5} />
         </div>
@@ -621,7 +621,7 @@ const Discovery = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="w-full px-4 lg:px-8 py-8">
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}

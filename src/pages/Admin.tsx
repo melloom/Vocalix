@@ -1445,7 +1445,7 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="border-b border-border bg-background/80 backdrop-blur-lg sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+      <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -1520,7 +1520,7 @@ const Admin = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-8">
+      <main className="w-full px-4 lg:px-8 py-6 space-y-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">

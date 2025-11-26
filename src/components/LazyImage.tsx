@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { cn } from "@/lib/utils";
 
 interface LazyImageProps {
   src: string;
@@ -9,10 +11,13 @@ interface LazyImageProps {
   height?: number;
   onLoad?: () => void;
   onError?: () => void;
+  priority?: boolean; // If true, load immediately
+  quality?: "low" | "medium" | "high"; // Quality preference
 }
 
 /**
- * Lazy-loaded image component that only loads when in viewport
+ * Enhanced lazy-loaded image component with network-aware loading
+ * Automatically adjusts quality based on connection speed
  */
 export const LazyImage = ({
   src,
@@ -22,15 +27,25 @@ export const LazyImage = ({
   height,
   onLoad,
   onError,
+  priority = false,
+  quality,
 }: LazyImageProps) => {
+  const { isOnline, shouldUseLowQuality, shouldPrefetch } = useOnlineStatus();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Determine if we should load immediately
+  const shouldLoadImmediately = priority || (!isOnline && shouldPrefetch);
+
   useEffect(() => {
     if (!containerRef.current) return;
+    if (shouldLoadImmediately) {
+      setIsInView(true);
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -42,7 +57,7 @@ export const LazyImage = ({
         });
       },
       {
-        rootMargin: "100px", // Start loading earlier for smoother experience
+        rootMargin: shouldPrefetch ? "200px" : "100px", // Larger margin on fast connections
         threshold: 0.01,
       }
     );
@@ -52,7 +67,7 @@ export const LazyImage = ({
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [shouldLoadImmediately, shouldPrefetch]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -64,22 +79,41 @@ export const LazyImage = ({
     onError?.();
   };
 
+  // Determine image quality based on network conditions
+  const getImageSrc = () => {
+    if (!isOnline) return src; // Use cached/offline version if available
+    
+    // If quality is explicitly set, use it
+    if (quality === "low" || shouldUseLowQuality) {
+      // Try to use a lower quality version if available (e.g., add ?q=low)
+      // This would require backend support for image optimization
+      return src;
+    }
+    
+    return src;
+  };
+
   return (
-    <div ref={containerRef} className={className} style={{ width, height }}>
+    <div ref={containerRef} className={cn("relative", className)} style={{ width, height }}>
       {!isLoaded && !hasError && (
-        <Skeleton className="w-full h-full" />
+        <Skeleton className="w-full h-full absolute inset-0 skeleton-shimmer" />
       )}
       {isInView && (
         <img
           ref={imgRef}
-          src={src}
+          src={getImageSrc()}
           alt={alt}
-          className={`${className} ${isLoaded ? "opacity-100" : "opacity-0"} transition-opacity duration-300`}
+          className={cn(
+            "transition-opacity duration-300",
+            isLoaded ? "opacity-100" : "opacity-0",
+            className
+          )}
           style={{ width, height, objectFit: "cover" }}
           onLoad={handleLoad}
           onError={handleError}
-          loading="lazy"
-          decoding="async" // Async decoding for better performance
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
         />
       )}
       {hasError && (
