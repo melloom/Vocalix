@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Mic, X, Check, Waves, Play, Pause, Save, Sparkles, Upload, FileAudio, Scissors } from "lucide-react";
+import { Mic, X, Check, Waves, Play, Pause, Save, Sparkles, Upload, FileAudio, Scissors, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -1557,6 +1557,129 @@ export const RecordModal = ({
                 </div>
               </div>
 
+              {/* Audio Editing Tools - Quick Access */}
+              <div className="rounded-xl bg-muted/60 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-xs font-medium">Audio Editing</label>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAudioEditor(true)}
+                    className="h-7 text-xs"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Full Editor
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowTrimControls(!showTrimControls);
+                      if (!showTrimControls && audioBlob) {
+                        getAudioDuration(audioBlob).then(setAudioDuration);
+                      }
+                    }}
+                    className="h-9 text-xs"
+                  >
+                    <Scissors className="h-3 w-3 mr-1" />
+                    {showTrimControls ? "Hide Trim" : "Trim/Cut"}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!audioBlob) return;
+                      setIsNormalizing(true);
+                      try {
+                        const normalized = await normalizeAudioVolume(audioBlob);
+                        setAudioBlob(normalized);
+                        toast({
+                          title: "Volume normalized",
+                          description: "Audio volume has been normalized.",
+                        });
+                      } catch (error) {
+                        logError("Normalization failed", error);
+                        toast({
+                          title: "Normalization failed",
+                          description: "Could not normalize audio.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsNormalizing(false);
+                      }
+                    }}
+                    disabled={isNormalizing}
+                    className="h-9 text-xs"
+                  >
+                    <Volume2 className="h-3 w-3 mr-1" />
+                    {isNormalizing ? "Processing..." : "Normalize"}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!audioBlob) return;
+                      setIsEnhancingAudio(true);
+                      try {
+                        const enhanced = await autoEnhanceAudio(audioBlob, {
+                          reduceNoise: true,
+                          normalize: true,
+                          targetPeak: 0.95,
+                        });
+                        setAudioBlob(enhanced);
+                        const metrics = await analyzeAudioQuality(enhanced);
+                        setQualityMetrics(metrics);
+                        toast({
+                          title: "Audio enhanced",
+                          description: "Noise reduction and normalization applied.",
+                        });
+                      } catch (error) {
+                        logError("Enhancement failed", error);
+                        toast({
+                          title: "Enhancement failed",
+                          description: "Could not enhance audio.",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setIsEnhancingAudio(false);
+                      }
+                    }}
+                    disabled={isEnhancingAudio}
+                    className="h-9 text-xs"
+                  >
+                    <Waves className="h-3 w-3 mr-1" />
+                    {isEnhancingAudio ? "Processing..." : "Auto Enhance"}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAudioEditor(true)}
+                    className="h-9 text-xs"
+                  >
+                    <Music className="h-3 w-3 mr-1" />
+                    Add Music
+                  </Button>
+                </div>
+                
+                <p className="text-xs text-muted-foreground text-center">
+                  Use the Full Editor for advanced effects (reverb, echo, pitch) and background music mixing
+                </p>
+              </div>
+
               {/* Audio Quality Suggestions */}
               {(qualityMetrics || isAnalyzingQuality) && (
                 <div className="rounded-xl bg-muted/60 p-4 space-y-3">
@@ -2131,6 +2254,56 @@ export const RecordModal = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Final Preview Section */}
+              <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Play className="h-4 w-4 text-primary" />
+                  <label className="text-sm font-semibold">Preview Before Publishing</label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Listen to your final audio one more time before publishing. Make sure everything sounds good!
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePlayback}
+                    className="flex-1 h-9"
+                  >
+                    {isPlaying ? (
+                      <>
+                        <Pause className="mr-1.5 h-3.5 w-3.5" />
+                        Pause Preview
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-1.5 h-3.5 w-3.5" />
+                        Play Preview
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAudioEditor(true)}
+                    className="h-9 text-xs"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                </div>
+                {isPlaying && (
+                  <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-100"
+                      style={{ width: `${playbackProgress}%` }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2">

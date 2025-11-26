@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { logError } from "@/lib/logger";
 import { ClipCard } from "@/components/ClipCard";
 import { ClipListSkeleton } from "@/components/ui/clip-skeleton";
+import { useBecauseYouListenedTo, useSimilarVoiceClips } from "@/hooks/useEnhancedDiscovery";
 
 interface Clip {
   id: string;
