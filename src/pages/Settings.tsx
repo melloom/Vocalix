@@ -53,7 +53,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -2288,6 +2288,56 @@ const Settings = () => {
               <p className="text-sm text-muted-foreground mb-4">
                 View and manage devices where you're logged in. You can revoke access from any device.
               </p>
+              
+              {/* Account Linking Info */}
+              <div className="mt-4 p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-primary/10 flex-shrink-0">
+                    <LinkIcon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm mb-1">Account Linking</h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Link your account to multiple devices using magic login links. All linked devices will have access to the same account, including admin privileges if your account has them.
+                    </p>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+                        <p className="text-muted-foreground">
+                          <strong className="text-foreground">Current devices:</strong> {devices.filter(d => !d.is_revoked).length} device{devices.filter(d => !d.is_revoked).length !== 1 ? 's' : ''} linked to your account
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+                        <p className="text-muted-foreground">
+                          <strong className="text-foreground">Link more devices:</strong> Go to the <strong className="text-foreground">Account</strong> tab and generate a magic login link
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
+                        <p className="text-muted-foreground">
+                          <strong className="text-foreground">Security:</strong> Revoke any device to sign it out immediately
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 rounded-xl"
+                      onClick={() => {
+                        // Switch to Account tab
+                        const accountTab = document.querySelector('[value="account"]') as HTMLElement;
+                        if (accountTab) {
+                          accountTab.click();
+                        }
+                      }}
+                    >
+                      <LinkIcon className="h-4 w-4 mr-2" />
+                      Generate Login Link
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {devicesError ? (
@@ -2838,7 +2888,7 @@ const Settings = () => {
                   </div>
                 )}
                 {sessions.map((session) => {
-                  const isCurrentSession = session.device_id === deviceId;
+                  const isCurrentSession = session.is_current_session ?? (session.device_id === deviceId);
                   const lastAccessed = formatDistanceToNow(new Date(session.last_accessed_at), { addSuffix: true });
                   const created = formatDistanceToNow(new Date(session.created_at), { addSuffix: true });
                   const expires = formatDistanceToNow(new Date(session.expires_at), { addSuffix: true });

@@ -10,6 +10,7 @@ export interface Session {
   created_at: string;
   last_accessed_at: string;
   expires_at: string;
+  is_current_session?: boolean; // True if this is the current session
 }
 
 export const useSessions = () => {
@@ -26,6 +27,7 @@ export const useSessions = () => {
     queryFn: async () => {
       if (!profileId) return [];
 
+      // @ts-ignore - get_active_sessions exists but not in types yet
       const { data, error } = await supabase.rpc("get_active_sessions", {
         p_profile_id: profileId,
       });
@@ -46,6 +48,7 @@ export const useSessions = () => {
 
   const revokeSession = useMutation({
     mutationFn: async (sessionId: string) => {
+      // @ts-ignore - revoke_session_by_id exists but not in types yet
       const { error } = await supabase.rpc("revoke_session_by_id", {
         p_session_id: sessionId,
       });
@@ -61,6 +64,7 @@ export const useSessions = () => {
     mutationFn: async () => {
       if (!profileId) throw new Error("No profile ID");
 
+      // @ts-ignore - revoke_all_sessions exists but not in types yet
       const { error } = await supabase.rpc("revoke_all_sessions", {
         p_profile_id: profileId,
       });
