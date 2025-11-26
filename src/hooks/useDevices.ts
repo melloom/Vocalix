@@ -121,16 +121,22 @@ export const useDevices = () => {
         
         // Log the error so we can debug what's wrong
         if (error) {
-          console.error("❌ RPC function error:", {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
-          });
-          
-          // If it's a function signature error or similar, don't retry
-          if (error.code === "42883" || error.message?.includes("does not exist")) {
-            console.error("Function doesn't exist or has wrong signature");
+          // If it's a function signature error, 400 error, or function doesn't exist, fall through to direct query
+          if (
+            error.code === "42883" || // function does not exist
+            error.message?.includes("does not exist") ||
+            error.message?.includes("not found") ||
+            (error as any).status === 400 // Bad Request from HTTP
+          ) {
+            console.warn("⚠️ get_user_devices RPC not available, trying direct query:", error.message);
+            // Don't throw, let it fall through to direct query below
+          } else {
+            console.error("❌ RPC function error:", {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint
+            });
             throw error; // Will be caught and handled below
           }
         }

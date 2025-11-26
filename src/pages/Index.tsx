@@ -1287,9 +1287,12 @@ const IndexInner = () => {
 
   // Check if tutorial should be shown on mount (for existing users who haven't seen it)
   useEffect(() => {
-    if (profileId && !isAuthLoading && !showTutorial) {
+    if (profileId && !isAuthLoading) {
       const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
-      if (!tutorialCompleted) {
+      if (tutorialCompleted === "true") {
+        // Tutorial is completed, ensure it's not shown
+        setShowTutorial(false);
+      } else if (!showTutorial) {
         // Show tutorial for users who haven't seen it yet
         // Add a small delay to ensure the page is fully rendered
         const timer = setTimeout(() => {

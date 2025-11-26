@@ -33,8 +33,16 @@ export const useSessions = () => {
       });
 
       if (error) {
-        // If function doesn't exist, return empty array (backward compatibility)
-        if (error.message?.includes("does not exist") || error.message?.includes("not found")) {
+        // If function doesn't exist or returns 400 (bad request), return empty array (backward compatibility)
+        // 400 can mean function doesn't exist, wrong signature, or missing parameters
+        if (
+          error.message?.includes("does not exist") || 
+          error.message?.includes("not found") ||
+          error.code === "42883" || // function does not exist
+          error.code === "P0001" || // raise_exception
+          (error as any).status === 400 // Bad Request from HTTP
+        ) {
+          console.warn("⚠️ get_active_sessions not available, returning empty array:", error.message);
           return [];
         }
         throw error;

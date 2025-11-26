@@ -112,3 +112,4 @@ After linking:
 - Settings → Security → Active Devices (should show all linked devices)
 
 
+

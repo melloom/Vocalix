@@ -22,3 +22,4 @@ WHERE id = '1de6dfce-8d08-4bc0-a91b-61128a25fa97'::uuid AND device_id IS NOT NUL
 ON CONFLICT (device_id) DO UPDATE SET profile_id = 'a8c24193-3912-4a7e-af33-328b3c756a32'::uuid;
 
 
+

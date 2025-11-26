@@ -47,3 +47,4 @@ ORDER BY a.created_at DESC;
 SELECT COUNT(*) as admin_count FROM public.admins;
 
 
+
