@@ -37,7 +37,8 @@ import { useOfflineDownloads } from "@/hooks/useOfflineDownloads";
 import { MentionText } from "@/components/MentionText";
 import { LiveReactionsDisplay } from "@/components/LiveReactionsDisplay";
 import { VoiceCloningConsentRequestDialog } from "@/components/VoiceCloningConsentRequestDialog";
-import { Copy, Clock, TrendingUp } from "lucide-react";
+import { Copy, Clock, TrendingUp, Edit } from "lucide-react";
+import { CaptionEditor } from "@/components/CaptionEditor";
 import { useOptimistic } from "@/hooks/useOptimistic";
 import { ErrorRecovery } from "@/components/ErrorRecovery";
 import { WaveformPreview } from "@/components/WaveformPreview";
@@ -236,6 +237,7 @@ export const ClipCard = ({
   const [clipFlair, setClipFlair] = useState<{ name: string; color: string; background_color: string } | null>(null);
   const [isVoiceCloningRequestDialogOpen, setIsVoiceCloningRequestDialogOpen] = useState(false);
   const [originalVoiceClip, setOriginalVoiceClip] = useState<Clip["original_voice_clip"]>(null);
+  const [isCaptionEditorOpen, setIsCaptionEditorOpen] = useState(false);
   const highlightNeedle = highlightQuery.trim();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const burstTimeoutRef = useRef<number | null>(null);
@@ -1245,14 +1247,28 @@ export const ClipCard = ({
               </div>
             )}
 
-            {clip.captions && (
-              <button
-                onClick={() => setShowCaptions(!showCaptions)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showCaptions ? "Hide" : "Show"} captions
-              </button>
-            )}
+            <div className="flex items-center justify-between gap-2">
+              {clip.captions && (
+                <button
+                  onClick={() => setShowCaptions(!showCaptions)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showCaptions ? "Hide" : "Show"} captions
+                </button>
+              )}
+              {isOwner && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCaptionEditorOpen(true)}
+                  className="h-6 px-2 text-xs"
+                  aria-label="Edit caption"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
 
             {/* Accessibility Options */}
             {(clip.sign_language_video_url || clip.audio_description_url) && (
@@ -1621,6 +1637,21 @@ export const ClipCard = ({
           fetchVoiceReactions();
         }}
       />
+
+      {/* Caption Editor */}
+      {isOwner && (
+        <CaptionEditor
+          clipId={clip.id}
+          currentCaption={clip.captions}
+          transcription={null}
+          isOpen={isCaptionEditorOpen}
+          onClose={() => setIsCaptionEditorOpen(false)}
+          onSave={(newCaption) => {
+            // Update local state - the component will re-render with new data
+            setIsCaptionEditorOpen(false);
+          }}
+        />
+      )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-3xl">

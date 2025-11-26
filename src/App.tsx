@@ -92,6 +92,7 @@ const Analytics = retryLazyImport(() => import("./pages/Analytics"));
 const Leaderboards = retryLazyImport(() => import("./pages/Leaderboards"));
 const SeriesList = retryLazyImport(() => import("./pages/SeriesList"));
 const SeriesDetail = retryLazyImport(() => import("./pages/SeriesDetail"));
+const RemixChallenges = retryLazyImport(() => import("./pages/RemixChallenges"));
 const AllTopics = retryLazyImport(() => import("./pages/AllTopics"));
 const RemixFeed = retryLazyImport(() => import("./pages/RemixFeed"));
 const VoiceAMAs = retryLazyImport(() => import("./pages/VoiceAMAs"));
@@ -209,6 +210,7 @@ const App = () => {
                         <Route path="/series" element={<SeriesList />} />
                         <Route path="/series/:seriesId" element={<SeriesDetail />} />
                         <Route path="/remixes" element={<RemixFeed />} />
+                        <Route path="/remix-challenges" element={<RemixChallenges />} />
                         <Route path="/voice-amas" element={<VoiceAMAs />} />
                         <Route path="/discovery" element={<Discovery />} />
                         <Route path="/admin" element={<Admin />} />

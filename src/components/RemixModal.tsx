@@ -13,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { trimAudio, getAudioDuration } from "@/utils/audioTrimming";
 import { normalizeAudioVolume, adjustAudioVolume } from "@/utils/audioNormalization";
 import { mixAudioTracks, AudioTrack } from "@/utils/audioMultiTrack";
-import { applyEcho, applyReverb, applyVoiceFilter, EchoOptions, ReverbOptions, VoiceFilterOptions } from "@/utils/audioEffects";
+import { applyEcho, applyReverb, applyVoiceFilter, adjustPitch, EchoOptions, ReverbOptions, VoiceFilterOptions, PitchOptions } from "@/utils/audioEffects";
+import { ClipSelectorModal } from "@/components/ClipSelectorModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -92,11 +93,12 @@ export const RemixModal = ({
   const [additionalClips, setAdditionalClips] = useState<AdditionalClip[]>([]); // Multi-clip support
   const [showMultiClip, setShowMultiClip] = useState(false);
   const [remixEffect, setRemixEffect] = useState<{
-    type: 'none' | 'echo' | 'reverb' | 'filter';
+    type: 'none' | 'echo' | 'reverb' | 'filter' | 'pitch';
     enabled: boolean;
     params: any;
   }>({ type: 'none', enabled: false, params: {} });
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [showClipSelector, setShowClipSelector] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -360,6 +362,8 @@ export const RemixModal = ({
             processedOriginal = await applyReverb(processedOriginal, remixEffect.params as ReverbOptions);
           } else if (remixEffect.type === 'filter') {
             processedOriginal = await applyVoiceFilter(processedOriginal, remixEffect.params as VoiceFilterOptions);
+          } else if (remixEffect.type === 'pitch') {
+            processedOriginal = await adjustPitch(processedOriginal, remixEffect.params as PitchOptions);
           }
         } catch (error) {
           logWarn('Failed to apply effect to original', error);
@@ -384,8 +388,18 @@ export const RemixModal = ({
       if (additionalClips.length > 0) {
         for (const clip of additionalClips) {
           if (clip.blob) {
+            let processedClip = clip.blob;
+            // Apply effects to additional clips if specified
+            if (clip.effectType && clip.effectType !== 'none') {
+              try {
+                // Effects can be applied per-clip in the future
+                // For now, we'll use the global remix effect
+              } catch (error) {
+                logWarn('Failed to apply effect to additional clip', error);
+              }
+            }
             tracks.push({
-              blob: clip.blob,
+              blob: processedClip,
               volume: clip.volume,
               startTime: clip.startOffset,
               fadeIn: 0.2,
@@ -749,13 +763,7 @@ export const RemixModal = ({
                         size="sm"
                         variant="outline"
                         className="w-full"
-                        onClick={async () => {
-                          // TODO: Open clip selector modal
-                          toast({
-                            title: "Feature coming soon",
-                            description: "Clip selector will be available soon",
-                          });
-                        }}
+                        onClick={() => setShowClipSelector(true)}
                       >
                         <FileAudio className="h-4 w-4 mr-2" />
                         Add Clip
@@ -780,28 +788,61 @@ export const RemixModal = ({
                     </label>
                   </div>
                   {remixEffect.enabled && (
-                    <Select
-                      value={remixEffect.type}
-                      onValueChange={(value: 'none' | 'echo' | 'reverb' | 'filter') => {
-                        setRemixEffect({
-                          type: value,
-                          enabled: true,
-                          params: value === 'echo' ? { delay: 0.2, feedback: 0.3, wetLevel: 0.5 } :
-                                  value === 'reverb' ? { roomSize: 0.5, damping: 0.5, wetLevel: 0.3 } :
-                                  value === 'filter' ? { type: 'robot', intensity: 0.5 } : {}
-                        });
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="echo">Echo</SelectItem>
-                        <SelectItem value="reverb">Reverb</SelectItem>
-                        <SelectItem value="filter">Voice Filter</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-3">
+                      <Select
+                        value={remixEffect.type}
+                        onValueChange={(value: 'none' | 'echo' | 'reverb' | 'filter' | 'pitch') => {
+                          setRemixEffect({
+                            type: value,
+                            enabled: true,
+                            params: value === 'echo' ? { delay: 0.2, feedback: 0.3, wetLevel: 0.5 } :
+                                    value === 'reverb' ? { roomSize: 0.5, damping: 0.5, wetLevel: 0.3 } :
+                                    value === 'filter' ? { type: 'robot', intensity: 0.5 } :
+                                    value === 'pitch' ? { semitones: 0 } : {}
+                          });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="echo">Echo</SelectItem>
+                          <SelectItem value="reverb">Reverb</SelectItem>
+                          <SelectItem value="filter">Voice Filter</SelectItem>
+                          <SelectItem value="pitch">Pitch Shift</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Pitch Controls */}
+                      {remixEffect.type === 'pitch' && (
+                        <div className="space-y-2 p-3 rounded-lg bg-muted/40">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Pitch (semitones)</span>
+                            <span className="font-medium">
+                              {remixEffect.params.semitones > 0 ? '+' : ''}
+                              {remixEffect.params.semitones}
+                            </span>
+                          </div>
+                          <Slider
+                            value={[remixEffect.params.semitones || 0]}
+                            onValueChange={([value]) => {
+                              setRemixEffect({
+                                ...remixEffect,
+                                params: { semitones: Math.max(-12, Math.min(12, value)) }
+                              });
+                            }}
+                            min={-12}
+                            max={12}
+                            step={1}
+                            className="w-full"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Range: -12 (lower) to +12 (higher) semitones
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </TabsContent>
@@ -1051,6 +1092,48 @@ export const RemixModal = ({
             </>
           )}
         </div>
+
+        {/* Clip Selector Modal */}
+        <ClipSelectorModal
+          isOpen={showClipSelector}
+          onClose={() => setShowClipSelector(false)}
+          onSelect={async (clip) => {
+            try {
+              // Download the clip audio
+              const { data, error } = await supabase.storage
+                .from("clips")
+                .download(clip.audio_path);
+
+              if (error) throw error;
+              if (!data) return;
+
+              const newClip: AdditionalClip = {
+                id: clip.id,
+                audio_path: clip.audio_path,
+                title: clip.title || null,
+                blob: data,
+                volume: 0.7,
+                startOffset: 0,
+                effectType: 'none',
+              };
+
+              setAdditionalClips([...additionalClips, newClip]);
+              toast({
+                title: "Clip added",
+                description: "Clip has been added to your remix",
+              });
+            } catch (error) {
+              logError("Failed to load clip", error);
+              toast({
+                title: "Failed to add clip",
+                description: "Please try again.",
+                variant: "destructive",
+              });
+            }
+          }}
+          excludeClipIds={[originalClipId, ...additionalClips.map(c => c.id)]}
+          maxClips={3}
+        />
       </DialogContent>
     </Dialog>
   );

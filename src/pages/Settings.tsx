@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CityOptInDialog } from "@/components/CityOptInDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AccessibilitySettings } from "@/components/AccessibilitySettings";
 import { useProfile } from "@/hooks/useProfile";
 import { useDevices } from "@/hooks/useDevices";
 import { useBlockedUsers, useBlock } from "@/hooks/useBlock";
@@ -1435,6 +1436,9 @@ const Settings = () => {
                 </TabsTrigger>
                 <TabsTrigger value="downloads" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
                   Downloads
+                </TabsTrigger>
+                <TabsTrigger value="accessibility" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
+                  Accessibility
                 </TabsTrigger>
               </TabsList>
             </div>
