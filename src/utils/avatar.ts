@@ -4,6 +4,20 @@
  * instead of emojis (e.g., "sun" instead of "☀️")
  */
 const AVATAR_TYPE_TO_EMOJI: Record<string, string> = {
+  // New audio/speakeasy avatars
+  mic: '🎤',
+  speaker: '🔊',
+  headphones: '🎧',
+  radio: '📻',
+  vinyl: '💿',
+  amp: '🎸',
+  reverb: '🌊',
+  echo: '📡',
+  static: '📺',
+  waveform: '〰️',
+  mixer: '🎛️',
+  booth: '🎪',
+  // Legacy nature avatars (for backward compatibility)
   sun: '☀️',
   moon: '🌙',
   star: '⭐',

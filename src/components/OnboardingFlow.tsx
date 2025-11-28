@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Wand2, CheckCircle2, Leaf, Flower2, Trees } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import ReCAPTCHA from "react-google-recaptcha";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -13,36 +14,36 @@ import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
 
-// Nature-themed SVG avatar types
-type AvatarType = 'leaf' | 'flower' | 'tree' | 'mountain' | 'wave' | 'sun' | 'moon' | 'star' | 'butterfly' | 'bird' | 'fern' | 'cactus';
+// Audio/speakeasy-themed SVG avatar types
+type AvatarType = 'mic' | 'speaker' | 'headphones' | 'radio' | 'vinyl' | 'amp' | 'reverb' | 'echo' | 'static' | 'waveform' | 'mixer' | 'booth';
 
 // Map avatar types to emojis for display
 const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
-  leaf: '🍃',
-  flower: '🌸',
-  tree: '🌳',
-  mountain: '⛰️',
-  wave: '🌊',
-  sun: '☀️',
-  moon: '🌙',
-  star: '⭐',
-  butterfly: '🦋',
-  bird: '🐦',
-  fern: '🌿',
-  cactus: '🌵',
+  mic: '🎤',
+  speaker: '🔊',
+  headphones: '🎧',
+  radio: '📻',
+  vinyl: '💿',
+  amp: '🎸',
+  reverb: '🌊',
+  echo: '📡',
+  static: '📺',
+  waveform: '〰️',
+  mixer: '🎛️',
+  booth: '🎪',
 };
 
 const AVATAR_TYPES: AvatarType[] = [
-  'leaf', 'flower', 'tree', 'mountain', 'wave', 'sun', 
-  'moon', 'star', 'butterfly', 'bird', 'fern', 'cactus'
+  'mic', 'speaker', 'headphones', 'radio', 'vinyl', 'amp', 
+  'reverb', 'echo', 'static', 'waveform', 'mixer', 'booth'
 ];
 
-const NATURE_ADJECTIVES = ["Sunny", "Misty", "Breezy", "Calm", "Bright", "Gentle", "Wild", "Quiet", "Warm", "Cool", "Fresh", "Golden"];
-const NATURE_NOUNS = ["Meadow", "Grove", "Brook", "Valley", "Ridge", "Peak", "Forest", "Garden", "Field", "Glade", "Stream", "Hill"];
+const SPEAKEASY_ADJECTIVES = ["Deep", "Smooth", "Rough", "Bass", "Sharp", "Warm", "Cool", "Raw", "Crisp", "Low", "High", "Loud"];
+const SPEAKEASY_NOUNS = ["Voice", "Echo", "Static", "Signal", "Wave", "Tone", "Sound", "Vibe", "Beat", "Flow", "Pulse", "Reverb"];
 
 const generateHandle = () => {
-  const adj = NATURE_ADJECTIVES[Math.floor(Math.random() * NATURE_ADJECTIVES.length)];
-  const noun = NATURE_NOUNS[Math.floor(Math.random() * NATURE_NOUNS.length)];
+  const adj = SPEAKEASY_ADJECTIVES[Math.floor(Math.random() * SPEAKEASY_ADJECTIVES.length)];
+  const noun = SPEAKEASY_NOUNS[Math.floor(Math.random() * SPEAKEASY_NOUNS.length)];
   const num = Math.floor(Math.random() * 100);
   return `${adj}${noun}${num}`;
 };
@@ -56,96 +57,76 @@ const generateAvatarFromHandle = (handle: string): AvatarType => {
   return AVATAR_TYPES[Math.abs(hash) % AVATAR_TYPES.length];
 };
 
-// SVG Garden Components
-const ButterflySVG = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="butterflyWing1" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#f472b6" />
-        <stop offset="50%" stopColor="#ec4899" />
-        <stop offset="100%" stopColor="#db2777" />
-      </linearGradient>
-      <linearGradient id="butterflyWing2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#a78bfa" />
-        <stop offset="50%" stopColor="#8b5cf6" />
-        <stop offset="100%" stopColor="#7c3aed" />
-      </linearGradient>
-    </defs>
-    <path d="M50 20 C45 25, 35 30, 30 35 C25 40, 20 50, 25 55 C30 60, 40 55, 45 50 C50 45, 55 50, 60 55 C65 60, 75 55, 80 50 C85 45, 80 35, 75 30 C70 25, 60 20, 50 20 Z" fill="url(#butterflyWing1)" opacity="0.9"/>
-    <path d="M50 20 C55 25, 65 30, 70 35 C75 40, 80 50, 75 55 C70 60, 60 55, 55 50 C50 45, 45 50, 40 55 C35 60, 25 55, 20 50 C15 45, 20 35, 25 30 C30 25, 40 20, 50 20 Z" fill="url(#butterflyWing2)" opacity="0.9"/>
-    <circle cx="50" cy="50" r="3" fill="#1e293b"/>
-    <circle cx="50" cy="50" r="1.5" fill="#fef3c7"/>
-    <path d="M50 20 L50 50" stroke="#1e293b" strokeWidth="1.5" opacity="0.6"/>
-    <circle cx="35" cy="40" r="2" fill="#fef3c7" opacity="0.7"/>
-    <circle cx="65" cy="40" r="2" fill="#fef3c7" opacity="0.7"/>
-    <circle cx="30" cy="50" r="1.5" fill="#fef3c7" opacity="0.6"/>
-    <circle cx="70" cy="50" r="1.5" fill="#fef3c7" opacity="0.6"/>
-  </svg>
-);
+// Sophisticated gradient-based avatar system with icons
+// Each avatar has a unique color gradient and icon combination
+type AvatarConfig = {
+  icon: React.ComponentType<{ className?: string }>;
+  gradientClasses: string;
+  emoji: string;
+};
 
-const FlowerSVG = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.9"/>
-    <ellipse cx="50" cy="35" rx="6" ry="12" fill="currentColor" opacity="0.7"/>
-    <ellipse cx="65" cy="50" rx="12" ry="6" fill="currentColor" opacity="0.7"/>
-    <ellipse cx="50" cy="65" rx="6" ry="12" fill="currentColor" opacity="0.7"/>
-    <ellipse cx="35" cy="50" rx="12" ry="6" fill="currentColor" opacity="0.7"/>
-    <ellipse cx="60" cy="40" rx="6" ry="12" fill="currentColor" opacity="0.6" transform="rotate(45 60 40)"/>
-    <ellipse cx="60" cy="60" rx="6" ry="12" fill="currentColor" opacity="0.6" transform="rotate(-45 60 60)"/>
-    <ellipse cx="40" cy="60" rx="6" ry="12" fill="currentColor" opacity="0.6" transform="rotate(45 40 60)"/>
-    <ellipse cx="40" cy="40" rx="6" ry="12" fill="currentColor" opacity="0.6" transform="rotate(-45 40 40)"/>
-  </svg>
-);
-
-const LeafSVG = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 10 C30 20, 20 40, 25 60 C30 80, 50 90, 70 85 C90 80, 95 60, 85 40 C75 20, 60 10, 50 10 Z" fill="currentColor" opacity="0.7"/>
-    <path d="M50 10 L50 90 M30 50 L70 50" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
-  </svg>
-);
-
-const BranchSVG = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 200 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M10 50 Q30 40, 50 45 T90 50 T130 55 T170 60" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.6"/>
-    <circle cx="50" cy="45" r="4" fill="currentColor" opacity="0.5"/>
-    <circle cx="90" cy="50" r="4" fill="currentColor" opacity="0.5"/>
-    <circle cx="130" cy="55" r="4" fill="currentColor" opacity="0.5"/>
-  </svg>
-);
-
-const SunflowerSVG = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="12" fill="#8B4513" opacity="0.8"/>
-    <ellipse cx="50" cy="30" rx="8" ry="20" fill="#FFD700" opacity="0.9"/>
-    <ellipse cx="70" cy="50" rx="20" ry="8" fill="#FFD700" opacity="0.9"/>
-    <ellipse cx="50" cy="70" rx="8" ry="20" fill="#FFD700" opacity="0.9"/>
-    <ellipse cx="30" cy="50" rx="20" ry="8" fill="#FFD700" opacity="0.9"/>
-    <ellipse cx="65" cy="35" rx="8" ry="20" fill="#FFA500" opacity="0.7" transform="rotate(45 65 35)"/>
-    <ellipse cx="65" cy="65" rx="8" ry="20" fill="#FFA500" opacity="0.7" transform="rotate(-45 65 65)"/>
-    <ellipse cx="35" cy="65" rx="8" ry="20" fill="#FFA500" opacity="0.7" transform="rotate(45 35 65)"/>
-    <ellipse cx="35" cy="35" rx="8" ry="20" fill="#FFA500" opacity="0.7" transform="rotate(-45 35 35)"/>
-  </svg>
-);
-
-// Avatar SVG Components with colors and enhanced details
-const AvatarLeaf = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#22c55e" />
-        <stop offset="50%" stopColor="#16a34a" />
-        <stop offset="100%" stopColor="#15803d" />
-      </linearGradient>
-    </defs>
-    <path d="M50 10 C30 20, 20 40, 25 60 C30 80, 50 90, 70 85 C90 80, 95 60, 85 40 C75 20, 60 10, 50 10 Z" fill="url(#leafGrad)"/>
-    <path d="M50 10 C30 20, 20 40, 25 60 C30 80, 50 90, 70 85 C90 80, 95 60, 85 40 C75 20, 60 10, 50 10 Z" fill="#10b981" opacity="0.3"/>
-    <path d="M50 10 L50 90" stroke="#15803d" strokeWidth="2" opacity="0.4"/>
-    <path d="M30 50 L70 50" stroke="#15803d" strokeWidth="1.5" opacity="0.3"/>
-    <circle cx="45" cy="35" r="2" fill="#86efac" opacity="0.6"/>
-    <circle cx="55" cy="45" r="1.5" fill="#86efac" opacity="0.6"/>
-    <circle cx="40" cy="60" r="1.5" fill="#86efac" opacity="0.6"/>
-  </svg>
-);
+const AVATAR_CONFIGS: Record<AvatarType, AvatarConfig> = {
+  mic: {
+    icon: Mic,
+    gradientClasses: 'bg-gradient-to-br from-amber-600 to-red-600 dark:from-amber-500 dark:to-red-500',
+    emoji: '🎤',
+  },
+  speaker: {
+    icon: Speaker,
+    gradientClasses: 'bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-500 dark:to-slate-700',
+    emoji: '🔊',
+  },
+  headphones: {
+    icon: Headphones,
+    gradientClasses: 'bg-gradient-to-br from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500',
+    emoji: '🎧',
+  },
+  radio: {
+    icon: Radio,
+    gradientClasses: 'bg-gradient-to-br from-amber-700 to-orange-700 dark:from-amber-600 dark:to-orange-600',
+    emoji: '📻',
+  },
+  vinyl: {
+    icon: Music,
+    gradientClasses: 'bg-gradient-to-br from-gray-700 to-gray-900 dark:from-gray-600 dark:to-gray-800',
+    emoji: '💿',
+  },
+  amp: {
+    icon: Zap,
+    gradientClasses: 'bg-gradient-to-br from-yellow-600 to-amber-600 dark:from-yellow-500 dark:to-amber-500',
+    emoji: '🎸',
+  },
+  reverb: {
+    icon: Volume2,
+    gradientClasses: 'bg-gradient-to-br from-blue-600 to-cyan-600 dark:from-blue-500 dark:to-cyan-500',
+    emoji: '🌊',
+  },
+  echo: {
+    icon: RadioIcon,
+    gradientClasses: 'bg-gradient-to-br from-red-600 to-pink-600 dark:from-red-500 dark:to-pink-500',
+    emoji: '📡',
+  },
+  static: {
+    icon: RadioIcon,
+    gradientClasses: 'bg-gradient-to-br from-gray-600 to-slate-700 dark:from-gray-500 dark:to-slate-600',
+    emoji: '📺',
+  },
+  waveform: {
+    icon: Music,
+    gradientClasses: 'bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500',
+    emoji: '〰️',
+  },
+  mixer: {
+    icon: Radio,
+    gradientClasses: 'bg-gradient-to-br from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500',
+    emoji: '🎛️',
+  },
+  booth: {
+    icon: Mic,
+    gradientClasses: 'bg-gradient-to-br from-rose-600 to-red-600 dark:from-rose-500 dark:to-red-500',
+    emoji: '🎪',
+  },
+};
 
 const AvatarFlower = ({ className = "" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -359,24 +340,19 @@ const AvatarCactus = ({ className = "" }: { className?: string }) => (
   </svg>
 );
 
-// Avatar component selector
-const NatureAvatar = ({ type, className = "" }: { type: AvatarType; className?: string }) => {
-  const components = {
-    leaf: AvatarLeaf,
-    flower: AvatarFlower,
-    tree: AvatarTree,
-    mountain: AvatarMountain,
-    wave: AvatarWave,
-    sun: AvatarSun,
-    moon: AvatarMoon,
-    star: AvatarStar,
-    butterfly: ButterflySVG,
-    bird: AvatarBird,
-    fern: AvatarFern,
-    cactus: AvatarCactus,
-  };
-  const Component = components[type];
-  return <Component className={className} />;
+// Sophisticated gradient avatar system - gradient circles with icons
+const AudioAvatar = ({ type, className = "" }: { type: AvatarType; className?: string }) => {
+  const config = AVATAR_CONFIGS[type] || AVATAR_CONFIGS.mic;
+  const IconComponent = config.icon;
+  
+  return (
+    <div 
+      className={`rounded-full ${config.gradientClasses} flex items-center justify-center shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      style={{ minWidth: '100%', minHeight: '100%', aspectRatio: '1' }}
+    >
+      <IconComponent className="text-white opacity-95" style={{ width: '60%', height: '60%', strokeWidth: 2 }} />
+    </div>
+  );
 };
 
 interface OnboardingFlowProps {
@@ -846,7 +822,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       
       toast({
         title: "Welcome to Echo Garden!",
-        description: "Your garden identity has been created.",
+        description: "Your identity has been created. Start speaking your mind.",
       });
       
       onComplete(data.id);
@@ -865,149 +841,80 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   // CRITICAL: Wrap entire render in try-catch to prevent crashes
   try {
     return (
-      <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-green-50/60 via-emerald-50/40 via-teal-50/30 to-amber-50/20 dark:from-green-950/30 dark:via-emerald-950/20 dark:via-teal-950/15 dark:to-amber-950/10">
-      {/* Enhanced Nature-themed background elements */}
+      <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Dark speakeasy background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        {/* Animated gradient orbs */}
-        <div className="absolute top-20 left-10 w-64 h-64 bg-green-200/15 dark:bg-green-800/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-emerald-200/15 dark:bg-emerald-800/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-100/8 dark:bg-teal-900/6 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-amber-100/10 dark:bg-amber-900/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '7s' }} />
+        {/* Subtle animated gradient orbs - burgundy/amber accents */}
+        <div className="absolute top-20 left-10 w-64 h-64 bg-amber-900/10 dark:bg-amber-900/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-red-950/10 dark:bg-red-950/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-950/5 dark:bg-amber-950/3 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
         
-        {/* Floating SVG Garden Elements */}
-        <div className="absolute top-0 left-0 w-full h-full">
-          {/* Butterflies */}
-          <div className="absolute top-20 left-16 text-green-400/20 dark:text-green-500/10 animate-bounce" style={{ animationDuration: '3s', animationDelay: '0s' }}>
-            <ButterflySVG className="w-16 h-16" />
-          </div>
-          <div className="absolute top-40 right-24 text-emerald-400/20 dark:text-emerald-500/10 animate-bounce" style={{ animationDuration: '4s', animationDelay: '1s' }}>
-            <ButterflySVG className="w-12 h-12" />
-          </div>
-          <div className="absolute bottom-40 left-1/3 text-teal-400/20 dark:text-teal-500/10 animate-bounce" style={{ animationDuration: '5s', animationDelay: '2s' }}>
-            <ButterflySVG className="w-14 h-14" />
-          </div>
-
-          {/* Flowers */}
-          <div className="absolute top-32 right-16 text-pink-300/25 dark:text-pink-600/15 animate-pulse" style={{ animationDuration: '4s' }}>
-            <FlowerSVG className="w-20 h-20" />
-          </div>
-          <div className="absolute bottom-32 left-20 text-purple-300/25 dark:text-purple-600/15 animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }}>
-            <FlowerSVG className="w-24 h-24" />
-          </div>
-          <div className="absolute top-1/2 right-1/3 text-rose-300/25 dark:text-rose-600/15 animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }}>
-            <FlowerSVG className="w-18 h-18" />
-          </div>
-
-          {/* Sunflowers */}
-          <div className="absolute top-16 right-1/4 opacity-30 dark:opacity-20 animate-pulse" style={{ animationDuration: '5s' }}>
-            <SunflowerSVG className="w-28 h-28" />
-          </div>
-          <div className="absolute bottom-24 right-1/3 opacity-30 dark:opacity-20 animate-pulse" style={{ animationDuration: '6s', animationDelay: '1.5s' }}>
-            <SunflowerSVG className="w-32 h-32" />
-          </div>
-
-          {/* Leaves */}
-          <div className="absolute top-10 left-1/4 text-green-500/20 dark:text-green-600/10 animate-pulse" style={{ animationDuration: '3s' }}>
-            <LeafSVG className="w-24 h-24 rotate-12" />
-          </div>
-          <div className="absolute bottom-20 right-1/4 text-emerald-500/20 dark:text-emerald-600/10 animate-pulse" style={{ animationDuration: '4s', animationDelay: '1s' }}>
-            <LeafSVG className="w-28 h-28 -rotate-12" />
-          </div>
-          <div className="absolute top-1/3 left-10 text-teal-500/20 dark:text-teal-600/10 animate-pulse" style={{ animationDuration: '5s', animationDelay: '2s' }}>
-            <LeafSVG className="w-20 h-20 rotate-45" />
-          </div>
-
-          {/* Branches */}
-          <div className="absolute bottom-10 left-10 text-green-600/15 dark:text-green-700/8 opacity-60">
-            <BranchSVG className="w-40 h-20 rotate-12" />
-          </div>
-          <div className="absolute top-1/4 right-10 text-emerald-600/15 dark:text-emerald-700/8 opacity-60">
-            <BranchSVG className="w-48 h-24 -rotate-12" />
-          </div>
-
-          {/* Lucide Icons for additional depth */}
-          <div className="absolute top-60 left-32 text-green-400/15 dark:text-green-600/8 animate-pulse" style={{ animationDuration: '4s' }}>
-            <Leaf className="w-20 h-20 rotate-45" />
-          </div>
-          <div className="absolute bottom-60 right-32 text-emerald-400/15 dark:text-emerald-600/8 animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }}>
-            <Flower2 className="w-24 h-24 -rotate-12" />
-          </div>
-          <div className="absolute top-1/2 left-16 text-teal-400/15 dark:text-teal-600/8 animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }}>
-            <Trees className="w-32 h-32 rotate-12" />
-          </div>
-        </div>
-
-        {/* Subtle grid pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.008]" style={{
+        {/* Subtle grid pattern overlay - darker speakeasy vibe */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02]" style={{
           backgroundImage: `radial-gradient(circle, currentColor 1px, transparent 1px)`,
           backgroundSize: '40px 40px'
         }} />
+        
+        {/* Animated gradient orbs for depth */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-red-950/10 dark:bg-red-950/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-amber-950/10 dark:bg-amber-950/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 lg:items-center">
-          {/* Left side - Enhanced Nature-themed welcome */}
-          <div className="space-y-8 text-center lg:text-left relative z-10">
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-green-100/90 to-emerald-100/90 dark:from-green-900/40 dark:to-emerald-900/40 px-5 py-2.5 text-sm font-semibold text-green-700 dark:text-green-300 border border-green-200/60 dark:border-green-800/50 shadow-sm backdrop-blur-md">
-              <Leaf className="h-4 w-4 animate-pulse" style={{ animationDuration: '2s' }} />
+          {/* Left side - Speakeasy Reddit-themed welcome */}
+          <div className="space-y-8 text-center lg:text-left relative z-10 animate-in fade-in-0 slide-in-from-left-5 duration-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-950/40 to-red-950/40 dark:from-amber-900/30 dark:to-red-900/30 px-5 py-2.5 text-sm font-semibold text-amber-300 dark:text-amber-400 border border-amber-800/40 dark:border-amber-800/30 shadow-sm backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-500">
+              <Mic className="h-4 w-4" />
               Welcome to Echo Garden
             </div>
 
             <div className="space-y-6">
               <div className="relative">
-                <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl leading-tight">
-                  Plant Your
-                  <span className="block bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 dark:from-green-400 dark:via-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
-                    Garden Identity
+                <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl leading-tight animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150">
+                  Find Your
+                  <span className="block bg-gradient-to-r from-amber-500 via-amber-400 to-red-500 dark:from-amber-400 dark:via-amber-300 dark:to-red-400 bg-clip-text text-transparent animate-in fade-in-0 duration-1000 delay-300">
+                    Voice
                   </span>
                 </h1>
-                {/* Decorative SVG elements around title */}
-                <div className="absolute -top-4 -left-4 text-green-400/20 dark:text-green-600/10 animate-pulse pointer-events-none" style={{ animationDuration: '3s' }}>
-                  <FlowerSVG className="w-12 h-12" />
-                </div>
-                <div className="absolute -bottom-2 -right-4 text-emerald-400/20 dark:text-emerald-600/10 animate-pulse pointer-events-none" style={{ animationDuration: '4s', animationDelay: '1s' }}>
-                  <LeafSVG className="w-10 h-10 rotate-45" />
-                </div>
               </div>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
-                Choose your nature avatar and a peaceful handle. Join the garden where voices grow like wildflowers—gentle, anonymous, and free.
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300">
+                Choose your avatar and handle. Join the underground where voices echo—raw, anonymous, real.
               </p>
             </div>
 
             {/* Expanded content section */}
-            <div className="space-y-6 pt-4">
-              <div className="prose prose-green dark:prose-invert max-w-none">
-                <h3 className="text-2xl font-bold text-foreground mb-3">What is Echo Garden?</h3>
+            <div className="space-y-6 pt-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-450">
+              <div className="prose dark:prose-invert max-w-none">
+                <h3 className="text-2xl font-bold text-foreground mb-3 flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-amber-400 dark:text-amber-400" />
+                  What is Echo Garden?
+                </h3>
                 <p className="text-base text-muted-foreground leading-relaxed mb-4">
-                  Echo Garden is a peaceful space for authentic voice expression. Share 30-second audio clips about your thoughts, experiences, and moments. Your identity remains anonymous—only your voice and chosen handle are visible to the community.
+                  Echo Garden is Reddit for your voice. Share 30-second audio clips—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
                 </p>
                 <p className="text-base text-muted-foreground leading-relaxed mb-4">
-                  Every voice matters here. Whether you're sharing a quiet reflection, a moment of joy, or a thoughtful observation, the garden welcomes all perspectives with kindness and respect.
+                  Speak your mind. Listen to others. Upvote what hits. No BS, no filters—just raw voice in an underground community.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-green-200/60 dark:border-green-800/40 bg-gradient-to-br from-green-50/30 to-emerald-50/20 dark:from-green-950/20 dark:to-emerald-950/10 p-6">
+              <div className="rounded-2xl border border-amber-900/40 dark:border-amber-800/30 bg-gradient-to-br from-amber-950/20 to-red-950/20 dark:from-amber-950/15 dark:to-red-950/15 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-800/50">
                 <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Trees className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <Radio className="h-5 w-5 text-amber-400 dark:text-amber-400 animate-pulse" />
                   How It Works
                 </h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 mt-1">•</span>
-                    <span>Record or upload 30-second audio clips about anything on your mind</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 mt-1">•</span>
-                    <span>Connect with others through voice—listen, respond, and grow together</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 mt-1">•</span>
-                    <span>AI moderation ensures a safe, welcoming environment for everyone</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-green-600 dark:text-green-400 mt-1">•</span>
-                    <span>Your privacy is protected—no personal information required</span>
-                  </li>
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  {[
+                    "Record or upload 30-second audio clips about anything",
+                    "Listen to voices, react, reply—engage with the community",
+                    "AI moderation keeps it real—trolls get filtered out",
+                    "Stay anonymous—no personal info required, ever"
+                  ].map((item, index) => (
+                    <li key={index} className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-left-2" style={{ animationDelay: `${index * 100}ms` }}>
+                      <span className="text-amber-400 dark:text-amber-400 mt-1 font-bold">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -1015,32 +922,36 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <div className="grid gap-4 sm:grid-cols-3 pt-4">
               {[
                 { 
-                  icon: Leaf, 
-                  title: "Natural & Safe",
-                  description: "Anonymous by design, your voice blooms without revealing who you are",
-                  iconBg: "from-green-100 to-green-200 dark:from-green-900/50 dark:to-green-800/50",
-                  iconColor: "text-green-600 dark:text-green-400"
+                  icon: Mic, 
+                  title: "Anonymous & Raw",
+                  description: "Speak freely—your identity stays hidden, only your voice shows",
+                  iconBg: "from-amber-900/50 to-amber-800/50 dark:from-amber-900/40 dark:to-amber-800/40",
+                  iconColor: "text-amber-400 dark:text-amber-400",
+                  delay: 0
                 },
                 { 
-                  icon: Flower2, 
-                  title: "30-Second Stories",
-                  description: "Short, mindful moments. Share when the mood strikes you",
-                  iconBg: "from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50",
-                  iconColor: "text-emerald-600 dark:text-emerald-400"
+                  icon: Headphones, 
+                  title: "30-Second Clips",
+                  description: "Quick hits. Record your thoughts in under 30 seconds",
+                  iconBg: "from-red-900/50 to-red-800/50 dark:from-red-900/40 dark:to-red-800/40",
+                  iconColor: "text-red-400 dark:text-red-400",
+                  delay: 100
                 },
                 { 
-                  icon: Trees, 
-                  title: "Kind Community",
-                  description: "AI moderation keeps the garden peaceful and welcoming",
-                  iconBg: "from-teal-100 to-teal-200 dark:from-teal-900/50 dark:to-teal-800/50",
-                  iconColor: "text-teal-600 dark:text-teal-400"
+                  icon: Radio, 
+                  title: "Real Community",
+                  description: "AI filters the noise. Real voices, real conversations",
+                  iconBg: "from-amber-800/50 to-red-800/50 dark:from-amber-800/40 dark:to-red-800/40",
+                  iconColor: "text-amber-400 dark:text-amber-400",
+                  delay: 200
                 },
-              ].map(({ icon: Icon, title, description, iconBg, iconColor }) => (
+              ].map(({ icon: Icon, title, description, iconBg, iconColor, delay }) => (
                 <div
                   key={title}
-                  className="group flex flex-col gap-3 rounded-2xl border border-green-200/60 dark:border-green-800/40 bg-gradient-to-br from-green-50/40 to-emerald-50/30 dark:from-green-950/30 dark:to-emerald-950/20 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-green-50/60 hover:to-emerald-50/40 dark:hover:from-green-950/40 dark:hover:to-emerald-950/30 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 hover:-translate-y-1"
+                  className="group flex flex-col gap-3 rounded-2xl border border-amber-900/40 dark:border-amber-800/30 bg-gradient-to-br from-amber-950/20 to-red-950/20 dark:from-amber-950/15 dark:to-red-950/15 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-amber-950/30 hover:to-red-950/30 dark:hover:from-amber-950/25 dark:hover:to-red-950/25 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1 animate-in fade-in-0 slide-in-from-bottom-3"
+                  style={{ animationDelay: `${delay}ms` }}
                 >
-                  <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
                     <Icon className="h-7 w-7" />
                   </div>
                   <div>
@@ -1053,52 +964,64 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Right side - Enhanced form with decorative elements */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-green-200/60 dark:border-green-800/40 shadow-2xl bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl relative overflow-hidden">
-            {/* Decorative corner elements */}
-            <div className="absolute top-0 right-0 text-green-300/10 dark:text-green-700/10 pointer-events-none">
-              <FlowerSVG className="w-24 h-24 -translate-y-8 translate-x-8" />
-            </div>
-            <div className="absolute bottom-0 left-0 text-emerald-300/10 dark:text-emerald-700/10 pointer-events-none">
-              <LeafSVG className="w-20 h-20 translate-y-8 -translate-x-8 rotate-45" />
+          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-amber-900/40 dark:border-amber-800/30 shadow-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl relative overflow-hidden animate-in fade-in-0 slide-in-from-right-5 duration-700 transition-all duration-300">
+            
+            {/* Decorative corner accents */}
+            <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-amber-800/20 dark:border-amber-700/20 rounded-tl-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-20 h-20 border-b-2 border-r-2 border-amber-800/20 dark:border-amber-700/20 rounded-br-2xl"></div>
+
+            {/* Progress Indicator */}
+            <div className="px-6 pt-6 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-muted-foreground">Setup Progress</span>
+                <span className="text-xs font-semibold text-amber-400">
+                  {Math.round((((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3) * 100)}%
+                </span>
+              </div>
+              <Progress 
+                value={((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3 * 100} 
+                className="h-2 bg-amber-950/30 dark:bg-amber-950/20"
+              />
             </div>
 
-            <CardHeader className="space-y-3 text-center pb-6 relative z-10">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-green-100 via-emerald-100 to-teal-100 dark:from-green-900/50 dark:via-emerald-900/50 dark:to-teal-900/50 mb-3 shadow-lg ring-2 ring-green-200/50 dark:ring-green-800/30">
-                <NatureAvatar type={selectedAvatar} className="w-14 h-14" />
+            <CardHeader className="space-y-3 text-center pb-6 relative z-10 px-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-900/50 via-amber-800/50 to-red-900/50 dark:from-amber-900/40 dark:via-amber-800/40 dark:to-red-900/40 mb-3 shadow-lg ring-2 ring-amber-800/30 dark:ring-amber-800/20 animate-in zoom-in-50 duration-500 hover:scale-105 transition-transform duration-300">
+                <AudioAvatar type={selectedAvatar} className="w-14 h-14" />
               </div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-700 to-emerald-700 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-400 dark:to-amber-300 bg-clip-text text-transparent animate-in fade-in-0 slide-in-from-bottom-2 duration-700">
                 Create Your Identity
               </CardTitle>
-              <p className="text-sm text-muted-foreground font-medium">
+              <p className="text-sm text-muted-foreground font-medium animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
                 Pick an avatar and choose your handle
               </p>
             </CardHeader>
 
             <CardContent className="space-y-6 relative z-10">
-              {/* Avatar Selection - Enhanced grid */}
+              {/* Avatar Selection */}
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Flower2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Mic className="h-4 w-4 text-amber-400 dark:text-amber-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-4 gap-3 p-3 rounded-xl bg-green-50/30 dark:bg-green-950/20 border border-green-200/30 dark:border-green-800/20">
-                  {AVATAR_TYPES.map((avatarType) => {
+                <div className="grid grid-cols-4 gap-3 p-3 rounded-xl bg-amber-950/20 dark:bg-amber-950/10 border border-amber-900/30 dark:border-amber-800/20">
+                  {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
                       <button
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all duration-200 ${
+                        className={`flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all duration-300 animate-in fade-in-0 zoom-in-95 ${
                           isActive
-                            ? "border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/60 dark:to-emerald-950/40 scale-110 shadow-lg shadow-green-500/30 ring-2 ring-green-400/20"
-                            : "border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:bg-green-50/50 dark:hover:bg-green-950/20 hover:scale-105"
+                            ? "border-amber-500 bg-gradient-to-br from-amber-950/60 to-red-950/40 dark:from-amber-950/50 dark:to-red-950/40 scale-110 shadow-lg shadow-amber-500/30 ring-2 ring-amber-400/20 z-10"
+                            : "border-slate-700 dark:border-slate-600 hover:border-amber-500 dark:hover:border-amber-600 hover:bg-amber-950/30 dark:hover:bg-amber-950/20 hover:scale-105 active:scale-95"
                         }`}
+                        style={{ animationDelay: `${index * 30}ms` }}
                         title={avatarType.charAt(0).toUpperCase() + avatarType.slice(1)}
                       >
-                        <NatureAvatar 
+                        <AudioAvatar 
                           type={avatarType} 
-                          className="w-10 h-10"
+                          className={`w-10 h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
                         />
                       </button>
                     );
@@ -1109,31 +1032,44 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               {/* Handle Input */}
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Leaf className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Radio className="h-4 w-4 text-amber-400 dark:text-amber-400" />
                   Your Handle
                 </label>
-                <div className="flex gap-2">
+                <div className="relative flex gap-2">
                   <Input
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
-                    placeholder="SunnyMeadow42"
+                    placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-12 text-center text-lg font-medium tracking-wide border-2 border-green-200 dark:border-green-800 focus:border-green-500 dark:focus:border-green-500 focus:ring-2 focus:ring-green-500/20 bg-white/80 dark:bg-gray-900/80"
+                    className="h-12 text-center text-lg font-medium tracking-wide border-2 border-amber-900/40 dark:border-amber-800/30 focus:border-amber-500 dark:focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 bg-slate-900/80 dark:bg-slate-950/80 text-foreground transition-all duration-200"
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => setHandle(generateHandle())}
-                    className="h-12 w-12 shrink-0 border-2 border-green-200 dark:border-green-800 hover:bg-gradient-to-br hover:from-green-50 hover:to-emerald-50 dark:hover:from-green-950/40 dark:hover:to-emerald-950/40 hover:border-green-400 dark:hover:border-green-600 transition-all hover:scale-105"
+                    onClick={() => {
+                      setHandle(generateHandle());
+                    }}
+                    className="h-12 w-12 shrink-0 border-2 border-amber-900/40 dark:border-amber-800/30 hover:bg-gradient-to-br hover:from-amber-950/40 hover:to-red-950/40 dark:hover:from-amber-950/30 dark:hover:to-red-950/30 hover:border-amber-500 dark:hover:border-amber-500 transition-all hover:scale-105 active:scale-95"
                     title="Generate random handle"
                   >
-                    <Wand2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <Wand2 className="h-5 w-5 text-amber-400 dark:text-amber-400" />
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground text-center font-medium">
-                  Keep it peaceful and kind, 20 characters max
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Keep it clean, 20 characters max
+                  </p>
+                  <span className={`text-xs font-semibold transition-colors duration-200 ${
+                    handle.length > 18 
+                      ? 'text-red-400 dark:text-red-400' 
+                      : handle.length > 15 
+                      ? 'text-amber-400 dark:text-amber-400'
+                      : 'text-muted-foreground'
+                  }`}>
+                    {handle.length}/20
+                  </span>
+                </div>
               </div>
 
               {/* Honeypot */}
@@ -1276,27 +1212,43 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               )}
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-3 pt-6">
+            <CardFooter className="flex flex-col gap-3 pt-6 px-6">
+              {/* Ready indicator */}
+              {handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading && (
+                <div className="flex items-center justify-center gap-2 text-xs text-amber-400 dark:text-amber-400 animate-in fade-in-0 zoom-in-95 duration-300 mb-1">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium">Ready to create your identity</span>
+                </div>
+              )}
+              
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading || !handle.trim() || !deviceId}
-                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
+                className={`w-full h-14 text-base font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
+                  handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading 
+                    ? 'ring-2 ring-amber-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
+                    : ''
+                }`}
                 size="lg"
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
                 {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin">🌱</span>
-                    Planting your identity...
+                  <span className="flex items-center gap-2 relative z-10">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Creating your identity...
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5" />
-                    Enter the Garden
+                  <span className="flex items-center gap-2 relative z-10">
+                    <span className="group-hover:translate-x-1 transition-transform duration-200">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </span>
+                    Enter Echo Garden
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
                   </span>
                 )}
               </Button>
               <p className="text-xs text-center text-muted-foreground leading-relaxed">
-                By continuing, you help keep Echo Garden a peaceful, welcoming space
+                By continuing, you agree to keep it real and respectful
               </p>
             </CardFooter>
           </Card>
@@ -1308,13 +1260,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     // CRITICAL: If anything crashes, show a simple fallback onboarding
     console.error("[OnboardingFlow] Render error, showing fallback:", error);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6 text-center">
-          <h1 className="text-3xl font-bold text-green-700 dark:text-green-300">Welcome to Echo Garden</h1>
+          <h1 className="text-3xl font-bold text-amber-400 dark:text-amber-400">Welcome to Echo Garden</h1>
           <p className="text-muted-foreground">Something went wrong loading the full onboarding. Please refresh the page.</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
           >
             Refresh Page
           </button>

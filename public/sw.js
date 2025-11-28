@@ -101,6 +101,33 @@ self.addEventListener("fetch", (event) => {
     return; // Let the browser handle it directly - don't intercept
   }
 
+  // CRITICAL: Only intercept requests from our own origin or explicitly allowed domains
+  // This prevents CSP violations from external image/content requests
+  const requestOrigin = url.origin;
+  const selfOrigin = self.location.origin;
+  
+  // Allowed external domains that we explicitly want to cache
+  const allowedExternalDomains = [
+    // Supabase domains
+    '.supabase.co',
+    '.supabase.storage',
+  ];
+  
+  const isOurOrigin = requestOrigin === selfOrigin;
+  const isAllowedExternal = allowedExternalDomains.some(domain => {
+    if (domain.startsWith('.')) {
+      return url.hostname.endsWith(domain);
+    }
+    return url.hostname === domain;
+  });
+  
+  // Skip external domains that aren't explicitly allowed
+  // This prevents the service worker from trying to fetch external images/content
+  // that aren't part of our app (like RSS feed images, embedded content, etc.)
+  if (!isOurOrigin && !isAllowedExternal) {
+    return; // Let the browser handle it directly - don't intercept
+  }
+
   // CRITICAL: Never intercept module scripts or main.tsx - always fetch from network
   // This prevents cached broken scripts on mobile browsers
   if (
@@ -193,11 +220,18 @@ self.addEventListener("fetch", (event) => {
   }
 
   // For other requests, use network-first strategy
+  // Only cache if it's from our domain or allowed external domains
+  if (!isOurOrigin && !isAllowedExternal) {
+    return; // Let browser handle external requests directly
+  }
+  
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses (skip chrome-extension URLs)
+        // Cache successful responses (skip chrome-extension URLs and external domains)
+        // Only cache if it's from our domain or allowed external domains
         if (response.status === 200 && 
+            (isOurOrigin || isAllowedExternal) &&
             !url.protocol.startsWith("chrome-extension") &&
             !url.protocol.startsWith("moz-extension") &&
             !url.protocol.startsWith("safari-extension")) {
@@ -267,6 +301,8 @@ async function handleAudioRequest(request) {
 
 // Handle static asset requests with cache-first strategy
 async function handleStaticRequest(request) {
+  const url = new URL(request.url);
+  
   // Skip chrome-extension and other unsupported schemes
   if (request.url.startsWith("chrome-extension:") || 
       request.url.startsWith("moz-extension:") ||
@@ -274,8 +310,43 @@ async function handleStaticRequest(request) {
     return fetch(request);
   }
 
+  // CRITICAL: Only cache requests from our own domain or explicitly allowed domains
+  // Skip external domains that aren't in the CSP policy to avoid CSP violations
+  const allowedDomains = [
+    // Our app domain (will be set dynamically)
+    self.location.hostname,
+    // Supabase storage domains
+    '.supabase.co',
+    '.supabase.storage',
+    // Add other explicitly allowed domains here if needed
+  ];
+  
+  const isAllowedDomain = allowedDomains.some(domain => {
+    if (domain.startsWith('.')) {
+      // Wildcard domain like .supabase.co
+      return url.hostname.endsWith(domain);
+    }
+    return url.hostname === domain;
+  });
+  
+  // Skip external domains - let browser handle them directly
+  if (!isAllowedDomain) {
+    // For external domains, just fetch directly without caching
+    // This prevents CSP violations for external images/content
+    return fetch(request).catch(() => {
+      // If fetch fails due to CSP, return empty response to prevent errors
+      console.warn("Service worker: Skipping external domain due to CSP:", url.hostname);
+      return new Response("", { 
+        status: 200, 
+        headers: { 
+          "Content-Type": request.headers.get('accept')?.includes('image') ? "image/png" : "text/plain",
+          "Cache-Control": "no-cache"
+        } 
+      });
+    });
+  }
+
   // NEVER cache module scripts - always fetch fresh from network
-  const url = new URL(request.url);
   if (
     url.pathname.includes('/src/main.tsx') ||
     url.pathname.includes('/src/') ||
