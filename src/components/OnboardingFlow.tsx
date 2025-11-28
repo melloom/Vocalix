@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
@@ -656,6 +658,116 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         } catch (e) {
           // Ignore - continue with existing deviceId
         }
+      }
+
+      // Validate account creation with reCAPTCHA token (if validation function exists)
+      // This ensures reCAPTCHA is verified on the backend
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const validationResponse = await fetch(`${SUPABASE_URL}/functions/v1/validate-account-creation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`,
+            'x-device-id': finalDeviceId, // Include device ID header for validation
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '', // Required for edge functions
+          },
+          body: JSON.stringify({
+            handle: normalizedHandle,
+            device_id: finalDeviceId,
+            recaptcha_token: recaptchaToken || undefined,
+            honeypot: honeypot || undefined,
+            user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+          }),
+        });
+
+        // If function doesn't exist (404), skip validation gracefully
+        if (validationResponse.status === 404) {
+          console.warn('[OnboardingFlow] Validation function not found, skipping backend validation');
+          // If reCAPTCHA is configured and we have a token, log warning but continue
+          // The token will still be validated if there's a database trigger
+          if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
+            console.warn('[OnboardingFlow] reCAPTCHA token missing but validation function unavailable');
+          }
+        } else if (!validationResponse.ok) {
+          // For other errors, try to parse error message
+          const errorData = await validationResponse.json().catch(() => ({}));
+          const errorMessage = errorData.reason || errorData.error || 'Account validation failed';
+          
+          toast({
+            title: "Validation failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          // Reset reCAPTCHA if token expired or invalid
+          if (recaptchaRef.current && (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification'))) {
+            recaptchaRef.current.reset();
+            setRecaptchaToken(null);
+          }
+          return;
+        } else {
+          // Success - parse validation response
+          const validationData = await validationResponse.json();
+
+          if (!validationData.allowed) {
+            toast({
+              title: "Validation failed",
+              description: validationData.reason || "Account creation not allowed. Please try again.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            // Reset reCAPTCHA if token expired
+            if (recaptchaRef.current && validationData.reason?.includes('reCAPTCHA')) {
+              recaptchaRef.current.reset();
+              setRecaptchaToken(null);
+            }
+            return;
+          }
+
+          // Handle retry_after if present
+          if (validationData.retry_after) {
+            toast({
+              title: "Rate limit exceeded",
+              description: `Please try again after ${validationData.retry_after}`,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+
+          // Check handle availability from validation
+          if (validationData.handle_available === false) {
+            toast({
+              title: "Handle taken",
+              description: "This handle is already in use. Try another!",
+              variant: "destructive",
+            });
+            setHandle(generateHandle());
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (validationError: any) {
+        // Network errors or other exceptions - log but allow graceful degradation
+        console.warn('[OnboardingFlow] Account validation error:', validationError.message);
+        
+        // Only block if reCAPTCHA is required and we're in production
+        // In development, allow graceful degradation
+        const isDevelopment = typeof window !== 'undefined' && 
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        
+        if (!isDevelopment && RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
+          toast({
+            title: "Verification required",
+            description: "Please complete the reCAPTCHA verification before creating your account.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Continue with profile creation if validation is optional or in development
       }
 
       // Create profile
