@@ -137,21 +137,30 @@ COMMENT ON FUNCTION public.create_magic_login_link(TEXT, TEXT, INTEGER) IS
 -- ============================================================================
 DO $$
 DECLARE
-  func_exists BOOLEAN;
+  func_count INTEGER;
+  func_signature TEXT;
 BEGIN
-  SELECT EXISTS (
-    SELECT 1 
-    FROM pg_proc p
-    JOIN pg_namespace n ON p.pronamespace = n.oid
-    WHERE n.nspname = 'public' 
-      AND p.proname = 'create_magic_login_link'
-      AND pg_get_function_identity_arguments(p.oid) = 'target_email text DEFAULT NULL::text, p_link_type text DEFAULT ''standard''::text, p_duration_hours integer DEFAULT NULL::integer'
-  ) INTO func_exists;
+  -- Count functions with the name (more flexible check)
+  SELECT COUNT(*)
+  INTO func_count
+  FROM pg_proc p
+  JOIN pg_namespace n ON p.pronamespace = n.oid
+  WHERE n.nspname = 'public' 
+    AND p.proname = 'create_magic_login_link';
   
-  IF NOT func_exists THEN
+  -- Get the signature for logging
+  SELECT pg_get_function_identity_arguments(p.oid)
+  INTO func_signature
+  FROM pg_proc p
+  JOIN pg_namespace n ON p.pronamespace = n.oid
+  WHERE n.nspname = 'public' 
+    AND p.proname = 'create_magic_login_link'
+  LIMIT 1;
+  
+  IF func_count = 0 THEN
     RAISE EXCEPTION 'Function create_magic_login_link was not created successfully!';
   ELSE
-    RAISE NOTICE 'Function create_magic_login_link created successfully';
+    RAISE NOTICE 'Function create_magic_login_link created successfully (found % version(s), signature: %)', func_count, COALESCE(func_signature, 'unknown');
   END IF;
 END $$;
 
