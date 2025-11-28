@@ -43,9 +43,9 @@ BEGIN
     p_link_type := 'standard';
   END IF;
 
-  SELECT id
+  SELECT pfr.id
   INTO requester_profile_id
-  FROM public.profile_ids_for_request(request_device_id)
+  FROM public.profile_ids_for_request(request_device_id) pfr
   LIMIT 1;
 
   IF requester_profile_id IS NULL THEN
@@ -154,25 +154,25 @@ BEGIN
   
   -- Get all profile IDs associated with the current device
   BEGIN
-    SELECT ARRAY_AGG(DISTINCT id) INTO user_profile_ids
+    SELECT ARRAY_AGG(DISTINCT all_profiles.id) INTO user_profile_ids
     FROM (
       -- Profiles with matching device_id
-      SELECT id FROM public.profiles WHERE device_id = current_device_id
+      SELECT p.id FROM public.profiles p WHERE p.device_id = current_device_id
       UNION
       -- Profiles linked via devices table (alias profile_id as id to avoid ambiguity)
-      SELECT profile_id AS id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
+      SELECT d.profile_id AS id FROM public.devices d WHERE d.device_id = current_device_id AND d.profile_id IS NOT NULL
       UNION
       -- Also get from profile_ids_for_request for magic login links
-      SELECT id FROM public.profile_ids_for_request(current_device_id, NULL)
+      SELECT pfr.id FROM public.profile_ids_for_request(current_device_id, NULL) pfr
     ) all_profiles;
   EXCEPTION
     WHEN OTHERS THEN
       -- If profile_ids_for_request doesn't exist or failed, just use the other sources
-      SELECT ARRAY_AGG(DISTINCT id) INTO user_profile_ids
+      SELECT ARRAY_AGG(DISTINCT all_profiles.id) INTO user_profile_ids
       FROM (
-        SELECT id FROM public.profiles WHERE device_id = current_device_id
+        SELECT p.id FROM public.profiles p WHERE p.device_id = current_device_id
         UNION
-        SELECT profile_id AS id FROM public.devices WHERE device_id = current_device_id AND profile_id IS NOT NULL
+        SELECT d.profile_id AS id FROM public.devices d WHERE d.device_id = current_device_id AND d.profile_id IS NOT NULL
       ) all_profiles;
   END;
   

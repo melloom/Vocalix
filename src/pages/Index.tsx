@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen, Lock, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -622,13 +622,15 @@ const IndexInner = () => {
     [applyTopicCuration, fetchTopicMetrics],
   );
 
-  const fetchSpotlightQuestion = useCallback(async () => {
+  const fetchSpotlightQuestion = useCallback(async (forceRefresh = false) => {
     try {
-      // Pass current question ID to exclude it (for rotation)
-      const excludeId = spotlightQuestion?.id || null;
+      // Don't exclude current question - let date-based rotation handle it
+      // Only exclude if we're manually refreshing (forceRefresh = false)
+      const excludeId = forceRefresh ? null : (spotlightQuestion?.id || null);
       // Get today's topic ID to prioritize questions from today's topic
       const todayTopicId = todayTopic?.id || null;
-      const { data, error } = await supabase.rpc('get_spotlight_question', {
+      // @ts-ignore - Function exists but not in generated types
+      const { data, error } = await (supabase.rpc as any)('get_spotlight_question', {
         p_exclude_question_id: excludeId,
         p_today_topic_id: todayTopicId,
       });
@@ -640,8 +642,9 @@ const IndexInner = () => {
         return;
       }
 
-      if (data && data.length > 0) {
-        const question = data[0] as SpotlightQuestion;
+      const questionData = data as SpotlightQuestion[] | null;
+      if (questionData && Array.isArray(questionData) && questionData.length > 0) {
+        const question = questionData[0];
         // Only show spotlight question if it has good engagement (at least 2 upvotes or 3 replies)
         if (question.upvotes_count >= 2 || question.replies_count >= 3) {
           setSpotlightQuestion(question);
@@ -2510,11 +2513,21 @@ const IndexInner = () => {
     return () => clearInterval(interval);
   }, [fetchSpotlightQuestion]);
 
+  // Track last date to detect date changes
+  const lastDateRef = useRef<string>(new Date().toISOString().slice(0, 10));
+
   // Check for new daily topic when date changes (e.g., page open overnight)
   useEffect(() => {
     const checkDailyTopic = async () => {
       try {
         const todayISO = new Date().toISOString().slice(0, 10);
+        
+        // Check if date has changed - if so, refresh spotlight question
+        if (lastDateRef.current !== todayISO) {
+          lastDateRef.current = todayISO;
+          // Force refresh spotlight question when date changes
+          fetchSpotlightQuestion(true);
+        }
         
         // Check if today's topic exists
         const { data: todayTopic, error: checkError } = await supabase
@@ -2537,6 +2550,8 @@ const IndexInner = () => {
             });
             // Reload data to get the new topic
             loadDataRef.current();
+            // Refresh spotlight question after topic is generated
+            setTimeout(() => fetchSpotlightQuestion(true), 2000);
           } catch (invokeError: any) {
             // Silently handle 403 errors - they're expected in some cases
             if (invokeError?.code !== 403) {
@@ -2588,7 +2603,7 @@ const IndexInner = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchSpotlightQuestion]);
 
   useEffect(() => {
     const storedSortMode = localStorage.getItem("sortMode");
@@ -2978,13 +2993,25 @@ const IndexInner = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full" asChild>
-                    <Link to="/diary" aria-label="Diary">
+                    <Link to="/diary" aria-label="Diary" data-tutorial="diary">
                       <BookOpen className="h-5 w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Diary - Your private encrypted journal</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full" asChild data-tutorial="account-linking">
+                    <Link to="/link-pin" aria-label="Link Account with PIN">
+                      <Lock className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Link Account - Enter PIN to link this device</p>
                 </TooltipContent>
               </Tooltip>
               {/* @ts-ignore - show_18_plus_content exists but not in generated types */}

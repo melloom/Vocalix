@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -53,7 +53,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon, Key, Clock, Lock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -146,6 +146,8 @@ const Settings = () => {
   const [isSavingHandle, setIsSavingHandle] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
+  const [keepContentOnDelete, setKeepContentOnDelete] = useState(false);
   const [isMagicLinkDialogOpen, setIsMagicLinkDialogOpen] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
@@ -153,10 +155,30 @@ const Settings = () => {
   const [magicLinkToken, setMagicLinkToken] = useState<string | null>(null);
   const [magicLinkType, setMagicLinkType] = useState<"standard" | "extended" | "one_time">("standard");
   const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false);
+  const [activeLinks, setActiveLinks] = useState<Array<{
+    id: string;
+    url: string;
+    token: string;
+    expiresAt: string;
+    linkType: string;
+    createdAt: string;
+    email?: string | null;
+    isActive: boolean;
+  }>>([]);
+  const [isLoadingActiveLinks, setIsLoadingActiveLinks] = useState(false);
   const [showQRCode, setShowQRCode] = useState(true); // Show QR code by default for easy sharing
   const [showSiteQRCode, setShowSiteQRCode] = useState(false); // QR code for current site URL
+  const [accountLinkPin, setAccountLinkPin] = useState<string | null>(null);
+  const [pinExpiresAt, setPinExpiresAt] = useState<Date | null>(null);
+  const [isGeneratingPin, setIsGeneratingPin] = useState(false);
+  const [pinDurationMinutes, setPinDurationMinutes] = useState(10);
+  const [pinLinkingEnabled, setPinLinkingEnabled] = useState(true); // Toggle for PIN linking
   const [phoneQRCodeUrl, setPhoneQRCodeUrl] = useState<string | null>(null);
   const [isGeneratingPhoneQR, setIsGeneratingPhoneQR] = useState(false);
+  const [isPrivateAccount, setIsPrivateAccount] = useState(false);
+  const [hideFromSearch, setHideFromSearch] = useState(false);
+  const [hideFromDiscovery, setHideFromDiscovery] = useState(false);
+  const [requireApprovalToFollow, setRequireApprovalToFollow] = useState(false);
   const { isAdmin } = useAdminStatus();
   const isMobile = useIsMobile();
   const emailSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -271,6 +293,14 @@ const Settings = () => {
       setPreferredLanguage(profile.preferred_language || "en");
       // @ts-ignore
       setAutoTranslateEnabled(profile.auto_translate_enabled ?? true);
+      // @ts-ignore - Privacy fields exist but not in generated types
+      setIsPrivateAccount(profile.is_private_account ?? false);
+      // @ts-ignore
+      setHideFromSearch(profile.hide_from_search ?? false);
+      // @ts-ignore
+      setHideFromDiscovery(profile.hide_from_discovery ?? false);
+      // @ts-ignore
+      setRequireApprovalToFollow(profile.require_approval_to_follow ?? false);
     }
   }, [profile]);
 
@@ -298,6 +328,51 @@ const Settings = () => {
       setIsGeneratingMagicLink(false);
     }
   }, [isMagicLinkDialogOpen]);
+
+  // Load active links from database
+  const loadActiveLinks = async () => {
+    setIsLoadingActiveLinks(true);
+    try {
+      const { data, error } = await supabase.rpc("get_active_magic_links");
+      if (error) throw error;
+
+      if (data && Array.isArray(data)) {
+        // Filter to only show active links
+        const dbActiveLinks = data
+          .filter((link: any) => link.is_active)
+          .map((link: any) => ({
+            id: link.id,
+            url: "", // Can't reconstruct URL from hash
+            token: "", // Can't get original token
+            expiresAt: link.expires_at,
+            linkType: link.link_type ?? "standard",
+            createdAt: link.created_at,
+            email: link.email,
+            isActive: link.is_active,
+            fromDatabase: true, // Flag to indicate we don't have the full URL
+          }));
+
+        // Merge with existing state links (prefer state links as they have full URLs)
+        setActiveLinks((prev) => {
+          const stateLinkIds = new Set(prev.map((l) => l.id));
+          const newDbLinks = dbActiveLinks.filter((dbLink: any) => !stateLinkIds.has(dbLink.id));
+          return [...prev, ...newDbLinks];
+        });
+      }
+    } catch (error) {
+      logError("Failed to load active links", error);
+      // Don't show error toast, just fail silently
+    } finally {
+      setIsLoadingActiveLinks(false);
+    }
+  };
+
+  // Load active links when component mounts or device/profile changes
+  useEffect(() => {
+    if (deviceId && profile) {
+      loadActiveLinks();
+    }
+  }, [deviceId, profile]);
 
   const nextHandleChangeDate = useMemo(() => {
     if (!profile?.handle_last_changed_at) return null;
@@ -508,7 +583,7 @@ const Settings = () => {
     emailSaveTimeoutRef.current = setTimeout(async () => {
     try {
       // @ts-ignore - email field exists but not in generated types
-      await updateProfile({ email: email.trim() || null });
+      await updateProfile({ email: email.trim() || (null as any) });
         
         // If email was cleared and digest is enabled, disable digest
         if (!email.trim() && digestEnabled) {
@@ -543,6 +618,7 @@ const Settings = () => {
     setIsGeneratingMagicLink(true);
     try {
       const trimmedEmail = magicLinkEmail.trim();
+      // @ts-ignore - RPC accepts null for optional parameters
       const { data, error } = await supabase.rpc("create_magic_login_link", {
         target_email: trimmedEmail.length > 0 ? trimmedEmail : null,
         p_link_type: magicLinkType,
@@ -561,8 +637,21 @@ const Settings = () => {
 
       setMagicLinkUrl(loginUrl);
       setMagicLinkToken(result.token);
-      setMagicLinkExpiresAt(result.expires_at ?? null);
+      setMagicLinkExpiresAt(result.expires_at ?? undefined);
       setShowQRCode(false); // Reset QR code view
+
+      // Add to active links list
+      const newLink = {
+        id: crypto.randomUUID(),
+        url: loginUrl,
+        token: result.token,
+        expiresAt: result.expires_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        linkType: result.link_type ?? magicLinkType,
+        createdAt: new Date().toISOString(),
+        email: trimmedEmail.length > 0 ? trimmedEmail : null,
+        isActive: true,
+      };
+      setActiveLinks((prev) => [newLink, ...prev]);
 
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -596,6 +685,64 @@ const Settings = () => {
       setIsGeneratingMagicLink(false);
     }
   };
+
+  const handleGeneratePin = async () => {
+    if (isGeneratingPin || !pinLinkingEnabled) return;
+    setIsGeneratingPin(true);
+    try {
+      // @ts-ignore - Function exists but not in generated types
+      const { data, error } = await (supabase.rpc as any)("generate_account_link_pin", {
+        p_duration_minutes: pinDurationMinutes,
+      });
+      
+      if (error) throw error;
+
+      const result = data?.[0];
+      if (!result?.pin_code) {
+        throw new Error("PIN was not generated");
+      }
+
+      setAccountLinkPin(result.pin_code);
+      setPinExpiresAt(new Date(result.expires_at));
+      
+      toast({
+        title: "PIN generated",
+        description: `Your PIN is active for ${pinDurationMinutes} minutes. Enter it on another device to link your account.`,
+      });
+    } catch (error) {
+      logError("Failed to generate PIN", error);
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Couldn't generate PIN",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPin(false);
+    }
+  };
+
+  // Poll for PIN expiration
+  useEffect(() => {
+    if (!pinExpiresAt) return;
+
+    const interval = setInterval(() => {
+      if (new Date() >= pinExpiresAt) {
+        setAccountLinkPin(null);
+        setPinExpiresAt(null);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pinExpiresAt]);
+
+  // Clear PIN when PIN linking is disabled
+  useEffect(() => {
+    if (!pinLinkingEnabled) {
+      setAccountLinkPin(null);
+      setPinExpiresAt(null);
+    }
+  }, [pinLinkingEnabled]);
 
   const handleCopyMagicLink = async () => {
     if (!magicLinkUrl) return;
@@ -1299,7 +1446,10 @@ const Settings = () => {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const { error } = await supabase.rpc("purge_account");
+      // @ts-ignore - Function exists but accepts boolean parameter
+      const { error } = await (supabase.rpc as any)("purge_account", {
+        p_keep_content: keepContentOnDelete,
+      });
       if (error) throw error;
 
       // Stop session monitoring
@@ -1315,8 +1465,10 @@ const Settings = () => {
       queryClient.clear(); // Clear all cached data
 
       toast({
-        title: "Account deleted",
-        description: "Thanks for trying Echo Garden. You're welcome back anytime.",
+        title: keepContentOnDelete ? "Account anonymized" : "Account deleted",
+        description: keepContentOnDelete
+          ? "Your account has been anonymized. Your content remains but is no longer associated with you."
+          : "Thanks for trying Echo Garden. You're welcome back anytime.",
       });
 
       // Force a full page reload to completely reset the app state
@@ -2044,39 +2196,444 @@ const Settings = () => {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Account</h2>
           <Card className="p-6 rounded-3xl space-y-4">
-            <div className="flex items-start justify-between gap-6">
-              <div>
-                <p className="font-medium">
-                  {isMobile ? "Access on your computer" : "Access on your phone"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {isMobile 
-                    ? "Generate a login link to link your computer to this account" + (isAdmin ? " (admin access will be transferred)" : "")
-                    : "Scan this QR code to link your phone to this account" + (isAdmin ? " (admin access will be transferred)" : "")
-                  }
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <p className="font-medium">
+                    {isMobile ? "Access on your computer" : "Access on your phone"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {isMobile 
+                      ? "Generate a login link or PIN to link your computer to this account" + (isAdmin ? " (admin access will be transferred)" : "")
+                      : "Scan QR code or generate PIN to link your phone to this account" + (isAdmin ? " (admin access will be transferred)" : "")
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {/* PIN Linking Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">PIN Account Linking</p>
+                    <p className="text-xs text-muted-foreground">
+                      Generate a 4-digit PIN to link devices securely
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={pinLinkingEnabled}
+                  onCheckedChange={setPinLinkingEnabled}
+                  className="rounded-full"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                {isMobile ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl flex-1"
+                      onClick={() => setIsMagicLinkDialogOpen(true)}
+                    >
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Generate Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl flex-1"
+                      onClick={handleGeneratePin}
+                      disabled={isGeneratingPin || !pinLinkingEnabled}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      {isGeneratingPin ? "Generating..." : "Generate PIN"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl flex-1"
+                      onClick={handleGeneratePhoneQRCode}
+                      disabled={isGeneratingPhoneQR}
+                    >
+                      <QrCode className="mr-2 h-4 w-4" />
+                      {isGeneratingPhoneQR ? "Generating..." : showSiteQRCode ? "Hide QR" : "Show QR"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl flex-1"
+                      onClick={handleGeneratePin}
+                      disabled={isGeneratingPin || !pinLinkingEnabled}
+                    >
+                      <Key className="mr-2 h-4 w-4" />
+                      {isGeneratingPin ? "Generating..." : "Generate PIN"}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* PIN Display Section */}
+            {accountLinkPin && pinExpiresAt && pinLinkingEnabled && (
+              <div className="mt-4 p-4 rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-5 w-5 text-primary" />
+                    <p className="font-semibold">Account Linking PIN</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setAccountLinkPin(null);
+                      setPinExpiresAt(null);
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+                <div className="text-center space-y-3">
+                  <div className="text-4xl font-mono font-bold tracking-widest text-primary">
+                    {accountLinkPin}
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>
+                      Expires in {Math.max(0, Math.floor((pinExpiresAt.getTime() - Date.now()) / 1000 / 60))} minutes
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter this PIN on another device at <strong>/link-pin</strong> or click the lock icon in the header
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(accountLinkPin);
+                          toast({
+                            title: "PIN copied",
+                            description: "PIN copied to clipboard.",
+                          });
+                        } catch {
+                          toast({
+                            title: "Couldn't copy",
+                            description: "Please copy the PIN manually.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy PIN
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      asChild
+                    >
+                      <Link to="/link-pin" target="_blank">
+                        Open PIN Entry
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!pinLinkingEnabled && (
+              <div className="mt-4 p-3 rounded-2xl border border-border/60 bg-muted/40">
+                <p className="text-sm text-muted-foreground text-center">
+                  PIN linking is disabled. Enable it above to generate PINs for account linking.
                 </p>
               </div>
-              {isMobile ? (
-                <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => setIsMagicLinkDialogOpen(true)}
-                >
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Generate Link
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={handleGeneratePhoneQRCode}
-                  disabled={isGeneratingPhoneQR}
-                >
-                  <QrCode className="mr-2 h-4 w-4" />
-                  {isGeneratingPhoneQR ? "Generating..." : showSiteQRCode ? "Hide QR" : "Show QR"}
-                </Button>
+            )}
+            
+            {/* Privacy Settings Section */}
+            <div className="mt-6 pt-6 border-t border-border/60 space-y-4">
+              <div>
+                <h3 className="font-semibold mb-1">Privacy Settings</h3>
+                <p className="text-sm text-muted-foreground">
+                  Control who can see your profile and content
+                </p>
+              </div>
+              
+              {/* Private Account */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Private Account</p>
+                    <p className="text-xs text-muted-foreground">
+                      Only approved followers can see your clips. Others can see your profile but not your content.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={isPrivateAccount}
+                  onCheckedChange={async (checked) => {
+                    setIsPrivateAccount(checked);
+                    try {
+                      // @ts-ignore
+                      await updateProfile({ is_private_account: checked });
+                      toast({
+                        title: checked ? "Account is now private" : "Account is now public",
+                        description: checked 
+                          ? "Only approved followers can see your clips"
+                          : "Everyone can see your clips",
+                      });
+                    } catch (error) {
+                      setIsPrivateAccount(!checked);
+                      toast({
+                        title: "Failed to update privacy setting",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  className="rounded-full"
+                />
+              </div>
+              
+              {/* Hide from Search */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-2 rounded-full bg-muted">
+                    <SearchIcon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Hide from Search</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your profile won't appear in search results
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={hideFromSearch}
+                  onCheckedChange={async (checked) => {
+                    setHideFromSearch(checked);
+                    try {
+                      // @ts-ignore
+                      await updateProfile({ hide_from_search: checked });
+                      toast({
+                        title: checked ? "Hidden from search" : "Visible in search",
+                      });
+                    } catch (error) {
+                      setHideFromSearch(!checked);
+                      toast({
+                        title: "Failed to update setting",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  className="rounded-full"
+                />
+              </div>
+              
+              {/* Hide from Discovery */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-2 rounded-full bg-muted">
+                    <Compass className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Hide from Discovery</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your profile won't appear in recommendations or discovery feeds
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={hideFromDiscovery}
+                  onCheckedChange={async (checked) => {
+                    setHideFromDiscovery(checked);
+                    try {
+                      // @ts-ignore
+                      await updateProfile({ hide_from_discovery: checked });
+                      toast({
+                        title: checked ? "Hidden from discovery" : "Visible in discovery",
+                      });
+                    } catch (error) {
+                      setHideFromDiscovery(!checked);
+                      toast({
+                        title: "Failed to update setting",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  className="rounded-full"
+                />
+              </div>
+              
+              {/* Require Approval to Follow */}
+              {isPrivateAccount && (
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 rounded-full bg-muted">
+                      <UserCheck className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Approve Follow Requests</p>
+                      <p className="text-xs text-muted-foreground">
+                        Review and approve follow requests before users can follow you
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={requireApprovalToFollow}
+                    onCheckedChange={async (checked) => {
+                      setRequireApprovalToFollow(checked);
+                      try {
+                        // @ts-ignore
+                        await updateProfile({ require_approval_to_follow: checked });
+                        toast({
+                          title: checked ? "Follow approval enabled" : "Follow approval disabled",
+                        });
+                      } catch (error) {
+                        setRequireApprovalToFollow(!checked);
+                        toast({
+                          title: "Failed to update setting",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="rounded-full"
+                  />
+                </div>
               )}
             </div>
+            
+            {/* Active Links Section */}
+            {(activeLinks.length > 0 || isLoadingActiveLinks) && (
+              <div className="mt-6 pt-6 border-t border-border/60">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="font-medium">Active login links</p>
+                    <p className="text-sm text-muted-foreground">
+                      Links you've generated that are still valid
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-2xl"
+                    onClick={loadActiveLinks}
+                    disabled={isLoadingActiveLinks}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingActiveLinks ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+                {isLoadingActiveLinks && activeLinks.length === 0 ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
+                    ))}
+                  </div>
+                ) : activeLinks.length > 0 ? (
+                  <div className="space-y-2">
+                    {activeLinks
+                      .filter((link) => {
+                        // Filter out expired links
+                        const expiresAt = new Date(link.expiresAt);
+                        return !isNaN(expiresAt.getTime()) && expiresAt > new Date();
+                      })
+                      .map((link) => {
+                        const expiresAt = new Date(link.expiresAt);
+                        const expiresDisplay = expiresAt.toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        });
+                        const linkTypeDisplay =
+                          link.linkType === "one_time"
+                            ? "Quick share (1 hour)"
+                            : link.linkType === "extended"
+                            ? "Extended (7 days)"
+                            : "Standard (7 days)";
+
+                        return (
+                          <div
+                            key={link.id}
+                            className="rounded-2xl border border-border/60 bg-muted/40 p-4 space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-sm font-medium">{linkTypeDisplay}</span>
+                                  {link.isActive && (
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                                      Active
+                                    </span>
+                                  )}
+                                </div>
+                                {link.url ? (
+                                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40 mt-2">
+                                    {link.url}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Link generated (URL not available)
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                                  <span>Expires: {expiresDisplay}</span>
+                                  {link.email && (
+                                    <span>• Email: {link.email}</span>
+                                  )}
+                                </div>
+                              </div>
+                              {link.url && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-xl flex-shrink-0"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(link.url);
+                                      toast({
+                                        title: "Link copied",
+                                        description: "The login link has been copied to your clipboard.",
+                                      });
+                                    } catch {
+                                      toast({
+                                        title: "Couldn't copy",
+                                        description: "Please select and copy the link manually.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <LinkIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No active links</p>
+                    <p className="text-xs mt-1">Generate a link to see it here</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {!isMobile && showSiteQRCode && phoneQRCodeUrl && (
               <div className="space-y-3 pt-2 border-t">
                 {isAdmin && (
@@ -2180,29 +2737,82 @@ const Settings = () => {
               </Button>
             </div>
 
-            <AlertDialog>
+            <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="rounded-2xl">
+                <Button 
+                  variant="destructive" 
+                  className="rounded-2xl"
+                  onClick={() => setShowDeleteAccountDialog(true)}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete account
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="rounded-3xl">
+              <AlertDialogContent className="rounded-3xl max-w-md">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This removes your profile, clips, listens, and reactions. Audio files in storage may take a little
-                    longer to disappear, but the links will stop working. This action cannot be undone.
+                  <AlertDialogDescription className="space-y-4 pt-2">
+                    <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                        ⚠️ This action cannot be undone
+                      </p>
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Choose what happens to your content before deleting your account.
+                      </p>
+                    </div>
+                    
+                    {/* Keep Content Option */}
+                    <div className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-muted/40">
+                      <input
+                        type="checkbox"
+                        id="keepContent"
+                        checked={keepContentOnDelete}
+                        onChange={(e) => setKeepContentOnDelete(e.target.checked)}
+                        className="mt-0.5 rounded border-border"
+                      />
+                      <div className="flex-1">
+                        <label htmlFor="keepContent" className="text-sm font-medium cursor-pointer block mb-1">
+                          Keep my content
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Your clips, posts, and comments will remain visible but will be anonymized (shown as "deleted_user_xxx"). 
+                          Your profile, follows, and personal data will be removed.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {!keepContentOnDelete && (
+                      <div>
+                        <p className="text-sm text-foreground mb-2">If you choose to delete everything:</p>
+                        <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside ml-2">
+                          <li>All your clips and posts will be permanently deleted</li>
+                          <li>All comments and reactions will be removed</li>
+                          <li>Your profile and all personal data will be deleted</li>
+                          <li>You will be removed from all communities and chats</li>
+                        </ul>
+                      </div>
+                    )}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
+                <AlertDialogFooter className="gap-2 sm:gap-0">
+                  <AlertDialogCancel 
                     className="rounded-2xl"
+                    onClick={() => {
+                      setKeepContentOnDelete(false);
+                      setShowDeleteAccountDialog(false);
+                    }}
+                  >
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     disabled={isDeleting}
                     onClick={handleDeleteAccount}
                   >
-                    {isDeleting ? "Deleting..." : "Delete"}
+                    {isDeleting 
+                      ? (keepContentOnDelete ? "Anonymizing..." : "Deleting...") 
+                      : (keepContentOnDelete ? "Anonymize Account" : "Delete Everything")
+                    }
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -3201,14 +3811,14 @@ const Settings = () => {
       </Tabs>
 
       <Dialog open={isMagicLinkDialogOpen} onOpenChange={setIsMagicLinkDialogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-3xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-2">
             <DialogTitle>Send a login link</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               Generate a secure link to sign in on another device. Links can last up to 7 days.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-1">
             <div className="space-y-2">
               <Label htmlFor="magic-link-type">Link type</Label>
               <Select value={magicLinkType} onValueChange={(value: "standard" | "extended" | "one_time") => setMagicLinkType(value)}>
@@ -3223,8 +3833,8 @@ const Settings = () => {
               </Select>
               <p className="text-xs text-muted-foreground">
                 {magicLinkType === "one_time" 
-                  ? "Perfect for quick device access. Expires in 1 hour."
-                  : "Standard and extended links last 7 days for convenience."
+                  ? "Expires in 1 hour."
+                  : "Expires in 7 days."
                 }
               </p>
             </div>
@@ -3240,12 +3850,12 @@ const Settings = () => {
                 className="rounded-2xl"
               />
               <p className="text-xs text-muted-foreground">
-                Enter an email to draft a message automatically, or leave it blank to copy the link yourself.
+                Optional: auto-draft an email with the link.
               </p>
             </div>
 
             {magicLinkUrl && (
-              <div className="space-y-4 rounded-2xl border border-border/60 bg-muted/40 p-4">
+              <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Quick Access - Copy link or scan QR code
@@ -3263,12 +3873,12 @@ const Settings = () => {
                 </div>
 
                 {showQRCode && (
-                  <div className="space-y-3">
-                    <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
+                  <div className="space-y-2">
+                    <div className="flex justify-center p-3 bg-background rounded-xl border-2 border-border/40">
                       <div id="magic-link-qr-code">
                         <QRCodeSVG 
                           value={magicLinkUrl} 
-                          size={220}
+                          size={180}
                           level="M"
                           includeMargin={true}
                         />
@@ -3285,7 +3895,7 @@ const Settings = () => {
                       Download QR Code Image
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                      Save the QR code image to your phone. You can scan it later or send the image file to your other device.
+                      Save to phone or send to another device.
                     </p>
                   </div>
                 )}
@@ -3353,15 +3963,13 @@ const Settings = () => {
                   )}
                 </div>
                 </div>
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2.5">
                   <p className="text-xs text-blue-900 dark:text-blue-100 font-medium mb-1">
-                    💡 Easy transfer tips:
+                    💡 Tips:
                   </p>
-                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-                    <li>Download the QR code and save it to your phone/cloud storage</li>
-                    <li>Copy the link and paste it into Notes, Messages, or email</li>
-                    <li>Email it to yourself for easy access later</li>
-                    <li>Scan the QR code directly on your other device</li>
+                  <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-0.5 list-disc list-inside leading-relaxed">
+                    <li>Download QR code or copy the link</li>
+                    <li>Scan directly or email to yourself</li>
                   </ul>
                 </div>
               </div>

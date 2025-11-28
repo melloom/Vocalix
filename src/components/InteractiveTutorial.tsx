@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -114,6 +114,22 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Bookmark className="h-6 w-6" />,
+  },
+  {
+    id: "encrypted-diary",
+    title: "Encrypted Diary",
+    description: "Keep your private thoughts secure with the encrypted diary! Click the diary icon in the header to access your personal journal. All entries are encrypted with your password or PIN, ensuring complete privacy. Write entries, add tags and moods, pin favorites, and export your memories.",
+    targetSelector: '[data-tutorial="diary"]',
+    position: "bottom",
+    icon: <Lock className="h-6 w-6" />,
+  },
+  {
+    id: "account-linking",
+    title: "Link Your Account",
+    description: "Use the lock icon in the header to link this device to your account using a PIN! Go to Settings → Account to generate a 4-digit PIN, then enter it on another device to link them. PINs expire after 10 minutes for security.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Lock className="h-6 w-6" />,
   },
   {
     id: "notifications",

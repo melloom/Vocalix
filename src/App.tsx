@@ -70,6 +70,7 @@ const Profile = retryLazyImport(() => import("./pages/Profile"));
 const Admin = retryLazyImport(() => import("./pages/Admin"));
 const Settings = retryLazyImport(() => import("./pages/Settings"));
 const LoginLink = retryLazyImport(() => import("./pages/LoginLink"));
+const LinkPin = retryLazyImport(() => import("./pages/LinkPin"));
 const MyRecordings = retryLazyImport(() => import("./pages/MyRecordings"));
 const Topic = retryLazyImport(() => import("./pages/Topic"));
 const SavedClips = retryLazyImport(() => import("./pages/SavedClips"));
@@ -179,6 +180,7 @@ const App = () => {
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/login-link" element={<LoginLink />} />
+                      <Route path="/link-pin" element={<LinkPin />} />
                       <Route path="/embed/:clipId" element={<Embed />} />
                       <Route element={<AuthenticatedLayout />}>
                         <Route path="/" element={<Index />} />

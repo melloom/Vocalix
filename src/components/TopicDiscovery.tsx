@@ -183,8 +183,10 @@ export const TopicDiscovery = ({
   });
 
   // Get trending topics
+  // Include current date in query key to ensure daily refresh
+  const today = new Date().toISOString().slice(0, 10);
   const { data: trending, isLoading: isLoadingTrending } = useQuery({
-    queryKey: ["trendingTopicsDiscovery"],
+    queryKey: ["trendingTopicsDiscovery", today],
     queryFn: async () => {
       // Try RPC function first
       const { data: rpcData, error: rpcError } = await supabase.rpc("get_trending_topics", {
@@ -217,6 +219,9 @@ export const TopicDiscovery = ({
       return (data || []) as Topic[];
     },
     enabled: showTrending,
+    staleTime: 2 * 60 * 1000, // 2 minutes - refresh more frequently for trending topics
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes to get fresh trending topics
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
   });
 
   useEffect(() => {

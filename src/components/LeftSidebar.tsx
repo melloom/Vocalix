@@ -68,8 +68,10 @@ export const LeftSidebar = () => {
 
   // Get trending topics using the RPC function (max 8)
   // Falls back to recent topics if no trending topics exist
+  // Include current date in query key to ensure daily refresh
+  const today = new Date().toISOString().slice(0, 10);
   const { data: topics, isLoading: isLoadingTopics, refetch: refetchTopics } = useQuery({
-    queryKey: ['trending-topics'],
+    queryKey: ['trending-topics', today],
     queryFn: async () => {
       // First try to get trending topics
       const { data: trendingData, error: trendingError } = await supabase.rpc('get_trending_topics', { p_limit: 8 });
@@ -131,6 +133,9 @@ export const LeftSidebar = () => {
       if (recentError) throw recentError;
       return (recentData || []) as Topic[];
     },
+    staleTime: 2 * 60 * 1000, // 2 minutes - refresh more frequently for trending topics
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes to get fresh trending topics
+    refetchOnWindowFocus: true, // Refetch when user returns to the tab
   });
 
   return (

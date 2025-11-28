@@ -25,6 +25,8 @@ const LoginLink = () => {
   const [status, setStatus] = useState<RedemptionStatus>("checking");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileHandle, setProfileHandle] = useState<string | null>(null);
+  const [linkAccountHandle, setLinkAccountHandle] = useState<string | null>(null);
+  const [linkExpiresAt, setLinkExpiresAt] = useState<Date | null>(null);
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const attemptRef = useRef(false);
@@ -45,9 +47,67 @@ const LoginLink = () => {
       return;
     }
 
-    // Show confirmation dialog before linking
-    setStatus("confirming");
-    setShowConfirmDialog(true);
+    // Preview link info to get account details and validate link
+    const previewLink = async () => {
+      try {
+        const { data, error } = await supabase.rpc("preview_magic_login_link", { link_token: token });
+        
+        if (error) throw error;
+
+        const result = data?.[0];
+        
+        if (!result) {
+          setStatus("error");
+          setErrorMessage("This login link is invalid. Please request a new link from Settings.");
+          return;
+        }
+
+        // Check if link is already used
+        if (result.is_redeemed) {
+          setStatus("error");
+          setErrorMessage("This login link has already been used. Each link can only be used once. Please request a new link from Settings.");
+          return;
+        }
+
+        // Check if link is expired
+        if (result.is_expired) {
+          setStatus("error");
+          const expiresDate = result.expires_at ? new Date(result.expires_at) : null;
+          const expiresText = expiresDate 
+            ? `expired on ${expiresDate.toLocaleDateString()} at ${expiresDate.toLocaleTimeString()}`
+            : "expired";
+          setErrorMessage(`This login link has ${expiresText}. Please request a new link from Settings.`);
+          return;
+        }
+
+        // Check if link is valid
+        if (!result.link_valid) {
+          setStatus("error");
+          setErrorMessage("This login link is no longer valid. Please request a new link from Settings.");
+          return;
+        }
+
+        // Store account info for confirmation dialog
+        setLinkAccountHandle(result.handle);
+        if (result.expires_at) {
+          setLinkExpiresAt(new Date(result.expires_at));
+        }
+
+        // Show confirmation dialog with account info
+        setStatus("confirming");
+        setShowConfirmDialog(true);
+      } catch (error) {
+        console.error("Failed to preview login link", error);
+        setStatus("error");
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to validate this login link. Please request a new one from Settings.";
+        setErrorMessage(message);
+      }
+    };
+
+    previewLink();
   }, [deviceId, token]);
 
   const handleConfirmLink = async () => {
@@ -128,10 +188,21 @@ const LoginLink = () => {
       }, 2000);
     } catch (error) {
       console.error("Login link redemption failed", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while redeeming this link. Please request a new one.";
+      let message = "Something went wrong while redeeming this link.";
+      
+      if (error instanceof Error) {
+        // Check for specific error messages
+        if (error.message.includes("already been used") || error.message.includes("already used")) {
+          message = "This login link has already been used. Each link can only be used once. Please request a new link from Settings.";
+        } else if (error.message.includes("expired")) {
+          message = "This login link has expired. Please request a new link from Settings.";
+        } else if (error.message.includes("not found")) {
+          message = "This login link is invalid or no longer exists. Please request a new link from Settings.";
+        } else {
+          message = error.message;
+        }
+      }
+      
       setErrorMessage(message);
       setStatus("error");
     }
@@ -154,20 +225,40 @@ const LoginLink = () => {
               <AlertDialogTitle className="text-xl">Link this device?</AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-left space-y-3 pt-2">
+              {linkAccountHandle ? (
+                <div className="rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 p-3 mb-3">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    You are linking to account:
+                  </p>
+                  <p className="text-lg font-semibold text-primary">
+                    @{linkAccountHandle}
+                  </p>
+                  {linkExpiresAt && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Link expires: {linkExpiresAt.toLocaleDateString()} at {linkExpiresAt.toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You are about to link this device to an Echo Garden account.
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">
-                You are about to link this device to an Echo Garden account. Once linked:
+                Once linked:
               </p>
               <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside ml-2">
                 <li>This device will be able to access the account</li>
                 <li>The device will appear in your account&apos;s device list</li>
                 <li>You can manage or revoke access from Settings</li>
+                <li className="font-medium text-foreground">This link can only be used once</li>
               </ul>
               <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mt-4">
                 <p className="text-xs font-medium text-amber-900 dark:text-amber-100 mb-1">
                   ⚠️ Important
                 </p>
                 <p className="text-xs text-amber-800 dark:text-amber-200">
-                  Only proceed if you trust this device and initiated the link from your account settings.
+                  Only proceed if you trust this device and initiated the link from your account settings. Once used, this link cannot be used again.
                 </p>
               </div>
             </AlertDialogDescription>
