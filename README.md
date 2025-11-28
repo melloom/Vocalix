@@ -4,6 +4,8 @@
 
 **An audio-first social platform where voice is the primary medium of expression**
 
+[🌐 **Live Website: echogarden.netlify.app**](https://echogarden.netlify.app/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
@@ -333,6 +335,7 @@ See [ROADMAP.md](./ROADMAP.md) for detailed roadmap and future plans.
 
 ## 🌐 Links
 
+- **🌐 Live Website**: [https://echogarden.netlify.app/](https://echogarden.netlify.app/)
 - **GitHub Repository**: [https://github.com/melloom/Echo-Garden](https://github.com/melloom/Echo-Garden)
 - **Documentation**: See [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for all docs
 - **Issues**: [GitHub Issues](https://github.com/melloom/Echo-Garden/issues)
