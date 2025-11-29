@@ -2753,47 +2753,49 @@ const Settings = () => {
               <AlertDialogContent className="rounded-3xl max-w-md">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                  <AlertDialogDescription className="space-y-4 pt-2">
-                    <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
-                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
-                        ⚠️ This action cannot be undone
-                      </p>
-                      <p className="text-xs text-amber-800 dark:text-amber-200">
-                        Choose what happens to your content before deleting your account.
-                      </p>
-                    </div>
-                    
-                    {/* Keep Content Option */}
-                    <div className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-muted/40">
-                      <input
-                        type="checkbox"
-                        id="keepContent"
-                        checked={keepContentOnDelete}
-                        onChange={(e) => setKeepContentOnDelete(e.target.checked)}
-                        className="mt-0.5 rounded border-border"
-                      />
-                      <div className="flex-1">
-                        <label htmlFor="keepContent" className="text-sm font-medium cursor-pointer block mb-1">
-                          Keep my content
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          Your clips, posts, and comments will remain visible but will be anonymized (shown as "deleted_user_xxx"). 
-                          Your profile, follows, and personal data will be removed.
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-4 pt-2">
+                      <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                          ⚠️ This action cannot be undone
+                        </p>
+                        <p className="text-xs text-amber-800 dark:text-amber-200">
+                          Choose what happens to your content before deleting your account.
                         </p>
                       </div>
-                    </div>
-                    
-                    {!keepContentOnDelete && (
-                      <div>
-                        <p className="text-sm text-foreground mb-2">If you choose to delete everything:</p>
-                        <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside ml-2">
-                          <li>All your clips and posts will be permanently deleted</li>
-                          <li>All comments and reactions will be removed</li>
-                          <li>Your profile and all personal data will be deleted</li>
-                          <li>You will be removed from all communities and chats</li>
-                        </ul>
+                      
+                      {/* Keep Content Option */}
+                      <div className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-muted/40">
+                        <input
+                          type="checkbox"
+                          id="keepContent"
+                          checked={keepContentOnDelete}
+                          onChange={(e) => setKeepContentOnDelete(e.target.checked)}
+                          className="mt-0.5 rounded border-border"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="keepContent" className="text-sm font-medium cursor-pointer block mb-1">
+                            Keep my content
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            Your clips, posts, and comments will remain visible but will be anonymized (shown as "deleted_user_xxx"). 
+                            Your profile, follows, and personal data will be removed.
+                          </p>
+                        </div>
                       </div>
-                    )}
+                      
+                      {!keepContentOnDelete && (
+                        <div>
+                          <p className="text-sm text-foreground mb-2">If you choose to delete everything:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside ml-2">
+                            <li>All your clips and posts will be permanently deleted</li>
+                            <li>All comments and reactions will be removed</li>
+                            <li>Your profile and all personal data will be deleted</li>
+                            <li>You will be removed from all communities and chats</li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="gap-2 sm:gap-0">
