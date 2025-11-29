@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -912,22 +912,26 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   What is The Echo Chamber?
                 </h3>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  Reddit for your voice. Share 30-second audio clips—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
+                  Reddit for your voice. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
                 </p>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  Speak your mind. Listen to others. Upvote what hits. No BS, no filters—just raw voice in an underground community.
+                  Speak your mind. React with voice clips. Reply in threads. Create remixes. Continue chains. Join communities. Drop into live audio rooms. Build series. Curate collections. No BS, no filters—just raw voice in an underground community.
+                </p>
+                <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
+                  Listen offline. Background playback. Speed controls. Advanced search by transcription. Daily digests. Trending algorithms. Location-based discovery. Schedule posts. Earn badges. The full audio social experience—all anonymous, all real.
                 </p>
               </div>
 
               <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:border-red-700/60">
-                <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                <h4 className="font-bold text-white dark:text-white mb-4 flex items-center gap-2">
                   <Radio className="h-5 w-5 text-red-400 dark:text-red-400" />
                   How It Works
                 </h4>
-                <ul className="space-y-3 text-sm text-gray-200 dark:text-gray-200">
+                <ul className="space-y-3 text-sm text-gray-200 dark:text-gray-200 mb-4">
                   {[
-                    "Record or upload 30-second audio clips about anything",
-                    "Listen to voices, react, reply—engage with the community",
+                    "Record 30-second clips or 10-minute podcast segments",
+                    "React with emojis or 3-5 second voice reactions",
+                    "Reply with voice, create remixes, or continue chains",
                     "AI moderation keeps it real—trolls get filtered out",
                     "Stay anonymous—no personal info required, ever"
                   ].map((item, index) => (
@@ -938,6 +942,51 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   ))}
                 </ul>
               </div>
+
+              {/* Feature Showcase - All Major Features */}
+              <div className="space-y-4 pt-2">
+                <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2 text-lg">
+                  <Sparkles className="h-5 w-5 text-amber-400 dark:text-amber-400" />
+                  What You Can Do
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: Mic, title: "Voice Clips", desc: "30s quick hits or 10min podcasts" },
+                    { icon: MessageCircle, title: "Voice Replies", desc: "Thread conversations in audio" },
+                    { icon: Repeat2, title: "Remixes", desc: "Add your voice to any clip" },
+                    { icon: Link2, title: "Chains", desc: "Continue audio stories" },
+                    { icon: Users, title: "Communities", desc: "Join audio communities" },
+                    { icon: Radio, title: "Live Rooms", desc: "Real-time audio discussions" },
+                    { icon: TrendingUp, title: "Trending", desc: "Algorithm-driven discovery" },
+                    { icon: Search, title: "Advanced Search", desc: "By transcription, mood, topic" },
+                    { icon: Bookmark, title: "Collections", desc: "Save & curate playlists" },
+                    { icon: Calendar, title: "Schedule Posts", desc: "Plan your content" },
+                    { icon: Download, title: "Offline Mode", desc: "Download for offline listening" },
+                    { icon: PlayCircle, title: "Background Play", desc: "Listen while multitasking" },
+                    { icon: Filter, title: "Smart Filters", desc: "Mood, city, duration, date" },
+                    { icon: Bell, title: "Daily Digest", desc: "Best clips delivered daily" },
+                    { icon: Award, title: "Badges", desc: "Earn achievements & streaks" },
+                    { icon: Globe, title: "Embed & Share", desc: "Share anywhere on the web" },
+                    { icon: MapPin, title: "Location-Based", desc: "Discover nearby voices" },
+                    { icon: Layers, title: "Series", desc: "Podcast-like episode series" },
+                  ].map((feature, index) => (
+                    <div
+                      key={feature.title}
+                      className="group flex flex-col gap-2 rounded-xl border border-red-900/30 dark:border-red-800/20 bg-gradient-to-br from-red-950/20 to-amber-950/20 dark:from-red-950/15 dark:to-amber-950/15 p-3 backdrop-blur-sm hover:bg-gradient-to-br hover:from-red-950/30 hover:to-amber-950/30 dark:hover:from-red-950/25 dark:hover:to-amber-950/25 transition-all duration-300 hover:shadow-md hover:shadow-red-500/10 hover:border-red-700/40 animate-in fade-in-0 slide-in-from-bottom-2"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-red-900/40 to-amber-900/40 text-red-300 dark:text-red-300">
+                        <feature.icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white dark:text-white mb-0.5">{feature.title}</p>
+                        <p className="text-[10px] text-gray-300 dark:text-gray-300 leading-tight">{feature.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3 pt-4">
@@ -945,23 +994,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 { 
                   icon: Mic, 
                   title: "Anonymous & Raw",
-                  description: "Speak freely—your identity stays hidden, only your voice shows",
+                  description: "Speak freely—your identity stays hidden, only your voice shows. No real names, no personal info—just your voice.",
                   iconBg: "from-amber-900/50 to-amber-800/50 dark:from-amber-900/40 dark:to-amber-800/40",
                   iconColor: "text-amber-400 dark:text-amber-400",
                   delay: 0
                 },
                 { 
                   icon: Headphones, 
-                  title: "30-Second Clips",
-                  description: "Quick hits. Record your thoughts in under 30 seconds",
+                  title: "Rich Audio Experience",
+                  description: "30-second quick hits or 10-minute podcasts. Background playback, offline mode, speed control—full audio control.",
                   iconBg: "from-red-900/50 to-red-800/50 dark:from-red-900/40 dark:to-red-800/40",
                   iconColor: "text-red-400 dark:text-red-400",
                   delay: 100
                 },
                 { 
-                  icon: Radio, 
+                  icon: Users, 
                   title: "Real Community",
-                  description: "AI filters the noise. Real voices, real conversations",
+                  description: "Communities, live rooms, series, collections. AI filters the noise. Real voices, real conversations, real connections.",
                   iconBg: "from-amber-800/50 to-red-800/50 dark:from-amber-800/40 dark:to-red-800/40",
                   iconColor: "text-amber-400 dark:text-amber-400",
                   delay: 200
