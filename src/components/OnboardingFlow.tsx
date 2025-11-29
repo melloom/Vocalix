@@ -146,10 +146,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaAvailable, setRecaptchaAvailable] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
   const [recaptchaLoading, setRecaptchaLoading] = useState(true);
-  const [recaptchaKey, setRecaptchaKey] = useState(0); // Key to force remount on retry
   const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
   const [avatarsLoading, setAvatarsLoading] = useState(false);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
   
   // Note: Freepik API doesn't work from browser due to CORS restrictions
   // Using DiceBear which works perfectly and generates unique avatars
@@ -221,36 +219,24 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setSelectedAvatar(generateAvatarFromHandle(handle));
   }, [handle]);
 
-  // Check if reCAPTCHA script is loaded
+  // Load reCAPTCHA Enterprise script
   useEffect(() => {
     const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
     const isDevelopment = typeof window !== 'undefined' && 
       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     
     if (!RECAPTCHA_SITE_KEY) {
-      console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
+      console.log('[OnboardingFlow] No reCAPTCHA Enterprise site key configured, skipping verification');
       console.log('[OnboardingFlow] To enable: Set VITE_RECAPTCHA_SITE_KEY environment variable');
       setRecaptchaLoading(false);
       setRecaptchaAvailable(false);
       return;
     }
 
-    // Log detailed diagnostics
-    const siteKeyPreview = RECAPTCHA_SITE_KEY 
-      ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
-      : 'Not set';
-    
-    console.log('[OnboardingFlow] Checking reCAPTCHA availability...', {
-      siteKey: siteKeyPreview,
-      domain: currentDomain,
-      environment: isDevelopment ? 'Development' : 'Production',
-      recaptchaKey: recaptchaKey,
-    });
-
-    // Check if reCAPTCHA script is already loaded
-    const checkRecaptchaLoaded = () => {
-      if (typeof window !== 'undefined' && (window as any).grecaptcha) {
-        console.log('[OnboardingFlow] ✅ reCAPTCHA already loaded');
+    // Check if Enterprise script is already loaded
+    const checkEnterpriseLoaded = () => {
+      if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
+        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise already loaded');
         setRecaptchaLoading(false);
         setRecaptchaAvailable(true);
         setRecaptchaError(false);
@@ -260,52 +246,83 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     };
 
     // Check immediately
-    if (checkRecaptchaLoaded()) {
+    if (checkEnterpriseLoaded()) {
       return;
     }
 
-    // Wait for script to load (with timeout)
-    // The ReCAPTCHA component will load the script, so we wait for it
+    // Load Enterprise script dynamically
+    const loadEnterpriseScript = () => {
+      // Check if script already exists
+      const existingScript = document.querySelector(`script[src*="recaptcha/enterprise.js"]`);
+      if (existingScript) {
+        console.log('[OnboardingFlow] Enterprise script already in DOM, waiting for load...');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${RECAPTCHA_SITE_KEY}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise script loaded');
+        // Wait for grecaptcha.enterprise to be available
+        const checkReady = setInterval(() => {
+          if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
+            clearInterval(checkReady);
+            setRecaptchaLoading(false);
+            setRecaptchaAvailable(true);
+            setRecaptchaError(false);
+          }
+        }, 100);
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          clearInterval(checkReady);
+          if (!checkEnterpriseLoaded()) {
+            console.error('[OnboardingFlow] Enterprise API not available after script load');
+            setRecaptchaError(true);
+            setRecaptchaLoading(false);
+          }
+        }, 5000);
+      };
+      script.onerror = () => {
+        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script');
+        setRecaptchaError(true);
+        setRecaptchaLoading(false);
+        
+        if (!isDevelopment) {
+          console.error('[OnboardingFlow] Possible causes:');
+          console.error('  1. Domain not registered in reCAPTCHA console');
+          console.error('  2. Network/CSP blocking Google scripts');
+          console.error('  3. Invalid site key');
+        }
+      };
+      document.head.appendChild(script);
+    };
+
+    // Load script
+    loadEnterpriseScript();
+
+    // Fallback: Check periodically if script loaded externally
     let attempts = 0;
-    const maxAttempts = 40; // 20 seconds max (increased for slower connections)
+    const maxAttempts = 40;
     const checkInterval = setInterval(() => {
       attempts++;
-      if (checkRecaptchaLoaded() || attempts >= maxAttempts) {
+      if (checkEnterpriseLoaded() || attempts >= maxAttempts) {
         clearInterval(checkInterval);
-        if (attempts >= maxAttempts && !checkRecaptchaLoaded()) {
-          // Only warn in production - in development it's expected if key isn't set
+        if (attempts >= maxAttempts && !checkEnterpriseLoaded()) {
           if (!isDevelopment) {
-            console.error('[OnboardingFlow] ❌ reCAPTCHA script did not load within timeout');
-            console.error('[OnboardingFlow] Diagnostics:');
-            console.error('  - Site key:', siteKeyPreview);
-            console.error('  - Domain:', currentDomain);
-            console.error('  - Environment: Production');
-            console.error('[OnboardingFlow] Possible causes:');
-            console.error('  1. Domain not registered in reCAPTCHA console');
-            console.error('     → Go to https://www.google.com/recaptcha/admin');
-            console.error(`     → Add domain: ${currentDomain}`);
-            console.error('  2. Network/CSP blocking Google scripts');
-            console.error('     → Check browser console for CSP errors');
-            console.error('     → Check network tab for blocked requests to google.com/gstatic.com');
-            console.error('  3. Invalid or missing site key');
-            console.error('     → Verify VITE_RECAPTCHA_SITE_KEY is set in production environment');
-            console.error('     → Verify site key matches Google reCAPTCHA console');
-            console.error('[OnboardingFlow] Quick fix:');
-            console.error('  1. Open https://www.google.com/recaptcha/admin');
-            console.error('  2. Click your site → Settings → Domains');
-            console.error(`  3. Add: ${currentDomain}`);
-            console.error('  4. Wait 5-10 minutes and retry');
-          } else {
-            console.debug('[OnboardingFlow] reCAPTCHA not configured for development (this is normal)');
+            console.error('[OnboardingFlow] ❌ reCAPTCHA Enterprise did not load within timeout');
           }
           setRecaptchaLoading(false);
-          setRecaptchaError(true);
+          if (!checkEnterpriseLoaded()) {
+            setRecaptchaError(true);
+          }
         }
       }
     }, 500);
 
     return () => clearInterval(checkInterval);
-  }, [RECAPTCHA_SITE_KEY, recaptchaKey]);
+  }, [RECAPTCHA_SITE_KEY]);
 
   const handleSubmit = async () => {
     if (!handle.trim()) {
@@ -317,30 +334,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return;
     }
 
-    // Require reCAPTCHA if it's configured and available
-    // Only skip if it failed to load or isn't available
-    if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
-      toast({
-        title: "Verification required",
-        description: "Please complete the reCAPTCHA verification",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // If reCAPTCHA is still loading, wait a bit
+    // If reCAPTCHA Enterprise is still loading, wait a bit
     if (RECAPTCHA_SITE_KEY && recaptchaLoading) {
       toast({
         title: "Loading verification",
-        description: "Please wait for reCAPTCHA to load",
+        description: "Please wait for verification to load",
         variant: "default",
       });
       return;
     }
     
-    // If reCAPTCHA had an error, log it but allow submission (fallback)
-    if (RECAPTCHA_SITE_KEY && recaptchaError) {
-      console.warn('[OnboardingFlow] reCAPTCHA unavailable, proceeding without verification');
+    // Execute reCAPTCHA Enterprise if available (it's invisible, runs automatically)
+    // We'll get the token right before submitting to backend
+    if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError) {
+      // Token will be obtained when executing Enterprise in the validation step
+      // No need to check for token here - Enterprise executes on-demand
+    } else if (RECAPTCHA_SITE_KEY && recaptchaError) {
+      console.warn('[OnboardingFlow] reCAPTCHA Enterprise unavailable, proceeding without verification');
     }
 
     const normalizedHandle = handle.toLowerCase().trim();
@@ -463,7 +473,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
       }
 
-      // Validate account creation with reCAPTCHA token (if validation function exists)
+      // Execute reCAPTCHA Enterprise and get token
+      let enterpriseToken: string | null = null;
+      if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError) {
+        try {
+          // Execute Enterprise - it's invisible and runs automatically
+          if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
+            await new Promise<void>((resolve) => {
+              (window as any).grecaptcha.enterprise.ready(async () => {
+                try {
+                  enterpriseToken = await (window as any).grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, {
+                    action: 'ACCOUNT_CREATION'
+                  });
+                  console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained');
+                  resolve();
+                } catch (error) {
+                  console.error('[OnboardingFlow] Failed to execute Enterprise:', error);
+                  resolve(); // Continue without token
+                }
+              });
+            });
+          }
+        } catch (error) {
+          console.warn('[OnboardingFlow] Enterprise execution error:', error);
+          // Continue without token - backend will handle gracefully
+        }
+      }
+
+      // Validate account creation with reCAPTCHA Enterprise token (if validation function exists)
       // This ensures reCAPTCHA is verified on the backend
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -478,7 +515,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           body: JSON.stringify({
             handle: normalizedHandle,
             device_id: finalDeviceId,
-            recaptcha_token: recaptchaToken || undefined,
+            recaptcha_token: enterpriseToken || recaptchaToken || undefined,
             honeypot: honeypot || undefined,
             user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
           }),
@@ -520,9 +557,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               variant: "destructive",
             });
             setIsLoading(false);
-            // Reset reCAPTCHA if token expired
-            if (recaptchaRef.current && validationData.reason?.includes('reCAPTCHA')) {
-              recaptchaRef.current.reset();
+            // Reset Enterprise token if verification failed
+            if (validationData.reason?.includes('reCAPTCHA')) {
               setRecaptchaToken(null);
             }
             return;
@@ -934,213 +970,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 />
               </div>
 
-              {/* reCAPTCHA */}
-              {RECAPTCHA_SITE_KEY && (
-                <div className="flex flex-col items-center gap-2">
-                  {recaptchaLoading && (
-                    <div className="text-xs text-gray-300 dark:text-gray-300 text-center font-medium">
-                      <p>Loading verification...</p>
-                    </div>
-                  )}
-                  {!recaptchaError && !recaptchaLoading && (
-                    <div className="flex justify-center">
-                      <ReCAPTCHA
-                        key={recaptchaKey}
-                        ref={recaptchaRef}
-                        sitekey={RECAPTCHA_SITE_KEY}
-                        onChange={(token) => {
-                          if (token) {
-                            setRecaptchaToken(token);
-                            setRecaptchaAvailable(true);
-                            setRecaptchaError(false);
-                            console.log('[OnboardingFlow] reCAPTCHA verified successfully');
-                          }
-                        }}
-                        onExpired={() => {
-                          console.log('[OnboardingFlow] reCAPTCHA expired, resetting');
-                          setRecaptchaToken(null);
-                          setRecaptchaAvailable(false);
-                        }}
-                        onError={(error) => {
-                          // Check if we're in development
-                          const isDevelopment = typeof window !== 'undefined' && 
-                            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                          
-                          if (isDevelopment) {
-                            // In development, log as warning and provide helpful guidance
-                            console.warn('[OnboardingFlow] reCAPTCHA error in development:', error);
-                            console.warn('[OnboardingFlow] This is normal if:');
-                            console.warn('  1. No reCAPTCHA site key is configured (app will work without it)');
-                            console.warn('  2. Site key is invalid or not registered for localhost');
-                            console.warn('  3. To fix: Add localhost to your reCAPTCHA site domains at https://www.google.com/recaptcha/admin');
-                            console.warn('[OnboardingFlow] The app will continue to work - reCAPTCHA is optional in development');
-                          } else {
-                            // In production, log as error
-                            console.error('[OnboardingFlow] reCAPTCHA error:', error);
-                            console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-                            console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
-                          }
-                          
-                          setRecaptchaToken(null);
-                          // Don't mark as error immediately - allow retry
-                          setTimeout(() => {
-                            if (!recaptchaToken) {
-                              setRecaptchaError(true);
-                            }
-                          }, 2000);
-                        }}
-                        asyncScriptOnLoad={() => {
-                          console.log('[OnboardingFlow] reCAPTCHA script loaded successfully');
-                          console.log('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-                          console.log('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
-                          setRecaptchaLoading(false);
-                          setRecaptchaAvailable(true);
-                          setRecaptchaError(false);
-                        }}
-                        asyncScriptOnError={() => {
-                          // Check if we're in development
-                          const isDevelopment = typeof window !== 'undefined' && 
-                            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                          
-                          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
-                          const siteKeySet = !!RECAPTCHA_SITE_KEY;
-                          const siteKeyPreview = RECAPTCHA_SITE_KEY 
-                            ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
-                            : 'Not set';
-                          
-                          if (isDevelopment) {
-                            // In development, log as warning
-                            console.warn('[OnboardingFlow] reCAPTCHA script failed to load (development mode)');
-                            console.warn('[OnboardingFlow] Site key:', siteKeyPreview);
-                            console.warn('[OnboardingFlow] Domain:', currentDomain);
-                            console.warn('[OnboardingFlow] This is normal if reCAPTCHA is not configured for localhost');
-                            console.warn('[OnboardingFlow] The app will work without reCAPTCHA - it\'s optional in development');
-                            console.warn('[OnboardingFlow] To enable: Add localhost to your reCAPTCHA site at https://www.google.com/recaptcha/admin');
-                          } else {
-                            // In production, log as error with full diagnostics
-                            console.error('[OnboardingFlow] ❌ reCAPTCHA script failed to load');
-                            console.error('[OnboardingFlow] Diagnostics:');
-                            console.error('  - Site key:', siteKeySet ? siteKeyPreview : '❌ MISSING');
-                            console.error('  - Domain:', currentDomain);
-                            console.error('  - Environment:', isDevelopment ? 'Development' : 'Production');
-                            console.error('[OnboardingFlow] Possible causes:');
-                            if (!siteKeySet) {
-                              console.error('  ❌ Site key not set - Check VITE_RECAPTCHA_SITE_KEY environment variable');
-                            } else {
-                              console.error('  1. Domain not registered in reCAPTCHA console');
-                              console.error('     → Go to https://www.google.com/recaptcha/admin');
-                              console.error('     → Add domain:', currentDomain);
-                              console.error('  2. Network/CSP blocking Google scripts');
-                              console.error('     → Check browser console for CSP errors');
-                              console.error('     → Check network tab for blocked requests');
-                              console.error('  3. Invalid site key');
-                              console.error('     → Verify site key matches Google console');
-                            }
-                            console.error('[OnboardingFlow] Quick fix:');
-                            console.error('  1. Open https://www.google.com/recaptcha/admin');
-                            console.error('  2. Click your site → Settings');
-                            console.error('  3. Add domain:', currentDomain);
-                            console.error('  4. Wait 5-10 minutes and retry');
-                          }
-                          
-                          setRecaptchaLoading(false);
-                          setRecaptchaAvailable(false);
-                          setRecaptchaError(true);
-                        }}
-                        theme="light"
-                        size="normal"
-                      />
-                    </div>
-                  )}
-                  {recaptchaError && !recaptchaLoading && (
-                    <div className="text-xs text-muted-foreground text-center space-y-2 p-4 rounded-lg bg-red-950/20 dark:bg-red-950/10 border border-red-900/30 dark:border-red-800/20">
-                      <p className="text-red-400 dark:text-red-400 font-semibold mb-2">reCAPTCHA unavailable</p>
-                      <p className="text-gray-300 dark:text-gray-400 mb-3">You can still create your account without verification</p>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            console.log('[OnboardingFlow] Retrying reCAPTCHA...');
-                            // Log current diagnostics
-                            const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
-                            const siteKeyPreview = RECAPTCHA_SITE_KEY 
-                              ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
-                              : 'Not set';
-                            console.log('[OnboardingFlow] Diagnostic Info:', {
-                              domain: currentDomain,
-                              siteKey: siteKeyPreview,
-                              grecaptchaAvailable: !!(typeof window !== 'undefined' && (window as any).grecaptcha),
-                            });
-                            
-                            // Reset all states
-                            setRecaptchaError(false);
-                            setRecaptchaLoading(true);
-                            setRecaptchaAvailable(false);
-                            setRecaptchaToken(null);
-                            
-                            // Force remount by changing key - this will reload the script
-                            setRecaptchaKey(prev => prev + 1);
-                            
-                            // Remove any existing reCAPTCHA scripts to force reload
-                            if (typeof window !== 'undefined') {
-                              // Remove existing script tags
-                              const existingScripts = document.querySelectorAll('script[src*="recaptcha"]');
-                              existingScripts.forEach(script => script.remove());
-                              
-                              // Clear grecaptcha if it exists
-                              if ((window as any).grecaptcha) {
-                                delete (window as any).grecaptcha;
-                              }
-                            }
-                            
-                            // Wait a bit for cleanup, then check if it loads
-                            setTimeout(() => {
-                              // The component will remount with new key and try to load
-                              // asyncScriptOnLoad will handle success
-                              // If it still fails, asyncScriptOnError will set error again
-                            }, 500);
-                          }}
-                          className="text-xs px-4 py-2 bg-red-900/40 dark:bg-red-900/30 hover:bg-red-900/60 dark:hover:bg-red-900/50 text-white rounded-lg border border-red-800/50 dark:border-red-700/40 transition-all duration-200 hover:scale-105 active:scale-95 font-semibold"
-                        >
-                          Retry reCAPTCHA
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Allow proceeding without reCAPTCHA
-                            setRecaptchaError(false);
-                            setRecaptchaLoading(false);
-                            console.log('[OnboardingFlow] Proceeding without reCAPTCHA verification');
-                          }}
-                          className="text-xs text-amber-400 dark:text-amber-400 hover:text-amber-300 dark:hover:text-amber-300 hover:underline font-medium"
-                        >
-                          Continue without verification
-                        </button>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-red-900/30 dark:border-red-800/20">
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
-                          Troubleshooting: Check console for details (F12 → Console tab)
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-600 text-left mb-1 font-semibold">
-                          Common causes:
-                        </p>
-                        <ul className="text-xs text-gray-500 dark:text-gray-600 mt-1 text-left list-disc list-inside space-y-0.5">
-                          <li>Domain not registered in reCAPTCHA console</li>
-                          <li>Network/CSP blocking Google scripts</li>
-                          <li>Invalid or missing site key</li>
-                        </ul>
-                        <p className="text-xs text-gray-500 dark:text-gray-600 text-left mt-2 font-semibold">
-                          Quick fix:
-                        </p>
-                        <ol className="text-xs text-gray-500 dark:text-gray-600 mt-1 text-left list-decimal list-inside space-y-0.5">
-                          <li>Open <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Google reCAPTCHA Admin</a></li>
-                          <li>Click your site → Settings → Domains</li>
-                          <li>Add: <code className="bg-black/20 px-1 rounded">{typeof window !== 'undefined' ? window.location.hostname : 'yourdomain.com'}</code></li>
-                          <li>Wait 5-10 minutes and retry</li>
-                        </ol>
-                      </div>
-                    </div>
-                  )}
+              {/* reCAPTCHA Enterprise - Invisible, runs automatically */}
+              {RECAPTCHA_SITE_KEY && recaptchaError && (
+                <div className="text-xs text-muted-foreground text-center space-y-2 p-3 rounded-lg bg-red-950/10 dark:bg-red-950/5 border border-red-900/20 dark:border-red-800/10">
+                  <p className="text-red-400 dark:text-red-400 font-semibold text-xs">Verification unavailable</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-xs">You can still create your account. Verification will be attempted automatically.</p>
                 </div>
               )}
             </CardContent>

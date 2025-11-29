@@ -3,7 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.46.0?target
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const RECAPTCHA_SECRET_KEY = Deno.env.get("RECAPTCHA_SECRET_KEY");
+const RECAPTCHA_SECRET_KEY = Deno.env.get("RECAPTCHA_SECRET_KEY"); // Legacy v2 secret key (fallback)
+const RECAPTCHA_PROJECT_ID = Deno.env.get("RECAPTCHA_PROJECT_ID"); // Enterprise project ID
+const RECAPTCHA_API_KEY = Deno.env.get("RECAPTCHA_API_KEY"); // Google Cloud API key for Enterprise
+const RECAPTCHA_SITE_KEY = Deno.env.get("RECAPTCHA_SITE_KEY"); // Enterprise site key for verification
 
 // Inline error handling utilities (from _shared/error-handler.ts)
 const SENSITIVE_PATTERNS = [
@@ -255,8 +258,8 @@ serve(async (req) => {
       );
     }
 
-    // Verify reCAPTCHA token if secret key is configured
-    if (RECAPTCHA_SECRET_KEY) {
+    // Verify reCAPTCHA Enterprise token if configured
+    if (RECAPTCHA_API_KEY && RECAPTCHA_PROJECT_ID && RECAPTCHA_SITE_KEY) {
       if (!recaptcha_token || recaptcha_token.trim().length === 0) {
         return new Response(
           JSON.stringify({
@@ -270,7 +273,138 @@ serve(async (req) => {
         );
       }
 
-      // Verify token with Google reCAPTCHA API
+      // Verify token with reCAPTCHA Enterprise Assessment API
+      try {
+        const assessmentUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${RECAPTCHA_PROJECT_ID}/assessments?key=${RECAPTCHA_API_KEY}`;
+        
+        const assessmentBody = {
+          event: {
+            token: recaptcha_token,
+            expectedAction: "ACCOUNT_CREATION",
+            siteKey: RECAPTCHA_SITE_KEY,
+          }
+        };
+
+        const recaptchaResponse = await fetch(assessmentUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(assessmentBody),
+        });
+
+        if (!recaptchaResponse.ok) {
+          const errorText = await recaptchaResponse.text().catch(() => "Unknown error");
+          logErrorSafely("recaptcha_enterprise_verification", new Error(`Failed to verify reCAPTCHA Enterprise token: ${recaptchaResponse.status} ${errorText}`));
+          
+          return new Response(
+            JSON.stringify({
+              allowed: false,
+              reason: "reCAPTCHA verification failed. Please try again.",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
+
+        const assessmentData = await recaptchaResponse.json();
+
+        // Check if assessment is valid
+        if (!assessmentData.tokenProperties || !assessmentData.tokenProperties.valid) {
+          logErrorSafely("recaptcha_enterprise_invalid", new Error("reCAPTCHA Enterprise token is invalid"), {
+            handle: handle.toLowerCase().trim(),
+            device_id,
+            invalidReason: assessmentData.tokenProperties?.invalidReason || "Unknown",
+          });
+
+          return new Response(
+            JSON.stringify({
+              allowed: false,
+              reason: "reCAPTCHA token is invalid. Please try again.",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
+
+        // Verify expected action matches
+        if (assessmentData.tokenProperties.action !== "ACCOUNT_CREATION") {
+          logErrorSafely("recaptcha_enterprise_action_mismatch", new Error("Action mismatch - possible token reuse"), {
+            handle: handle.toLowerCase().trim(),
+            device_id,
+            expected: "ACCOUNT_CREATION",
+            received: assessmentData.tokenProperties.action,
+          });
+
+          return new Response(
+            JSON.stringify({
+              allowed: false,
+              reason: "Verification failed. Please try again.",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
+
+        // Check risk score (0.0 = bot, 1.0 = human)
+        const riskScore = assessmentData.riskAnalysis?.score ?? 0.5;
+        const threshold = 0.5; // Adjust threshold as needed
+
+        if (riskScore < threshold) {
+          logErrorSafely("recaptcha_enterprise_low_score", new Error(`reCAPTCHA Enterprise score too low: ${riskScore}`), {
+            handle: handle.toLowerCase().trim(),
+            device_id,
+            score: riskScore,
+            threshold,
+          });
+
+          return new Response(
+            JSON.stringify({
+              allowed: false,
+              reason: "Verification failed. Please try again.",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
+
+        // Check reasons for low confidence
+        const reasons = assessmentData.riskAnalysis?.reasons || [];
+        if (reasons.length > 0) {
+          console.log(`[validate-account-creation] reCAPTCHA Enterprise risk reasons: ${reasons.join(", ")}`);
+        }
+
+        console.log(`[validate-account-creation] ✅ reCAPTCHA Enterprise verified successfully (score: ${riskScore})`);
+
+      } catch (recaptchaError) {
+        logErrorSafely("recaptcha_enterprise_error", recaptchaError);
+        // In case of error, allow but log it (fail open for availability)
+        // In production, you might want to fail closed
+        console.warn("reCAPTCHA Enterprise verification error, allowing request but logging:", recaptchaError);
+      }
+    } else if (RECAPTCHA_SECRET_KEY) {
+      // Fallback to v2 API if Enterprise not configured
+      if (!recaptcha_token || recaptcha_token.trim().length === 0) {
+        return new Response(
+          JSON.stringify({
+            allowed: false,
+            reason: "reCAPTCHA verification is required",
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "content-type": "application/json" },
+          }
+        );
+      }
+
       try {
         const recaptchaResponse = await fetch(
           `https://www.google.com/recaptcha/api/siteverify?secret=${RECAPTCHA_SECRET_KEY}&response=${recaptcha_token}`,
@@ -297,15 +431,12 @@ serve(async (req) => {
 
         if (!recaptchaData.success) {
           const errorCodes = recaptchaData["error-codes"] || [];
-          
-          // Log failed verification attempts with detailed error codes
           logErrorSafely("recaptcha_failed", new Error(`reCAPTCHA verification failed: ${errorCodes.join(", ")}`), {
             handle: handle.toLowerCase().trim(),
             device_id,
             error_codes: errorCodes,
           });
 
-          // Provide more helpful error message based on error codes
           let errorMessage = "reCAPTCHA verification failed. Please try again.";
           if (errorCodes.includes("invalid-input-secret")) {
             errorMessage = "reCAPTCHA configuration error. Please contact support.";
@@ -313,16 +444,12 @@ serve(async (req) => {
             errorMessage = "reCAPTCHA token is invalid. Please complete the verification again.";
           } else if (errorCodes.includes("timeout-or-duplicate")) {
             errorMessage = "reCAPTCHA token expired. Please complete the verification again.";
-          } else if (errorCodes.includes("bad-request")) {
-            errorMessage = "reCAPTCHA request error. Please try again.";
           }
 
           return new Response(
             JSON.stringify({
               allowed: false,
               reason: errorMessage,
-              // Include error codes in development for debugging (not in production)
-              ...(Deno.env.get("ENVIRONMENT") === "development" && { error_codes: errorCodes }),
             }),
             {
               status: 400,
@@ -331,7 +458,7 @@ serve(async (req) => {
           );
         }
 
-        // Optional: Check score for reCAPTCHA v3 (score < 0.5 is suspicious)
+        // Check score for v3
         if (recaptchaData.score !== undefined && recaptchaData.score < 0.5) {
           logErrorSafely("recaptcha_low_score", new Error("reCAPTCHA score too low"), {
             handle: handle.toLowerCase().trim(),
@@ -352,8 +479,6 @@ serve(async (req) => {
         }
       } catch (recaptchaError) {
         logErrorSafely("recaptcha_error", recaptchaError);
-        // In case of error, allow but log it (fail open for availability)
-        // In production, you might want to fail closed
         console.warn("reCAPTCHA verification error, allowing request but logging:", recaptchaError);
       }
     }

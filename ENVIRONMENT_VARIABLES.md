@@ -40,12 +40,13 @@ Complete reference for all environment variables used in Echo Garden.
 - **Security**: Safe to expose (public DSN)
 
 #### `VITE_RECAPTCHA_SITE_KEY`
-- **Description**: Google reCAPTCHA site key
-- **Example**: `6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI`
-- **Where to Get**: [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin)
-- **Required**: No
+- **Description**: Google reCAPTCHA Enterprise site key (score-based, invisible)
+- **Example**: `6LdrJBcsAAAAAKWjfoIW-YDTcHH9g9N5S2Zb8cYH`
+- **Where to Get**: [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin) → Your site → Site Key
+- **Required**: No (but recommended for production)
 - **Default**: None
 - **Security**: Safe to expose (public key)
+- **Type**: Enterprise (score-based) - invisible, runs automatically
 
 #### `VITE_FREEPIK_API_KEY`
 - **Description**: Freepik API key for fetching avatar icons
@@ -103,6 +104,36 @@ Set these in Supabase Dashboard → Project Settings → Edge Functions → Secr
 - **Example**: `https://abc123@o123456.ingest.sentry.io/123456`
 - **Required**: No
 - **Security**: Safe to expose (public DSN)
+
+#### `RECAPTCHA_PROJECT_ID`
+- **Description**: Google Cloud project ID for reCAPTCHA Enterprise
+- **Example**: `echo-garden-479222`
+- **Where to Get**: Google Cloud Console → Project ID
+- **Required**: Yes (for Enterprise verification)
+- **Security**: ⚠️ **SECRET** - Keep in Supabase Edge Functions secrets
+- **Note**: Used for Enterprise Assessment API calls
+
+#### `RECAPTCHA_API_KEY`
+- **Description**: Google Cloud API key for reCAPTCHA Enterprise Assessment API
+- **Example**: `AIzaSyAbCdEfGhIjKlMnO-pQrStUvWxYz1234567`
+- **Where to Get**: [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create API Key (see `GOOGLE_CLOUD_API_KEY_GUIDE.md`)
+- **Required**: Yes (for Enterprise verification)
+- **Security**: ⚠️ **SECRET** - Never expose! Keep in Supabase Edge Functions secrets
+- **Note**: Must be restricted to "reCAPTCHA Enterprise API" for security
+
+#### `RECAPTCHA_SITE_KEY`
+- **Description**: reCAPTCHA Enterprise site key (for backend verification)
+- **Example**: `6LdrJBcsAAAAAKWjfoIW-YDTcHH9g9N5S2Zb8cYH`
+- **Required**: Yes (for Enterprise verification in backend)
+- **Security**: Safe to expose (same as frontend site key)
+- **Note**: Must match `VITE_RECAPTCHA_SITE_KEY` used in frontend
+
+#### `RECAPTCHA_SECRET_KEY` (Legacy v2 - Optional Fallback)
+- **Description**: reCAPTCHA v2 secret key (legacy, for backward compatibility)
+- **Example**: `6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe`
+- **Required**: No (only if not using Enterprise)
+- **Security**: ⚠️ **SECRET** - Never expose!
+- **Note**: System will use Enterprise if `RECAPTCHA_API_KEY` and `RECAPTCHA_PROJECT_ID` are set, otherwise falls back to v2
 
 ## 🔄 Development vs Production
 
