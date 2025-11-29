@@ -195,8 +195,8 @@ export function AvatarSelector() {
     <Card className="p-6 rounded-3xl space-y-6 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 border border-red-900/40 dark:border-red-800/30">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white dark:text-white">Avatar</h3>
-          <p className="text-sm text-gray-300 dark:text-gray-300">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Avatar</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
             Upload a custom image or choose from preset avatars
           </p>
         </div>
@@ -244,7 +244,7 @@ export function AvatarSelector() {
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading || isUpdating}
-            className="rounded-xl flex-1 border-red-900/40 dark:border-red-800/30 hover:bg-red-950/40 dark:hover:bg-red-950/30 text-white dark:text-white"
+            className="rounded-xl flex-1 border-red-900/40 dark:border-red-800/30 hover:bg-red-950/40 dark:hover:bg-red-950/30 text-gray-900 dark:text-gray-100 bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800"
           >
             <Upload className="h-4 w-4 mr-2" />
             {currentImage ? "Change Image" : "Upload Custom Image"}
