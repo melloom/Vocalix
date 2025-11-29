@@ -298,17 +298,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       // Check if script already exists
       const existingScript = document.querySelector(`script[src*="recaptcha/enterprise.js"]`);
       if (existingScript) {
-        console.log('[OnboardingFlow] Enterprise script already in DOM, waiting for load...');
-        // If script exists but Enterprise API isn't ready, wait for it
+        // If script exists but Enterprise API isn't ready, wait for it (silently)
         if (!checkEnterpriseLoaded()) {
-          // Wait for it to become available
+          // Wait for it to become available (max 5 seconds)
           let waitAttempts = 0;
           const waitInterval = setInterval(() => {
             waitAttempts++;
             if (checkEnterpriseLoaded() || waitAttempts >= 50) {
               clearInterval(waitInterval);
               if (!checkEnterpriseLoaded()) {
-                console.warn('[OnboardingFlow] Script in DOM but Enterprise API not available');
+                // Silently fail - reCAPTCHA is optional
                 setRecaptchaError(true);
                 setRecaptchaLoading(false);
               }
@@ -396,20 +395,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }, 500); // Wait 500ms after script load
       };
       
-      script.onerror = (e) => {
-        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script:', e);
+      script.onerror = () => {
+        // Silently handle error - reCAPTCHA is optional
         if (checkReadyInterval) clearInterval(checkReadyInterval);
         setRecaptchaError(true);
         setRecaptchaLoading(false);
-        
-        if (!isDevelopment) {
-          console.error('[OnboardingFlow] Possible causes:');
-          console.error('  1. Domain not registered in reCAPTCHA console');
-          console.error('  2. Network/CSP blocking Google scripts');
-          console.error('  3. Invalid site key');
-          console.error('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-          console.error('[OnboardingFlow] Domain:', currentDomain);
-        }
       };
       
       document.head.appendChild(script);
@@ -423,18 +413,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     const maxAttempts = 40;
     const checkInterval = setInterval(() => {
       attempts++;
-      if (checkEnterpriseLoaded() || attempts >= maxAttempts) {
-        clearInterval(checkInterval);
-        if (attempts >= maxAttempts && !checkEnterpriseLoaded()) {
-          if (!isDevelopment) {
-            console.error('[OnboardingFlow] ❌ reCAPTCHA Enterprise did not load within timeout');
-          }
-          setRecaptchaLoading(false);
-          if (!checkEnterpriseLoaded()) {
-            setRecaptchaError(true);
+        if (checkEnterpriseLoaded() || attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          if (attempts >= maxAttempts && !checkEnterpriseLoaded()) {
+            // Silently fail - reCAPTCHA is optional, won't block users
+            setRecaptchaLoading(false);
+            if (!checkEnterpriseLoaded()) {
+              setRecaptchaError(true);
+            }
           }
         }
-      }
     }, 500);
 
     return () => clearInterval(checkInterval);
