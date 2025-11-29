@@ -153,8 +153,11 @@ const AvatarIcon = ({
           onError={handleImageError}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600 rounded-full">
-          {AVATAR_TYPE_TO_EMOJI[type] || '👤'}
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-600 to-gray-700 rounded-full">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
         </div>
       )}
     </div>
