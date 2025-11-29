@@ -460,12 +460,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     const maxAttempts = 40;
     const checkInterval = setInterval(() => {
       attempts++;
-        if (checkEnterpriseLoaded() || attempts >= maxAttempts) {
+        if (checkV3Loaded() || attempts >= maxAttempts) {
           clearInterval(checkInterval);
-          if (attempts >= maxAttempts && !checkEnterpriseLoaded()) {
+          if (attempts >= maxAttempts && !checkV3Loaded()) {
             // Silently fail - reCAPTCHA is optional, won't block users
             setRecaptchaLoading(false);
-            if (!checkEnterpriseLoaded()) {
+            if (!checkV3Loaded()) {
               setRecaptchaError(true);
             }
           }
