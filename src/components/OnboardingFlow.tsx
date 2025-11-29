@@ -453,7 +453,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     };
 
     // Load script
-    loadEnterpriseScript();
+    loadV3Script();
 
     // Fallback: Check periodically if script loaded externally
     let attempts = 0;
