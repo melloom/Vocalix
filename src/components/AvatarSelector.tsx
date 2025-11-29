@@ -35,38 +35,43 @@ const getAvatarUrl = (avatarId: AvatarType): string => {
   const seed = avatarId.replace('avatar', '');
   const avatarNum = parseInt(seed) || 1;
   
-  // Use different avatar APIs for variety (all free, no API key needed)
+  // Use different avatar APIs - ONLY visual icons, NO letters/initials/emojis
+  // All free, no API key needed, all show actual profile picture icons
   const avatarSources = [
-    // DiceBear - diverse styles
+    // DiceBear - avataaars (cartoon faces) - NO identicon/initials
     () => {
-      const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
+      const styles = ['avataaars', 'personas', 'bottts', 'lorelei', 'micah', 'big-ears', 'big-smile', 'notionists'];
       const styleIndex = (avatarNum - 1) % styles.length;
       const style = styles[styleIndex];
       const uniqueSeed = `echo-avatar-${avatarNum}-style-${styleIndex}-seed-${avatarNum * 127 + styleIndex * 31}`;
-      const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'][avatarNum % 5];
+      const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'e0bbff', 'ffbea3', 'a8e6cf'][avatarNum % 8];
       return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
     },
-    // UI Avatars - simple icons
+    // Pixel Art avatars - fun pixel style
     () => {
-      const names = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Blake', 'Drew', 'Reese', 'Finley', 'Hayden', 'Rowan', 'Parker', 'Cameron', 'Devin', 'Emery', 'River', 'Phoenix', 'Skyler', 'Indigo', 'Arden'];
-      const name = names[(avatarNum - 1) % names.length];
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=128&bold=true&format=svg`;
+      const seed = `echo-avatar-${avatarNum}-pixel-${avatarNum * 47}`;
+      return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&size=128`;
     },
-    // Adorable Avatars - cute icons
+    // Funky avatars - colorful fun style
     () => {
-      const seed = `echo${avatarNum}avatar${avatarNum * 23}`;
-      return `https://api.adorable.io/avatars/128/${encodeURIComponent(seed)}.png`;
+      const seed = `echo-avatar-${avatarNum}-funky-${avatarNum * 73}`;
+      return `https://api.dicebear.com/7.x/funky/svg?seed=${encodeURIComponent(seed)}&size=128`;
     },
-    // RoboHash - robot/icon avatars
+    // Open Peeps - illustrated people
+    () => {
+      const seed = `echo-avatar-${avatarNum}-peeps-${avatarNum * 89}`;
+      return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(seed)}&size=128`;
+    },
+    // RoboHash - robot/icon avatars (visual only, no letters)
     () => {
       const seed = `echo-avatar-${avatarNum}`;
       const sets = ['set1', 'set2', 'set3', 'set4', 'set5'][Math.floor((avatarNum - 1) / 5) % 5];
-      return `https://robohash.org/${encodeURIComponent(seed)}?set=${sets}&size=128x128`;
+      return `https://robohash.org/${encodeURIComponent(seed)}?set=${sets}&size=128x128&bgset=bg1`;
     },
   ];
   
-  // Distribute avatars across different sources
-  const sourceIndex = Math.floor((avatarNum - 1) / 6) % avatarSources.length;
+  // Distribute avatars across different sources - ensures variety
+  const sourceIndex = (avatarNum - 1) % avatarSources.length;
   return avatarSources[sourceIndex]();
 };
 
@@ -110,8 +115,11 @@ const AvatarIcon = ({
           onError={handleImageError}
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600 rounded-full">
-          {AVATAR_TYPE_TO_EMOJI[type] || '👤'}
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-600 to-gray-700 rounded-full">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
         </div>
       )}
     </div>
