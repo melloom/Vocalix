@@ -3092,62 +3092,123 @@ const Admin = () => {
             ) : (
               <div className="space-y-4">
                 {reports.map((report) => (
-                  <Card key={report.id} className="p-6 rounded-2xl">
+                  <Card key={report.id} className="p-6 rounded-2xl border-l-4 border-l-primary">
+                    {/* Report Header */}
+                    <div className="mb-4 pb-4 border-b">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl font-bold text-primary">#{report.id}</div>
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {report.clip ? "Clip Report" : report.profile_id ? "Profile Report" : "Report"}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                              {report.created_at ? new Date(report.created_at).toLocaleString() : "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge className={getWorkflowStateColor(report.workflow_state || "pending")}>
+                            {report.workflow_state || "pending"}
+                          </Badge>
+                          <Badge variant={report.status === "open" ? "destructive" : "outline"}>
+                            {report.status}
+                          </Badge>
+                          {report.priority > 0 && (
+                            <Badge variant="outline" className="text-orange-600 border-orange-600">
+                              Priority: {report.priority}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex items-start gap-4">
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-4">
+                        {/* Reporter Information - Prominent */}
+                        {report.reporter && (
+                          <Card className="p-4 rounded-xl bg-primary/5 border-primary/20">
+                            <div className="flex items-center gap-3">
+                              <div className="text-3xl">{report.reporter.emoji_avatar || "🕵️"}</div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-sm text-muted-foreground mb-1">Reported By</p>
+                                <p className="font-bold text-lg">
+                                  @{report.reporter.handle || "Anonymous"}
+                                </p>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs"
+                                  onClick={() => navigate(`/profile/${report.reporter?.handle}`)}
+                                >
+                                  View Reporter Profile →
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* What Was Reported */}
                         {report.clip ? (
-                          <div className="mb-4">
+                          <div>
+                            <p className="text-sm font-semibold text-muted-foreground mb-2">Reported Content:</p>
                             <ClipCard clip={mapClip(report.clip)} />
                           </div>
                         ) : report.profile_id ? (
-                          <Card className="p-4 rounded-2xl bg-muted/50 mb-4">
+                          <Card className="p-4 rounded-xl bg-muted/50 border">
+                            <p className="text-sm font-semibold text-muted-foreground mb-3">Reported Profile:</p>
                             <div className="flex items-center gap-3">
                               <div className="text-4xl">{report.profile?.emoji_avatar || "👤"}</div>
-                              <div>
-                                <p className="font-semibold">@{report.profile?.handle || "Unknown"}</p>
-                                <p className="text-sm text-muted-foreground">Profile Report</p>
+                              <div className="flex-1">
+                                <p className="font-semibold text-lg">@{report.profile?.handle || "Unknown"}</p>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs"
+                                  onClick={() => navigate(`/profile/${report.profile?.handle}`)}
+                                >
+                                  View Profile →
+                                </Button>
                               </div>
                             </div>
                           </Card>
                         ) : null}
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge className={getWorkflowStateColor(report.workflow_state || "pending")}>
-                              {report.workflow_state || "pending"}
-                            </Badge>
-                            <Badge variant={report.status === "open" ? "destructive" : "outline"}>
-                              {report.status}
-                            </Badge>
-                            {report.priority > 0 && (
-                              <Badge variant="outline" className="text-orange-600">
-                                Priority: {report.priority}
-                              </Badge>
+
+                        {/* Report Details */}
+                        <Card className="p-4 rounded-xl bg-muted/30">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-sm font-semibold text-muted-foreground mb-1">Reason</p>
+                              <p className="font-medium capitalize text-base">{report.reason}</p>
+                            </div>
+                            {report.details && (
+                              <div>
+                                <p className="text-sm font-semibold text-muted-foreground mb-1">Details</p>
+                                <p className="text-sm whitespace-pre-wrap">{report.details}</p>
+                              </div>
                             )}
-                          </div>
-                          <div className="text-sm space-y-1">
-                            <p className="font-medium capitalize">Reason: {report.reason}</p>
-                            {report.details && <p className="text-muted-foreground">Details: {report.details}</p>}
-                            {report.reporter && (
-                              <p className="text-muted-foreground">
-                                Reporter: {report.reporter.emoji_avatar || "🕵️"} @{report.reporter.handle || "Anonymous"}
-                              </p>
+                            {report.assigned_to_profile && (
+                              <div>
+                                <p className="text-sm font-semibold text-muted-foreground mb-1">Assigned To</p>
+                                <p className="text-sm">
+                                  {report.assigned_to_profile.emoji_avatar || "👤"} @{report.assigned_to_profile.handle || "Unknown"}
+                                </p>
+                              </div>
                             )}
-                            <p className="text-muted-foreground">
-                              Created: {report.created_at ? new Date(report.created_at).toLocaleString() : "N/A"}
-                            </p>
                             {report.reviewed_at && (
-                              <p className="text-muted-foreground">
-                                Reviewed: {new Date(report.reviewed_at).toLocaleString()}
-                              </p>
+                              <div>
+                                <p className="text-sm font-semibold text-muted-foreground mb-1">Reviewed</p>
+                                <p className="text-sm">{new Date(report.reviewed_at).toLocaleString()}</p>
+                              </div>
                             )}
                             {report.moderation_notes && (
-                              <div className="mt-2 p-2 bg-muted rounded-lg">
-                                <p className="font-medium">Notes:</p>
-                                <p>{report.moderation_notes}</p>
+                              <div className="mt-3 pt-3 border-t">
+                                <p className="text-sm font-semibold text-muted-foreground mb-1">Moderation Notes</p>
+                                <p className="text-sm whitespace-pre-wrap bg-background p-2 rounded-lg">{report.moderation_notes}</p>
                               </div>
                             )}
                           </div>
-                        </div>
+                        </Card>
                       </div>
                       <div className="flex flex-col gap-2">
                         {report.clip && (
