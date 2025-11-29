@@ -30,26 +30,44 @@ const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
   avatar19: '👩', avatar20: '🧑', avatar21: '👤', avatar22: '👥', avatar23: '👨', avatar24: '👩',
 };
 
-// DiceBear avatar URL generator - consistent seeds for same avatar ID
-const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
+// Free Avatar Icon APIs - Multiple sources for diverse profile avatars
+const getAvatarUrl = (avatarId: AvatarType): string => {
   const seed = avatarId.replace('avatar', '');
   const avatarNum = parseInt(seed) || 1;
-  // Removed 'initials' style to prevent "EA" or letter avatars
-  // Using only visual styles that generate proper avatars
-  const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
-  const styleIndex = (avatarNum - 1) % styles.length;
-  const style = styles[styleIndex];
-  // Create consistent unique seed - same avatar ID always generates same avatar
-  // Using fixed multiplier to ensure uniqueness
-  const uniqueSeed = `echo-avatar-${avatarNum}-style-${styleIndex}-seed-${avatarNum * 127 + styleIndex * 31}`;
-  const bgColorSets = [
-    'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf',
-    'ffd5dc,ffdfbf,b6e3f4,c0aede,d1d4f9',
-    'd1d4f9,ffd5dc,ffdfbf,b6e3f4,c0aede',
-    'c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4',
+  
+  // Use different avatar APIs for variety (all free, no API key needed)
+  const avatarSources = [
+    // DiceBear - diverse styles
+    () => {
+      const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
+      const styleIndex = (avatarNum - 1) % styles.length;
+      const style = styles[styleIndex];
+      const uniqueSeed = `echo-avatar-${avatarNum}-style-${styleIndex}-seed-${avatarNum * 127 + styleIndex * 31}`;
+      const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'][avatarNum % 5];
+      return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
+    },
+    // UI Avatars - simple icons
+    () => {
+      const names = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Blake', 'Drew', 'Reese', 'Finley', 'Hayden', 'Rowan', 'Parker', 'Cameron', 'Devin', 'Emery', 'River', 'Phoenix', 'Skyler', 'Indigo', 'Arden'];
+      const name = names[(avatarNum - 1) % names.length];
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=128&bold=true&format=svg`;
+    },
+    // Adorable Avatars - cute icons
+    () => {
+      const seed = `echo${avatarNum}avatar${avatarNum * 23}`;
+      return `https://api.adorable.io/avatars/128/${encodeURIComponent(seed)}.png`;
+    },
+    // RoboHash - robot/icon avatars
+    () => {
+      const seed = `echo-avatar-${avatarNum}`;
+      const sets = ['set1', 'set2', 'set3', 'set4', 'set5'][Math.floor((avatarNum - 1) / 5) % 5];
+      return `https://robohash.org/${encodeURIComponent(seed)}?set=${sets}&size=128x128`;
+    },
   ];
-  const bgColors = bgColorSets[Math.floor((avatarNum - 1) / 6) % bgColorSets.length];
-  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
+  
+  // Distribute avatars across different sources
+  const sourceIndex = Math.floor((avatarNum - 1) / 6) % avatarSources.length;
+  return avatarSources[sourceIndex]();
 };
 
 // Avatar Icon Component - uses multiple free avatar APIs
