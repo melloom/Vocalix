@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2, ArrowUpRight, Sparkles } from "lucide-react";
+import { Play, Pause, AlertTriangle, Trash2, Bookmark, BookmarkCheck, MessageCircle, Repeat2, Link2, Share2, Mic, Download, CheckCircle2, WifiOff, Lock, Users, Globe, Eye, Volume2, ArrowUpRight, Sparkles, Flag } from "lucide-react";
 import { VoteButtons } from "@/components/VoteButtons";
 import { CrosspostDialog } from "@/components/CrosspostDialog";
 import { FlairBadge } from "@/components/FlairBadge";
@@ -1536,7 +1536,13 @@ export const ClipCard = ({
           <ReportClipDialog
             clipId={clip.id}
             trigger={
-              <Button variant="ghost" size="sm" className="h-7 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 px-2 rounded-md text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Report this clip"
+              >
+                <Flag className="mr-1 h-3 w-3" />
                 Report
               </Button>
             }

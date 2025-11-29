@@ -1625,6 +1625,22 @@ const Profile = () => {
                   </>
                 )}
               </Button>
+              {!isOwnProfile && (
+                <ReportProfileDialog
+                  profileId={profile.id}
+                  profileHandle={profile.handle}
+                  trigger={
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      className="rounded-full px-4 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Flag className="h-4 w-4 mr-2" />
+                      Report
+                    </Button>
+                  }
+                />
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="lg" className="rounded-full px-3">

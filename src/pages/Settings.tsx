@@ -67,6 +67,7 @@ import { PersonalizationPreferences } from "@/components/PersonalizationPreferen
 import { FeedCustomizationSettings } from "@/components/FeedCustomizationSettings";
 import { MuteBlockSettings } from "@/components/MuteBlockSettings";
 import { ProfilePictureUpload } from "@/components/ProfilePictureUpload";
+import { AvatarSelector } from "@/components/AvatarSelector";
 import { CoverImageUpload } from "@/components/CoverImageUpload";
 import { ColorSchemePicker } from "@/components/ColorSchemePicker";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
@@ -2105,6 +2106,7 @@ const Settings = () => {
             <h2 className="text-lg font-semibold">Profile Customization</h2>
             <ProfileBioEditor />
             <ProfilePictureUpload />
+            <AvatarSelector />
             <CoverImageUpload />
             <ColorSchemePicker />
           </section>

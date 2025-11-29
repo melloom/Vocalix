@@ -14,25 +14,30 @@ import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
-import { fetchAvatarIcons, searchFreepikIcons, getIconDownloadUrl } from "@/services/freepikApi";
+// Note: Freepik API requires backend (CORS blocked in browser)
+// Using DiceBear which works great from browser
 
-// Avatar types using Freepik icons
-type AvatarType = string; // Will be Freepik icon IDs
+// Avatar types - using unique identifiers for diverse avatars
+type AvatarType = 
+  | 'avatar1' | 'avatar2' | 'avatar3' | 'avatar4' | 'avatar5' | 'avatar6'
+  | 'avatar7' | 'avatar8' | 'avatar9' | 'avatar10' | 'avatar11' | 'avatar12'
+  | 'avatar13' | 'avatar14' | 'avatar15' | 'avatar16' | 'avatar17' | 'avatar18'
+  | 'avatar19' | 'avatar20' | 'avatar21' | 'avatar22' | 'avatar23' | 'avatar24';
 
-// Default avatar IDs from Freepik (will be populated from API)
-const DEFAULT_AVATAR_IDS = [
-  'avatar-1', 'avatar-2', 'avatar-3', 'avatar-4', 'avatar-5', 'avatar-6',
-  'avatar-7', 'avatar-8', 'avatar-9', 'avatar-10', 'avatar-11', 'avatar-12',
-  'avatar-13', 'avatar-14', 'avatar-15', 'avatar-16', 'avatar-17', 'avatar-18',
-  'avatar-19', 'avatar-20', 'avatar-21', 'avatar-22', 'avatar-23', 'avatar-24',
+const AVATAR_TYPES: AvatarType[] = [
+  'avatar1', 'avatar2', 'avatar3', 'avatar4', 'avatar5', 'avatar6',
+  'avatar7', 'avatar8', 'avatar9', 'avatar10', 'avatar11', 'avatar12',
+  'avatar13', 'avatar14', 'avatar15', 'avatar16', 'avatar17', 'avatar18',
+  'avatar19', 'avatar20', 'avatar21', 'avatar22', 'avatar23', 'avatar24',
 ];
 
 // Map avatar types to emojis for display (backward compatibility)
-const AVATAR_TYPE_TO_EMOJI: Record<string, string> = {
-  // Will be populated dynamically
+const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
+  avatar1: '👤', avatar2: '👥', avatar3: '👨', avatar4: '👩', avatar5: '🧑', avatar6: '👤',
+  avatar7: '👥', avatar8: '👨', avatar9: '👩', avatar10: '🧑', avatar11: '👤', avatar12: '👥',
+  avatar13: '👨', avatar14: '👩', avatar15: '🧑', avatar16: '👤', avatar17: '👥', avatar18: '👨',
+  avatar19: '👩', avatar20: '🧑', avatar21: '👤', avatar22: '👥', avatar23: '👨', avatar24: '👩',
 };
-
-const AVATAR_TYPES: AvatarType[] = DEFAULT_AVATAR_IDS;
 
 const SPEAKEASY_ADJECTIVES = ["Deep", "Smooth", "Rough", "Bass", "Sharp", "Warm", "Cool", "Raw", "Crisp", "Low", "High", "Loud"];
 const SPEAKEASY_NOUNS = ["Voice", "Echo", "Static", "Signal", "Wave", "Tone", "Sound", "Vibe", "Beat", "Flow", "Pulse", "Reverb"];
@@ -53,64 +58,78 @@ const generateAvatarFromHandle = (handle: string): AvatarType => {
   return AVATAR_TYPES[Math.abs(hash) % AVATAR_TYPES.length];
 };
 
-// Freepik avatar configuration
-type AvatarConfig = {
-  id: string;
-  imageUrl: string | null;
-  gradientClasses: string;
-  emoji: string;
+// DiceBear - generates unique, diverse avatars (works from browser, no CORS issues)
+// Note: Freepik API blocks CORS, so we use DiceBear exclusively
+const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
+  const seed = avatarId.replace('avatar', '');
+  const avatarNum = parseInt(seed) || 1;
+  
+  // Cycle through different styles for maximum variety
+  const styles = ['avataaars', 'personas', 'identicon', 'initials', 'bottts', 'lorelei'];
+  const styleIndex = (avatarNum - 1) % styles.length; // -1 so avatar1 uses index 0
+  const style = styles[styleIndex];
+  
+  // Create truly unique seed for each avatar using multiple factors
+  // This ensures avatars 3, 9, 15, 21 are all different (they cycle through styles)
+  const uniqueSeed = `echogarden-avatar${avatarNum}-${styleIndex}-${avatarNum * 19 + styleIndex * 13}`;
+  
+  // Different background color combinations rotated for variety
+  const bgColorSets = [
+    'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf',
+    'ffd5dc,ffdfbf,b6e3f4,c0aede,d1d4f9',
+    'd1d4f9,ffd5dc,ffdfbf,b6e3f4,c0aede',
+    'c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4',
+  ];
+  const bgColors = bgColorSets[Math.floor((avatarNum - 1) / 6) % bgColorSets.length];
+  
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
 };
 
-// Avatar configurations with gradients
-const AVATAR_GRADIENTS = [
-  'bg-gradient-to-br from-red-600 to-rose-600 dark:from-red-500 dark:to-rose-500',
-  'bg-gradient-to-br from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500',
-  'bg-gradient-to-br from-blue-600 to-cyan-600 dark:from-blue-500 dark:to-cyan-500',
-  'bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500',
-  'bg-gradient-to-br from-amber-600 to-orange-600 dark:from-amber-500 dark:to-orange-500',
-  'bg-gradient-to-br from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500',
-  'bg-gradient-to-br from-pink-600 to-rose-600 dark:from-pink-500 dark:to-rose-500',
-  'bg-gradient-to-br from-yellow-600 to-amber-600 dark:from-yellow-500 dark:to-amber-500',
-  'bg-gradient-to-br from-orange-600 to-red-600 dark:from-orange-500 dark:to-red-500',
-  'bg-gradient-to-br from-green-600 to-emerald-600 dark:from-green-500 dark:to-emerald-500',
-  'bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-500 dark:to-slate-700',
-  'bg-gradient-to-br from-gray-700 to-gray-900 dark:from-gray-600 dark:to-gray-800',
-];
-
-// Freepik Avatar Component
-const FreepikAvatar = ({ 
+// Avatar Component with Freepik primary, DiceBear fallback
+const AvatarIcon = ({ 
   type, 
   className = "",
-  imageUrl,
-  gradientClasses 
+  imageUrl
 }: { 
   type: AvatarType; 
   className?: string;
   imageUrl?: string | null;
-  gradientClasses?: string;
 }) => {
-  const gradient = gradientClasses || AVATAR_GRADIENTS[Math.abs(type.charCodeAt(0)) % AVATAR_GRADIENTS.length];
+  // Use Freepik image if available, otherwise DiceBear
+  const avatarUrl = imageUrl || getDiceBearAvatarUrl(type);
+  const useFreepik = !!imageUrl;
   
   return (
     <div 
-      className={`rounded-full ${gradient} flex items-center justify-center shadow-md overflow-hidden ${className}`}
+      className={`rounded-full flex items-center justify-center overflow-hidden ${className}`}
       style={{ minWidth: '100%', minHeight: '100%', aspectRatio: '1' }}
     >
-      {imageUrl ? (
-        <img 
-          src={imageUrl} 
-          alt={`Avatar ${type}`}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            // Fallback to gradient if image fails to load
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-white text-2xl">
-          👤
-        </div>
-      )}
+      <img 
+        src={avatarUrl}
+        alt={`Avatar ${type}`}
+        className="w-full h-full object-cover rounded-full"
+        loading="lazy"
+        onError={(e) => {
+          // If Freepik fails, try DiceBear
+          if (useFreepik) {
+            const target = e.target as HTMLImageElement;
+            const diceBearUrl = getDiceBearAvatarUrl(type);
+            target.src = diceBearUrl;
+            return;
+          }
+          
+          // Final fallback to emoji
+          const target = e.target as HTMLImageElement;
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent && !parent.querySelector('.fallback')) {
+            const fallback = document.createElement('div');
+            fallback.className = 'fallback w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600';
+            fallback.textContent = AVATAR_TYPE_TO_EMOJI[type] || '👤';
+            parent.appendChild(fallback);
+          }
+        }}
+      />
     </div>
   );
 };
@@ -130,66 +149,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaLoading, setRecaptchaLoading] = useState(true);
   const [recaptchaKey, setRecaptchaKey] = useState(0); // Key to force remount on retry
   const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
-  const [fetchedAvatarIds, setFetchedAvatarIds] = useState<string[]>([]);
-  const [avatarsLoading, setAvatarsLoading] = useState(true);
+  const [avatarsLoading, setAvatarsLoading] = useState(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   
-  // Fetch Freepik avatars on mount
+  // Note: Freepik API doesn't work from browser due to CORS restrictions
+  // Using DiceBear which works perfectly and generates unique avatars
+  // If Freepik is needed, it would need to be called from a Supabase Edge Function
   useEffect(() => {
-    const loadAvatars = async () => {
-      try {
-        setAvatarsLoading(true);
-        // Search for avatar icons with diverse queries
-        const avatarQueries = [
-          'avatar user',
-          'avatar person',
-          'avatar profile',
-          'avatar character',
-          'user icon',
-          'person icon',
-        ];
-        
-        const avatarMap = new Map<string, string>();
-        const fetchedIds: string[] = [];
-        
-        // Fetch icons from multiple queries to get variety
-        for (const query of avatarQueries) {
-          if (fetchedIds.length >= 24) break; // Limit to 24 avatars
-          
-          const icons = await searchFreepikIcons(query, 4);
-          for (const icon of icons) {
-            if (fetchedIds.length >= 24) break;
-            if (icon.id && !fetchedIds.includes(icon.id)) {
-              const downloadUrl = await getIconDownloadUrl(icon.id);
-              if (downloadUrl) {
-                // Use the actual Freepik icon ID as the avatar type
-                const avatarId = icon.id;
-                avatarMap.set(avatarId, downloadUrl);
-                AVATAR_TYPE_TO_EMOJI[avatarId] = '👤';
-                fetchedIds.push(avatarId);
-              }
-            }
-          }
-        }
-        
-        // Update state with fetched avatars
-        setFetchedAvatarIds(fetchedIds);
-        setAvatarImages(avatarMap);
-        
-        // Set first avatar as selected if we have fetched avatars
-        if (fetchedIds.length > 0 && selectedAvatar === AVATAR_TYPES[0]) {
-          setSelectedAvatar(fetchedIds[0]);
-        }
-      } catch (error) {
-        console.warn('[OnboardingFlow] Failed to load Freepik avatars:', error);
-        // Fallback to default avatars if API fails
-        setFetchedAvatarIds(AVATAR_TYPES);
-      } finally {
-        setAvatarsLoading(false);
-      }
-    };
-    
-    loadAvatars();
+    console.log('[Avatar] Using DiceBear avatars (no CORS issues, all unique)');
+    setAvatarsLoading(false);
   }, []);
   
   // CRITICAL: Always call hooks (React rules), but handle errors gracefully
@@ -837,16 +805,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             <CardHeader className="space-y-3 text-center pb-6 relative z-10 px-6">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-3 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 animate-in zoom-in-50 duration-500 hover:scale-105 transition-transform duration-300">
-                {avatarsLoading ? (
-                  <div className="w-14 h-14 rounded-full bg-slate-700 animate-pulse" />
-                ) : (
-                  <FreepikAvatar 
-                    type={selectedAvatar} 
-                    className="w-14 h-14" 
-                    imageUrl={avatarImages.get(selectedAvatar)}
-                    gradientClasses={AVATAR_GRADIENTS[AVATAR_TYPES.indexOf(selectedAvatar) % AVATAR_GRADIENTS.length]}
-                  />
-                )}
+                <AvatarIcon 
+                  type={selectedAvatar} 
+                  className="w-14 h-14"
+                  imageUrl={avatarImages.get(selectedAvatar)}
+                />
               </div>
               <CardTitle className="text-3xl font-extrabold text-white dark:text-white animate-in fade-in-0 slide-in-from-bottom-2 duration-700">
                 Create Your Identity
@@ -864,29 +827,28 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   Choose Your Avatar
                 </label>
                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-slate-900/50 dark:bg-slate-950/50 border border-red-900/30 dark:border-red-800/20 max-h-96 overflow-y-auto">
-                  {(fetchedAvatarIds.length > 0 ? fetchedAvatarIds : AVATAR_TYPES).map((avatarType, index) => {
+                  {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
                       <button
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all duration-300 animate-in fade-in-0 zoom-in-95 bg-slate-900/80 dark:bg-slate-950/80 ${
+                        className={`flex h-16 w-full items-center justify-center rounded-lg transition-all duration-300 animate-in fade-in-0 zoom-in-95 ${
                           isActive
-                            ? "border-red-500 bg-gradient-to-br from-red-950/70 to-amber-950/50 dark:from-red-950/60 dark:to-amber-950/40 scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
-                            : "border-slate-700 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 hover:scale-105 active:scale-95"
+                            ? "scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
+                            : "hover:scale-105 active:scale-95"
                         }`}
                         style={{ animationDelay: `${index * 30}ms` }}
-                        title={avatarType.charAt(0).toUpperCase() + avatarType.slice(1)}
+                        title={`Avatar ${index + 1}`}
                       >
-                        {avatarsLoading ? (
+                        {avatarsLoading && index < 8 ? (
                           <div className="w-10 h-10 rounded-full bg-slate-700 animate-pulse" />
                         ) : (
-                          <FreepikAvatar 
+                          <AvatarIcon 
                             type={avatarType} 
                             className={`w-10 h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
                             imageUrl={avatarImages.get(avatarType)}
-                            gradientClasses={AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]}
                           />
                         )}
                       </button>

@@ -26,6 +26,9 @@ export async function searchFreepikIcons(query: string, limit: number = 24): Pro
 
     for (const endpoint of endpoints) {
       try {
+        console.log(`[Freepik] Trying endpoint: ${endpoint}`);
+        console.log(`[Freepik] Using API key: ${FREEPIK_API_KEY ? FREEPIK_API_KEY.substring(0, 10) + '...' : 'MISSING'}`);
+        
         const response = await fetch(endpoint, {
           headers: {
             'X-Freepik-Api-Key': FREEPIK_API_KEY,
@@ -34,20 +37,33 @@ export async function searchFreepikIcons(query: string, limit: number = 24): Pro
           },
         });
 
+        console.log(`[Freepik] Response status: ${response.status} ${response.statusText}`);
+
         if (response.ok) {
           const data = await response.json();
+          console.log('[Freepik] Response data structure:', Object.keys(data));
+          
           // Handle different response formats
           if (data.data && Array.isArray(data.data)) {
+            console.log(`[Freepik] ✅ Found ${data.data.length} icons in data.data`);
             return data.data;
           }
           if (Array.isArray(data)) {
+            console.log(`[Freepik] ✅ Found ${data.length} icons in root array`);
             return data;
           }
           if (data.resources && Array.isArray(data.resources)) {
+            console.log(`[Freepik] ✅ Found ${data.resources.length} icons in data.resources`);
             return data.resources;
           }
+          
+          console.warn('[Freepik] Response OK but no icons found in expected format:', data);
+        } else {
+          const errorText = await response.text();
+          console.error(`[Freepik] ❌ API error ${response.status}:`, errorText.substring(0, 200));
         }
-      } catch (e) {
+      } catch (e: any) {
+        console.error(`[Freepik] ❌ Network error on ${endpoint}:`, e.message);
         // Try next endpoint
         continue;
       }
@@ -89,13 +105,21 @@ export async function getIconDownloadUrl(iconId: string): Promise<string | null>
 
         if (response.ok) {
           const data = await response.json();
+          console.log(`[Freepik] Download URL response for ${iconId}:`, Object.keys(data));
+          
           // Handle different response formats
           const downloadUrl = data.data?.download_url || data.data?.url || data.download_url || data.url;
           
           if (downloadUrl) {
+            console.log(`[Freepik] ✅ Got download URL for ${iconId}: ${downloadUrl.substring(0, 50)}...`);
             iconCache.set(iconId, downloadUrl);
             return downloadUrl;
+          } else {
+            console.warn(`[Freepik] ❌ No download URL found for ${iconId} in response:`, data);
           }
+        } else {
+          const errorText = await response.text();
+          console.error(`[Freepik] ❌ Download URL error ${response.status} for ${iconId}:`, errorText.substring(0, 200));
         }
       } catch (e) {
         // Try next endpoint
