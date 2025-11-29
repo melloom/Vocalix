@@ -31,48 +31,40 @@ const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
 };
 
 // Free Avatar Icon APIs - Multiple sources for diverse profile avatars
+// ONLY visual icons - NO letters, NO initials, NO emojis
 const getAvatarUrl = (avatarId: AvatarType): string => {
   const seed = avatarId.replace('avatar', '');
   const avatarNum = parseInt(seed) || 1;
   
-  // Use different avatar APIs - ONLY visual icons, NO letters/initials/emojis
-  // All free, no API key needed, all show actual profile picture icons
-  const avatarSources = [
-    // DiceBear - avataaars (cartoon faces) - NO identicon/initials
-    () => {
-      const styles = ['avataaars', 'personas', 'bottts', 'lorelei', 'micah', 'big-ears', 'big-smile', 'notionists'];
-      const styleIndex = (avatarNum - 1) % styles.length;
-      const style = styles[styleIndex];
-      const uniqueSeed = `echo-avatar-${avatarNum}-style-${styleIndex}-seed-${avatarNum * 127 + styleIndex * 31}`;
-      const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'e0bbff', 'ffbea3', 'a8e6cf'][avatarNum % 8];
-      return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
-    },
-    // Pixel Art avatars - fun pixel style
-    () => {
-      const seed = `echo-avatar-${avatarNum}-pixel-${avatarNum * 47}`;
-      return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}&size=128`;
-    },
-    // Funky avatars - colorful fun style
-    () => {
-      const seed = `echo-avatar-${avatarNum}-funky-${avatarNum * 73}`;
-      return `https://api.dicebear.com/7.x/funky/svg?seed=${encodeURIComponent(seed)}&size=128`;
-    },
-    // Open Peeps - illustrated people
-    () => {
-      const seed = `echo-avatar-${avatarNum}-peeps-${avatarNum * 89}`;
-      return `https://api.dicebear.com/7.x/open-peeps/svg?seed=${encodeURIComponent(seed)}&size=128`;
-    },
-    // RoboHash - robot/icon avatars (visual only, no letters)
-    () => {
-      const seed = `echo-avatar-${avatarNum}`;
-      const sets = ['set1', 'set2', 'set3', 'set4', 'set5'][Math.floor((avatarNum - 1) / 5) % 5];
-      return `https://robohash.org/${encodeURIComponent(seed)}?set=${sets}&size=128x128&bgset=bg1`;
-    },
+  // Guaranteed visual-only styles - NO letters, NO initials, NO text
+  // Only styles that show actual faces/characters/icons
+  const dicebearVisualStyles = [
+    'avataaars',           // Cartoon faces - guaranteed visual
+    'personas',            // Illustrated people - guaranteed visual
+    'bottts',              // Robots - guaranteed visual
+    'lorelei',             // Illustrated faces - guaranteed visual
+    'micah',               // Illustrated people - guaranteed visual
+    'big-ears',            // Cartoon faces - guaranteed visual
+    'big-smile',           // Cartoon faces - guaranteed visual
+    'adventurer',          // Adventure characters - guaranteed visual
+    'adventurer-neutral',  // Neutral adventure characters - guaranteed visual
+    'croodles',            // Hand-drawn style - guaranteed visual
+    'rings',               // Ring-based geometric avatars - guaranteed visual
+    'pixel-art',           // Pixel art characters - guaranteed visual
+    'funky',               // Colorful fun characters - guaranteed visual
   ];
   
-  // Distribute avatars across different sources - ensures variety
-  const sourceIndex = (avatarNum - 1) % avatarSources.length;
-  return avatarSources[sourceIndex]();
+  const styleIndex = (avatarNum - 1) % dicebearVisualStyles.length;
+  const style = dicebearVisualStyles[styleIndex];
+  // Create highly unique seed to ensure each avatar is distinct
+  // Multiply by large primes to avoid patterns
+  const uniqueSeed = `echo-${avatarNum}-${style}-${avatarNum * 173 + styleIndex * 293 + 7919}`;
+  const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'e0bbff', 'ffbea3', 'a8e6cf', 'ffb3ba', 'bae1ff', 'baffc9', 'ffffba'][avatarNum % 12];
+  
+  // Primary: DiceBear visual styles - force fresh load with cache busting
+  // Version 2: Removed all letter/initial styles, only visual icons
+  const version = 'v2-visual-only';
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50&v=${version}`;
 };
 
 // Avatar Icon Component - uses multiple free avatar APIs
@@ -90,12 +82,33 @@ const AvatarIcon = ({
   const handleImageError = () => {
     if (!imageError) {
       setImageError(true);
-      // Try fallback avatar URL
-      const fallbackUrl = getAvatarUrl(type);
-      if (fallbackUrl !== avatarUrl) {
-        setAvatarUrl(fallbackUrl);
-        setImageError(false);
-        setImageLoaded(false);
+      // Try multiple fallback sources - all visual, no letters
+      const seed = type.replace('avatar', '');
+      const avatarNum = parseInt(seed) || 1;
+      
+      // Fallback sources - all visual, no letters
+      const fallbackSources = [
+        () => {
+          const styles = ['avataaars', 'personas', 'bottts', 'lorelei', 'micah'];
+          const style = styles[avatarNum % styles.length];
+          return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(`fallback-${avatarNum}-${Date.now()}`)}&backgroundColor=b6e3f4&radius=50`;
+        },
+        () => `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(`fallback-pixel-${avatarNum}`)}&size=128`,
+        () => `https://api.dicebear.com/7.x/funky/svg?seed=${encodeURIComponent(`fallback-funky-${avatarNum}`)}&size=128`,
+        () => `https://robohash.org/${encodeURIComponent(`fallback-${avatarNum}`)}?set=set1&size=128x128&bgset=bg1`,
+      ];
+      
+      // Try next fallback source based on current attempt
+      const fallbackKey = `avatar-selector-fallback-${type}`;
+      const currentAttempt = parseInt(sessionStorage.getItem(fallbackKey) || '0');
+      if (currentAttempt < fallbackSources.length) {
+        sessionStorage.setItem(fallbackKey, String(currentAttempt + 1));
+        const fallbackUrl = fallbackSources[currentAttempt]();
+        if (fallbackUrl !== avatarUrl) {
+          setAvatarUrl(fallbackUrl);
+          setImageError(false);
+          setImageLoaded(false);
+        }
       }
     }
   };
