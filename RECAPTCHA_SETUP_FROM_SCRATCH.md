@@ -8,6 +8,7 @@
    - **Label**: `Echo Garden` (or any name you want)
    - **reCAPTCHA type**: Select **"reCAPTCHA v3"**
      - This is the invisible, score-based version (recommended)
+     - **Important:** Choose v3, NOT Enterprise (v3 doesn't need Google Cloud!)
    - **Domains**: Add these (we'll add more later):
      - `localhost`
      - `127.0.0.1`
