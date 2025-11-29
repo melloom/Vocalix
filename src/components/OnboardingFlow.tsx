@@ -64,13 +64,14 @@ const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
   const avatarNum = parseInt(seed) || 1;
   
   // Cycle through different styles for maximum variety
-  const styles = ['avataaars', 'personas', 'identicon', 'initials', 'bottts', 'lorelei'];
+  // Removed 'initials' style to prevent "EA" or letter avatars
+  const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
   const styleIndex = (avatarNum - 1) % styles.length; // -1 so avatar1 uses index 0
   const style = styles[styleIndex];
   
   // Create truly unique seed for each avatar using multiple factors
   // This ensures avatars 3, 9, 15, 21 are all different (they cycle through styles)
-  const uniqueSeed = `echogarden-avatar${avatarNum}-${styleIndex}-${avatarNum * 19 + styleIndex * 13}`;
+  const uniqueSeed = `echo-${avatarNum}-${avatarNum * 23 + styleIndex * 17}-${Date.now() % 100000}`;
   
   // Different background color combinations rotated for variety
   const bgColorSets = [

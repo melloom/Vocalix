@@ -30,14 +30,17 @@ const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
   avatar19: '👩', avatar20: '🧑', avatar21: '👤', avatar22: '👥', avatar23: '👨', avatar24: '👩',
 };
 
-// DiceBear avatar URL generator (same as onboarding)
+// DiceBear avatar URL generator - avoiding "initials" style to prevent letter avatars
 const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
   const seed = avatarId.replace('avatar', '');
   const avatarNum = parseInt(seed) || 1;
-  const styles = ['avataaars', 'personas', 'identicon', 'initials', 'bottts', 'lorelei'];
+  // Removed 'initials' style to prevent "EA" or letter avatars
+  // Using only visual styles that generate proper avatars
+  const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
   const styleIndex = (avatarNum - 1) % styles.length;
   const style = styles[styleIndex];
-  const uniqueSeed = `echogarden-avatar${avatarNum}-${styleIndex}-${avatarNum * 19 + styleIndex * 13}`;
+  // Create truly unique seed to ensure each avatar is different
+  const uniqueSeed = `echo-${avatarNum}-${avatarNum * 23 + styleIndex * 17}-${Date.now() % 100000}`;
   const bgColorSets = [
     'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf',
     'ffd5dc,ffdfbf,b6e3f4,c0aede,d1d4f9',
@@ -256,7 +259,7 @@ export function AvatarSelector() {
       </div>
 
       {/* Preset Avatars */}
-      <div className="grid grid-cols-6 gap-3 p-4 rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 dark:from-slate-800/30 dark:to-slate-900/30 border border-slate-700/50 dark:border-slate-700/30 max-h-64 overflow-y-auto">
+      <div className="grid grid-cols-6 gap-3 p-4 rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/20 to-slate-900/40 dark:from-red-950/20 dark:via-amber-950/10 dark:to-slate-900/30 border border-red-900/30 dark:border-red-800/20 max-h-64 overflow-y-auto">
         {AVATAR_TYPES.map((avatarType) => {
           const isSelected = selectedAvatar === avatarType || (!selectedAvatar && avatarType === currentAvatarType);
           return (
