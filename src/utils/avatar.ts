@@ -4,32 +4,19 @@
  * instead of emojis (e.g., "sun" instead of "☀️")
  */
 const AVATAR_TYPE_TO_EMOJI: Record<string, string> = {
-  // New audio/speakeasy avatars
-  mic: '🎤',
-  speaker: '🔊',
-  headphones: '🎧',
-  radio: '📻',
-  vinyl: '💿',
-  amp: '🎸',
-  reverb: '🌊',
-  echo: '📡',
-  static: '📺',
-  waveform: '〰️',
-  mixer: '🎛️',
-  booth: '🎪',
+  // User/Person avatars
+  user1: '👤', user2: '👥', user3: '👨', user4: '👩', user5: '🧑', user6: '👤',
+  // Audio avatars
+  mic: '🎤', headphones: '🎧', speaker: '🔊', radio: '📻', vinyl: '💿', guitar: '🎸',
+  // Symbol avatars
+  star: '⭐', crown: '👑', shield: '🛡️', flame: '🔥', target: '🎯', compass: '🧭',
+  // Emotion/Action avatars
+  heart: '❤️', music: '🎵', wave: '🌊', signal: '📡', megaphone: '📢', disc: '💿',
+  // Legacy audio avatars (for backward compatibility)
+  amp: '🎸', reverb: '🌊', echo: '📡', static: '📺', waveform: '〰️', mixer: '🎛️', booth: '🎪',
   // Legacy nature avatars (for backward compatibility)
-  sun: '☀️',
-  moon: '🌙',
-  star: '⭐',
-  leaf: '🍃',
-  flower: '🌸',
-  tree: '🌳',
-  mountain: '⛰️',
-  wave: '🌊',
-  butterfly: '🦋',
-  bird: '🐦',
-  fern: '🌿',
-  cactus: '🌵',
+  sun: '☀️', moon: '🌙', leaf: '🍃', flower: '🌸', tree: '🌳', mountain: '⛰️',
+  butterfly: '🦋', bird: '🐦', fern: '🌿', cactus: '🌵',
 };
 
 /**

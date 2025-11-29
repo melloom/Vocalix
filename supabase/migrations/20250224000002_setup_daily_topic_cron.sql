@@ -119,3 +119,4 @@ COMMENT ON FUNCTION public.trigger_daily_topic() IS
 
 
 
+

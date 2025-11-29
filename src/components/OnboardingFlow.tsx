@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock } from "lucide-react";
 import ReCAPTCHA from "react-google-recaptcha";
 
 import { Button } from "@/components/ui/button";
@@ -13,30 +14,25 @@ import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
+import { fetchAvatarIcons, searchFreepikIcons, getIconDownloadUrl } from "@/services/freepikApi";
 
-// Audio/speakeasy-themed SVG avatar types
-type AvatarType = 'mic' | 'speaker' | 'headphones' | 'radio' | 'vinyl' | 'amp' | 'reverb' | 'echo' | 'static' | 'waveform' | 'mixer' | 'booth';
+// Avatar types using Freepik icons
+type AvatarType = string; // Will be Freepik icon IDs
 
-// Map avatar types to emojis for display
-const AVATAR_TYPE_TO_EMOJI: Record<AvatarType, string> = {
-  mic: '🎤',
-  speaker: '🔊',
-  headphones: '🎧',
-  radio: '📻',
-  vinyl: '💿',
-  amp: '🎸',
-  reverb: '🌊',
-  echo: '📡',
-  static: '📺',
-  waveform: '〰️',
-  mixer: '🎛️',
-  booth: '🎪',
+// Default avatar IDs from Freepik (will be populated from API)
+const DEFAULT_AVATAR_IDS = [
+  'avatar-1', 'avatar-2', 'avatar-3', 'avatar-4', 'avatar-5', 'avatar-6',
+  'avatar-7', 'avatar-8', 'avatar-9', 'avatar-10', 'avatar-11', 'avatar-12',
+  'avatar-13', 'avatar-14', 'avatar-15', 'avatar-16', 'avatar-17', 'avatar-18',
+  'avatar-19', 'avatar-20', 'avatar-21', 'avatar-22', 'avatar-23', 'avatar-24',
+];
+
+// Map avatar types to emojis for display (backward compatibility)
+const AVATAR_TYPE_TO_EMOJI: Record<string, string> = {
+  // Will be populated dynamically
 };
 
-const AVATAR_TYPES: AvatarType[] = [
-  'mic', 'speaker', 'headphones', 'radio', 'vinyl', 'amp', 
-  'reverb', 'echo', 'static', 'waveform', 'mixer', 'booth'
-];
+const AVATAR_TYPES: AvatarType[] = DEFAULT_AVATAR_IDS;
 
 const SPEAKEASY_ADJECTIVES = ["Deep", "Smooth", "Rough", "Bass", "Sharp", "Warm", "Cool", "Raw", "Crisp", "Low", "High", "Loud"];
 const SPEAKEASY_NOUNS = ["Voice", "Echo", "Static", "Signal", "Wave", "Tone", "Sound", "Vibe", "Beat", "Flow", "Pulse", "Reverb"];
@@ -57,300 +53,64 @@ const generateAvatarFromHandle = (handle: string): AvatarType => {
   return AVATAR_TYPES[Math.abs(hash) % AVATAR_TYPES.length];
 };
 
-// Sophisticated gradient-based avatar system with icons
-// Each avatar has a unique color gradient and icon combination
+// Freepik avatar configuration
 type AvatarConfig = {
-  icon: React.ComponentType<{ className?: string }>;
+  id: string;
+  imageUrl: string | null;
   gradientClasses: string;
   emoji: string;
 };
 
-const AVATAR_CONFIGS: Record<AvatarType, AvatarConfig> = {
-  mic: {
-    icon: Mic,
-    gradientClasses: 'bg-gradient-to-br from-amber-600 to-red-600 dark:from-amber-500 dark:to-red-500',
-    emoji: '🎤',
-  },
-  speaker: {
-    icon: Speaker,
-    gradientClasses: 'bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-500 dark:to-slate-700',
-    emoji: '🔊',
-  },
-  headphones: {
-    icon: Headphones,
-    gradientClasses: 'bg-gradient-to-br from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500',
-    emoji: '🎧',
-  },
-  radio: {
-    icon: Radio,
-    gradientClasses: 'bg-gradient-to-br from-amber-700 to-orange-700 dark:from-amber-600 dark:to-orange-600',
-    emoji: '📻',
-  },
-  vinyl: {
-    icon: Music,
-    gradientClasses: 'bg-gradient-to-br from-gray-700 to-gray-900 dark:from-gray-600 dark:to-gray-800',
-    emoji: '💿',
-  },
-  amp: {
-    icon: Zap,
-    gradientClasses: 'bg-gradient-to-br from-yellow-600 to-amber-600 dark:from-yellow-500 dark:to-amber-500',
-    emoji: '🎸',
-  },
-  reverb: {
-    icon: Volume2,
-    gradientClasses: 'bg-gradient-to-br from-blue-600 to-cyan-600 dark:from-blue-500 dark:to-cyan-500',
-    emoji: '🌊',
-  },
-  echo: {
-    icon: RadioIcon,
-    gradientClasses: 'bg-gradient-to-br from-red-600 to-pink-600 dark:from-red-500 dark:to-pink-500',
-    emoji: '📡',
-  },
-  static: {
-    icon: RadioIcon,
-    gradientClasses: 'bg-gradient-to-br from-gray-600 to-slate-700 dark:from-gray-500 dark:to-slate-600',
-    emoji: '📺',
-  },
-  waveform: {
-    icon: Music,
-    gradientClasses: 'bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500',
-    emoji: '〰️',
-  },
-  mixer: {
-    icon: Radio,
-    gradientClasses: 'bg-gradient-to-br from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500',
-    emoji: '🎛️',
-  },
-  booth: {
-    icon: Mic,
-    gradientClasses: 'bg-gradient-to-br from-rose-600 to-red-600 dark:from-rose-500 dark:to-red-500',
-    emoji: '🎪',
-  },
-};
+// Avatar configurations with gradients
+const AVATAR_GRADIENTS = [
+  'bg-gradient-to-br from-red-600 to-rose-600 dark:from-red-500 dark:to-rose-500',
+  'bg-gradient-to-br from-purple-600 to-indigo-600 dark:from-purple-500 dark:to-indigo-500',
+  'bg-gradient-to-br from-blue-600 to-cyan-600 dark:from-blue-500 dark:to-cyan-500',
+  'bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-500 dark:to-teal-500',
+  'bg-gradient-to-br from-amber-600 to-orange-600 dark:from-amber-500 dark:to-orange-500',
+  'bg-gradient-to-br from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500',
+  'bg-gradient-to-br from-pink-600 to-rose-600 dark:from-pink-500 dark:to-rose-500',
+  'bg-gradient-to-br from-yellow-600 to-amber-600 dark:from-yellow-500 dark:to-amber-500',
+  'bg-gradient-to-br from-orange-600 to-red-600 dark:from-orange-500 dark:to-red-500',
+  'bg-gradient-to-br from-green-600 to-emerald-600 dark:from-green-500 dark:to-emerald-500',
+  'bg-gradient-to-br from-slate-600 to-slate-800 dark:from-slate-500 dark:to-slate-700',
+  'bg-gradient-to-br from-gray-700 to-gray-900 dark:from-gray-600 dark:to-gray-800',
+];
 
-const AvatarFlower = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="flowerCenter" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fbbf24" />
-        <stop offset="100%" stopColor="#f59e0b" />
-      </linearGradient>
-      <linearGradient id="petalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#f472b6" />
-        <stop offset="100%" stopColor="#ec4899" />
-      </linearGradient>
-    </defs>
-    <circle cx="50" cy="50" r="10" fill="url(#flowerCenter)"/>
-    <circle cx="50" cy="50" r="8" fill="#fbbf24" opacity="0.8"/>
-    <ellipse cx="50" cy="30" rx="8" ry="15" fill="url(#petalGrad)"/>
-    <ellipse cx="70" cy="50" rx="15" ry="8" fill="url(#petalGrad)"/>
-    <ellipse cx="50" cy="70" rx="8" ry="15" fill="url(#petalGrad)"/>
-    <ellipse cx="30" cy="50" rx="15" ry="8" fill="url(#petalGrad)"/>
-    <ellipse cx="65" cy="38" rx="8" ry="15" fill="#f472b6" opacity="0.85" transform="rotate(45 65 38)"/>
-    <ellipse cx="65" cy="62" rx="8" ry="15" fill="#f472b6" opacity="0.85" transform="rotate(-45 65 62)"/>
-    <ellipse cx="35" cy="62" rx="8" ry="15" fill="#f472b6" opacity="0.85" transform="rotate(45 35 62)"/>
-    <ellipse cx="35" cy="38" rx="8" ry="15" fill="#f472b6" opacity="0.85" transform="rotate(-45 35 38)"/>
-    <circle cx="50" cy="50" r="3" fill="#78350f" opacity="0.6"/>
-  </svg>
-);
-
-const AvatarTree = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="trunkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#92400e" />
-        <stop offset="100%" stopColor="#78350f" />
-      </linearGradient>
-      <linearGradient id="foliageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#16a34a" />
-        <stop offset="100%" stopColor="#15803d" />
-      </linearGradient>
-    </defs>
-    <rect x="45" y="60" width="10" height="30" fill="url(#trunkGrad)" rx="1"/>
-    <rect x="46" y="60" width="8" height="5" fill="#a16207" opacity="0.5"/>
-    <circle cx="50" cy="40" r="25" fill="url(#foliageGrad)"/>
-    <circle cx="40" cy="35" r="18" fill="#16a34a" opacity="0.95"/>
-    <circle cx="60" cy="35" r="18" fill="#16a34a" opacity="0.95"/>
-    <circle cx="50" cy="30" r="12" fill="#22c55e" opacity="0.8"/>
-    <circle cx="35" cy="40" r="3" fill="#86efac" opacity="0.5"/>
-    <circle cx="65" cy="40" r="3" fill="#86efac" opacity="0.5"/>
-    <circle cx="50" cy="25" r="2" fill="#86efac" opacity="0.5"/>
-  </svg>
-);
-
-const AvatarMountain = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="mountainGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#64748b" />
-        <stop offset="100%" stopColor="#475569" />
-      </linearGradient>
-      <linearGradient id="mountainGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#94a3b8" />
-        <stop offset="100%" stopColor="#64748b" />
-      </linearGradient>
-    </defs>
-    <path d="M20 80 L50 20 L80 80 Z" fill="url(#mountainGrad1)"/>
-    <path d="M30 80 L50 40 L70 80 Z" fill="url(#mountainGrad2)"/>
-    <path d="M20 80 L50 20 L80 80" stroke="#334155" strokeWidth="1" opacity="0.3"/>
-    <circle cx="50" cy="25" r="3" fill="#e2e8f0" opacity="0.8"/>
-    <path d="M45 30 L50 25 L55 30" stroke="#e2e8f0" strokeWidth="1.5" opacity="0.6"/>
-  </svg>
-);
-
-const AvatarWave = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="waveGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#06b6d4" />
-        <stop offset="100%" stopColor="#0891b2" />
-      </linearGradient>
-      <linearGradient id="waveGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#22d3ee" />
-        <stop offset="100%" stopColor="#06b6d4" />
-      </linearGradient>
-    </defs>
-    <path d="M0 50 Q25 30, 50 50 T100 50 L100 80 L0 80 Z" fill="url(#waveGrad1)"/>
-    <path d="M0 60 Q25 40, 50 60 T100 60 L100 80 L0 80 Z" fill="url(#waveGrad2)"/>
-    <path d="M0 50 Q25 30, 50 50 T100 50" stroke="#0e7490" strokeWidth="1" opacity="0.4"/>
-    <circle cx="25" cy="45" r="2" fill="#a5f3fc" opacity="0.6"/>
-    <circle cx="75" cy="55" r="2" fill="#a5f3fc" opacity="0.6"/>
-    <circle cx="50" cy="48" r="1.5" fill="#a5f3fc" opacity="0.6"/>
-  </svg>
-);
-
-const AvatarSun = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <radialGradient id="sunGrad" cx="50%" cy="50%">
-        <stop offset="0%" stopColor="#fbbf24" />
-        <stop offset="70%" stopColor="#f59e0b" />
-        <stop offset="100%" stopColor="#d97706" />
-      </radialGradient>
-    </defs>
-    <circle cx="50" cy="50" r="20" fill="url(#sunGrad)"/>
-    <circle cx="50" cy="50" r="18" fill="#fbbf24" opacity="0.9"/>
-    <rect x="48" y="10" width="4" height="15" fill="#fbbf24" rx="2"/>
-    <rect x="48" y="75" width="4" height="15" fill="#fbbf24" rx="2"/>
-    <rect x="10" y="48" width="15" height="4" fill="#fbbf24" rx="2"/>
-    <rect x="75" y="48" width="15" height="4" fill="#fbbf24" rx="2"/>
-    <rect x="65" y="20" width="4" height="12" fill="#fbbf24" rx="2" transform="rotate(45 67 26)"/>
-    <rect x="31" y="20" width="4" height="12" fill="#fbbf24" rx="2" transform="rotate(-45 33 26)"/>
-    <rect x="65" y="68" width="4" height="12" fill="#fbbf24" rx="2" transform="rotate(-45 67 74)"/>
-    <rect x="31" y="68" width="4" height="12" fill="#fbbf24" rx="2" transform="rotate(45 33 74)"/>
-    <circle cx="50" cy="50" r="8" fill="#fef3c7" opacity="0.6"/>
-  </svg>
-);
-
-const AvatarMoon = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#e0e7ff" />
-        <stop offset="50%" stopColor="#c7d2fe" />
-        <stop offset="100%" stopColor="#a5b4fc" />
-      </linearGradient>
-    </defs>
-    <path d="M50 20 C30 20, 20 35, 20 50 C20 65, 30 80, 50 80 C45 75, 42 65, 42 50 C42 35, 45 25, 50 20 Z" fill="url(#moonGrad)"/>
-    <path d="M50 20 C30 20, 20 35, 20 50 C20 65, 30 80, 50 80 C45 75, 42 65, 42 50 C42 35, 45 25, 50 20 Z" fill="#c7d2fe" opacity="0.5"/>
-    <circle cx="40" cy="40" r="4" fill="#6366f1" opacity="0.3"/>
-    <circle cx="45" cy="50" r="3" fill="#6366f1" opacity="0.3"/>
-    <circle cx="38" cy="58" r="2.5" fill="#6366f1" opacity="0.3"/>
-    <circle cx="48" cy="60" r="2" fill="#6366f1" opacity="0.3"/>
-  </svg>
-);
-
-const AvatarStar = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="starGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-        <stop offset="0%" stopColor="#fef3c7" />
-        <stop offset="50%" stopColor="#fde047" />
-        <stop offset="100%" stopColor="#facc15" />
-      </linearGradient>
-    </defs>
-    <path d="M50 10 L55 35 L80 35 L60 50 L65 75 L50 60 L35 75 L40 50 L20 35 L45 35 Z" fill="url(#starGrad)"/>
-    <path d="M50 10 L55 35 L80 35 L60 50 L65 75 L50 60 L35 75 L40 50 L20 35 L45 35 Z" fill="#fde047" opacity="0.7"/>
-    <circle cx="50" cy="50" r="4" fill="#fef3c7" opacity="0.8"/>
-    <path d="M50 10 L50 60 M20 35 L80 35 M40 50 L60 50 M35 75 L65 75" stroke="#fbbf24" strokeWidth="0.5" opacity="0.3"/>
-  </svg>
-);
-
-const AvatarBird = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="birdBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#3b82f6" />
-        <stop offset="100%" stopColor="#2563eb" />
-      </linearGradient>
-      <linearGradient id="birdHeadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#60a5fa" />
-        <stop offset="100%" stopColor="#3b82f6" />
-      </linearGradient>
-    </defs>
-    <ellipse cx="50" cy="50" rx="25" ry="15" fill="url(#birdBodyGrad)"/>
-    <ellipse cx="50" cy="50" rx="23" ry="13" fill="#3b82f6" opacity="0.8"/>
-    <ellipse cx="35" cy="45" rx="8" ry="12" fill="url(#birdHeadGrad)"/>
-    <circle cx="30" cy="40" r="4" fill="#1e40af"/>
-    <circle cx="28" cy="38" r="1.5" fill="#fef3c7"/>
-    <path d="M70 50 L85 45 L85 55 Z" fill="#1e40af"/>
-    <path d="M70 50 L85 45 L85 55" stroke="#1e3a8a" strokeWidth="1" opacity="0.5"/>
-    <path d="M45 45 Q50 40, 55 45" stroke="#1e40af" strokeWidth="1.5" fill="none" opacity="0.4"/>
-  </svg>
-);
-
-const AvatarFern = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="fernGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-        <stop offset="0%" stopColor="#65a30d" />
-        <stop offset="50%" stopColor="#4d7c0f" />
-        <stop offset="100%" stopColor="#365314" />
-      </linearGradient>
-    </defs>
-    <path d="M50 10 L45 30 L40 25 L35 45 L30 40 L25 60 L30 55 L35 75 L40 70 L45 90 L50 85 L55 90 L60 70 L65 75 L70 55 L75 60 L70 40 L65 45 L60 25 L55 30 Z" fill="url(#fernGrad)"/>
-    <path d="M50 10 L45 30 L40 25 L35 45 L30 40 L25 60 L30 55 L35 75 L40 70 L45 90 L50 85" stroke="#84cc16" strokeWidth="0.5" opacity="0.3"/>
-    <path d="M50 10 L55 30 L60 25 L65 45 L70 40 L75 60 L70 55 L65 75 L60 70 L55 90 L50 85" stroke="#84cc16" strokeWidth="0.5" opacity="0.3"/>
-    <circle cx="50" cy="50" r="2" fill="#84cc16" opacity="0.4"/>
-    <circle cx="40" cy="60" r="1.5" fill="#84cc16" opacity="0.4"/>
-    <circle cx="60" cy="60" r="1.5" fill="#84cc16" opacity="0.4"/>
-  </svg>
-);
-
-const AvatarCactus = ({ className = "" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="cactusGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#22c55e" />
-        <stop offset="100%" stopColor="#16a34a" />
-      </linearGradient>
-    </defs>
-    <rect x="45" y="30" width="10" height="50" fill="url(#cactusGrad)" rx="5"/>
-    <rect x="35" y="50" width="8" height="30" fill="url(#cactusGrad)" rx="4"/>
-    <rect x="57" y="40" width="8" height="40" fill="url(#cactusGrad)" rx="4"/>
-    <circle cx="50" cy="25" r="8" fill="url(#cactusGrad)"/>
-    <rect x="45" y="30" width="10" height="5" fill="#15803d" opacity="0.3" rx="2"/>
-    <rect x="35" y="50" width="8" height="4" fill="#15803d" opacity="0.3" rx="2"/>
-    <rect x="57" y="40" width="8" height="4" fill="#15803d" opacity="0.3" rx="2"/>
-    <circle cx="48" cy="35" r="1.5" fill="#86efac" opacity="0.6"/>
-    <circle cx="52" cy="45" r="1.5" fill="#86efac" opacity="0.6"/>
-    <circle cx="38" cy="60" r="1" fill="#86efac" opacity="0.6"/>
-    <circle cx="60" cy="55" r="1" fill="#86efac" opacity="0.6"/>
-    <circle cx="50" cy="20" r="2" fill="#fbbf24" opacity="0.8"/>
-  </svg>
-);
-
-// Sophisticated gradient avatar system - gradient circles with icons
-const AudioAvatar = ({ type, className = "" }: { type: AvatarType; className?: string }) => {
-  const config = AVATAR_CONFIGS[type] || AVATAR_CONFIGS.mic;
-  const IconComponent = config.icon;
+// Freepik Avatar Component
+const FreepikAvatar = ({ 
+  type, 
+  className = "",
+  imageUrl,
+  gradientClasses 
+}: { 
+  type: AvatarType; 
+  className?: string;
+  imageUrl?: string | null;
+  gradientClasses?: string;
+}) => {
+  const gradient = gradientClasses || AVATAR_GRADIENTS[Math.abs(type.charCodeAt(0)) % AVATAR_GRADIENTS.length];
   
   return (
     <div 
-      className={`rounded-full ${config.gradientClasses} flex items-center justify-center shadow-lg ring-1 ring-black/10 dark:ring-white/10 ${className}`}
+      className={`rounded-full ${gradient} flex items-center justify-center shadow-md overflow-hidden ${className}`}
       style={{ minWidth: '100%', minHeight: '100%', aspectRatio: '1' }}
     >
-      <IconComponent className="text-white opacity-95" style={{ width: '60%', height: '60%', strokeWidth: 2 }} />
+      {imageUrl ? (
+        <img 
+          src={imageUrl} 
+          alt={`Avatar ${type}`}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback to gradient if image fails to load
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-white text-2xl">
+          👤
+        </div>
+      )}
     </div>
   );
 };
@@ -368,7 +128,69 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [recaptchaAvailable, setRecaptchaAvailable] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState(false);
   const [recaptchaLoading, setRecaptchaLoading] = useState(true);
+  const [recaptchaKey, setRecaptchaKey] = useState(0); // Key to force remount on retry
+  const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
+  const [fetchedAvatarIds, setFetchedAvatarIds] = useState<string[]>([]);
+  const [avatarsLoading, setAvatarsLoading] = useState(true);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
+  
+  // Fetch Freepik avatars on mount
+  useEffect(() => {
+    const loadAvatars = async () => {
+      try {
+        setAvatarsLoading(true);
+        // Search for avatar icons with diverse queries
+        const avatarQueries = [
+          'avatar user',
+          'avatar person',
+          'avatar profile',
+          'avatar character',
+          'user icon',
+          'person icon',
+        ];
+        
+        const avatarMap = new Map<string, string>();
+        const fetchedIds: string[] = [];
+        
+        // Fetch icons from multiple queries to get variety
+        for (const query of avatarQueries) {
+          if (fetchedIds.length >= 24) break; // Limit to 24 avatars
+          
+          const icons = await searchFreepikIcons(query, 4);
+          for (const icon of icons) {
+            if (fetchedIds.length >= 24) break;
+            if (icon.id && !fetchedIds.includes(icon.id)) {
+              const downloadUrl = await getIconDownloadUrl(icon.id);
+              if (downloadUrl) {
+                // Use the actual Freepik icon ID as the avatar type
+                const avatarId = icon.id;
+                avatarMap.set(avatarId, downloadUrl);
+                AVATAR_TYPE_TO_EMOJI[avatarId] = '👤';
+                fetchedIds.push(avatarId);
+              }
+            }
+          }
+        }
+        
+        // Update state with fetched avatars
+        setFetchedAvatarIds(fetchedIds);
+        setAvatarImages(avatarMap);
+        
+        // Set first avatar as selected if we have fetched avatars
+        if (fetchedIds.length > 0 && selectedAvatar === AVATAR_TYPES[0]) {
+          setSelectedAvatar(fetchedIds[0]);
+        }
+      } catch (error) {
+        console.warn('[OnboardingFlow] Failed to load Freepik avatars:', error);
+        // Fallback to default avatars if API fails
+        setFetchedAvatarIds(AVATAR_TYPES);
+      } finally {
+        setAvatarsLoading(false);
+      }
+    };
+    
+    loadAvatars();
+  }, []);
   
   // CRITICAL: Always call hooks (React rules), but handle errors gracefully
   let toast: any;
@@ -435,13 +257,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   // Check if reCAPTCHA script is loaded
   useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) {
+      console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
       setRecaptchaLoading(false);
+      setRecaptchaAvailable(false);
       return;
     }
+
+    console.log('[OnboardingFlow] Checking reCAPTCHA availability...', {
+      siteKey: RECAPTCHA_SITE_KEY ? 'Set' : 'Missing',
+      domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+      recaptchaKey: recaptchaKey,
+    });
 
     // Check if reCAPTCHA script is already loaded
     const checkRecaptchaLoaded = () => {
       if (typeof window !== 'undefined' && (window as any).grecaptcha) {
+        console.log('[OnboardingFlow] reCAPTCHA already loaded');
         setRecaptchaLoading(false);
         setRecaptchaAvailable(true);
         setRecaptchaError(false);
@@ -456,8 +287,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
 
     // Wait for script to load (with timeout)
+    // The ReCAPTCHA component will load the script, so we wait for it
     let attempts = 0;
-    const maxAttempts = 20; // 10 seconds max
+    const maxAttempts = 30; // 15 seconds max (increased for slower connections)
     const checkInterval = setInterval(() => {
       attempts++;
       if (checkRecaptchaLoaded() || attempts >= maxAttempts) {
@@ -468,6 +300,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
           if (!isDevelopment) {
             console.warn('[OnboardingFlow] reCAPTCHA script did not load within timeout');
+            console.warn('[OnboardingFlow] This may indicate:');
+            console.warn('  1. Domain not registered in reCAPTCHA console');
+            console.warn('  2. Network/CSP blocking Google scripts');
+            console.warn('  3. Invalid site key');
           } else {
             console.debug('[OnboardingFlow] reCAPTCHA not configured for development (this is normal)');
           }
@@ -478,7 +314,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }, 500);
 
     return () => clearInterval(checkInterval);
-  }, [RECAPTCHA_SITE_KEY]);
+  }, [RECAPTCHA_SITE_KEY, recaptchaKey]);
 
   const handleSubmit = async () => {
     if (!handle.trim()) {
@@ -821,7 +657,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       }));
       
       toast({
-        title: "Welcome to Echo Garden!",
+        title: "Welcome to The Echo Chamber!",
         description: "Your identity has been created. Start speaking your mind.",
       });
       
@@ -861,59 +697,74 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
+        {/* Top header with welcome and link account button */}
+        <div className="flex items-center justify-between mb-8 lg:mb-12 relative z-10">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-5 py-2.5 text-sm font-bold text-white dark:text-white border border-red-800/60 dark:border-red-700/50 shadow-lg backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-500">
+            <Radio className="h-4 w-4" />
+            Welcome to The Echo Chamber
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-full border-2 border-red-900/40 dark:border-red-800/30 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group animate-in fade-in-0 zoom-in-95 duration-500"
+            size="default"
+          >
+            <Link to="/link-pin" className="flex items-center gap-2 px-4 py-2">
+              <Lock className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+              <span className="text-sm font-semibold">Link Account</span>
+            </Link>
+          </Button>
+        </div>
+
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 lg:items-center">
           {/* Left side - Speakeasy Reddit-themed welcome */}
           <div className="space-y-8 text-center lg:text-left relative z-10 animate-in fade-in-0 slide-in-from-left-5 duration-700">
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-950/40 to-red-950/40 dark:from-amber-900/30 dark:to-red-900/30 px-5 py-2.5 text-sm font-semibold text-amber-300 dark:text-amber-400 border border-amber-800/40 dark:border-amber-800/30 shadow-sm backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-500">
-              <Mic className="h-4 w-4" />
-              Welcome to Echo Garden
-            </div>
 
             <div className="space-y-6">
               <div className="relative">
-                <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl leading-tight animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150">
-                  Find Your
-                  <span className="block bg-gradient-to-r from-amber-500 via-amber-400 to-red-500 dark:from-amber-400 dark:via-amber-300 dark:to-red-400 bg-clip-text text-transparent animate-in fade-in-0 duration-1000 delay-300">
-                    Voice
+                <h1 className="text-5xl font-extrabold tracking-tight text-white dark:text-white sm:text-6xl lg:text-7xl leading-tight animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150 drop-shadow-lg">
+                  Join The
+                  <span className="block bg-gradient-to-r from-red-500 via-red-400 to-amber-500 dark:from-red-400 dark:via-red-300 dark:to-amber-400 bg-clip-text text-transparent animate-in fade-in-0 duration-1000 delay-300">
+                    Echo Chamber
                   </span>
                 </h1>
-              </div>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300">
-                Choose your avatar and handle. Join the underground where voices echo—raw, anonymous, real.
+                </div>
+              <p className="text-lg text-gray-200 dark:text-gray-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-semibold animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300">
+                Create your identity. Speak your mind. Stay anonymous. Your voice, your rules.
               </p>
             </div>
 
             {/* Expanded content section */}
             <div className="space-y-6 pt-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-450">
               <div className="prose dark:prose-invert max-w-none">
-                <h3 className="text-2xl font-bold text-foreground mb-3 flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-amber-400 dark:text-amber-400" />
-                  What is Echo Garden?
+                <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                  <Mic className="h-5 w-5 text-red-400 dark:text-red-400" />
+                  What is The Echo Chamber?
                 </h3>
-                <p className="text-base text-muted-foreground leading-relaxed mb-4">
-                  Echo Garden is Reddit for your voice. Share 30-second audio clips—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
+                <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
+                  Reddit for your voice. Share 30-second audio clips—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
                 </p>
-                <p className="text-base text-muted-foreground leading-relaxed mb-4">
+                <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
                   Speak your mind. Listen to others. Upvote what hits. No BS, no filters—just raw voice in an underground community.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-amber-900/40 dark:border-amber-800/30 bg-gradient-to-br from-amber-950/20 to-red-950/20 dark:from-amber-950/15 dark:to-red-950/15 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-800/50">
-                <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Radio className="h-5 w-5 text-amber-400 dark:text-amber-400 animate-pulse" />
+              <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:border-red-700/60">
+                <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                  <Radio className="h-5 w-5 text-red-400 dark:text-red-400" />
                   How It Works
                 </h4>
-                <ul className="space-y-3 text-sm text-muted-foreground">
+                <ul className="space-y-3 text-sm text-gray-200 dark:text-gray-200">
                   {[
                     "Record or upload 30-second audio clips about anything",
                     "Listen to voices, react, reply—engage with the community",
                     "AI moderation keeps it real—trolls get filtered out",
                     "Stay anonymous—no personal info required, ever"
                   ].map((item, index) => (
-                    <li key={index} className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-left-2" style={{ animationDelay: `${index * 100}ms` }}>
-                      <span className="text-amber-400 dark:text-amber-400 mt-1 font-bold">•</span>
+                    <li key={index} className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-left-2 font-medium" style={{ animationDelay: `${index * 100}ms` }}>
+                      <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
                       <span>{item}</span>
-                    </li>
+                  </li>
                   ))}
                 </ul>
               </div>
@@ -948,50 +799,59 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               ].map(({ icon: Icon, title, description, iconBg, iconColor, delay }) => (
                 <div
                   key={title}
-                  className="group flex flex-col gap-3 rounded-2xl border border-amber-900/40 dark:border-amber-800/30 bg-gradient-to-br from-amber-950/20 to-red-950/20 dark:from-amber-950/15 dark:to-red-950/15 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-amber-950/30 hover:to-red-950/30 dark:hover:from-amber-950/25 dark:hover:to-red-950/25 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1 animate-in fade-in-0 slide-in-from-bottom-3"
+                  className="group flex flex-col gap-3 rounded-2xl border border-red-900/40 dark:border-red-800/30 bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1 animate-in fade-in-0 slide-in-from-bottom-3"
                   style={{ animationDelay: `${delay}ms` }}
                 >
                   <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
                     <Icon className="h-7 w-7" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground mb-1.5 text-base">{title}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+                    <p className="font-bold text-white dark:text-white mb-1.5 text-base">{title}</p>
+                    <p className="text-xs text-gray-200 dark:text-gray-200 leading-relaxed font-medium">{description}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right side - Enhanced form with decorative elements */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-amber-900/40 dark:border-amber-800/30 shadow-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl relative overflow-hidden animate-in fade-in-0 slide-in-from-right-5 duration-700 transition-all duration-300">
+          {/* Right side - Clean modern form */}
+          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-red-900/50 dark:border-red-800/40 shadow-2xl bg-slate-950/98 dark:bg-black/95 backdrop-blur-xl relative overflow-hidden animate-in fade-in-0 slide-in-from-right-5 duration-700 transition-all duration-300">
             
-            {/* Decorative corner accents */}
-            <div className="absolute top-0 left-0 w-20 h-20 border-t-2 border-l-2 border-amber-800/20 dark:border-amber-700/20 rounded-tl-2xl"></div>
-            <div className="absolute bottom-0 right-0 w-20 h-20 border-b-2 border-r-2 border-amber-800/20 dark:border-amber-700/20 rounded-br-2xl"></div>
+            {/* Decorative corner accents - subtle */}
+            <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-red-800/30 dark:border-red-700/30 rounded-tl-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-red-800/30 dark:border-red-700/30 rounded-br-2xl"></div>
 
             {/* Progress Indicator */}
             <div className="px-6 pt-6 pb-2">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-muted-foreground">Setup Progress</span>
-                <span className="text-xs font-semibold text-amber-400">
+                <span className="text-xs font-semibold text-gray-300 dark:text-gray-300">Setup Progress</span>
+                <span className="text-xs font-bold text-red-400 dark:text-red-400">
                   {Math.round((((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3) * 100)}%
                 </span>
-              </div>
+            </div>
               <Progress 
                 value={((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3 * 100} 
-                className="h-2 bg-amber-950/30 dark:bg-amber-950/20"
+                className="h-2 bg-red-950/40 dark:bg-red-950/30"
               />
             </div>
 
             <CardHeader className="space-y-3 text-center pb-6 relative z-10 px-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-900/50 via-amber-800/50 to-red-900/50 dark:from-amber-900/40 dark:via-amber-800/40 dark:to-red-900/40 mb-3 shadow-lg ring-2 ring-amber-800/30 dark:ring-amber-800/20 animate-in zoom-in-50 duration-500 hover:scale-105 transition-transform duration-300">
-                <AudioAvatar type={selectedAvatar} className="w-14 h-14" />
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-3 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 animate-in zoom-in-50 duration-500 hover:scale-105 transition-transform duration-300">
+                {avatarsLoading ? (
+                  <div className="w-14 h-14 rounded-full bg-slate-700 animate-pulse" />
+                ) : (
+                  <FreepikAvatar 
+                    type={selectedAvatar} 
+                    className="w-14 h-14" 
+                    imageUrl={avatarImages.get(selectedAvatar)}
+                    gradientClasses={AVATAR_GRADIENTS[AVATAR_TYPES.indexOf(selectedAvatar) % AVATAR_GRADIENTS.length]}
+                  />
+                )}
               </div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-amber-400 to-amber-300 dark:from-amber-400 dark:to-amber-300 bg-clip-text text-transparent animate-in fade-in-0 slide-in-from-bottom-2 duration-700">
+              <CardTitle className="text-3xl font-extrabold text-white dark:text-white animate-in fade-in-0 slide-in-from-bottom-2 duration-700">
                 Create Your Identity
               </CardTitle>
-              <p className="text-sm text-muted-foreground font-medium animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
+              <p className="text-sm text-gray-300 dark:text-gray-300 font-semibold animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
                 Pick an avatar and choose your handle
               </p>
             </CardHeader>
@@ -999,30 +859,36 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <CardContent className="space-y-6 relative z-10">
               {/* Avatar Selection */}
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Mic className="h-4 w-4 text-amber-400 dark:text-amber-400" />
+                <label className="text-sm font-bold text-white dark:text-white flex items-center gap-2">
+                  <Mic className="h-4 w-4 text-red-400 dark:text-red-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-4 gap-3 p-3 rounded-xl bg-amber-950/20 dark:bg-amber-950/10 border border-amber-900/30 dark:border-amber-800/20">
-                  {AVATAR_TYPES.map((avatarType, index) => {
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-slate-900/50 dark:bg-slate-950/50 border border-red-900/30 dark:border-red-800/20 max-h-96 overflow-y-auto">
+                  {(fetchedAvatarIds.length > 0 ? fetchedAvatarIds : AVATAR_TYPES).map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
                       <button
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all duration-300 animate-in fade-in-0 zoom-in-95 ${
+                        className={`flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all duration-300 animate-in fade-in-0 zoom-in-95 bg-slate-900/80 dark:bg-slate-950/80 ${
                           isActive
-                            ? "border-amber-500 bg-gradient-to-br from-amber-950/60 to-red-950/40 dark:from-amber-950/50 dark:to-red-950/40 scale-110 shadow-lg shadow-amber-500/30 ring-2 ring-amber-400/20 z-10"
-                            : "border-slate-700 dark:border-slate-600 hover:border-amber-500 dark:hover:border-amber-600 hover:bg-amber-950/30 dark:hover:bg-amber-950/20 hover:scale-105 active:scale-95"
+                            ? "border-red-500 bg-gradient-to-br from-red-950/70 to-amber-950/50 dark:from-red-950/60 dark:to-amber-950/40 scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
+                            : "border-slate-700 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 hover:scale-105 active:scale-95"
                         }`}
                         style={{ animationDelay: `${index * 30}ms` }}
                         title={avatarType.charAt(0).toUpperCase() + avatarType.slice(1)}
                       >
-                        <AudioAvatar 
-                          type={avatarType} 
-                          className={`w-10 h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
-                        />
+                        {avatarsLoading ? (
+                          <div className="w-10 h-10 rounded-full bg-slate-700 animate-pulse" />
+                        ) : (
+                          <FreepikAvatar 
+                            type={avatarType} 
+                            className={`w-10 h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
+                            imageUrl={avatarImages.get(avatarType)}
+                            gradientClasses={AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length]}
+                          />
+                        )}
                       </button>
                     );
                   })}
@@ -1031,8 +897,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
               {/* Handle Input */}
               <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-amber-400 dark:text-amber-400" />
+                <label className="text-sm font-bold text-white dark:text-white flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-red-400 dark:text-red-400" />
                   Your Handle
                 </label>
                 <div className="relative flex gap-2">
@@ -1041,7 +907,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-12 text-center text-lg font-medium tracking-wide border-2 border-amber-900/40 dark:border-amber-800/30 focus:border-amber-500 dark:focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 bg-slate-900/80 dark:bg-slate-950/80 text-foreground transition-all duration-200"
+                    className="h-12 text-center text-lg font-semibold tracking-wide border-2 border-red-900/40 dark:border-red-800/30 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
                   />
                   <Button
                     type="button"
@@ -1050,22 +916,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onClick={() => {
                       setHandle(generateHandle());
                     }}
-                    className="h-12 w-12 shrink-0 border-2 border-amber-900/40 dark:border-amber-800/30 hover:bg-gradient-to-br hover:from-amber-950/40 hover:to-red-950/40 dark:hover:from-amber-950/30 dark:hover:to-red-950/30 hover:border-amber-500 dark:hover:border-amber-500 transition-all hover:scale-105 active:scale-95"
+                    className="h-12 w-12 shrink-0 border-2 border-red-900/40 dark:border-red-800/30 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
                     title="Generate random handle"
                   >
-                    <Wand2 className="h-5 w-5 text-amber-400 dark:text-amber-400" />
+                    <Wand2 className="h-5 w-5 text-red-400 dark:text-red-400" />
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground font-medium">
+                  <p className="text-xs text-gray-300 dark:text-gray-300 font-semibold">
                     Keep it clean, 20 characters max
                   </p>
-                  <span className={`text-xs font-semibold transition-colors duration-200 ${
+                  <span className={`text-xs font-bold transition-colors duration-200 ${
                     handle.length > 18 
                       ? 'text-red-400 dark:text-red-400' 
                       : handle.length > 15 
                       ? 'text-amber-400 dark:text-amber-400'
-                      : 'text-muted-foreground'
+                      : 'text-gray-400 dark:text-gray-400'
                   }`}>
                     {handle.length}/20
                   </span>
@@ -1087,13 +953,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               {RECAPTCHA_SITE_KEY && (
                 <div className="flex flex-col items-center gap-2">
                   {recaptchaLoading && (
-                    <div className="text-xs text-muted-foreground text-center">
+                    <div className="text-xs text-gray-300 dark:text-gray-300 text-center font-medium">
                       <p>Loading verification...</p>
                     </div>
                   )}
                   {!recaptchaError && !recaptchaLoading && (
                     <div className="flex justify-center">
                       <ReCAPTCHA
+                        key={recaptchaKey}
                         ref={recaptchaRef}
                         sitekey={RECAPTCHA_SITE_KEY}
                         onChange={(token) => {
@@ -1150,21 +1017,45 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                           const isDevelopment = typeof window !== 'undefined' && 
                             (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
                           
+                          const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+                          const siteKeySet = !!RECAPTCHA_SITE_KEY;
+                          const siteKeyPreview = RECAPTCHA_SITE_KEY 
+                            ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
+                            : 'Not set';
+                          
                           if (isDevelopment) {
                             // In development, log as warning
                             console.warn('[OnboardingFlow] reCAPTCHA script failed to load (development mode)');
+                            console.warn('[OnboardingFlow] Site key:', siteKeyPreview);
+                            console.warn('[OnboardingFlow] Domain:', currentDomain);
                             console.warn('[OnboardingFlow] This is normal if reCAPTCHA is not configured for localhost');
                             console.warn('[OnboardingFlow] The app will work without reCAPTCHA - it\'s optional in development');
                             console.warn('[OnboardingFlow] To enable: Add localhost to your reCAPTCHA site at https://www.google.com/recaptcha/admin');
                           } else {
-                            // In production, log as error
-                            console.error('[OnboardingFlow] reCAPTCHA script failed to load');
-                            console.error('[OnboardingFlow] reCAPTCHA site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
-                            console.error('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+                            // In production, log as error with full diagnostics
+                            console.error('[OnboardingFlow] ❌ reCAPTCHA script failed to load');
+                            console.error('[OnboardingFlow] Diagnostics:');
+                            console.error('  - Site key:', siteKeySet ? siteKeyPreview : '❌ MISSING');
+                            console.error('  - Domain:', currentDomain);
+                            console.error('  - Environment:', isDevelopment ? 'Development' : 'Production');
                             console.error('[OnboardingFlow] Possible causes:');
-                            console.error('  1. Domain not registered in reCAPTCHA console');
-                            console.error('  2. Network/CSP blocking Google scripts');
-                            console.error('  3. Invalid site key');
+                            if (!siteKeySet) {
+                              console.error('  ❌ Site key not set - Check VITE_RECAPTCHA_SITE_KEY environment variable');
+                            } else {
+                              console.error('  1. Domain not registered in reCAPTCHA console');
+                              console.error('     → Go to https://www.google.com/recaptcha/admin');
+                              console.error('     → Add domain:', currentDomain);
+                              console.error('  2. Network/CSP blocking Google scripts');
+                              console.error('     → Check browser console for CSP errors');
+                              console.error('     → Check network tab for blocked requests');
+                              console.error('  3. Invalid site key');
+                              console.error('     → Verify site key matches Google console');
+                            }
+                            console.error('[OnboardingFlow] Quick fix:');
+                            console.error('  1. Open https://www.google.com/recaptcha/admin');
+                            console.error('  2. Click your site → Settings');
+                            console.error('  3. Add domain:', currentDomain);
+                            console.error('  4. Wait 5-10 minutes and retry');
                           }
                           
                           setRecaptchaLoading(false);
@@ -1177,35 +1068,69 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     </div>
                   )}
                   {recaptchaError && !recaptchaLoading && (
-                    <div className="text-xs text-muted-foreground text-center space-y-2">
-                      <p>reCAPTCHA unavailable - you can still create your account</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRecaptchaError(false);
-                          setRecaptchaLoading(true);
-                          setRecaptchaAvailable(false);
-                          setRecaptchaToken(null);
-                          // Force reload by resetting the component
-                          if (recaptchaRef.current) {
-                            recaptchaRef.current.reset();
-                          }
-                          // Re-check if script loaded
-                          setTimeout(() => {
-                            if (typeof window !== 'undefined' && (window as any).grecaptcha) {
-                              setRecaptchaLoading(false);
-                              setRecaptchaAvailable(true);
-                              setRecaptchaError(false);
-                            } else {
-                              setRecaptchaLoading(false);
-                              setRecaptchaError(true);
+                    <div className="text-xs text-muted-foreground text-center space-y-2 p-4 rounded-lg bg-red-950/20 dark:bg-red-950/10 border border-red-900/30 dark:border-red-800/20">
+                      <p className="text-red-400 dark:text-red-400 font-semibold mb-2">reCAPTCHA unavailable</p>
+                      <p className="text-gray-300 dark:text-gray-400 mb-3">You can still create your account without verification</p>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            console.log('[OnboardingFlow] Retrying reCAPTCHA...');
+                            // Reset all states
+                            setRecaptchaError(false);
+                            setRecaptchaLoading(true);
+                            setRecaptchaAvailable(false);
+                            setRecaptchaToken(null);
+                            
+                            // Force remount by changing key - this will reload the script
+                            setRecaptchaKey(prev => prev + 1);
+                            
+                            // Remove any existing reCAPTCHA scripts to force reload
+                            if (typeof window !== 'undefined') {
+                              // Remove existing script tags
+                              const existingScripts = document.querySelectorAll('script[src*="recaptcha"]');
+                              existingScripts.forEach(script => script.remove());
+                              
+                              // Clear grecaptcha if it exists
+                              if ((window as any).grecaptcha) {
+                                delete (window as any).grecaptcha;
+                              }
                             }
-                          }, 1000);
-                        }}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        Retry reCAPTCHA
-                      </button>
+                            
+                            // Wait a bit for cleanup, then check if it loads
+                            setTimeout(() => {
+                              // The component will remount with new key and try to load
+                              // asyncScriptOnLoad will handle success
+                              // If it still fails, asyncScriptOnError will set error again
+                            }, 500);
+                          }}
+                          className="text-xs px-4 py-2 bg-red-900/40 dark:bg-red-900/30 hover:bg-red-900/60 dark:hover:bg-red-900/50 text-white rounded-lg border border-red-800/50 dark:border-red-700/40 transition-all duration-200 hover:scale-105 active:scale-95 font-semibold"
+                        >
+                          Retry reCAPTCHA
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Allow proceeding without reCAPTCHA
+                            setRecaptchaError(false);
+                            setRecaptchaLoading(false);
+                            console.log('[OnboardingFlow] Proceeding without reCAPTCHA verification');
+                          }}
+                          className="text-xs text-amber-400 dark:text-amber-400 hover:text-amber-300 dark:hover:text-amber-300 hover:underline font-medium"
+                        >
+                          Continue without verification
+                        </button>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-red-900/30 dark:border-red-800/20">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                          Troubleshooting: Check console for details. Common causes:
+                        </p>
+                        <ul className="text-xs text-gray-500 dark:text-gray-600 mt-1 text-left list-disc list-inside space-y-0.5">
+                          <li>Domain not registered in reCAPTCHA console</li>
+                          <li>Network/CSP blocking Google scripts</li>
+                          <li>Invalid or missing site key</li>
+                        </ul>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1226,7 +1151,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 disabled={isLoading || !handle.trim() || !deviceId}
                 className={`w-full h-14 text-base font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
                   handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading 
-                    ? 'ring-2 ring-amber-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
+                    ? 'ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
                     : ''
                 }`}
                 size="lg"
@@ -1240,14 +1165,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 ) : (
                   <span className="flex items-center gap-2 relative z-10">
                     <span className="group-hover:translate-x-1 transition-transform duration-200">
-                      <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className="h-5 w-5" />
                     </span>
-                    Enter Echo Garden
+                    Enter The Chamber
                     <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
                   </span>
                 )}
               </Button>
-              <p className="text-xs text-center text-muted-foreground leading-relaxed">
+              <p className="text-xs text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
                 By continuing, you agree to keep it real and respectful
               </p>
             </CardFooter>

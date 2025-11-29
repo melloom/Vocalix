@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, Key } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, Key, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,7 +248,25 @@ const LinkPin = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="min-h-screen bg-background px-4 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-background px-4 py-12 flex items-center justify-center relative">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            // Try to go back, if no history, go to home
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate("/");
+            }
+          }}
+          className="absolute top-4 left-4 rounded-full hover:bg-muted"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        
         <div className="max-w-md w-full space-y-6 text-center">
           {status === "entering" && (
             <>

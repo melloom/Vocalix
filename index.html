@@ -353,19 +353,49 @@
         const originalError = console.error;
         const originalInfo = console.info;
         
+        // Safe stringify helper that handles circular references and DOM/React elements
+        const safeStringifyForLog = (arg) => {
+          if (arg === null || arg === undefined) return String(arg);
+          if (arg instanceof Error) return `Error: ${arg.message}${arg.stack ? '\n' + arg.stack : ''}`;
+          if (arg instanceof HTMLElement || arg instanceof Node) return `[${arg.constructor.name}]`;
+          if (typeof arg === 'object' && (arg.$$typeof || arg._reactInternalInstance)) return '[ReactElement]';
+          if (typeof arg === 'object') {
+            try {
+              const seen = new WeakSet();
+              return JSON.stringify(arg, (key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                  if (seen.has(value)) return '[Circular]';
+                  seen.add(value);
+                  if (value instanceof HTMLElement || value instanceof Node) return `[${value.constructor.name}]`;
+                  if (value.$$typeof || value._reactInternalInstance) return '[ReactElement]';
+                }
+                return value;
+              });
+            } catch (e) {
+              return `[Object: ${arg.constructor?.name || 'Object'}]`;
+            }
+          }
+          return String(arg);
+        };
+        
         console.log = function(...args) {
           originalLog.apply(console, args);
-          addLog('log', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          addLog('log', args.map(a => safeStringifyForLog(a)).join(' '));
         };
         
         console.warn = function(...args) {
           originalWarn.apply(console, args);
-          addLog('warn', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          addLog('warn', args.map(a => safeStringifyForLog(a)).join(' '));
         };
         
         console.error = function(...args) {
           originalError.apply(console, args);
-          addLog('error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+          addLog('error', args.map(a => safeStringifyForLog(a)).join(' '));
+        };
+        
+        console.info = function(...args) {
+          originalInfo.apply(console, args);
+          addLog('info', args.map(a => safeStringifyForLog(a)).join(' '));
         };
         
         console.info = function(...args) {

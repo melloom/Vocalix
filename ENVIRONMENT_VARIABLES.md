@@ -47,6 +47,14 @@ Complete reference for all environment variables used in Echo Garden.
 - **Default**: None
 - **Security**: Safe to expose (public key)
 
+#### `VITE_FREEPIK_API_KEY`
+- **Description**: Freepik API key for fetching avatar icons
+- **Example**: `FPSXfc1a259779cf474dd68722a2ce500c9f`
+- **Where to Get**: [Freepik API Dashboard](https://www.freepik.com/api)
+- **Required**: No (avatars will show fallback if not set)
+- **Default**: None
+- **Security**: ⚠️ **WARNING: This key will be visible in the browser!** All `VITE_*` variables are bundled into JavaScript and can be seen by anyone. Consider moving Freepik API calls to a backend Edge Function if the key should remain secret.
+
 #### `VITE_API_BASE_URL`
 - **Description**: Base URL for API (if different from Supabase)
 - **Example**: `https://api.echogarden.com`
@@ -122,6 +130,7 @@ VITE_SUPABASE_ANON_KEY=your-production-anon-key
 # Optional
 VITE_SENTRY_DSN=https://your-sentry-dsn
 VITE_RECAPTCHA_SITE_KEY=your-recaptcha-key
+VITE_FREEPIK_API_KEY=your-freepik-api-key
 ```
 
 ## 📍 Where to Set Variables
@@ -150,8 +159,13 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ### Netlify
 
 1. Go to Site Settings → Environment Variables
-2. Add variables
-3. Redeploy after adding variables
+2. Add variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_RECAPTCHA_SITE_KEY` (optional)
+   - `VITE_FREEPIK_API_KEY` (optional - for avatar icons)
+   - `VITE_SENTRY_DSN` (optional)
+3. **Important**: Redeploy after adding/updating variables (Deploys → Trigger deploy)
 
 ### Supabase Edge Functions
 
@@ -168,6 +182,8 @@ These can be in client-side code:
 - `VITE_SUPABASE_ANON_KEY` (anon key only!)
 - `VITE_SENTRY_DSN`
 - `VITE_RECAPTCHA_SITE_KEY`
+
+**⚠️ IMPORTANT**: All `VITE_*` variables are bundled into your JavaScript code and **visible to anyone** who views your site's source code. Never put truly secret keys here!
 
 ### Never Expose (Secret)
 
@@ -217,6 +233,9 @@ VITE_SENTRY_DSN=
 
 # reCAPTCHA (Optional)
 VITE_RECAPTCHA_SITE_KEY=
+
+# Freepik API (Optional - for avatar icons)
+VITE_FREEPIK_API_KEY=
 ```
 
 ## 🔍 Verifying Variables

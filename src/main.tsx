@@ -45,33 +45,81 @@ initializeMonitoring();
   console.warn("[App] Monitoring initialization failed, continuing anyway:", error);
 }
 
+// Safe stringify function that handles circular references and DOM/React elements
+const safeStringify = (arg: any): string => {
+  if (arg === null || arg === undefined) {
+    return String(arg);
+  }
+  
+  // Handle Error objects
+  if (arg instanceof Error) {
+    return `Error: ${arg.message}${arg.stack ? '\n' + arg.stack : ''}`;
+  }
+  
+  // Handle DOM elements
+  if (arg instanceof HTMLElement || arg instanceof Node) {
+    return `[${arg.constructor.name}${arg.id ? '#' + arg.id : ''}${arg.className ? '.' + String(arg.className).split(' ').join('.') : ''}]`;
+  }
+  
+  // Handle React components (they have $$typeof or _reactInternalInstance)
+  if (typeof arg === 'object' && arg !== null) {
+    // Check for React elements
+    if (arg.$$typeof || arg._reactInternalInstance || arg.__reactInternalInstance) {
+      const displayName = arg.type?.displayName || arg.type?.name || 'ReactElement';
+      return `[${displayName}]`;
+    }
+    
+    // Check for known error patterns first (before trying to stringify)
+    if (arg.code === 403 && arg.httpStatus === 200 && arg.httpError === false && arg.name === 'i') {
+      return 'SUPPRESS_403';
+    }
+    if (arg.message && (
+      arg.message.includes("Could not establish connection") ||
+      arg.message.includes("Receiving end does not exist")
+    )) {
+      return 'SUPPRESS_EXTENSION';
+    }
+    if (arg === "Timeout" || arg.error === "Timeout" || 
+        (arg.message && (arg.message.includes("timeout") || arg.message.includes("Timeout")))) {
+      return 'SUPPRESS_TIMEOUT';
+    }
+    
+    // Try to safely stringify, catching circular references
+    try {
+      // Create a safe replacer to handle circular refs
+      const seen = new WeakSet();
+      return JSON.stringify(arg, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]';
+          }
+          seen.add(value);
+          
+          // Skip React/DOM elements
+          if (value instanceof HTMLElement || value instanceof Node) {
+            return `[${value.constructor.name}]`;
+          }
+          if (value.$$typeof || value._reactInternalInstance) {
+            return '[ReactElement]';
+          }
+        }
+        return value;
+      });
+    } catch (e) {
+      // If stringify fails, return a safe representation
+      return `[Object: ${arg.constructor?.name || 'Object'}]`;
+    }
+  }
+  
+  return String(arg);
+};
+
 // Intercept console.error to suppress known non-critical errors
 // This must be done before any other code runs
 const originalConsoleError = console.error;
 console.error = (...args: any[]) => {
   // Check if any argument matches our known error patterns
-  const errorString = args.map(arg => {
-    if (typeof arg === 'object' && arg !== null) {
-      // Check for 403 errors in the exact format we're seeing
-      if (arg.code === 403 && arg.httpStatus === 200 && arg.httpError === false && arg.name === 'i') {
-        return 'SUPPRESS_403'; // Marker to suppress
-      }
-      // Check for extension connection errors
-      if (arg.message && (
-        arg.message.includes("Could not establish connection") ||
-        arg.message.includes("Receiving end does not exist")
-      )) {
-        return 'SUPPRESS_EXTENSION'; // Marker to suppress
-      }
-      // Check for timeout errors
-      if (arg === "Timeout" || arg.error === "Timeout" || 
-          (arg.message && (arg.message.includes("timeout") || arg.message.includes("Timeout")))) {
-        return 'SUPPRESS_TIMEOUT'; // Marker to suppress
-      }
-      return JSON.stringify(arg);
-    }
-    return String(arg);
-  }).join(' ');
+  const errorString = args.map(arg => safeStringify(arg)).join(' ');
 
   // Suppress known non-critical errors
   if (
@@ -639,12 +687,27 @@ const initApp = () => {
   } catch (error: any) {
     // If rendering fails, show a fallback error message
     console.error("[App] Failed to render app:", error);
-    console.error("[App] Error details:", {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-      toString: String(error)
-    });
+    
+    // Safely extract error details without circular references
+    try {
+      const errorDetails: Record<string, any> = {
+        message: error?.message || undefined,
+        stack: error?.stack || undefined,
+        name: error?.name || undefined,
+      };
+      // Only try to stringify if it's safe
+      if (error && typeof error.toString === 'function') {
+        try {
+          errorDetails.toString = String(error);
+        } catch (e) {
+          errorDetails.toString = '[Unable to convert to string - circular reference]';
+        }
+      }
+      console.error("[App] Error details:", errorDetails);
+    } catch (logError) {
+      // If we can't even log the error details, just log a minimal message
+      console.error("[App] Error occurred (unable to extract details):", error?.message || 'Unknown error');
+    }
     
     // Check if it's the React createContext error
     const isReactError = error?.message?.includes('createContext') || 
@@ -691,16 +754,30 @@ const runInit = () => {
   console.log("[App] runInit() called, calling initApp()...");
   try {
     initApp();
-  } catch (initError) {
+  } catch (initError: any) {
     console.error("[App] Error in initApp():", initError);
     const root = document.getElementById("root");
     if (root) {
+      // Safely extract error message without trying to stringify React/DOM elements
+      let errorMessage = 'Unknown error';
+      try {
+        if (initError?.message) {
+          errorMessage = String(initError.message);
+        } else if (typeof initError === 'string') {
+          errorMessage = initError;
+        } else if (initError && typeof initError.toString === 'function') {
+          errorMessage = initError.toString();
+        }
+      } catch (e) {
+        errorMessage = 'Error occurred during initialization';
+      }
+      
       root.innerHTML = `
         <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
           <div style="max-width: 500px; text-align: center;">
             <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Initialization Error</h1>
             <p style="color: #666; margin-bottom: 12px;">Failed to initialize app.</p>
-            <p style="color: #999; font-size: 12px; margin-bottom: 24px;">Error: ${String(initError?.message || initError)}</p>
+            <p style="color: #999; font-size: 12px; margin-bottom: 24px; word-break: break-word;">Error: ${errorMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
             <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button>
           </div>
         </div>

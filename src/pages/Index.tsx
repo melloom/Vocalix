@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen, Lock, Key } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -3000,18 +3000,6 @@ const IndexInner = () => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Diary - Your private encrypted journal</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild data-tutorial="account-linking">
-                    <Link to="/link-pin" aria-label="Link Account with PIN">
-                      <Lock className="h-5 w-5" />
-                    </Link>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Link Account - Enter PIN to link this device</p>
                 </TooltipContent>
               </Tooltip>
               {/* @ts-ignore - show_18_plus_content exists but not in generated types */}

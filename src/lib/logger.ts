@@ -36,8 +36,15 @@ const SENSITIVE_PATTERNS = [
 
 /**
  * Sanitize data to remove sensitive information
+ * Handles circular references, DOM elements, and React components safely
  */
-function sanitizeData(data: unknown): unknown {
+function sanitizeData(data: unknown, seen = new WeakSet()): unknown {
+  // Handle null/undefined
+  if (data === null || data === undefined) {
+    return data;
+  }
+
+  // Handle strings
   if (typeof data === "string") {
     let sanitized = data;
     SENSITIVE_PATTERNS.forEach((pattern) => {
@@ -46,29 +53,64 @@ function sanitizeData(data: unknown): unknown {
     return sanitized;
   }
 
-  if (Array.isArray(data)) {
-    return data.map((item) => sanitizeData(item));
+  // Handle Error objects
+  if (data instanceof Error) {
+    return {
+      name: data.name,
+      message: data.message,
+      stack: data.stack,
+    };
   }
 
-  if (data && typeof data === "object") {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(data)) {
-      const keyLower = key.toLowerCase();
-      const isSensitive =
-        SENSITIVE_PATTERNS.some((pattern) => pattern.test(key)) ||
-        keyLower.includes("password") ||
-        keyLower.includes("token") ||
-        keyLower.includes("secret") ||
-        keyLower.includes("key") ||
-        keyLower.includes("credential");
+  // Handle DOM elements
+  if (data instanceof HTMLElement || data instanceof Node) {
+    return `[${data.constructor.name}]`;
+  }
 
-      if (isSensitive) {
-        sanitized[key] = "[REDACTED]";
-      } else {
-        sanitized[key] = sanitizeData(value);
-      }
+  // Handle React components
+  if (typeof data === "object" && data !== null) {
+    if ((data as any).$$typeof || (data as any)._reactInternalInstance || (data as any).__reactInternalInstance) {
+      const type = (data as any).type;
+      const displayName = type?.displayName || type?.name || 'ReactElement';
+      return `[${displayName}]`;
     }
-    return sanitized;
+  }
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeData(item, seen));
+  }
+
+  // Handle objects with circular reference detection
+  if (data && typeof data === "object") {
+    // Check for circular references
+    if (seen.has(data)) {
+      return "[Circular]";
+    }
+    seen.add(data);
+
+    try {
+      const sanitized: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(data)) {
+        const keyLower = key.toLowerCase();
+        const isSensitive =
+          SENSITIVE_PATTERNS.some((pattern) => pattern.test(key)) ||
+          keyLower.includes("password") ||
+          keyLower.includes("token") ||
+          keyLower.includes("secret") ||
+          keyLower.includes("key") ||
+          keyLower.includes("credential");
+
+        if (isSensitive) {
+          sanitized[key] = "[REDACTED]";
+        } else {
+          sanitized[key] = sanitizeData(value, seen);
+        }
+      }
+      return sanitized;
+    } catch (e) {
+      return "[Object: Unable to sanitize]";
+    }
   }
 
   return data;
