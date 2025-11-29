@@ -974,7 +974,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <Mic className="h-4 w-4 text-red-400 dark:text-red-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-slate-900/50 dark:bg-slate-950/50 border border-red-900/30 dark:border-red-800/20 max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/20 to-slate-900/40 dark:from-red-950/20 dark:via-amber-950/10 dark:to-slate-900/30 border border-red-900/30 dark:border-red-800/20 max-h-96 overflow-y-auto">
                   {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
