@@ -224,23 +224,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   // Check if reCAPTCHA script is loaded
   useEffect(() => {
+    const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+    const isDevelopment = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    
     if (!RECAPTCHA_SITE_KEY) {
       console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
+      console.log('[OnboardingFlow] To enable: Set VITE_RECAPTCHA_SITE_KEY environment variable');
       setRecaptchaLoading(false);
       setRecaptchaAvailable(false);
       return;
     }
 
+    // Log detailed diagnostics
+    const siteKeyPreview = RECAPTCHA_SITE_KEY 
+      ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
+      : 'Not set';
+    
     console.log('[OnboardingFlow] Checking reCAPTCHA availability...', {
-      siteKey: RECAPTCHA_SITE_KEY ? 'Set' : 'Missing',
-      domain: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+      siteKey: siteKeyPreview,
+      domain: currentDomain,
+      environment: isDevelopment ? 'Development' : 'Production',
       recaptchaKey: recaptchaKey,
     });
 
     // Check if reCAPTCHA script is already loaded
     const checkRecaptchaLoaded = () => {
       if (typeof window !== 'undefined' && (window as any).grecaptcha) {
-        console.log('[OnboardingFlow] reCAPTCHA already loaded');
+        console.log('[OnboardingFlow] ✅ reCAPTCHA already loaded');
         setRecaptchaLoading(false);
         setRecaptchaAvailable(true);
         setRecaptchaError(false);
@@ -257,21 +268,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     // Wait for script to load (with timeout)
     // The ReCAPTCHA component will load the script, so we wait for it
     let attempts = 0;
-    const maxAttempts = 30; // 15 seconds max (increased for slower connections)
+    const maxAttempts = 40; // 20 seconds max (increased for slower connections)
     const checkInterval = setInterval(() => {
       attempts++;
       if (checkRecaptchaLoaded() || attempts >= maxAttempts) {
         clearInterval(checkInterval);
         if (attempts >= maxAttempts && !checkRecaptchaLoaded()) {
           // Only warn in production - in development it's expected if key isn't set
-          const isDevelopment = typeof window !== 'undefined' && 
-            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
           if (!isDevelopment) {
-            console.warn('[OnboardingFlow] reCAPTCHA script did not load within timeout');
-            console.warn('[OnboardingFlow] This may indicate:');
-            console.warn('  1. Domain not registered in reCAPTCHA console');
-            console.warn('  2. Network/CSP blocking Google scripts');
-            console.warn('  3. Invalid site key');
+            console.error('[OnboardingFlow] ❌ reCAPTCHA script did not load within timeout');
+            console.error('[OnboardingFlow] Diagnostics:');
+            console.error('  - Site key:', siteKeyPreview);
+            console.error('  - Domain:', currentDomain);
+            console.error('  - Environment: Production');
+            console.error('[OnboardingFlow] Possible causes:');
+            console.error('  1. Domain not registered in reCAPTCHA console');
+            console.error('     → Go to https://www.google.com/recaptcha/admin');
+            console.error(`     → Add domain: ${currentDomain}`);
+            console.error('  2. Network/CSP blocking Google scripts');
+            console.error('     → Check browser console for CSP errors');
+            console.error('     → Check network tab for blocked requests to google.com/gstatic.com');
+            console.error('  3. Invalid or missing site key');
+            console.error('     → Verify VITE_RECAPTCHA_SITE_KEY is set in production environment');
+            console.error('     → Verify site key matches Google reCAPTCHA console');
+            console.error('[OnboardingFlow] Quick fix:');
+            console.error('  1. Open https://www.google.com/recaptcha/admin');
+            console.error('  2. Click your site → Settings → Domains');
+            console.error(`  3. Add: ${currentDomain}`);
+            console.error('  4. Wait 5-10 minutes and retry');
           } else {
             console.debug('[OnboardingFlow] reCAPTCHA not configured for development (this is normal)');
           }
@@ -1038,6 +1062,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                           type="button"
                           onClick={() => {
                             console.log('[OnboardingFlow] Retrying reCAPTCHA...');
+                            // Log current diagnostics
+                            const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+                            const siteKeyPreview = RECAPTCHA_SITE_KEY 
+                              ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...${RECAPTCHA_SITE_KEY.substring(RECAPTCHA_SITE_KEY.length - 4)}`
+                              : 'Not set';
+                            console.log('[OnboardingFlow] Diagnostic Info:', {
+                              domain: currentDomain,
+                              siteKey: siteKeyPreview,
+                              grecaptchaAvailable: !!(typeof window !== 'undefined' && (window as any).grecaptcha),
+                            });
+                            
                             // Reset all states
                             setRecaptchaError(false);
                             setRecaptchaLoading(true);
@@ -1084,14 +1119,26 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </button>
                       </div>
                       <div className="mt-3 pt-3 border-t border-red-900/30 dark:border-red-800/20">
-                        <p className="text-xs text-gray-400 dark:text-gray-500">
-                          Troubleshooting: Check console for details. Common causes:
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                          Troubleshooting: Check console for details (F12 → Console tab)
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-600 text-left mb-1 font-semibold">
+                          Common causes:
                         </p>
                         <ul className="text-xs text-gray-500 dark:text-gray-600 mt-1 text-left list-disc list-inside space-y-0.5">
                           <li>Domain not registered in reCAPTCHA console</li>
                           <li>Network/CSP blocking Google scripts</li>
                           <li>Invalid or missing site key</li>
                         </ul>
+                        <p className="text-xs text-gray-500 dark:text-gray-600 text-left mt-2 font-semibold">
+                          Quick fix:
+                        </p>
+                        <ol className="text-xs text-gray-500 dark:text-gray-600 mt-1 text-left list-decimal list-inside space-y-0.5">
+                          <li>Open <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">Google reCAPTCHA Admin</a></li>
+                          <li>Click your site → Settings → Domains</li>
+                          <li>Add: <code className="bg-black/20 px-1 rounded">{typeof window !== 'undefined' ? window.location.hostname : 'yourdomain.com'}</code></li>
+                          <li>Wait 5-10 minutes and retry</li>
+                        </ol>
                       </div>
                     </div>
                   )}
