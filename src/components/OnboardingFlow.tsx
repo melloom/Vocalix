@@ -713,6 +713,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             
             if (!enterpriseToken) {
               console.warn('[OnboardingFlow] Could not obtain reCAPTCHA token after all attempts');
+              console.warn('[OnboardingFlow] This prevents key activation. Check:');
+              console.warn('  1. Script loaded? Check Network tab for recaptcha/enterprise.js');
+              console.warn('  2. Domain registered? localhost and 127.0.0.1 in reCAPTCHA console');
+              console.warn('  3. Site key correct?', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 15)}...` : 'missing');
             }
           }
         } catch (error: any) {
