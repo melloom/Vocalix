@@ -256,6 +256,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   }, [hookDeviceId, deviceId]);
 
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+  
+  // Debug logging for localhost
+  useEffect(() => {
+    if (RECAPTCHA_SITE_KEY) {
+      console.log('[OnboardingFlow] reCAPTCHA Site Key:', RECAPTCHA_SITE_KEY);
+      console.log('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+      console.log('[OnboardingFlow] Full URL:', typeof window !== 'undefined' ? window.location.href : 'unknown');
+    } else {
+      console.warn('[OnboardingFlow] VITE_RECAPTCHA_SITE_KEY is not set!');
+    }
+  }, []);
 
   // Update avatar when handle changes
   useEffect(() => {
@@ -412,12 +423,48 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       };
       
       script.onerror = (error) => {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+        const currentPort = typeof window !== 'undefined' ? window.location.port : '';
+        const fullHost = currentPort ? `${currentDomain}:${currentPort}` : currentDomain;
+        
         console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script');
-        console.error('[OnboardingFlow] Troubleshooting:');
-        console.error('  1. Check if domain is registered in reCAPTCHA console');
-        console.error('  2. Verify VITE_RECAPTCHA_SITE_KEY is set correctly');
-        console.error('  3. Check Network tab for blocked requests');
-        console.error('  4. Domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
+        console.error('[OnboardingFlow] Script URL:', script.src);
+        console.error('[OnboardingFlow] Current domain:', currentDomain);
+        console.error('[OnboardingFlow] Full hostname:', fullHost);
+        console.error('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY || 'NOT SET');
+        
+        // Try to load the script URL directly to test
+        console.error('[OnboardingFlow] Testing script URL manually...');
+        fetch(script.src)
+          .then(response => {
+            console.error('[OnboardingFlow] Script URL fetch status:', response.status, response.statusText);
+            if (response.ok) {
+              console.error('[OnboardingFlow] ⚠️ Script URL is accessible but failed to load - likely domain/CSP issue');
+            } else {
+              console.error('[OnboardingFlow] ⚠️ Script URL returned error:', response.status);
+            }
+          })
+          .catch(fetchError => {
+            console.error('[OnboardingFlow] Script URL fetch failed:', fetchError);
+          });
+        
+        console.error('[OnboardingFlow] 🔧 Troubleshooting for localhost:');
+        console.error('  1. Go to: https://www.google.com/recaptcha/admin');
+        console.error('  2. Click on your site key');
+        console.error('  3. In Domains section, add ALL of these:');
+        console.error('     - localhost');
+        console.error('     - 127.0.0.1');
+        if (currentPort) {
+          console.error(`     - localhost:${currentPort}`);
+          console.error(`     - 127.0.0.1:${currentPort}`);
+        }
+        console.error('  4. Wait 5-10 minutes after saving');
+        console.error('  5. Hard refresh (Ctrl+Shift+R)');
+        console.error('');
+        console.error('  💡 You can also test by opening this URL in your browser:');
+        console.error(`     ${script.src}`);
+        console.error('     If it loads, the script works - the issue is domain registration');
+        
         if (checkReadyInterval) clearInterval(checkReadyInterval);
         if (readyTimeout) clearTimeout(readyTimeout);
         setRecaptchaError(true);
