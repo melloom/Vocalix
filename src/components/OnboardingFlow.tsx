@@ -273,22 +273,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setSelectedAvatar(generateAvatarFromHandle(handle));
   }, [handle]);
 
-  // Load reCAPTCHA Enterprise script
+  // Load reCAPTCHA v3 script
   useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) {
-      console.log('[OnboardingFlow] No reCAPTCHA Enterprise site key configured');
+      console.log('[OnboardingFlow] No reCAPTCHA v3 site key configured');
       setRecaptchaLoading(false);
       setRecaptchaAvailable(false);
       return;
     }
     
-    console.log('[OnboardingFlow] Starting reCAPTCHA Enterprise load...');
+    console.log('[OnboardingFlow] Starting reCAPTCHA v3 load...');
     console.log('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...` : 'missing');
 
-    // Check if Enterprise script is already loaded
-    const checkEnterpriseLoaded = () => {
-      if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
-        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise API available!');
+    // Check if v3 script is already loaded
+    const checkV3Loaded = () => {
+      if (typeof window !== 'undefined' && (window as any).grecaptcha && typeof (window as any).grecaptcha.execute === 'function') {
+        console.log('[OnboardingFlow] ✅ reCAPTCHA v3 API available!');
         setRecaptchaLoading(false);
         setRecaptchaAvailable(true);
         setRecaptchaError(false);
@@ -298,24 +298,24 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     };
 
     // Check immediately in case script was loaded elsewhere
-    if (checkEnterpriseLoaded()) {
+    if (checkV3Loaded()) {
       return;
     }
 
-    // Load Enterprise script dynamically
-    const loadEnterpriseScript = () => {
+    // Load v3 script dynamically
+    const loadV3Script = () => {
       // Check if script already exists
-      const existingScript = document.querySelector(`script[src*="recaptcha/enterprise.js"]`);
+      const existingScript = document.querySelector(`script[src*="recaptcha/api.js"]`);
       if (existingScript) {
-        // If script exists but Enterprise API isn't ready, wait for it (silently)
-        if (!checkEnterpriseLoaded()) {
+        // If script exists but v3 API isn't ready, wait for it (silently)
+        if (!checkV3Loaded()) {
           // Wait for it to become available (max 5 seconds)
           let waitAttempts = 0;
           const waitInterval = setInterval(() => {
-            waitAttempts++;
-            if (checkEnterpriseLoaded() || waitAttempts >= 50) {
-              clearInterval(waitInterval);
-              if (!checkEnterpriseLoaded()) {
+              waitAttempts++;
+              if (checkV3Loaded() || waitAttempts >= 50) {
+                clearInterval(waitInterval);
+                if (!checkV3Loaded()) {
                 // Silently fail - reCAPTCHA is optional
                 setRecaptchaError(true);
                 setRecaptchaLoading(false);
@@ -327,21 +327,21 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       }
 
       const script = document.createElement('script');
-      script.src = `https://www.google.com/recaptcha/enterprise.js?render=${RECAPTCHA_SITE_KEY}`;
+      script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
       script.async = true;
       script.defer = false;
-      script.id = 'recaptcha-enterprise-script';
+      script.id = 'recaptcha-v3-script';
       
       let checkReadyInterval: NodeJS.Timeout | null = null;
       let readyTimeout: NodeJS.Timeout | null = null;
       
       script.onload = () => {
-        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise script file loaded');
+        console.log('[OnboardingFlow] ✅ reCAPTCHA v3 script file loaded');
         
         // Function to check and set ready state
         const checkAndSetReady = () => {
-          if (checkEnterpriseLoaded()) {
-            console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise API is ready!');
+          if (checkV3Loaded()) {
+            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 API is ready!');
             if (checkReadyInterval) clearInterval(checkReadyInterval);
             if (readyTimeout) clearTimeout(readyTimeout);
             setRecaptchaLoading(false);
@@ -352,16 +352,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           return false;
         };
 
-        // Try to use grecaptcha.enterprise.ready() if available
+        // Try to use grecaptcha.ready() if available
         const tryReadyCallback = () => {
           if (typeof window !== 'undefined' && (window as any).grecaptcha) {
             try {
               const grecaptcha = (window as any).grecaptcha;
               
-              // Check if Enterprise API exists
-              if (grecaptcha.enterprise && grecaptcha.enterprise.ready) {
-                grecaptcha.enterprise.ready(() => {
-                  console.log('[OnboardingFlow] Enterprise ready() callback executed');
+              // Check if v3 API exists (has execute function)
+              if (typeof grecaptcha.ready === 'function') {
+                grecaptcha.ready(() => {
+                  console.log('[OnboardingFlow] v3 ready() callback executed');
                   setTimeout(() => {
                     if (!checkAndSetReady()) {
                       // Still not ready, but might work on execute
@@ -370,16 +370,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   }, 500);
                 });
                 return true;
-              } else if (grecaptcha.enterprise) {
-                // Enterprise exists but no ready() method
-                console.log('[OnboardingFlow] Enterprise API exists but no ready() method, checking directly...');
+              } else if (typeof grecaptcha.execute === 'function') {
+                // v3 exists but no ready() method
+                console.log('[OnboardingFlow] v3 API exists, checking directly...');
                 setTimeout(() => {
                   checkAndSetReady();
                 }, 1000);
                 return true;
               }
             } catch (e) {
-              console.warn('[OnboardingFlow] Error checking Enterprise API:', e);
+              console.warn('[OnboardingFlow] Error checking v3 API:', e);
             }
           }
           return false;
@@ -390,7 +390,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           // Set a timeout in case ready() never fires
           readyTimeout = setTimeout(() => {
             if (!checkAndSetReady()) {
-              console.log('[OnboardingFlow] Enterprise ready() timeout, starting polling...');
+              console.log('[OnboardingFlow] v3 ready() timeout, starting polling...');
               startPolling();
             }
           }, 2000);
@@ -398,7 +398,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           // Strategy 2: Wait a bit then check
           setTimeout(() => {
             if (!checkAndSetReady()) {
-              console.log('[OnboardingFlow] Enterprise not immediately available, starting polling...');
+              console.log('[OnboardingFlow] v3 not immediately available, starting polling...');
               startPolling();
             }
           }, 1000);
@@ -412,8 +412,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             pollAttempts++;
             if (checkAndSetReady() || pollAttempts >= maxPollAttempts) {
               if (checkReadyInterval) clearInterval(checkReadyInterval);
-              if (pollAttempts >= maxPollAttempts && !checkEnterpriseLoaded()) {
-                console.warn('[OnboardingFlow] Enterprise API not available after polling - will attempt execution anyway');
+              if (pollAttempts >= maxPollAttempts && !checkV3Loaded()) {
+                console.warn('[OnboardingFlow] v3 API not available after polling - will attempt execution anyway');
                 // Don't set as error - might work when we try to execute
                 setRecaptchaLoading(false);
               }
@@ -427,40 +427,21 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         const currentPort = typeof window !== 'undefined' ? window.location.port : '';
         const fullHost = currentPort ? `${currentDomain}:${currentPort}` : currentDomain;
         
-        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script');
+        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA v3 script');
         console.error('[OnboardingFlow] Script URL:', script.src);
         console.error('[OnboardingFlow] Current domain:', currentDomain);
         console.error('[OnboardingFlow] Full hostname:', fullHost);
         console.error('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY || 'NOT SET');
-        
-        // Try to load the script URL directly to test
-        console.error('[OnboardingFlow] Testing script URL manually...');
-        fetch(script.src)
-          .then(response => {
-            console.error('[OnboardingFlow] Script URL fetch status:', response.status, response.statusText);
-            if (response.ok) {
-              console.error('[OnboardingFlow] ⚠️ Script URL is accessible but failed to load - likely domain/CSP issue');
-            } else {
-              console.error('[OnboardingFlow] ⚠️ Script URL returned error:', response.status);
-            }
-          })
-          .catch(fetchError => {
-            console.error('[OnboardingFlow] Script URL fetch failed:', fetchError);
-          });
-        
-        console.error('[OnboardingFlow] 🔧 Troubleshooting for localhost:');
-        console.error('  1. Go to: https://www.google.com/recaptcha/admin');
-        console.error('  2. Click on your site key');
-        console.error('  3. In Domains section, add these two (NO port numbers):');
+        console.error('');
+        console.error('[OnboardingFlow] 🔧 Troubleshooting:');
+        console.error('  1. Make sure you created a v3 key (NOT Enterprise)');
+        console.error('  2. Go to: https://www.google.com/recaptcha/admin');
+        console.error('  3. Click on your site key');
+        console.error('  4. In Domains section, add these two (NO port numbers):');
         console.error('     - localhost');
         console.error('     - 127.0.0.1');
-        console.error('     (reCAPTCHA doesn\'t accept port numbers - these work for all ports)');
-        console.error('  4. Wait 5-10 minutes after saving');
-        console.error('  5. Hard refresh (Ctrl+Shift+R)');
-        console.error('');
-        console.error('  💡 You can also test by opening this URL in your browser:');
-        console.error(`     ${script.src}`);
-        console.error('     If it loads, the script works - the issue is domain registration');
+        console.error('  5. Wait 5-10 minutes after saving');
+        console.error('  6. Hard refresh (Ctrl+Shift+R)');
         
         if (checkReadyInterval) clearInterval(checkReadyInterval);
         if (readyTimeout) clearTimeout(readyTimeout);
@@ -647,78 +628,77 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       let enterpriseToken: string | null = null;
       if (RECAPTCHA_SITE_KEY) {
         try {
-          // Always try to execute Enterprise - it might be available even if we didn't detect it
-          if (typeof window !== 'undefined') {
-            // Wait a bit longer to ensure script has time to initialize
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const grecaptcha = (window as any).grecaptcha;
-            
-            // Try multiple times with delays - Enterprise might load slowly
-            for (let attempt = 0; attempt < 3; attempt++) {
-              if (grecaptcha && grecaptcha.enterprise) {
-                console.log(`[OnboardingFlow] Attempting reCAPTCHA Enterprise execution (attempt ${attempt + 1})...`);
-                try {
-                  const enterprise = grecaptcha.enterprise;
-                  
-                  // Strategy 1: Try ready() callback
-                  if (enterprise.ready) {
-                    enterpriseToken = await new Promise<string | null>((resolve) => {
-                      const timeout = setTimeout(() => {
-                        resolve(null); // Timeout - try direct execute
-                      }, 2000);
-                      
-                      enterprise.ready(async () => {
-                        clearTimeout(timeout);
-                        try {
-                          const token = await enterprise.execute(RECAPTCHA_SITE_KEY, {
-                            action: 'ACCOUNT_CREATION'
-                          });
-                          console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained');
-                          resolve(token);
-                        } catch (error) {
-                          console.warn('[OnboardingFlow] Enterprise ready() execution failed:', error);
-                          resolve(null);
-                        }
+            // Execute v3 reCAPTCHA
+            if (typeof window !== 'undefined') {
+              // Wait a bit to ensure script has time to initialize
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              const grecaptcha = (window as any).grecaptcha;
+              
+              // Try multiple times with delays - v3 might load slowly
+              for (let attempt = 0; attempt < 3; attempt++) {
+                if (grecaptcha && typeof grecaptcha.execute === 'function') {
+                  console.log(`[OnboardingFlow] Attempting reCAPTCHA v3 execution (attempt ${attempt + 1})...`);
+                  try {
+                    // Strategy 1: Try ready() callback
+                    if (typeof grecaptcha.ready === 'function') {
+                      enterpriseToken = await new Promise<string | null>((resolve) => {
+                        const timeout = setTimeout(() => {
+                          resolve(null); // Timeout - try direct execute
+                        }, 2000);
+                        
+                        grecaptcha.ready(async () => {
+                          clearTimeout(timeout);
+                          try {
+                            const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
+                              action: 'ACCOUNT_CREATION'
+                            });
+                            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained');
+                            resolve(token);
+                          } catch (error) {
+                            console.warn('[OnboardingFlow] v3 ready() execution failed:', error);
+                            resolve(null);
+                          }
+                        });
                       });
-                    });
-                  }
-                  
-                  // Strategy 2: Direct execute if ready() didn't work
-                  if (!enterpriseToken) {
-                    try {
-                      enterpriseToken = await enterprise.execute(RECAPTCHA_SITE_KEY, {
-                        action: 'ACCOUNT_CREATION'
-                      });
-                      console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained (direct)');
-                    } catch (error) {
-                      console.warn('[OnboardingFlow] Direct execute failed:', error);
                     }
+                    
+                    // Strategy 2: Direct execute if ready() didn't work or doesn't exist
+                    if (!enterpriseToken) {
+                      try {
+                        enterpriseToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
+                          action: 'ACCOUNT_CREATION'
+                        });
+                        console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained (direct)');
+                      } catch (error) {
+                        console.warn('[OnboardingFlow] Direct execute failed:', error);
+                      }
+                    }
+                    
+                    if (enterpriseToken) {
+                      setRecaptchaToken(enterpriseToken);
+                      break; // Success!
+                    }
+                  } catch (error: any) {
+                    console.warn(`[OnboardingFlow] v3 attempt ${attempt + 1} failed:`, error?.message || error);
                   }
-                  
-                  if (enterpriseToken) {
-                    setRecaptchaToken(enterpriseToken);
-                    break; // Success!
-                  }
-                } catch (error: any) {
-                  console.warn(`[OnboardingFlow] Enterprise attempt ${attempt + 1} failed:`, error?.message || error);
+                }
+                
+                // Wait before next attempt
+                if (!enterpriseToken && attempt < 2) {
+                  await new Promise(resolve => setTimeout(resolve, 500));
                 }
               }
               
-              // Wait before next attempt
-              if (!enterpriseToken && attempt < 2) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+              if (!enterpriseToken) {
+                console.warn('[OnboardingFlow] Could not obtain reCAPTCHA token after all attempts');
+                console.warn('[OnboardingFlow] Check:');
+                console.warn('  1. Script loaded? Check Network tab for recaptcha/api.js');
+                console.warn('  2. Domain registered? localhost and 127.0.0.1 in reCAPTCHA console');
+                console.warn('  3. Is it a v3 key? (NOT Enterprise)');
+                console.warn('  4. Site key correct?', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 15)}...` : 'missing');
               }
             }
-            
-            if (!enterpriseToken) {
-              console.warn('[OnboardingFlow] Could not obtain reCAPTCHA token after all attempts');
-              console.warn('[OnboardingFlow] This prevents key activation. Check:');
-              console.warn('  1. Script loaded? Check Network tab for recaptcha/enterprise.js');
-              console.warn('  2. Domain registered? localhost and 127.0.0.1 in reCAPTCHA console');
-              console.warn('  3. Site key correct?', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 15)}...` : 'missing');
-            }
-          }
         } catch (error: any) {
           console.warn('[OnboardingFlow] Enterprise execution error:', error?.message || error);
           // Continue without token - backend will handle gracefully
