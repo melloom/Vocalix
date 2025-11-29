@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, Key, ArrowLeft } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, Key, ArrowLeft, Lock, Smartphone, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,66 +248,106 @@ const LinkPin = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="min-h-screen bg-background px-4 py-12 flex items-center justify-center relative">
+      <div className="min-h-screen bg-gradient-to-br from-red-950 via-amber-950 to-red-950 dark:from-red-950 dark:via-amber-950 dark:to-red-950 px-4 py-12 flex items-center justify-center relative">
+        {/* Background decorations */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-red-500/10 blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl" />
+        </div>
+
         {/* Back Button */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => {
-            // Try to go back, if no history, go to home
             if (window.history.length > 1) {
               navigate(-1);
             } else {
               navigate("/");
             }
           }}
-          className="absolute top-4 left-4 rounded-full hover:bg-muted"
+          className="absolute top-4 left-4 rounded-full hover:bg-red-950/40 text-white border border-red-800/30 z-10"
           aria-label="Go back"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         
-        <div className="max-w-md w-full space-y-6 text-center">
+        <div className="max-w-md w-full space-y-6 text-center relative z-10">
           {status === "entering" && (
             <>
-              <div className="flex justify-center">
-                <div className="p-4 rounded-full bg-primary/10">
-                  <Key className="h-10 w-10 text-primary" />
+              {/* Header with explanation */}
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-center">
+                  <div className="p-4 rounded-full bg-gradient-to-br from-red-900/40 to-amber-900/40 border border-red-800/30">
+                    <Lock className="h-10 w-10 text-red-300" />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <h1 className="text-3xl font-extrabold text-white">Link Your Account</h1>
+                  <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/50 to-amber-950/50 p-4 text-left space-y-2">
+                    <p className="text-sm text-gray-200 font-medium">
+                      <strong className="text-white">What is account linking?</strong>
+                    </p>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      Link this device to your existing Echo Garden account. You&apos;ll access the same profile, clips, and settings across all your devices. Perfect for using the app on your phone, tablet, and computer.
+                    </p>
+                    <div className="flex items-start gap-2 pt-2 border-t border-red-800/30">
+                      <Smartphone className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-300">
+                        Generate a 4-digit PIN from <strong className="text-white">Settings → Account</strong> on your other device, then enter it here.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Shield className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-300">
+                        PINs expire after 10 minutes and can only be used once for security.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">Enter PIN</h1>
-                <p className="text-sm text-muted-foreground">
-                  Enter the 4-digit PIN from your other device
-                </p>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold text-white">Enter Your PIN</h2>
+                  <p className="text-sm text-gray-300">
+                    Enter the 4-digit PIN from your other device
+                  </p>
+                </div>
+                <div className="flex justify-center gap-3" onPaste={handlePaste}>
+                  {pin.map((digit, index) => (
+                    <Input
+                      key={index}
+                      ref={(el) => (inputRefs.current[index] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl border-2 border-red-800/40 bg-red-950/30 text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                    />
+                  ))}
+                </div>
+                {errorMessage && (
+                  <div className="rounded-xl bg-red-950/50 border border-red-800/50 p-3">
+                    <p className="text-sm text-red-200 font-medium">{errorMessage}</p>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-center gap-3" onPaste={handlePaste}>
-                {pin.map((digit, index) => (
-                  <Input
-                    key={index}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handlePinChange(index, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(index, e)}
-                    className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl"
-                  />
-                ))}
-              </div>
-              {errorMessage && (
-                <p className="text-sm text-destructive">{errorMessage}</p>
-              )}
             </>
           )}
 
           {status === "validating" && (
             <>
-              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+              <div className="flex justify-center">
+                <div className="p-4 rounded-full bg-gradient-to-br from-red-900/40 to-amber-900/40 border border-red-800/30">
+                  <Loader2 className="h-10 w-10 animate-spin text-red-300" />
+                </div>
+              </div>
               <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">Validating PIN</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-2xl font-bold text-white">Validating PIN</h1>
+                <p className="text-sm text-gray-300">
                   Checking your PIN...
                 </p>
               </div>
@@ -316,10 +356,14 @@ const LinkPin = () => {
 
           {status === "redeeming" && (
             <>
-              <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+              <div className="flex justify-center">
+                <div className="p-4 rounded-full bg-gradient-to-br from-red-900/40 to-amber-900/40 border border-red-800/30">
+                  <Loader2 className="h-10 w-10 animate-spin text-red-300" />
+                </div>
+              </div>
               <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">Linking device</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-2xl font-bold text-white">Linking Device</h1>
+                <p className="text-sm text-gray-300">
                   Connecting this device to your Echo Garden account...
                 </p>
               </div>
@@ -328,34 +372,45 @@ const LinkPin = () => {
 
           {status === "success" && (
             <>
-              <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
-              <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">Device linked successfully</h1>
-                <p className="text-sm text-muted-foreground">
-                  {profileHandle
-                    ? `Welcome back, ${profileHandle}! This device is now linked to your account.`
-                    : "This device is now linked to your Echo Garden account."}
-                </p>
+              <div className="flex justify-center">
+                <div className="p-4 rounded-full bg-gradient-to-br from-green-900/40 to-emerald-900/40 border border-green-800/30">
+                  <CheckCircle2 className="h-10 w-10 text-green-300" />
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-extrabold text-white">Device Linked!</h1>
+                  <p className="text-sm text-gray-200 font-medium">
+                    {profileHandle
+                      ? `Welcome back, @${profileHandle}!`
+                      : "Success!"}
+                  </p>
+                  <p className="text-sm text-gray-300">
+                    This device is now linked to your Echo Garden account. You can access your profile, clips, and settings from here.
+                  </p>
+                </div>
                 {isAdminAccount && (
-                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mt-4">
-                    <p className="text-xs font-medium text-amber-900 dark:text-amber-100">
+                  <div className="rounded-xl bg-amber-950/50 border border-amber-800/50 p-3">
+                    <p className="text-xs font-medium text-amber-200">
                       ⚠️ Admin access granted
                     </p>
-                    <p className="text-xs text-amber-800 dark:text-amber-200 mt-1">
+                    <p className="text-xs text-amber-300 mt-1">
                       This device now has admin access. You can manage devices in Settings.
                     </p>
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-4">
-                  This device will appear in your account&apos;s device list in Settings.
-                </p>
+                <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-3">
+                  <p className="text-xs text-gray-300">
+                    This device will appear in your account&apos;s device list in Settings. You can manage or revoke access anytime.
+                  </p>
+                </div>
               </div>
-              <div className="flex justify-center gap-3">
-                <Button asChild className="rounded-2xl">
-                  <Link to="/">Go to the feed</Link>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
+                <Button asChild className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0">
+                  <Link to="/">Go to Feed</Link>
                 </Button>
-                <Button variant="outline" asChild className="rounded-2xl">
-                  <Link to="/settings">Open settings</Link>
+                <Button variant="outline" asChild className="rounded-2xl border-red-800/40 bg-red-950/20 text-white hover:bg-red-950/40">
+                  <Link to="/settings">Open Settings</Link>
                 </Button>
               </div>
             </>
@@ -363,14 +418,30 @@ const LinkPin = () => {
 
           {status === "error" && (
             <>
-              <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
-              <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">Invalid PIN</h1>
-                <p className="text-sm text-muted-foreground">
-                  {errorMessage ?? "The PIN may have expired or is incorrect. Please request a new PIN from Settings."}
-                </p>
+              <div className="flex justify-center">
+                <div className="p-4 rounded-full bg-red-950/50 border border-red-800/50">
+                  <AlertCircle className="h-10 w-10 text-red-400" />
+                </div>
               </div>
-              <div className="flex justify-center gap-3">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-bold text-white">Invalid PIN</h1>
+                  <div className="rounded-xl bg-red-950/50 border border-red-800/50 p-3">
+                    <p className="text-sm text-red-200">
+                      {errorMessage ?? "The PIN may have expired or is incorrect. Please request a new PIN from Settings."}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-3 text-left">
+                  <p className="text-xs font-medium text-white mb-1">💡 Need help?</p>
+                  <ul className="text-xs text-gray-300 space-y-1 list-disc list-inside">
+                    <li>PINs expire after 10 minutes</li>
+                    <li>Each PIN can only be used once</li>
+                    <li>Generate a new PIN from Settings → Account</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
                 <Button
                   onClick={() => {
                     setStatus("entering");
@@ -378,12 +449,12 @@ const LinkPin = () => {
                     setErrorMessage(null);
                     inputRefs.current[0]?.focus();
                   }}
-                  className="rounded-2xl"
+                  className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0"
                 >
                   Try Again
                 </Button>
-                <Button variant="outline" asChild className="rounded-2xl">
-                  <Link to="/">Back home</Link>
+                <Button variant="outline" asChild className="rounded-2xl border-red-800/40 bg-red-950/20 text-white hover:bg-red-950/40">
+                  <Link to="/">Back Home</Link>
                 </Button>
               </div>
             </>
