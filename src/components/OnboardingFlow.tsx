@@ -451,13 +451,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         console.error('[OnboardingFlow] 🔧 Troubleshooting for localhost:');
         console.error('  1. Go to: https://www.google.com/recaptcha/admin');
         console.error('  2. Click on your site key');
-        console.error('  3. In Domains section, add ALL of these:');
+        console.error('  3. In Domains section, add these two (NO port numbers):');
         console.error('     - localhost');
         console.error('     - 127.0.0.1');
-        if (currentPort) {
-          console.error(`     - localhost:${currentPort}`);
-          console.error(`     - 127.0.0.1:${currentPort}`);
-        }
+        console.error('     (reCAPTCHA doesn\'t accept port numbers - these work for all ports)');
         console.error('  4. Wait 5-10 minutes after saving');
         console.error('  5. Hard refresh (Ctrl+Shift+R)');
         console.error('');

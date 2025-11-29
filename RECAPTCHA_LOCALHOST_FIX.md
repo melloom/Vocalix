@@ -20,14 +20,12 @@ Go to: https://www.google.com/recaptcha/admin
 
 1. Click on your site key: `6LdrJBcsAAAAAKWjfoIW-YDTcHH9g9N5S2Zb8cYH`
 2. Click **Settings** (gear icon) → **Domains**
-3. Add **ALL** of these (check what port you're using in your browser URL):
+3. Add these two domains (without port numbers - reCAPTCHA doesn't accept ports):
    ```
    localhost
    127.0.0.1
-   localhost:8080
-   127.0.0.1:8080
    ```
-   (If you're using a different port like 5173, add those too)
+   **Note:** These work for all ports (8080, 5173, etc.). You don't need to add port-specific domains.
 4. Click **Save**
 5. **Wait 5-10 minutes** for changes to propagate
 
