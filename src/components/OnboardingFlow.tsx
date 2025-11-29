@@ -57,35 +57,47 @@ const generateAvatarFromHandle = (handle: string): AvatarType => {
   return AVATAR_TYPES[Math.abs(hash) % AVATAR_TYPES.length];
 };
 
-// DiceBear - generates unique, diverse avatars (works from browser, no CORS issues)
-// Note: Freepik API blocks CORS, so we use DiceBear exclusively
-const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
+// Free Avatar Icon APIs - Multiple sources for diverse profile avatars
+const getAvatarUrl = (avatarId: AvatarType): string => {
   const seed = avatarId.replace('avatar', '');
   const avatarNum = parseInt(seed) || 1;
   
-  // Cycle through different styles for maximum variety
-  // Removed 'initials' style to prevent "EA" or letter avatars
-  const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
-  const styleIndex = (avatarNum - 1) % styles.length; // -1 so avatar1 uses index 0
-  const style = styles[styleIndex];
-  
-  // Create truly unique seed for each avatar using multiple factors
-  // This ensures avatars 3, 9, 15, 21 are all different (they cycle through styles)
-  const uniqueSeed = `echo-${avatarNum}-${avatarNum * 23 + styleIndex * 17}-${Date.now() % 100000}`;
-  
-  // Different background color combinations rotated for variety
-  const bgColorSets = [
-    'b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf',
-    'ffd5dc,ffdfbf,b6e3f4,c0aede,d1d4f9',
-    'd1d4f9,ffd5dc,ffdfbf,b6e3f4,c0aede',
-    'c0aede,d1d4f9,ffd5dc,ffdfbf,b6e3f4',
+  // Use different avatar APIs for variety (all free, no API key needed)
+  const avatarSources = [
+    // DiceBear - diverse styles
+    () => {
+      const styles = ['avataaars', 'personas', 'identicon', 'bottts', 'lorelei', 'micah'];
+      const styleIndex = (avatarNum - 1) % styles.length;
+      const style = styles[styleIndex];
+      const uniqueSeed = `echo-avatar-${avatarNum}-style-${styleIndex}-seed-${avatarNum * 127 + styleIndex * 31}`;
+      const bgColors = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'][avatarNum % 5];
+      return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
+    },
+    // UI Avatars - simple icons
+    () => {
+      const names = ['Alex', 'Sam', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn', 'Sage', 'Blake', 'Drew', 'Reese', 'Finley', 'Hayden', 'Rowan', 'Parker', 'Cameron', 'Devin', 'Emery', 'River', 'Phoenix', 'Skyler', 'Indigo', 'Arden'];
+      const name = names[(avatarNum - 1) % names.length];
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=128&bold=true&format=svg`;
+    },
+    // Adorable Avatars - cute icons
+    () => {
+      const seed = `echo${avatarNum}avatar${avatarNum * 23}`;
+      return `https://api.adorable.io/avatars/128/${encodeURIComponent(seed)}.png`;
+    },
+    // RoboHash - robot/icon avatars
+    () => {
+      const seed = `echo-avatar-${avatarNum}`;
+      const sets = ['set1', 'set2', 'set3', 'set4', 'set5'][Math.floor((avatarNum - 1) / 5) % 5];
+      return `https://robohash.org/${encodeURIComponent(seed)}?set=${sets}&size=128x128`;
+    },
   ];
-  const bgColors = bgColorSets[Math.floor((avatarNum - 1) / 6) % bgColorSets.length];
   
-  return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
+  // Distribute avatars across different sources
+  const sourceIndex = Math.floor((avatarNum - 1) / 6) % avatarSources.length;
+  return avatarSources[sourceIndex]();
 };
 
-// Avatar Component with Freepik primary, DiceBear fallback
+// Avatar Component - uses multiple free avatar APIs for profile icons
 const AvatarIcon = ({ 
   type, 
   className = "",
@@ -95,41 +107,51 @@ const AvatarIcon = ({
   className?: string;
   imageUrl?: string | null;
 }) => {
-  // Use Freepik image if available, otherwise DiceBear
-  const avatarUrl = imageUrl || getDiceBearAvatarUrl(type);
-  const useFreepik = !!imageUrl;
+  const [avatarUrl, setAvatarUrl] = useState<string>(imageUrl || getAvatarUrl(type));
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // Update URL if imageUrl prop changes
+  useEffect(() => {
+    if (imageUrl) {
+      setAvatarUrl(imageUrl);
+      setImageError(false);
+      setImageLoaded(false);
+    }
+  }, [imageUrl]);
+  
+  const handleImageError = () => {
+    if (!imageError) {
+      setImageError(true);
+      // Try fallback avatar URL
+      const fallbackUrl = getAvatarUrl(type);
+      if (fallbackUrl !== avatarUrl) {
+        setAvatarUrl(fallbackUrl);
+        setImageError(false);
+        setImageLoaded(false);
+      }
+    }
+  };
   
   return (
     <div 
-      className={`rounded-full flex items-center justify-center overflow-hidden ${className}`}
+      className={`rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-red-600/20 to-rose-600/20 ${className}`}
       style={{ minWidth: '100%', minHeight: '100%', aspectRatio: '1' }}
     >
-      <img 
-        src={avatarUrl}
-        alt={`Avatar ${type}`}
-        className="w-full h-full object-cover rounded-full"
-        loading="lazy"
-        onError={(e) => {
-          // If Freepik fails, try DiceBear
-          if (useFreepik) {
-            const target = e.target as HTMLImageElement;
-            const diceBearUrl = getDiceBearAvatarUrl(type);
-            target.src = diceBearUrl;
-            return;
-          }
-          
-          // Final fallback to emoji
-          const target = e.target as HTMLImageElement;
-          target.style.display = 'none';
-          const parent = target.parentElement;
-          if (parent && !parent.querySelector('.fallback')) {
-            const fallback = document.createElement('div');
-            fallback.className = 'fallback w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600';
-            fallback.textContent = AVATAR_TYPE_TO_EMOJI[type] || '👤';
-            parent.appendChild(fallback);
-          }
-        }}
-      />
+      {!imageError ? (
+        <img 
+          src={avatarUrl}
+          alt={`Avatar ${type}`}
+          className={`w-full h-full object-cover rounded-full transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setImageLoaded(true)}
+          onError={handleImageError}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600 rounded-full">
+          {AVATAR_TYPE_TO_EMOJI[type] || '👤'}
+        </div>
+      )}
     </div>
   );
 };

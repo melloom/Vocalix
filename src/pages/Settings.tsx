@@ -1456,10 +1456,25 @@ const Settings = () => {
       // Stop session monitoring
       stopSessionMonitoring();
 
+      // Sign out from Supabase auth
+      try {
+        await supabase.auth.signOut();
+      } catch (authError) {
+        // Ignore auth signout errors - they're not critical
+        console.warn("Error signing out from auth (non-critical):", authError);
+      }
+
       // Clear all auth-related localStorage
       localStorage.removeItem("profileId");
       localStorage.removeItem("deviceId");
       localStorage.removeItem("voice-note-device-id"); // Legacy device ID
+      
+      // Clear sessionStorage as well
+      try {
+        sessionStorage.clear();
+      } catch (e) {
+        // Ignore sessionStorage errors
+      }
 
       // Clear all queries
       queryClient.removeQueries({ queryKey: ["profile"] });

@@ -52,7 +52,7 @@ const getDiceBearAvatarUrl = (avatarId: AvatarType): string => {
   return `https://api.dicebear.com/7.x/${style}/svg?seed=${encodeURIComponent(uniqueSeed)}&backgroundColor=${bgColors}&radius=50`;
 };
 
-// Avatar Icon Component - ensures DiceBear avatars load properly
+// Avatar Icon Component - uses multiple free avatar APIs
 const AvatarIcon = ({ 
   type, 
   className = "" 
@@ -60,9 +60,22 @@ const AvatarIcon = ({
   type: AvatarType; 
   className?: string;
 }) => {
-  const avatarUrl = getDiceBearAvatarUrl(type);
+  const [avatarUrl, setAvatarUrl] = useState<string>(getAvatarUrl(type));
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  
+  const handleImageError = () => {
+    if (!imageError) {
+      setImageError(true);
+      // Try fallback avatar URL
+      const fallbackUrl = getAvatarUrl(type);
+      if (fallbackUrl !== avatarUrl) {
+        setAvatarUrl(fallbackUrl);
+        setImageError(false);
+        setImageLoaded(false);
+      }
+    }
+  };
   
   return (
     <div 
@@ -76,11 +89,7 @@ const AvatarIcon = ({
           className={`w-full h-full object-cover rounded-full transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
           onLoad={() => setImageLoaded(true)}
-          onError={(e) => {
-            setImageError(true);
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-          }}
+          onError={handleImageError}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold bg-gradient-to-br from-red-600 to-rose-600 rounded-full">
