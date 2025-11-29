@@ -256,6 +256,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       const existingScript = document.querySelector(`script[src*="recaptcha/enterprise.js"]`);
       if (existingScript) {
         console.log('[OnboardingFlow] Enterprise script already in DOM, waiting for load...');
+        // If script exists but Enterprise API isn't ready, wait for it
+        if (!checkEnterpriseLoaded()) {
+          // Wait for it to become available
+          let waitAttempts = 0;
+          const waitInterval = setInterval(() => {
+            waitAttempts++;
+            if (checkEnterpriseLoaded() || waitAttempts >= 50) {
+              clearInterval(waitInterval);
+              if (!checkEnterpriseLoaded()) {
+                console.warn('[OnboardingFlow] Script in DOM but Enterprise API not available');
+                setRecaptchaError(true);
+                setRecaptchaLoading(false);
+              }
+            }
+          }, 100);
+        }
         return;
       }
 
@@ -263,29 +279,75 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       script.src = `https://www.google.com/recaptcha/enterprise.js?render=${RECAPTCHA_SITE_KEY}`;
       script.async = true;
       script.defer = true;
+      
+      let checkReadyInterval: NodeJS.Timeout | null = null;
+      
       script.onload = () => {
-        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise script loaded');
-        // Wait for grecaptcha.enterprise to be available
-        const checkReady = setInterval(() => {
-          if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
-            clearInterval(checkReady);
-            setRecaptchaLoading(false);
-            setRecaptchaAvailable(true);
-            setRecaptchaError(false);
+        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise script loaded, waiting for API...');
+        // Wait for grecaptcha.enterprise to be available using ready() callback
+        if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
+          // Use the ready callback if available
+          try {
+            (window as any).grecaptcha.enterprise.ready(() => {
+              console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise ready callback fired');
+              if (checkEnterpriseLoaded()) {
+                setRecaptchaLoading(false);
+                setRecaptchaAvailable(true);
+                setRecaptchaError(false);
+              } else {
+                // Double check after ready callback
+                setTimeout(() => {
+                  if (checkEnterpriseLoaded()) {
+                    setRecaptchaLoading(false);
+                    setRecaptchaAvailable(true);
+                    setRecaptchaError(false);
+                  } else {
+                    console.warn('[OnboardingFlow] Enterprise API still not available after ready callback');
+                    setRecaptchaError(true);
+                    setRecaptchaLoading(false);
+                  }
+                }, 500);
+              }
+            });
+          } catch (e) {
+            console.warn('[OnboardingFlow] Enterprise ready() callback failed, using fallback check:', e);
+            // Fallback: poll for availability
+            checkReadyInterval = setInterval(() => {
+              if (checkEnterpriseLoaded()) {
+                if (checkReadyInterval) clearInterval(checkReadyInterval);
+              }
+            }, 100);
+            // Timeout after 10 seconds
+            setTimeout(() => {
+              if (checkReadyInterval) clearInterval(checkReadyInterval);
+              if (!checkEnterpriseLoaded()) {
+                console.error('[OnboardingFlow] Enterprise API not available after script load');
+                setRecaptchaError(true);
+                setRecaptchaLoading(false);
+              }
+            }, 10000);
           }
-        }, 100);
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          clearInterval(checkReady);
-          if (!checkEnterpriseLoaded()) {
-            console.error('[OnboardingFlow] Enterprise API not available after script load');
-            setRecaptchaError(true);
-            setRecaptchaLoading(false);
-          }
-        }, 5000);
+        } else {
+          // Script loaded but grecaptcha not yet available, wait a bit
+          checkReadyInterval = setInterval(() => {
+            if (checkEnterpriseLoaded()) {
+              if (checkReadyInterval) clearInterval(checkReadyInterval);
+            }
+          }, 100);
+          setTimeout(() => {
+            if (checkReadyInterval) clearInterval(checkReadyInterval);
+            if (!checkEnterpriseLoaded()) {
+              console.error('[OnboardingFlow] Enterprise API not available after script load');
+              setRecaptchaError(true);
+              setRecaptchaLoading(false);
+            }
+          }, 10000);
+        }
       };
-      script.onerror = () => {
-        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script');
+      
+      script.onerror = (e) => {
+        console.error('[OnboardingFlow] ❌ Failed to load reCAPTCHA Enterprise script:', e);
+        if (checkReadyInterval) clearInterval(checkReadyInterval);
         setRecaptchaError(true);
         setRecaptchaLoading(false);
         
@@ -294,8 +356,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           console.error('  1. Domain not registered in reCAPTCHA console');
           console.error('  2. Network/CSP blocking Google scripts');
           console.error('  3. Invalid site key');
+          console.error('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY ? 'Set' : 'Missing');
+          console.error('[OnboardingFlow] Domain:', currentDomain);
         }
       };
+      
       document.head.appendChild(script);
     };
 
@@ -475,29 +540,55 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       // Execute reCAPTCHA Enterprise and get token
       let enterpriseToken: string | null = null;
-      if (RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError) {
+      if (RECAPTCHA_SITE_KEY) {
         try {
-          // Execute Enterprise - it's invisible and runs automatically
-          if (typeof window !== 'undefined' && (window as any).grecaptcha && (window as any).grecaptcha.enterprise) {
-            await new Promise<void>((resolve) => {
-              (window as any).grecaptcha.enterprise.ready(async () => {
-                try {
+          // Try to execute Enterprise even if we think it's not available (might have loaded in background)
+          if (typeof window !== 'undefined') {
+            // Check if Enterprise is available now
+            const enterpriseReady = (window as any).grecaptcha && (window as any).grecaptcha.enterprise;
+            
+            if (enterpriseReady) {
+              console.log('[OnboardingFlow] Executing reCAPTCHA Enterprise...');
+              try {
+                // Use ready() if available, otherwise execute directly
+                if ((window as any).grecaptcha.enterprise.ready) {
+                  await new Promise<void>((resolve) => {
+                    (window as any).grecaptcha.enterprise.ready(async () => {
+                      try {
+                        enterpriseToken = await (window as any).grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, {
+                          action: 'ACCOUNT_CREATION'
+                        });
+                        console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained');
+                        setRecaptchaToken(enterpriseToken);
+                        resolve();
+                      } catch (error) {
+                        console.error('[OnboardingFlow] Failed to execute Enterprise:', error);
+                        resolve(); // Continue without token
+                      }
+                    });
+                  });
+                } else {
+                  // Execute directly if ready() isn't available
                   enterpriseToken = await (window as any).grecaptcha.enterprise.execute(RECAPTCHA_SITE_KEY, {
                     action: 'ACCOUNT_CREATION'
                   });
-                  console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained');
-                  resolve();
-                } catch (error) {
-                  console.error('[OnboardingFlow] Failed to execute Enterprise:', error);
-                  resolve(); // Continue without token
+                  console.log('[OnboardingFlow] ✅ reCAPTCHA Enterprise token obtained (direct execute)');
+                  setRecaptchaToken(enterpriseToken);
                 }
-              });
-            });
+              } catch (error) {
+                console.warn('[OnboardingFlow] Enterprise execution error:', error);
+                // Continue without token - backend will handle gracefully
+              }
+            } else {
+              console.warn('[OnboardingFlow] Enterprise not available, proceeding without verification token');
+            }
           }
         } catch (error) {
           console.warn('[OnboardingFlow] Enterprise execution error:', error);
           // Continue without token - backend will handle gracefully
         }
+      } else {
+        console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
       }
 
       // Validate account creation with reCAPTCHA Enterprise token (if validation function exists)
@@ -540,9 +631,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             variant: "destructive",
           });
           setIsLoading(false);
-          // Reset reCAPTCHA if token expired or invalid
-          if (recaptchaRef.current && (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification'))) {
-            recaptchaRef.current.reset();
+          // Reset Enterprise token if verification failed
+          if (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification')) {
             setRecaptchaToken(null);
           }
           return;
@@ -672,10 +762,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         return;
       }
 
-      if (recaptchaRef.current) {
-        recaptchaRef.current.reset();
-        setRecaptchaToken(null);
-      }
+      // Reset Enterprise token if needed (no ref needed for Enterprise)
+      setRecaptchaToken(null);
 
       localStorage.setItem("profileId", data.id);
       window.dispatchEvent(new StorageEvent("storage", {
