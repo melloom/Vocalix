@@ -1060,10 +1060,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
 
               {/* reCAPTCHA Enterprise - Invisible, runs automatically */}
-              {RECAPTCHA_SITE_KEY && recaptchaError && (
-                <div className="text-xs text-muted-foreground text-center space-y-2 p-3 rounded-lg bg-red-950/10 dark:bg-red-950/5 border border-red-900/20 dark:border-red-800/10">
-                  <p className="text-red-400 dark:text-red-400 font-semibold text-xs">Verification unavailable</p>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs">You can still create your account. Verification will be attempted automatically.</p>
+              {/* Only show subtle notice if Enterprise fails - it's not blocking */}
+              {RECAPTCHA_SITE_KEY && recaptchaError && recaptchaLoading === false && (
+                <div className="text-xs text-center text-gray-500/60 dark:text-gray-600/60 py-1">
+                  <p className="text-xs">Verification will be attempted automatically</p>
                 </div>
               )}
             </CardContent>
