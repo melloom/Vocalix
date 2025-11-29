@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Users, Bell, BellOff, Plus, TrendingUp, Mic, Heart, Sparkles, MessageCircle, ChevronUp, ChevronDown, Reply, CheckCircle2, HelpCircle, Minus } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Bell, BellOff, Plus, TrendingUp, Mic, Heart, Sparkles, MessageCircle, ChevronUp, ChevronDown, Reply, CheckCircle2, HelpCircle, Minus, Headphones } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
@@ -682,68 +682,68 @@ const Topic = () => {
           {/* Extra onboarding content for Welcome Garden */}
           {topic.title === "Welcome Garden" && (
             <div className="mt-8 space-y-4">
-              <Card className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50 via-background to-emerald-100/70 dark:from-emerald-950/70 dark:via-background dark:to-emerald-900/60 border border-emerald-500/40 space-y-3">
+              <Card className="p-5 rounded-3xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 border border-red-500/40 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold tracking-wide uppercase text-emerald-800 dark:text-emerald-200">
+                    <p className="text-xs font-semibold tracking-wide uppercase text-red-200 dark:text-red-200">
                       How to use this space
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Think of Welcome Garden as a cozy check‑in circle. Short, honest shares beat polished performances.
+                    <p className="text-sm text-gray-200 dark:text-gray-200">
+                      Your first post. Think Reddit intro threads, but with your voice. Raw, anonymous, no BS. Short clips beat polished speeches.
                     </p>
                   </div>
-                  <Badge variant="secondary" className="text-[11px] px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-900 dark:text-emerald-100">
-                    Low‑stakes • Supportive • Slow
+                  <Badge variant="secondary" className="text-[11px] px-3 py-1 rounded-full bg-red-500/15 border border-red-500/40 text-red-200 dark:text-red-200">
+                    Raw • Anonymous • No filters
                   </Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-muted-foreground">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-gray-200 dark:text-gray-200">
                   <div className="space-y-1">
-                    <p className="font-medium text-foreground flex items-center gap-1">
-                      <span aria-hidden="true">🎧</span> Step 1 – Listen in
+                    <p className="font-medium text-white dark:text-white flex items-center gap-1">
+                      <Headphones className="h-3 w-3 text-red-400" /> Step 1 – Listen in
                     </p>
                     <p>
-                      Play a few voices to get a feel for the space. Notice how varied and imperfect they are — that&apos;s the point.
+                      Play a few voices first. Get the vibe. Notice how real and unfiltered they are — that&apos;s the point. No corporate speak.
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="font-medium text-foreground flex items-center gap-1">
-                      <span aria-hidden="true">🎙️</span> Step 2 – Share a tiny moment
+                    <p className="font-medium text-white dark:text-white flex items-center gap-1">
+                      <Mic className="h-3 w-3 text-red-400" /> Step 2 – Drop your intro
                     </p>
                     <p>
-                      20–40 seconds is enough. Say your name or pseudonym, where you&apos;re at today, or one thing on your mind.
+                      30 seconds max. Say your handle, what you&apos;re about, or why you&apos;re here. Keep it real — no need to be perfect.
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="font-medium text-foreground flex items-center gap-1">
-                      <span aria-hidden="true">🤝</span> Step 3 – Gently respond
+                    <p className="font-medium text-white dark:text-white flex items-center gap-1">
+                      <MessageCircle className="h-3 w-3 text-red-400" /> Step 3 – Engage
                     </p>
                     <p>
-                      If something resonates, leave a kind reply or reaction. Treat every voice like a person you&apos;re meeting for the first time.
+                      If a voice hits, reply or react. Upvote what resonates. This is your community — engage with it.
                     </p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 rounded-3xl bg-muted/60 border-dashed border-emerald-400/60 space-y-3">
-                <p className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-                  Ideas for your first hello
+              <Card className="p-4 rounded-3xl bg-gradient-to-br from-red-950/30 via-amber-950/20 to-red-900/20 border-dashed border-red-400/60 space-y-3">
+                <p className="text-xs font-semibold tracking-wide uppercase text-red-200 dark:text-red-200">
+                  Ideas for your first voice
                 </p>
-                <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
-                    “One thing that made me smile today was…”
+                <div className="flex flex-wrap gap-2 text-[11px] text-gray-200 dark:text-gray-200">
+                  <span className="px-2 py-1 rounded-full bg-red-950/40 border border-red-500/30">
+                    "I&apos;m [handle] and I&apos;m here because…"
                   </span>
-                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
-                    “Right now I&apos;m feeling…”
+                  <span className="px-2 py-1 rounded-full bg-red-950/40 border border-red-500/30">
+                    "One thing that&apos;s on my mind is…"
                   </span>
-                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
-                    “If we were on a walk together, I&apos;d probably talk about…”
+                  <span className="px-2 py-1 rounded-full bg-red-950/40 border border-red-500/30">
+                    "I joined to share thoughts on…"
                   </span>
-                  <span className="px-2 py-1 rounded-full bg-background border border-border/60">
-                    “Something small I&apos;m looking forward to is…”
+                  <span className="px-2 py-1 rounded-full bg-red-950/40 border border-red-500/30">
+                    "What I&apos;m looking for here is…"
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  You don&apos;t have to use any of these exactly — they&apos;re just gentle prompts if you feel stuck.
+                <p className="text-[11px] text-gray-300 dark:text-gray-300">
+                  These are just prompts. Speak your truth — whatever that means to you. No wrong answers.
                 </p>
               </Card>
             </div>

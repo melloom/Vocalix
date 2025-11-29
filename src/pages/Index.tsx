@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen } from "lucide-react";
+import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -3764,42 +3764,42 @@ const IndexInner = () => {
 
         {/* Welcome Garden highlight card - only when Welcome Garden is focused */}
         {!isSearching && welcomeGardenTopicId && selectedTopicId === welcomeGardenTopicId && (
-          <Card className="relative overflow-hidden border border-emerald-400/70 bg-gradient-to-br from-emerald-50 via-background to-emerald-100/60 dark:from-emerald-950/70 dark:via-background dark:to-emerald-900/60 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
-            <div className="pointer-events-none absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-3xl" />
+          <Card className="relative overflow-hidden border border-red-400/70 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="pointer-events-none absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-red-400/10 blur-3xl" />
             <div className="flex items-center justify-between gap-4 flex-wrap relative">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-emerald-500/15 flex items-center justify-center border border-emerald-500/40">
-                  <span className="text-2xl" aria-hidden="true">🌱</span>
+                <div className="h-10 w-10 rounded-2xl bg-red-500/15 flex items-center justify-center border border-red-500/40">
+                  <MicIcon className="h-5 w-5 text-red-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-800 dark:text-emerald-200 border border-emerald-500/40">
-                      Welcome Home
+                    <span className="inline-flex items-center rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-red-200 dark:text-red-200 border border-red-500/40">
+                      First Voices
                     </span>
-                    <span className="hidden md:inline text-[11px] text-emerald-800/80 dark:text-emerald-200/90">
-                      Gentle intros • low pressure • kind listeners
+                    <span className="hidden md:inline text-[11px] text-red-200/80 dark:text-red-200/90">
+                      Raw intros • anonymous • no BS
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold tracking-wide text-emerald-900 dark:text-emerald-100">
+                  <h3 className="text-sm font-semibold tracking-wide text-white dark:text-white">
                     Welcome Garden
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-md">
-                    A softer corner of Echo Garden to say hi, share how you&apos;re really doing,
-                    and meet new voices without the pressure of a big audience.
+                  <p className="text-xs text-gray-200 dark:text-gray-200 mt-1 max-w-md">
+                    Your first post. Introduce yourself with a 30-second voice clip. Stay anonymous. 
+                    Share your vibe, your handle, or what brought you to The Echo Chamber.
                   </p>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1 text-[11px]">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
-                  Best for first impressions &amp; gentle check‑ins
+                <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-200 dark:text-red-200 border border-red-500/30">
+                  Best for first impressions &amp; raw intros
                 </span>
                 {checklist.saidHiWelcomeGarden ? (
-                  <span className="flex items-center gap-1 text-emerald-800 dark:text-emerald-200">
+                  <span className="flex items-center gap-1 text-red-200 dark:text-red-200">
                     <span>✅</span>
                     You&apos;ve already said hi here today
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-muted-foreground">
+                  <span className="flex items-center gap-1 text-gray-300 dark:text-gray-300">
                     <span>⭕</span>
                     You haven&apos;t said hi here yet
                   </span>
@@ -3807,18 +3807,18 @@ const IndexInner = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
-                <span aria-hidden="true">🎧</span>
-                Listen to a few welcoming voices
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-200 dark:text-gray-200">
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-950/30 border border-red-500/30">
+                <MicIcon className="h-3 w-3 text-red-400" />
+                Record your intro – keep it real
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
-                <span aria-hidden="true">🎙️</span>
-                Drop a short hello – no need to be perfect
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-950/30 border border-red-500/30">
+                <Headphones className="h-3 w-3 text-red-400" />
+                Listen to other voices first
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background/80 border border-border/60">
-                <span aria-hidden="true">🤝</span>
-                Follow someone whose vibe you like
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-950/30 border border-red-500/30">
+                <Users className="h-3 w-3 text-red-400" />
+                Follow voices that hit
               </span>
             </div>
 

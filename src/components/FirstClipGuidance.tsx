@@ -25,31 +25,31 @@ interface GuidanceStep {
 const GUIDANCE_STEPS: GuidanceStep[] = [
   {
     id: "welcome",
-    title: "Ready to Create Your First Clip? 🎙️",
-    description: "Now that you've explored Echo Garden, let's help you record and share your first voice clip. It's quick and easy!",
+    title: "Ready to Create Your First Voice?",
+    description: "You've explored The Echo Chamber. Now drop your first 30-second voice clip. Speak your mind. Stay anonymous. Keep it real.",
     actionLabel: "Let's Go",
   },
   {
     id: "find-record",
     title: "Find the Record Button",
-    description: "Look for the + button in the bottom-right corner, or press 'n' on your keyboard.",
+    description: "Look for the + button in the bottom-right corner, or press 'n' on your keyboard. This is how you share your voice.",
     actionLabel: "Show Me",
   },
   {
     id: "click-record",
-    title: "Click to Record",
-    description: "When you're ready, click the record button and start speaking. You have up to 30 seconds!",
+    title: "Record Your Voice",
+    description: "Click record and speak your truth. You have 30 seconds. No need to be perfect—raw and real beats polished every time.",
     actionLabel: "Start Recording",
   },
   {
     id: "add-details",
     title: "Add Details (Optional)",
-    description: "Add a title, topic, or mood to help others discover your clip.",
+    description: "Add a title, topic, or mood to help others discover your clip. Keep it simple—let your voice do the talking.",
   },
   {
     id: "publish",
     title: "Publish Your Clip",
-    description: "Click 'Publish' when you're happy with your recording. You can always edit it later!",
+    description: "Click 'Publish' when you're ready. Your voice goes live. Anonymous. Real. No filters. You can always edit it later.",
     actionLabel: "I Understand",
   },
 ];

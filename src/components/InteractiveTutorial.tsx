@@ -20,8 +20,8 @@ interface TutorialStep {
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
-    title: "Welcome to Echo Garden! 🌱",
-    description: "Let's take a comprehensive tour to help you get started. This will cover all the amazing features Echo Garden has to offer!",
+    title: "Welcome to The Echo Chamber",
+    description: "Reddit for your voice. Let's take a quick tour to show you how to speak your mind, stay anonymous, and engage with the community. No BS, just raw voice.",
     position: "center",
     icon: <Sparkles className="h-6 w-6" />,
   },
