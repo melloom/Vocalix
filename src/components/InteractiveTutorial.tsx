@@ -251,6 +251,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   // Mark tutorial as completed
   const markCompleted = useCallback(() => {
     localStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
+    // Dispatch custom event so parent component can react immediately
+    window.dispatchEvent(new Event("tutorial-completed"));
     onComplete();
   }, [onComplete]);
 

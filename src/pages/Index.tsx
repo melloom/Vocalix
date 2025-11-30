@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, startTransition } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Plus, Settings, Search as SearchIcon, Mic as MicIcon, Bookmark, Users, Activity, Radio, Shield, Trophy, X, MessageCircle, Compass, User, BookOpen, Headphones } from "lucide-react";
+import { MobileMenu } from "@/components/MobileMenu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -624,41 +625,71 @@ const IndexInner = () => {
 
   const fetchSpotlightQuestion = useCallback(async (forceRefresh = false) => {
     try {
-      // Don't exclude current question - let date-based rotation handle it
-      // Only exclude if we're manually refreshing (forceRefresh = false)
-      const excludeId = forceRefresh ? null : (spotlightQuestion?.id || null);
-      // Get today's topic ID to prioritize questions from today's topic
+      console.log('[Spotlight] Fetching spotlight question...');
+      // Get today's topic ID (not used in new system but kept for compatibility)
       const todayTopicId = todayTopic?.id || null;
       // @ts-ignore - Function exists but not in generated types
       const { data, error } = await (supabase.rpc as any)('get_spotlight_question', {
-        p_exclude_question_id: excludeId,
+        p_exclude_question_id: null, // Not used in new system
         p_today_topic_id: todayTopicId,
       });
       
+      console.log('[Spotlight] RPC response:', { data, error });
+      
       if (error) {
-        // If function doesn't exist yet or RLS issue, silently fail and use topic
+        // If function doesn't exist yet or RLS issue, try to generate question
         console.warn("Could not fetch spotlight question:", error);
+        
+        // Try to generate a question if it doesn't exist
+        try {
+          await supabase.functions.invoke("daily-spotlight-question", {
+            body: {},
+          });
+          // Retry after a short delay
+          setTimeout(() => fetchSpotlightQuestion(true), 2000);
+        } catch (invokeError: any) {
+          if (invokeError?.code !== 403) {
+            console.warn("Failed to generate daily spotlight question:", invokeError);
+          }
+        }
         setSpotlightQuestion(null);
         return;
       }
 
-      const questionData = data as SpotlightQuestion[] | null;
+      // Handle both array and single object responses
+      let questionData = data as SpotlightQuestion[] | SpotlightQuestion | null;
+      
+      // If it's not an array, wrap it in an array
+      if (questionData && !Array.isArray(questionData)) {
+        questionData = [questionData];
+      }
+      
       if (questionData && Array.isArray(questionData) && questionData.length > 0) {
         const question = questionData[0];
-        // Only show spotlight question if it has good engagement (at least 2 upvotes or 3 replies)
-        if (question.upvotes_count >= 2 || question.replies_count >= 3) {
-          setSpotlightQuestion(question);
-        } else {
-          setSpotlightQuestion(null);
-        }
+        console.log('[Spotlight] Found question:', question);
+        // Daily spotlight questions are always shown (they're AI-generated daily)
+        setSpotlightQuestion(question);
       } else {
+        console.log('[Spotlight] No question found, data:', data);
+        // No question found - try to generate one
+        try {
+          await supabase.functions.invoke("daily-spotlight-question", {
+            body: {},
+          });
+          // Retry after a short delay
+          setTimeout(() => fetchSpotlightQuestion(true), 2000);
+        } catch (invokeError: any) {
+          if (invokeError?.code !== 403) {
+            console.warn("Failed to generate daily spotlight question:", invokeError);
+          }
+        }
         setSpotlightQuestion(null);
       }
     } catch (error) {
       console.warn("Error fetching spotlight question:", error);
       setSpotlightQuestion(null);
     }
-  }, [spotlightQuestion?.id, todayTopic?.id]);
+  }, [todayTopic?.id]);
 
   const toastRef = useRef(toast);
   useEffect(() => {
@@ -1295,16 +1326,46 @@ const IndexInner = () => {
       if (tutorialCompleted === "true") {
         // Tutorial is completed, ensure it's not shown
         setShowTutorial(false);
-      } else if (!showTutorial) {
+      } else if (!showTutorial && tutorialCompleted !== "true") {
         // Show tutorial for users who haven't seen it yet
         // Add a small delay to ensure the page is fully rendered
         const timer = setTimeout(() => {
-          setShowTutorial(true);
+          // Double-check localStorage before showing (in case it was set during the delay)
+          const stillNotCompleted = localStorage.getItem("echo_garden_tutorial_completed") !== "true";
+          if (stillNotCompleted) {
+            setShowTutorial(true);
+          }
         }, 1000);
         return () => clearTimeout(timer);
       }
     }
-  }, [profileId, isAuthLoading, showTutorial]);
+  }, [profileId, isAuthLoading]);
+
+  // Listen for localStorage changes to handle tutorial dismissal
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "echo_garden_tutorial_completed" && e.newValue === "true") {
+        setShowTutorial(false);
+      }
+    };
+
+    // Also listen for custom events in case localStorage.setItem is called in the same window
+    const handleCustomStorageChange = () => {
+      const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+      if (tutorialCompleted === "true") {
+        setShowTutorial(false);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    // Listen for custom event that can be dispatched when localStorage changes in same window
+    window.addEventListener("tutorial-completed", handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("tutorial-completed", handleCustomStorageChange);
+    };
+  }, []);
 
   const handleSaveCity = useCallback(
     async ({ city, consent }: { city: string | null; consent: boolean }) => {
@@ -2559,6 +2620,35 @@ const IndexInner = () => {
             }
           }
         }
+        
+        // Also check if today's spotlight question exists, generate if not
+        try {
+          const { data: spotlightCheck } = await supabase
+            .from("daily_spotlight_questions")
+            .select("id")
+            .eq("date", todayISO)
+            .maybeSingle();
+          
+          if (!spotlightCheck) {
+            // No spotlight question for today - generate it
+            try {
+              await supabase.functions.invoke("daily-spotlight-question", {
+                body: {},
+              });
+              // Refresh spotlight question after generation
+              setTimeout(() => fetchSpotlightQuestion(true), 2000);
+            } catch (invokeError: any) {
+              if (invokeError?.code !== 403) {
+                console.warn("Failed to generate daily spotlight question:", invokeError);
+              }
+            }
+          }
+        } catch (spotlightError: any) {
+          // Silently handle errors - table might not exist yet or RLS issue
+          if (spotlightError?.code !== 403 && spotlightError?.code !== "42P01") {
+            console.warn("Error checking daily spotlight question:", spotlightError);
+          }
+        }
       } catch (error: any) {
         // Silently handle 403 errors - they're expected in some cases
         if (error?.code !== 403) {
@@ -2908,11 +2998,14 @@ const IndexInner = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="w-full px-4 lg:px-8 py-4 space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold">Echo Garden</h1>
-            <div className="flex items-center gap-2" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border max-w-full overflow-hidden">
+        <div className="w-full px-3 sm:px-4 lg:px-8 py-3 sm:py-4 space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0 md:flex-none">
+              <MobileMenu profile={profile} savedClipsCount={savedClipsCount} />
+              <h1 className="text-base sm:text-lg md:text-2xl font-bold truncate min-w-0 text-foreground">Echo Garden</h1>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
               <ThemeToggle />
               <KeyboardShortcutsDialog 
                 open={isShortcutsDialogOpen}
@@ -2920,9 +3013,9 @@ const IndexInner = () => {
               />
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex" asChild>
                     <Link to="/voice-amas" aria-label="Voice AMAs">
-                      <MessageCircle className="h-5 w-5" />
+                      <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2932,9 +3025,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex" asChild>
                     <Link to="/live-rooms" aria-label="Live Rooms">
-                      <Radio className="h-5 w-5" />
+                      <Radio className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2944,9 +3037,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex" asChild>
                     <Link to="/communities" aria-label="Communities">
-                      <Users className="h-5 w-5" />
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2956,9 +3049,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden md:flex" asChild>
                     <Link to="/leaderboards" aria-label="Leaderboards">
-                      <Trophy className="h-5 w-5" />
+                      <Trophy className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2968,9 +3061,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden md:flex" asChild>
                     <Link to="/following" aria-label="Following">
-                      <UserCheck className="h-5 w-5" />
+                      <UserCheck className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2980,9 +3073,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden md:flex" asChild>
                     <Link to="/discovery" aria-label="Discovery">
-                      <Compass className="h-5 w-5" />
+                      <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -2992,9 +3085,9 @@ const IndexInner = () => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full hidden sm:flex" asChild>
                     <Link to="/diary" aria-label="Diary" data-tutorial="diary">
-                      <BookOpen className="h-5 w-5" />
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Link>
                   </Button>
                 </TooltipTrigger>
@@ -3006,9 +3099,9 @@ const IndexInner = () => {
               {profile?.show_18_plus_content && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full hidden md:flex" asChild>
                       <Link to="/18-plus" aria-label="18+ Content">
-                        <span className="text-lg font-bold">18+</span>
+                        <span className="text-sm sm:text-lg font-bold">18+</span>
                       </Link>
                     </Button>
                   </TooltipTrigger>
@@ -3628,52 +3721,76 @@ const IndexInner = () => {
               )}
               
               {spotlightQuestion ? (
-                // Show spotlight question when we have a good one
+                // Show spotlight question (AI-generated daily question)
                 <>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
                     <Badge variant="default" className="rounded-md px-2 py-0.5 text-xs bg-primary">
-                      🔥 Hot Question
+                      ✨ Daily Question
                     </Badge>
-                    {spotlightQuestion.is_answered && (
+                    {spotlightQuestion.topic_title && (
                       <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs">
-                        ✓ Answered
-                      </Badge>
-                    )}
-                    {!spotlightQuestion.is_answered && (
-                      <Badge variant="outline" className="rounded-md px-2 py-0.5 text-xs border-orange-500 text-orange-600 dark:text-orange-400">
-                        💭 Need Answers
+                        {spotlightQuestion.topic_title}
                       </Badge>
                     )}
                   </div>
-                  <Link to={`/topic/${spotlightQuestion.topic_id}`} className="block">
-                    <p className="text-sm text-muted-foreground mb-2 hover:underline">
-                      {spotlightQuestion.topic_title}
-                    </p>
-                  </Link>
-                  <h2 className="text-xl font-bold mb-3">{spotlightQuestion.content}</h2>
-                  {spotlightQuestion.profile_handle && (
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Asked by @{spotlightQuestion.profile_handle} {spotlightQuestion.profile_emoji_avatar}
-                    </p>
-                  )}
-                  <div className="flex justify-center gap-4 text-sm text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <span className="font-semibold text-foreground">{spotlightQuestion.upvotes_count}</span>
-                      {spotlightQuestion.upvotes_count === 1 ? 'upvote' : 'upvotes'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="font-semibold text-foreground">{spotlightQuestion.replies_count}</span>
-                      {spotlightQuestion.replies_count === 1 ? 'reply' : 'replies'}
-                    </span>
-                  </div>
-                  <Link to={`/topic/${spotlightQuestion.topic_id}`}>
-                    <Button
-                      size="lg"
-                      className="mt-2 h-10 px-6 rounded-md"
+                  {(spotlightQuestion.topic_id || todayTopic?.id) && (
+                    <Link 
+                      to={`/topic/${spotlightQuestion.topic_id || todayTopic?.id}`} 
+                      className="block hover:opacity-80 transition-opacity"
                     >
-                      Join the Discussion
-                    </Button>
-                  </Link>
+                      <p className="text-sm text-muted-foreground mb-2 hover:underline">
+                        {spotlightQuestion.topic_title || todayTopic?.title || 'Today\'s Topic'}
+                      </p>
+                    </Link>
+                  )}
+                  {(spotlightQuestion.topic_id || todayTopic?.id) ? (
+                    <Link 
+                      to={`/topic/${spotlightQuestion.topic_id || todayTopic?.id}`}
+                      className="block cursor-pointer hover:opacity-90 transition-opacity"
+                    >
+                      <h2 className="text-xl font-bold mb-3 hover:text-primary transition-colors">
+                        {spotlightQuestion.content}
+                      </h2>
+                    </Link>
+                  ) : (
+                    <h2 className="text-xl font-bold mb-3">{spotlightQuestion.content}</h2>
+                  )}
+                  <p className="text-xs text-muted-foreground mb-4">
+                    💡 A fresh question generated daily to spark conversation
+                  </p>
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    {/* Use topic_id from spotlight question, or fallback to todayTopic */}
+                    {(spotlightQuestion.topic_id || todayTopic?.id) && (
+                      <>
+                        <Button
+                          onClick={() => {
+                            const topicId = spotlightQuestion.topic_id || todayTopic?.id;
+                            if (topicId) {
+                              setSelectedTopicId(topicId);
+                              setIsRecordModalOpen(true);
+                            }
+                          }}
+                          size="lg"
+                          className="h-10 px-6 rounded-md"
+                        >
+                          <MicIcon className="h-4 w-4 mr-2" />
+                          Answer Question
+                        </Button>
+                        {(spotlightQuestion.topic_id || todayTopic?.id) && (
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            className="h-10 px-6 rounded-md"
+                            asChild
+                          >
+                            <Link to={`/topic/${spotlightQuestion.topic_id || todayTopic?.id}`}>
+                              View Discussion
+                            </Link>
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </>
               ) : todayTopic ? (
                 // Fall back to topic spotlight when no good question
