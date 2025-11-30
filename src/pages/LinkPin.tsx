@@ -143,61 +143,63 @@ const LinkPin = () => {
   const handleConfirmLink = async () => {
     if (!accountInfo) return;
 
-    // Mark as unmounted immediately to prevent any state updates
-    isMountedRef.current = false;
-    
-    // Close dialog without state updates
-    setShowConfirmDialog(false);
-
     try {
       // Set profileId in localStorage FIRST - this is critical
       localStorage.setItem("profileId", accountInfo.profile_id);
 
-      // Create session for this profile (non-blocking)
+      // Create session for this profile (non-blocking, fire and forget)
       const sessionCreationDisabled =
         typeof window !== "undefined"
           ? localStorage.getItem("disable_session_creation") === "true"
           : false;
 
       if (!sessionCreationDisabled) {
-        // Don't await - let it run in background
         const userAgent =
           typeof navigator !== "undefined" ? navigator.userAgent : null;
+        // Fire and forget - don't await or handle errors
         (supabase.rpc as any)(
           "create_session",
           {
             p_profile_id: accountInfo.profile_id,
             p_device_id: deviceId,
             p_user_agent: userAgent,
-            p_duration_hours: 720, // 30 days
+            p_duration_hours: 720,
           }
         ).then(({ data: sessionData, error: sessionError }: any) => {
           if (!sessionError && sessionData && Array.isArray(sessionData) && sessionData[0]?.session_token) {
             setSessionCookie(sessionData[0].session_token).catch(() => {});
           }
-        }).catch(() => {
-          // Ignore session errors - non-critical
-        });
+        }).catch(() => {});
       }
 
-      // Trigger profile refetch (non-blocking)
+      // Trigger profile refetch (fire and forget)
       try {
         refetchProfile();
-      } catch {
-        // Ignore refetch errors
-      }
+      } catch {}
       
-      // Navigate IMMEDIATELY using replace to avoid history issues
-      // Use replace instead of href to avoid adding to history
-      // This prevents React from trying to reconcile during navigation
-      window.location.replace("/");
+      // Mark as unmounted to prevent any React updates
+      isMountedRef.current = false;
+      
+      // Use requestAnimationFrame to ensure we're outside React's render cycle
+      requestAnimationFrame(() => {
+        // Double RAF to ensure we're completely outside React's reconciliation
+        requestAnimationFrame(() => {
+          try {
+            // Navigate using replace - this is synchronous and immediate
+            window.location.replace("/");
+          } catch (navError) {
+            // Fallback if replace fails
+            window.location.href = "/";
+          }
+        });
+      });
       
     } catch (error) {
-      // If navigation fails, show error
+      // If something fails before navigation, show error
       console.error("Account linking failed", error);
-      isMountedRef.current = true; // Re-enable if error
       setErrorMessage("Failed to link account. Please try again.");
       setStatus("error");
+      setShowConfirmDialog(false);
     }
   };
 
@@ -235,7 +237,14 @@ const LinkPin = () => {
 
   return (
     <>
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialog 
+        open={showConfirmDialog && isMountedRef.current} 
+        onOpenChange={(open) => {
+          if (isMountedRef.current) {
+            setShowConfirmDialog(open);
+          }
+        }}
+      >
         <AlertDialogContent className="rounded-3xl max-w-md">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
