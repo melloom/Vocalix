@@ -354,9 +354,20 @@ const Settings = () => {
           }));
 
         // Merge with existing state links (prefer state links as they have full URLs)
+        // Also reconstruct URLs for database links using the origin
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
         setActiveLinks((prev) => {
           const stateLinkIds = new Set(prev.map((l) => l.id));
-          const newDbLinks = dbActiveLinks.filter((dbLink: any) => !stateLinkIds.has(dbLink.id));
+          const newDbLinks = dbActiveLinks
+            .filter((dbLink: any) => !stateLinkIds.has(dbLink.id))
+            .map((dbLink: any) => {
+              // Try to reconstruct URL if we have the link ID (though we can't get the token)
+              // For now, mark as URL not available but keep the link info
+              return {
+                ...dbLink,
+                url: "", // Can't reconstruct without token, but we'll show the link exists
+              };
+            });
           return [...prev, ...newDbLinks];
         });
       }
@@ -632,16 +643,19 @@ const Settings = () => {
         throw new Error("Login link was not created");
       }
 
+      // Ensure we use absolute URL for QR code (important for mobile scanning)
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const loginUrl =
-        origin.length > 0 ? `${origin}/login-link?token=${result.token}` : `/login-link?token=${result.token}`;
+      // Always use absolute URL to ensure it works when scanned on different devices
+      const loginUrl = origin.length > 0 
+        ? `${origin}/login-link?token=${result.token}` 
+        : (typeof window !== "undefined" ? `https://${window.location.hostname}/login-link?token=${result.token}` : `/login-link?token=${result.token}`);
 
       setMagicLinkUrl(loginUrl);
       setMagicLinkToken(result.token);
       setMagicLinkExpiresAt(result.expires_at ?? undefined);
       setShowQRCode(false); // Reset QR code view
 
-      // Add to active links list
+      // Add to active links list - check for duplicates first
       const newLink = {
         id: crypto.randomUUID(),
         url: loginUrl,
@@ -652,7 +666,19 @@ const Settings = () => {
         email: trimmedEmail.length > 0 ? trimmedEmail : null,
         isActive: true,
       };
-      setActiveLinks((prev) => [newLink, ...prev]);
+      setActiveLinks((prev) => {
+        // Check if a link with the same token already exists
+        const existingLink = prev.find((l) => l.token === result.token);
+        if (existingLink) {
+          // Update existing link instead of adding duplicate
+          return prev.map((l) => 
+            l.token === result.token 
+              ? { ...l, url: loginUrl, expiresAt: newLink.expiresAt, isActive: true }
+              : l
+          );
+        }
+        return [newLink, ...prev];
+      });
 
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -837,9 +863,12 @@ const Settings = () => {
         throw new Error("Login link was not created");
       }
 
+      // Ensure we use absolute URL for QR code (important for mobile scanning)
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const loginUrl =
-        origin.length > 0 ? `${origin}/login-link?token=${result.token}` : `/login-link?token=${result.token}`;
+      // Always use absolute URL to ensure it works when scanned on different devices
+      const loginUrl = origin.length > 0 
+        ? `${origin}/login-link?token=${result.token}` 
+        : (typeof window !== "undefined" ? `https://${window.location.hostname}/login-link?token=${result.token}` : `/login-link?token=${result.token}`);
 
       setPhoneQRCodeUrl(loginUrl);
       setShowSiteQRCode(true);
@@ -2596,14 +2625,18 @@ const Settings = () => {
                                     </span>
                                   )}
                                 </div>
-                                {link.url ? (
+                                {link.url && link.url.length > 0 ? (
                                   <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40 mt-2">
                                     {link.url}
                                   </div>
                                 ) : (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Link generated (URL not available)
-                                  </p>
+                                  <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground mt-2 border border-border/40">
+                                    <p className="font-medium mb-1">Link is active</p>
+                                    <p className="text-xs opacity-80">
+                                      This link was generated on another device or in a previous session. 
+                                      Generate a new link to get the full URL and QR code.
+                                    </p>
+                                  </div>
                                 )}
                                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                   <span>Expires: {expiresDisplay}</span>
@@ -3892,7 +3925,7 @@ const Settings = () => {
                 </div>
 
                 {showQRCode && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-2">
                     <div className="flex justify-center p-3 bg-background rounded-xl border-2 border-border/40">
                       <div id="magic-link-qr-code">
                         <QRCodeSVG 

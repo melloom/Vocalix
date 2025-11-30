@@ -50,9 +50,26 @@ const LoginLink = () => {
     // Preview link info to get account details and validate link
     const previewLink = async () => {
       try {
-        const { data, error } = await supabase.rpc("preview_magic_login_link", { link_token: token });
+        // Ensure token is trimmed and valid
+        const trimmedToken = token.trim();
+        if (!trimmedToken || trimmedToken.length === 0) {
+          setStatus("error");
+          setErrorMessage("This login link is missing its token. Request a fresh link from your settings and try again.");
+          return;
+        }
+
+        const { data, error } = await supabase.rpc("preview_magic_login_link", { link_token: trimmedToken });
         
-        if (error) throw error;
+        if (error) {
+          console.error("Preview magic login link error:", error);
+          // Check for specific error codes
+          if (error.code === "PGRST301" || error.message?.includes("not found") || error.message?.includes("does not exist")) {
+            setStatus("error");
+            setErrorMessage("This login link is invalid or the validation function is not available. Please request a new link from Settings.");
+            return;
+          }
+          throw error;
+        }
 
         const result = data?.[0];
         
