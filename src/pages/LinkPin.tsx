@@ -30,6 +30,8 @@ const LinkPin = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [accountInfo, setAccountInfo] = useState<{ profile_id: string; handle: string } | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isMountedRef = useRef(true);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handlePinChange = (index: number, value: string) => {
     // Only allow digits
@@ -68,6 +70,7 @@ const LinkPin = () => {
 
   const validatePin = async (pinCode: string) => {
     if (pinCode.length !== 4) return;
+    if (!isMountedRef.current) return;
 
     setStatus("validating");
     setErrorMessage(null);
@@ -78,6 +81,8 @@ const LinkPin = () => {
         p_pin_code: pinCode,
       });
 
+      if (!isMountedRef.current) return; // Check again after async operation
+
       if (error) throw error;
 
       const result = data?.[0];
@@ -86,15 +91,19 @@ const LinkPin = () => {
       }
 
       if (!result.success) {
+        if (!isMountedRef.current) return;
         setErrorMessage(result.message || "Invalid or expired PIN");
         setStatus("error");
         // Clear PIN on error
         setPin(["", "", "", ""]);
-        inputRefs.current[0]?.focus();
+        requestAnimationFrame(() => {
+          inputRefs.current[0]?.focus();
+        });
         return;
       }
 
       // Store account info for confirmation
+      if (!isMountedRef.current) return;
       setAccountInfo({
         profile_id: result.profile_id,
         handle: result.handle,
@@ -107,12 +116,14 @@ const LinkPin = () => {
         .eq("profile_id", result.profile_id)
         .maybeSingle();
 
+      if (!isMountedRef.current) return;
       setIsAdminAccount(!!adminData);
 
       // Show confirmation dialog
       setStatus("confirming");
       setShowConfirmDialog(true);
     } catch (error) {
+      if (!isMountedRef.current) return;
       console.error("PIN validation failed", error);
       const message =
         error instanceof Error
@@ -121,7 +132,9 @@ const LinkPin = () => {
       setErrorMessage(message);
       setStatus("error");
       setPin(["", "", "", ""]);
-      inputRefs.current[0]?.focus();
+      requestAnimationFrame(() => {
+        inputRefs.current[0]?.focus();
+      });
     }
   };
 
@@ -174,10 +187,19 @@ const LinkPin = () => {
       setProfileHandle(accountInfo.handle);
       setStatus("success");
 
-      // Auto-redirect to home after a short delay using React Router
-      setTimeout(() => {
-        navigate("/", { replace: true });
-      }, 2000);
+      // Use requestAnimationFrame to ensure DOM is ready before navigation
+      requestAnimationFrame(() => {
+        // Clear any existing timeout
+        if (navigationTimeoutRef.current) {
+          clearTimeout(navigationTimeoutRef.current);
+        }
+        // Use a small delay to let React finish rendering the success state
+        navigationTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            navigate("/", { replace: true });
+          }
+        }, 1500);
+      });
     } catch (error) {
       console.error("Account linking failed", error);
       setErrorMessage("Failed to link account. Please try again.");
@@ -195,7 +217,23 @@ const LinkPin = () => {
 
   useEffect(() => {
     // Focus first input on mount
-    inputRefs.current[0]?.focus();
+    const timer = setTimeout(() => {
+      inputRefs.current[0]?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Cleanup on unmount to prevent DOM errors
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Clear any pending navigation timeouts
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   return (
