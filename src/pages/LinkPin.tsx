@@ -195,24 +195,24 @@ const LinkPin = () => {
         console.warn("Failed to refetch profile (non-critical):", refetchError);
       }
       
-      // Wait a bit for localStorage to be set and React to finish rendering
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      // Don't set status to success - navigate immediately to avoid React DOM errors
+      // The full page reload will handle the success state on the next page
       if (!isMountedRef.current) return;
       
-      setStatus("success");
-
-      // Use a longer delay and ensure we're still mounted before navigating
-      // Use window.location.href instead of navigate to avoid React DOM errors
+      // Clear any pending timeouts
       if (navigationTimeoutRef.current) {
         clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
       }
       
-      navigationTimeoutRef.current = setTimeout(() => {
-        // Use window.location for a clean full page reload that won't cause DOM errors
-        // This ensures the AuthContext picks up the new profile properly
-        window.location.href = "/";
-      }, 2500);
+      // Navigate immediately with a small delay to ensure localStorage is set
+      // Use window.location.href for a clean full page reload
+      setTimeout(() => {
+        // Double-check we're still mounted (though we're about to navigate away)
+        if (isMountedRef.current) {
+          window.location.href = "/";
+        }
+      }, 100);
     } catch (error) {
       console.error("Account linking failed", error);
       setErrorMessage("Failed to link account. Please try again.");
