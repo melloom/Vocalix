@@ -143,78 +143,59 @@ const LinkPin = () => {
   const handleConfirmLink = async () => {
     if (!accountInfo) return;
 
+    // Mark as unmounted immediately to prevent any state updates
+    isMountedRef.current = false;
+    
+    // Close dialog without state updates
     setShowConfirmDialog(false);
-    setStatus("redeeming");
 
     try {
-      // Create session for this profile
+      // Set profileId in localStorage FIRST - this is critical
+      localStorage.setItem("profileId", accountInfo.profile_id);
+
+      // Create session for this profile (non-blocking)
       const sessionCreationDisabled =
         typeof window !== "undefined"
           ? localStorage.getItem("disable_session_creation") === "true"
           : false;
 
       if (!sessionCreationDisabled) {
-        try {
-          const userAgent =
-            typeof navigator !== "undefined" ? navigator.userAgent : null;
-          // @ts-ignore - Function exists but not in generated types
-          const { data: sessionData, error: sessionError } = await (supabase.rpc as any)(
-            "create_session",
-            {
-              p_profile_id: accountInfo.profile_id,
-              p_device_id: deviceId,
-              p_user_agent: userAgent,
-              p_duration_hours: 720, // 30 days
-            }
-          );
-
+        // Don't await - let it run in background
+        const userAgent =
+          typeof navigator !== "undefined" ? navigator.userAgent : null;
+        (supabase.rpc as any)(
+          "create_session",
+          {
+            p_profile_id: accountInfo.profile_id,
+            p_device_id: deviceId,
+            p_user_agent: userAgent,
+            p_duration_hours: 720, // 30 days
+          }
+        ).then(({ data: sessionData, error: sessionError }: any) => {
           if (!sessionError && sessionData && Array.isArray(sessionData) && sessionData[0]?.session_token) {
-            await setSessionCookie(sessionData[0].session_token);
+            setSessionCookie(sessionData[0].session_token).catch(() => {});
           }
-        } catch (sessionError: any) {
-          if (
-            sessionError?.code === "PGRST301" ||
-            sessionError?.status === 404 ||
-            sessionError?.message?.includes("404") ||
-            sessionError?.message?.includes("not found") ||
-            sessionError?.message?.includes("does not exist")
-          ) {
-            return;
-          }
-          console.warn("Failed to create session (non-critical):", sessionError);
-        }
+        }).catch(() => {
+          // Ignore session errors - non-critical
+        });
       }
 
-      localStorage.setItem("profileId", accountInfo.profile_id);
-      setProfileHandle(accountInfo.handle);
-      
-      // Trigger profile refetch so AuthContext picks up the new profile
+      // Trigger profile refetch (non-blocking)
       try {
         refetchProfile();
-      } catch (refetchError) {
-        console.warn("Failed to refetch profile (non-critical):", refetchError);
+      } catch {
+        // Ignore refetch errors
       }
       
-      // Don't set status to success - navigate immediately to avoid React DOM errors
-      // The full page reload will handle the success state on the next page
-      if (!isMountedRef.current) return;
+      // Navigate IMMEDIATELY using replace to avoid history issues
+      // Use replace instead of href to avoid adding to history
+      // This prevents React from trying to reconcile during navigation
+      window.location.replace("/");
       
-      // Clear any pending timeouts
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-        navigationTimeoutRef.current = null;
-      }
-      
-      // Navigate immediately with a small delay to ensure localStorage is set
-      // Use window.location.href for a clean full page reload
-      setTimeout(() => {
-        // Double-check we're still mounted (though we're about to navigate away)
-        if (isMountedRef.current) {
-          window.location.href = "/";
-        }
-      }, 100);
     } catch (error) {
+      // If navigation fails, show error
       console.error("Account linking failed", error);
+      isMountedRef.current = true; // Re-enable if error
       setErrorMessage("Failed to link account. Please try again.");
       setStatus("error");
     }
@@ -246,6 +227,9 @@ const LinkPin = () => {
         clearTimeout(navigationTimeoutRef.current);
         navigationTimeoutRef.current = null;
       }
+      // Prevent any state updates during unmount
+      setStatus("entering");
+      setShowConfirmDialog(false);
     };
   }, []);
 
