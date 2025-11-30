@@ -2323,6 +2323,33 @@ const Settings = () => {
                 )}
               </div>
             </div>
+
+            {/* QR Code Display - Show right after buttons */}
+            {!isMobile && showSiteQRCode && phoneQRCodeUrl && (
+              <div className="space-y-3 mt-4">
+                {isAdmin && (
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-3">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                      ⚠️ Admin Account
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      This device will receive admin access when you scan this QR code. Only scan on trusted devices.
+                    </p>
+                  </div>
+                )}
+                <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
+                  <QRCodeSVG 
+                    value={phoneQRCodeUrl} 
+                    size={200}
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                  Scan with your phone camera to link this device to your account
+                </p>
+              </div>
+            )}
             
             {/* PIN Display Section */}
             {accountLinkPin && pinExpiresAt && pinLinkingEnabled && (
@@ -2684,31 +2711,6 @@ const Settings = () => {
               </div>
             )}
 
-            {!isMobile && showSiteQRCode && phoneQRCodeUrl && (
-              <div className="space-y-3 pt-2 border-t">
-                {isAdmin && (
-                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-3">
-                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
-                      ⚠️ Admin Account
-                    </p>
-                    <p className="text-xs text-amber-800 dark:text-amber-200">
-                      This device will receive admin access when you scan this QR code. Only scan on trusted devices.
-                    </p>
-                  </div>
-                )}
-                <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
-                  <QRCodeSVG 
-                    value={phoneQRCodeUrl} 
-                    size={200}
-                    level="M"
-                    includeMargin={true}
-                  />
-                </div>
-                <p className="text-xs text-center text-muted-foreground">
-                  Scan with your phone camera to link this device to your account
-                </p>
-              </div>
-            )}
 
             <div className="flex items-start justify-between gap-6">
               <div>
