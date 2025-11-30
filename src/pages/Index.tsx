@@ -468,7 +468,14 @@ const IndexInner = () => {
     language: null,
   });
   const [savedSearches, setSavedSearches] = useState<Array<{ id: string; name: string; filters: SearchFilters }>>([]);
-  const [showTutorial, setShowTutorial] = useState(false);
+  // Initialize showTutorial from localStorage to prevent showing on refresh if already completed
+  const [showTutorial, setShowTutorial] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+      return tutorialCompleted !== "true";
+    }
+    return false;
+  });
   const [searchResults, setSearchResults] = useState<string[]>([]); // Clip IDs from database search
   const [searchedTopics, setSearchedTopics] = useState<Topic[]>([]); // Topics from database search
   const [isSearchingDatabase, setIsSearchingDatabase] = useState(false);
@@ -1323,23 +1330,30 @@ const IndexInner = () => {
   useEffect(() => {
     if (profileId && !isAuthLoading) {
       const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+      
+      // Always check localStorage first - if completed, never show
       if (tutorialCompleted === "true") {
-        // Tutorial is completed, ensure it's not shown
         setShowTutorial(false);
-      } else if (!showTutorial && tutorialCompleted !== "true") {
-        // Show tutorial for users who haven't seen it yet
+        return;
+      }
+      
+      // Only show if not completed and not already showing
+      if (!showTutorial) {
         // Add a small delay to ensure the page is fully rendered
         const timer = setTimeout(() => {
           // Double-check localStorage before showing (in case it was set during the delay)
           const stillNotCompleted = localStorage.getItem("echo_garden_tutorial_completed") !== "true";
-          if (stillNotCompleted) {
+          if (stillNotCompleted && !showTutorial) {
             setShowTutorial(true);
           }
         }, 1000);
         return () => clearTimeout(timer);
       }
+    } else if (!profileId && !isAuthLoading) {
+      // If no profile, don't show tutorial
+      setShowTutorial(false);
     }
-  }, [profileId, isAuthLoading]);
+  }, [profileId, isAuthLoading, showTutorial]);
 
   // Listen for localStorage changes to handle tutorial dismissal
   useEffect(() => {

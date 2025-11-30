@@ -605,8 +605,18 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100;
 
+  // Check if tutorial is completed - use direct localStorage check for immediate response
+  const isCompleted = typeof window !== 'undefined' && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true";
+  
+  // Sync parent state if completed
+  useEffect(() => {
+    if (isCompleted) {
+      onComplete();
+    }
+  }, [isCompleted, onComplete]);
+
   // Don't show if already completed
-  if (!shouldShowTutorial()) {
+  if (isCompleted || !shouldShowTutorial()) {
     return null;
   }
 
