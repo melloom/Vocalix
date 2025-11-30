@@ -174,9 +174,9 @@ const LinkPin = () => {
       setProfileHandle(accountInfo.handle);
       setStatus("success");
 
-      // Auto-redirect to home after a short delay
+      // Auto-redirect to home after a short delay using React Router
       setTimeout(() => {
-        window.location.href = "/";
+        navigate("/", { replace: true });
       }, 2000);
     } catch (error) {
       console.error("Account linking failed", error);
