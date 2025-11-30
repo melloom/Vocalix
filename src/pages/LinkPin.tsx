@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, Key, ArrowLeft, Lock, Smartphone, Shield } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase, setSessionCookie } from "@/integrations/supabase/client";
 import { useDeviceId } from "@/hooks/useDeviceId";
+import { useAuth } from "@/context/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ type PinStatus = "entering" | "validating" | "confirming" | "redeeming" | "succe
 const LinkPin = () => {
   const navigate = useNavigate();
   const deviceId = useDeviceId();
+  const { refetchProfile } = useAuth();
   const [status, setStatus] = useState<PinStatus>("entering");
   const [pin, setPin] = useState(["", "", "", ""]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -155,8 +157,8 @@ const LinkPin = () => {
         try {
           const userAgent =
             typeof navigator !== "undefined" ? navigator.userAgent : null;
-          // @ts-ignore
-          const { data: sessionData, error: sessionError } = await supabase.rpc(
+          // @ts-ignore - Function exists but not in generated types
+          const { data: sessionData, error: sessionError } = await (supabase.rpc as any)(
             "create_session",
             {
               p_profile_id: accountInfo.profile_id,
@@ -166,7 +168,7 @@ const LinkPin = () => {
             }
           );
 
-          if (!sessionError && sessionData?.[0]?.session_token) {
+          if (!sessionError && sessionData && Array.isArray(sessionData) && sessionData[0]?.session_token) {
             await setSessionCookie(sessionData[0].session_token);
           }
         } catch (sessionError: any) {
@@ -185,21 +187,32 @@ const LinkPin = () => {
 
       localStorage.setItem("profileId", accountInfo.profile_id);
       setProfileHandle(accountInfo.handle);
+      
+      // Trigger profile refetch so AuthContext picks up the new profile
+      try {
+        refetchProfile();
+      } catch (refetchError) {
+        console.warn("Failed to refetch profile (non-critical):", refetchError);
+      }
+      
+      // Wait a bit for localStorage to be set and React to finish rendering
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      if (!isMountedRef.current) return;
+      
       setStatus("success");
 
-      // Use requestAnimationFrame to ensure DOM is ready before navigation
-      requestAnimationFrame(() => {
-        // Clear any existing timeout
-        if (navigationTimeoutRef.current) {
-          clearTimeout(navigationTimeoutRef.current);
-        }
-        // Use a small delay to let React finish rendering the success state
-        navigationTimeoutRef.current = setTimeout(() => {
-          if (isMountedRef.current) {
-            navigate("/", { replace: true });
-          }
-        }, 1500);
-      });
+      // Use a longer delay and ensure we're still mounted before navigating
+      // Use window.location.href instead of navigate to avoid React DOM errors
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+      
+      navigationTimeoutRef.current = setTimeout(() => {
+        // Use window.location for a clean full page reload that won't cause DOM errors
+        // This ensures the AuthContext picks up the new profile properly
+        window.location.href = "/";
+      }, 2500);
     } catch (error) {
       console.error("Account linking failed", error);
       setErrorMessage("Failed to link account. Please try again.");
