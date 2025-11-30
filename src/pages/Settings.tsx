@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -376,6 +376,39 @@ const Settings = () => {
       // Don't show error toast, just fail silently
     } finally {
       setIsLoadingActiveLinks(false);
+    }
+  };
+
+  // Deactivate a magic login link
+  const handleDeactivateLink = async (linkId: string) => {
+    try {
+      const { data, error } = await supabase.rpc("deactivate_magic_login_link", {
+        p_link_id: linkId,
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        // Remove the link from active links
+        setActiveLinks((prev) => prev.filter((link) => link.id !== linkId));
+        toast({
+          title: "Link deactivated",
+          description: "The login link has been deactivated and can no longer be used.",
+        });
+      } else {
+        toast({
+          title: "Couldn't deactivate link",
+          description: "The link may have already been deactivated or doesn't exist.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      logError("Failed to deactivate link", error);
+      toast({
+        title: "Error",
+        description: "Failed to deactivate the link. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -2672,30 +2705,41 @@ const Settings = () => {
                                   )}
                                 </div>
                               </div>
-                              {link.url && (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {link.url && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="rounded-xl"
+                                    onClick={async () => {
+                                      try {
+                                        await navigator.clipboard.writeText(link.url);
+                                        toast({
+                                          title: "Link copied",
+                                          description: "The login link has been copied to your clipboard.",
+                                        });
+                                      } catch {
+                                        toast({
+                                          title: "Couldn't copy",
+                                          description: "Please select and copy the link manually.",
+                                          variant: "destructive",
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="rounded-xl flex-shrink-0"
-                                  onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(link.url);
-                                      toast({
-                                        title: "Link copied",
-                                        description: "The login link has been copied to your clipboard.",
-                                      });
-                                    } catch {
-                                      toast({
-                                        title: "Couldn't copy",
-                                        description: "Please select and copy the link manually.",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  }}
+                                  className="rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeactivateLink(link.id)}
+                                  title="Deactivate link"
                                 >
-                                  <Copy className="h-4 w-4" />
+                                  <X className="h-4 w-4" />
                                 </Button>
-                              )}
+                              </div>
                             </div>
                           </div>
                         );
