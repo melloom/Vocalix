@@ -3925,7 +3925,7 @@ const Settings = () => {
                 </div>
 
                 {showQRCode && (
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-2 mt-3">
                     <div className="flex justify-center p-3 bg-background rounded-xl border-2 border-border/40">
                       <div id="magic-link-qr-code">
                         <QRCodeSVG 
