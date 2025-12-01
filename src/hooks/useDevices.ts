@@ -251,6 +251,23 @@ export const useDevices = () => {
     },
   });
 
+  // Unrevoke device
+  const unrevokeDevice = useMutation({
+    mutationFn: async (deviceIdToUnrevoke: string) => {
+      // @ts-ignore - unrevoke_device exists but not in types yet
+      const { error } = await supabase.rpc("unrevoke_device", {
+        p_device_id: deviceIdToUnrevoke,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Invalidate all device queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["devices"] });
+      // Also refetch immediately
+      queryClient.refetchQueries({ queryKey: ["devices"] });
+    },
+  });
+
   // Return devices from database (or synthetic only if ALL database operations failed)
   // The queryFn above handles all the database logic and only uses synthetic as last resort
   return {
@@ -262,6 +279,8 @@ export const useDevices = () => {
     isRevoking: revokeDevice.isPending,
     clearSuspiciousFlag: clearSuspiciousFlag.mutateAsync,
     isClearingSuspicious: clearSuspiciousFlag.isPending,
+    unrevokeDevice: unrevokeDevice.mutateAsync,
+    isUnrevoking: unrevokeDevice.isPending,
   };
 };
 

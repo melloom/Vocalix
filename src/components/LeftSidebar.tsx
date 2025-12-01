@@ -141,7 +141,7 @@ export const LeftSidebar = () => {
   return (
     <div className="space-y-6">
       {/* Trending Topics */}
-      <Card className="p-4 rounded-2xl">
+      <Card className="p-4 rounded-2xl border border-border/40">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -172,7 +172,7 @@ export const LeftSidebar = () => {
                 to={`/topic/${topic.id}`}
                 className="block group"
               >
-                <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
+                <div className="p-3 rounded-xl border border-border/40 hover:border-primary/50 hover:bg-muted/50 transition-all">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       {topic.communities ? (
@@ -269,7 +269,7 @@ export const LeftSidebar = () => {
 
       {/* Live Rooms Preview */}
       {liveRooms && liveRooms.length > 0 && (
-        <Card className="p-4 rounded-2xl">
+        <Card className="p-4 rounded-2xl border border-border/40">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Radio className="w-5 h-5 text-primary" />
@@ -298,7 +298,7 @@ export const LeftSidebar = () => {
                   to={`/live-room/${room.id}`}
                   className="block group"
                 >
-                  <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
+                  <div className="p-3 rounded-xl border border-border/40 hover:border-primary/50 hover:bg-muted/50 transition-all">
                     <div className="flex items-start gap-3">
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -325,7 +325,7 @@ export const LeftSidebar = () => {
       )}
 
       {/* Quick Stats */}
-      <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5">
+      <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border/40">
         <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
         <div className="space-y-2">
           <Link

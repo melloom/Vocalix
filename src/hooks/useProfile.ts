@@ -137,7 +137,10 @@ export const useProfile = () => {
       return data as ProfileRow;
     },
     onSuccess: (data) => {
+      // Update the cache for this specific query
       queryClient.setQueryData(['profile', deviceId], data);
+      // Invalidate all profile queries so other components (like AuthContext, Profile page) refetch
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 

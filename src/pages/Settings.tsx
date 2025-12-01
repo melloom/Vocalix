@@ -73,6 +73,7 @@ import { ColorSchemePicker } from "@/components/ColorSchemePicker";
 import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileMenu } from "@/components/MobileMenu";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -120,9 +121,9 @@ const Settings = () => {
   const { toast } = useToast();
   const { profile, isLoading, updateProfile, isUpdating, refetch } = useProfile();
   const { deviceId, profileId } = useAuth();
-  const { devices, isLoading: isLoadingDevices, revokeDevice, isRevoking, clearSuspiciousFlag, isClearingSuspicious, refetch: refetchDevices, error: devicesError } = useDevices();
+  const { devices, isLoading: isLoadingDevices, revokeDevice, isRevoking, clearSuspiciousFlag, isClearingSuspicious, unrevokeDevice, isUnrevoking: isUnrevokingDevice, refetch: refetchDevices, error: devicesError } = useDevices();
   const { blockedUsers, isLoading: isLoadingBlockedUsers, refetch: refetchBlockedUsers } = useBlockedUsers();
-  const { sessions, isLoading: isLoadingSessions, revokeSession, isRevoking: isRevokingSession, revokeAllSessions, isRevokingAll: isRevokingAllSessions, refetch: refetchSessions } = useSessions();
+  const { sessions, revokedSessions, isLoading: isLoadingSessions, isLoadingRevoked: isLoadingRevokedSessions, revokeSession, isRevoking: isRevokingSession, revokeAllSessions, isRevokingAll: isRevokingAllSessions, unrevokeSession, isUnrevoking: isUnrevokingSession, refetch: refetchSessions, refetchRevoked: refetchRevokedSessions } = useSessions();
   // Safely get push notification state with defaults
   const pushNotifications = usePushNotifications();
   const isPushSupported = pushNotifications?.isSupported ?? false;
@@ -183,6 +184,8 @@ const Settings = () => {
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [deviceAccessTab, setDeviceAccessTab] = useState<"linking" | "login">("linking");
+  const [sessionsTab, setSessionsTab] = useState<"active" | "revoked">("active");
+  const [devicesTab, setDevicesTab] = useState<"active" | "revoked">("active");
   const [isPrivateAccount, setIsPrivateAccount] = useState(false);
   const [hideFromSearch, setHideFromSearch] = useState(false);
   const [hideFromDiscovery, setHideFromDiscovery] = useState(false);
@@ -456,6 +459,7 @@ const Settings = () => {
     setCaptionsEnabled(checked);
     try {
       await updateProfile({ default_captions: checked });
+      await refetch();
       toast({
         title: checked ? "Captions on" : "Captions off",
         description: checked
@@ -477,10 +481,11 @@ const Settings = () => {
     setAutoplayNextEnabled(checked);
     try {
       await updateProfile({ autoplay_next_clip: checked });
+      await refetch();
       toast({
         title: checked ? "Autoplay on" : "Autoplay off",
         description: checked
-          ? "We’ll keep the vibes going by playing the next clip automatically."
+          ? "We'll keep the vibes going by playing the next clip automatically."
           : "Playback will pause after each clip until you press play.",
       });
     } catch (error) {
@@ -498,6 +503,7 @@ const Settings = () => {
     setTapToRecordEnabled(checked);
     try {
       await updateProfile({ tap_to_record: checked });
+      await refetch();
       toast({
         title: checked ? "Tap to record enabled" : "Hold to record enabled",
         description: checked
@@ -519,6 +525,7 @@ const Settings = () => {
     setTopicAlertsEnabled(checked);
     try {
       await updateProfile({ notify_new_topics: checked });
+      await refetch();
       toast({
         title: checked ? "Notifications on" : "Notifications off",
         description: checked
@@ -553,6 +560,7 @@ const Settings = () => {
         digest_enabled: checked,
         digest_frequency: checked ? digestFrequency : 'never'
       });
+      await refetch();
       toast({
         title: checked ? "Daily digest enabled" : "Daily digest disabled",
         description: checked
@@ -578,6 +586,7 @@ const Settings = () => {
         digest_frequency: frequency,
         digest_enabled: frequency !== 'never'
       });
+      await refetch();
       if (frequency !== 'never') {
         setDigestEnabled(true);
       }
@@ -604,6 +613,7 @@ const Settings = () => {
       await updateProfile({
         digest_style: style,
       });
+      await refetch();
       toast({
         title: "Digest style updated",
         description:
@@ -636,6 +646,7 @@ const Settings = () => {
     try {
       // @ts-ignore - email field exists but not in generated types
       await updateProfile({ email: email.trim() || (null as any) });
+      await refetch();
         
         // If email was cleared and digest is enabled, disable digest
         if (!email.trim() && digestEnabled) {
@@ -643,6 +654,7 @@ const Settings = () => {
             digest_enabled: false,
             digest_frequency: 'never'
           });
+          await refetch();
           setDigestEnabled(false);
         toast({
             title: "Digest disabled",
@@ -1005,6 +1017,7 @@ const Settings = () => {
     setMatureFilterEnabled(checked);
     try {
       await updateProfile({ filter_mature_content: checked });
+      await refetch();
       toast({
         title: checked ? "Filter on" : "Filter off",
         description: checked
@@ -1032,6 +1045,7 @@ const Settings = () => {
 
     try {
       await updateProfile({ consent_city: false, city: null });
+      await refetch();
       toast({
         title: "City hidden",
         description: "Future clips will no longer include your city.",
@@ -1050,6 +1064,7 @@ const Settings = () => {
   const handleSaveCity = async ({ city, consent }: { city: string | null; consent: boolean }) => {
     try {
       await updateProfile({ city, consent_city: consent });
+      await refetch();
       setCityTagEnabled(consent);
       toast({
         title: consent ? "City saved" : "City hidden",
@@ -1096,6 +1111,8 @@ const Settings = () => {
     try {
       const { error } = await supabase.rpc("change_pseudonym", { new_handle: pendingHandle.trim() });
       if (error) throw error;
+      // Invalidate all profile queries so profile updates everywhere (header, profile page, etc.)
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       await refetch();
       toast({
         title: "Pseudonym updated",
@@ -1625,29 +1642,37 @@ const Settings = () => {
   return (
     <div className="min-h-screen bg-background pb-24">
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full"
-            onClick={() => {
-              // Check if we came from a specific page (like profile)
-              const state = location.state as { from?: string } | null;
-              if (state?.from) {
-                navigate(state.from);
-              } else {
-                // Try to go back, fallback to home
-                if (window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  navigate("/");
-                }
-              }
-            }}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-bold">Settings</h1>
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {isMobile ? (
+                <MobileMenu profile={profile} />
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full flex-shrink-0"
+                  onClick={() => {
+                    // Check if we came from a specific page (like profile)
+                    const state = location.state as { from?: string } | null;
+                    if (state?.from) {
+                      navigate(state.from);
+                    } else {
+                      // Try to go back, fallback to home
+                      if (window.history.length > 1) {
+                        navigate(-1);
+                      } else {
+                        navigate("/");
+                      }
+                    }
+                  }}
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
+              <h1 className="text-xl sm:text-2xl font-bold truncate min-w-0">Settings</h1>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -1908,6 +1933,7 @@ const Settings = () => {
                   setShow18PlusContent(checked);
                   try {
                     await updateProfile({ show_18_plus_content: checked });
+                    await refetch();
                     toast({
                       title: checked ? "18+ content enabled" : "18+ content disabled",
                       description: checked
@@ -1942,6 +1968,7 @@ const Settings = () => {
                   setPreferredLanguage(value);
                   try {
                     await updateProfile({ preferred_language: value });
+                    await refetch();
                     toast({
                       title: "Language updated",
                       description: `Content will be shown in ${value === "en" ? "English" : value.toUpperCase()}`,
@@ -1984,6 +2011,7 @@ const Settings = () => {
                   setAutoTranslateEnabled(checked);
                   try {
                     await updateProfile({ auto_translate_enabled: checked });
+                    await refetch();
                     toast({
                       title: checked ? "Auto-translate on" : "Auto-translate off",
                       description: checked
@@ -2028,6 +2056,7 @@ const Settings = () => {
                       setVoiceCloningEnabled(checked);
                       try {
                         await updateProfile({ voice_cloning_enabled: checked });
+                        await refetch();
                         toast({
                           title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
                           description: checked
@@ -2089,6 +2118,7 @@ const Settings = () => {
                     setAllowVoiceCloning(checked);
                     try {
                       await updateProfile({ allow_voice_cloning: checked });
+                      await refetch();
                       toast({
                         title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
                         description: checked
@@ -2120,6 +2150,7 @@ const Settings = () => {
                         setVoiceCloningAutoApprove(checked);
                         try {
                           await updateProfile({ voice_cloning_auto_approve: checked });
+                          await refetch();
                           toast({
                             title: checked ? "Auto-approve enabled" : "Auto-approve disabled",
                             description: checked
@@ -2155,6 +2186,7 @@ const Settings = () => {
                         setVoiceCloningRevenueShare(newValue);
                         try {
                           await updateProfile({ voice_cloning_revenue_share_percentage: newValue });
+                          await refetch();
                         } catch (error) {
                           logError("Failed to update revenue share", error);
                         }
@@ -2562,6 +2594,7 @@ const Settings = () => {
                     try {
                       // @ts-ignore
                       await updateProfile({ is_private_account: checked });
+                      await refetch();
                       toast({
                         title: checked ? "Account is now private" : "Account is now public",
                         description: checked 
@@ -2600,6 +2633,7 @@ const Settings = () => {
                     try {
                       // @ts-ignore
                       await updateProfile({ hide_from_search: checked });
+                      await refetch();
                       toast({
                         title: checked ? "Hidden from search" : "Visible in search",
                       });
@@ -2635,6 +2669,7 @@ const Settings = () => {
                     try {
                       // @ts-ignore
                       await updateProfile({ hide_from_discovery: checked });
+                      await refetch();
                       toast({
                         title: checked ? "Hidden from discovery" : "Visible in discovery",
                       });
@@ -2671,6 +2706,7 @@ const Settings = () => {
                       try {
                         // @ts-ignore
                         await updateProfile({ require_approval_to_follow: checked });
+                        await refetch();
                         toast({
                           title: checked ? "Follow approval enabled" : "Follow approval disabled",
                         });
@@ -3320,9 +3356,18 @@ const Settings = () => {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
+              <Tabs value={devicesTab} onValueChange={(v) => setDevicesTab(v as "active" | "revoked")}>
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="active" className="rounded-xl">
+                    Active ({devices.filter(d => !d.is_revoked).length})
+                  </TabsTrigger>
+                  <TabsTrigger value="revoked" className="rounded-xl">
+                    Revoked ({devices.filter(d => d.is_revoked).length})
+                  </TabsTrigger>
+                </TabsList>
+              <TabsContent value="active" className="space-y-3">
                 {/* Show count and "Revoke All Others" if multiple devices */}
-                {devices.length > 0 && (
+                {devices.filter(d => !d.is_revoked).length > 0 && (
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/60">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
@@ -3332,11 +3377,6 @@ const Settings = () => {
                         <p className="text-sm font-semibold">
                           {devices.filter(d => !d.is_revoked).length} {devices.filter(d => !d.is_revoked).length === 1 ? "device" : "devices"} active
                         </p>
-                        {devices.length > devices.filter(d => !d.is_revoked).length && (
-                          <p className="text-xs text-muted-foreground">
-                            {devices.filter(d => d.is_revoked).length} revoked
-                          </p>
-                        )}
                       </div>
                     </div>
                     {devices.filter(d => d.device_id !== deviceId && !d.is_revoked).length > 0 && (
@@ -3400,7 +3440,7 @@ const Settings = () => {
                   </div>
                 )}
                 
-                {devices.map((device) => {
+                {devices.filter(d => !d.is_revoked).map((device) => {
                   const isCurrentDevice = device.device_id === deviceId;
                   const lastSeen = device.last_seen_at
                     ? formatDistanceToNow(new Date(device.last_seen_at), { addSuffix: true })
@@ -3804,25 +3844,221 @@ const Settings = () => {
                   );
                 })}
               </div>
+              </TabsContent>
+              <TabsContent value="revoked" className="space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    View your revoked devices. You can unrevoke a device to restore access if needed.
+                  </p>
+                </div>
+                {devices.filter(d => d.is_revoked).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No revoked devices</p>
+                    <p className="text-xs mt-1">Revoked devices will appear here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {devices.filter(d => d.is_revoked).map((device) => {
+                      const isCurrentDevice = device.device_id === deviceId;
+                      const userAgent = device.user_agent || "Unknown";
+                      let browserName = "Browser";
+                      let browserVersion = "";
+                      let deviceType: "mobile" | "desktop" | "tablet" = "desktop";
+                      let DeviceIcon = Monitor;
+                      let osName = "";
+                      
+                      if (userAgent !== "Unknown") {
+                        const ua = userAgent.toLowerCase();
+                        if (/mobile|android|iphone|ipod/i.test(userAgent)) {
+                          deviceType = "mobile";
+                          DeviceIcon = Smartphone;
+                          if (/iphone|ipod/i.test(userAgent)) osName = "iOS";
+                          else if (/android/i.test(userAgent)) {
+                            const androidMatch = userAgent.match(/Android ([0-9.]+)/i);
+                            osName = `Android${androidMatch ? ` ${androidMatch[1]}` : ""}`;
+                          }
+                        } else if (/tablet|ipad/i.test(userAgent)) {
+                          deviceType = "tablet";
+                          DeviceIcon = Tablet;
+                          if (/ipad/i.test(userAgent)) osName = "iPadOS";
+                          else if (/android/i.test(userAgent)) osName = "Android";
+                        } else {
+                          if (/windows/i.test(userAgent)) osName = "Windows";
+                          else if (/macintosh|mac os/i.test(userAgent)) {
+                            const macMatch = userAgent.match(/Mac OS X ([0-9_]+)/i);
+                            osName = macMatch ? `macOS ${macMatch[1].replace(/_/g, ".")}` : "macOS";
+                          }
+                          else if (/linux/i.test(userAgent)) osName = "Linux";
+                          else if (/ubuntu/i.test(userAgent)) osName = "Ubuntu";
+                        }
+                        
+                        if (ua.includes("edg") || ua.includes("edg/")) {
+                          browserName = "Edge";
+                          const match = userAgent.match(/Edg(?:e)?\/([0-9.]+)/i);
+                          browserVersion = match ? match[1] : "";
+                        } else if (ua.includes("opr") || ua.includes("opera")) {
+                          browserName = "Opera";
+                          const match = userAgent.match(/(?:OPR|Opera)\/([0-9.]+)/i);
+                          browserVersion = match ? match[1] : "";
+                        } else if (ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr")) {
+                          browserName = "Chrome";
+                          const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                          browserVersion = match ? match[1] : "";
+                        } else if (ua.includes("firefox")) {
+                          browserName = "Firefox";
+                          const match = userAgent.match(/Firefox\/([0-9.]+)/i);
+                          browserVersion = match ? match[1] : "";
+                        } else if (ua.includes("safari") && !ua.includes("chrome")) {
+                          browserName = "Safari";
+                          const match = userAgent.match(/Version\/([0-9.]+)/i);
+                          browserVersion = match ? match[1] : "";
+                        } else {
+                          const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/i);
+                          if (browserMatch) {
+                            browserName = browserMatch[1];
+                            browserVersion = browserMatch[2] || "";
+                          }
+                        }
+                      }
+
+                      const formatIP = (ip: string | null) => {
+                        if (!ip) return null;
+                        if (ip.includes(":")) {
+                          const parts = ip.split(":");
+                          if (parts.length > 4) {
+                            return `${parts[0]}:${parts[1]}:xxxx:xxxx`;
+                          }
+                          return ip;
+                        }
+                        const parts = ip.split(".");
+                        if (parts.length === 4) {
+                          return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+                        }
+                        return ip;
+                      };
+
+                      const maskedIP = formatIP(device.ip_address);
+                      const deviceTypeLabel = deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop";
+                      const browserVersionMajor = browserVersion ? browserVersion.split(".")[0] : "";
+                      const lastSeen = device.last_seen_at ? formatDistanceToNow(new Date(device.last_seen_at), { addSuffix: true }) : "Never";
+
+                      return (
+                        <Card
+                          key={device.id}
+                          className="rounded-3xl border-2 border-destructive/40 bg-destructive/5 opacity-90 overflow-hidden transition-all"
+                        >
+                          <div className="p-5 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-4 flex-1 min-w-0">
+                                <div className="p-3 rounded-2xl flex-shrink-0 bg-destructive/15 text-destructive">
+                                  <DeviceIcon className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                    <h3 className="font-semibold text-base truncate">
+                                      {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}
+                                    </h3>
+                                    {osName && (
+                                      <span className="text-xs text-muted-foreground hidden sm:inline">
+                                        • {osName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {osName && (
+                                    <p className="text-xs text-muted-foreground sm:hidden mb-2">{osName}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/15 text-destructive border border-destructive/20">
+                                      <AlertTriangle className="h-3.5 w-3.5" />
+                                      Revoked
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-xl"
+                                onClick={async () => {
+                                  try {
+                                    await unrevokeDevice(device.device_id);
+                                    toast({
+                                      title: "Device unrevoked",
+                                      description: `${browserName} ${deviceTypeLabel} access has been restored.`,
+                                    });
+                                  } catch (error) {
+                                    logError("Failed to unrevoke device", error);
+                                    toast({
+                                      title: "Couldn't unrevoke device",
+                                      description: "Please try again.",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                                disabled={isUnrevokingDevice}
+                              >
+                                {isUnrevokingDevice ? "Unrevoking..." : "Unrevoke"}
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Activity className="h-3.5 w-3.5" />
+                                  <span>Last seen</span>
+                                </div>
+                                <p className="font-medium text-sm">{lastSeen}</p>
+                              </div>
+                              {maskedIP && (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Compass className="h-3.5 w-3.5" />
+                                    <span>Location</span>
+                                  </div>
+                                  <p className="font-medium text-sm font-mono">{maskedIP}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+              </Tabs>
             )}
           </Card>
           </section>
 
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Active Sessions</h2>
+              <h2 className="text-lg font-semibold">Sessions</h2>
             <Button
               variant="ghost"
               size="sm"
-              onClick={refetchSessions}
-              disabled={isLoadingSessions}
+              onClick={() => {
+                refetchSessions();
+                if (sessionsTab === "revoked") refetchRevokedSessions();
+              }}
+              disabled={isLoadingSessions || isLoadingRevokedSessions}
               className="rounded-2xl"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingSessions ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 mr-2 ${(isLoadingSessions || isLoadingRevokedSessions) ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
           <Card className="p-6 rounded-3xl space-y-4">
+            <Tabs value={sessionsTab} onValueChange={(v) => setSessionsTab(v as "active" | "revoked")}>
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="active" className="rounded-xl">
+                  Active ({sessions.length})
+                </TabsTrigger>
+                <TabsTrigger value="revoked" className="rounded-xl">
+                  Revoked ({revokedSessions.length})
+                </TabsTrigger>
+              </TabsList>
+            <TabsContent value="active" className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-4">
                 View and manage your active login sessions across different browsers and devices. Each session shows detailed information including browser, operating system, location, and expiration time. You can revoke any session to sign out from that browser or device immediately.
@@ -4212,6 +4448,210 @@ const Settings = () => {
                 })}
               </div>
             )}
+            </TabsContent>
+            <TabsContent value="revoked" className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-4">
+                View your revoked sessions. You can unrevoke a session to restore access if needed.
+              </p>
+            </div>
+            {isLoadingRevokedSessions ? (
+              <div className="space-y-2">
+                <div className="h-20 rounded-xl bg-muted animate-pulse" />
+                <div className="h-20 rounded-xl bg-muted animate-pulse" />
+              </div>
+            ) : revokedSessions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No revoked sessions</p>
+                <p className="text-xs mt-1">Revoked sessions will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {revokedSessions.map((session) => {
+                  const revokedAt = session.revoked_at ? formatDistanceToNow(new Date(session.revoked_at), { addSuffix: true }) : "";
+                  const revokedDate = session.revoked_at ? new Date(session.revoked_at).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  }) : "";
+                  const lastAccessed = formatDistanceToNow(new Date(session.last_accessed_at), { addSuffix: true });
+
+                  // Parse user agent (same logic as active sessions)
+                  const userAgent = session.user_agent || "Unknown";
+                  let browserName = "Browser";
+                  let browserVersion = "";
+                  let deviceType: "mobile" | "desktop" | "tablet" = "desktop";
+                  let DeviceIcon = Monitor;
+                  let osName = "";
+                  
+                  if (userAgent !== "Unknown") {
+                    const ua = userAgent.toLowerCase();
+                    if (/mobile|android|iphone|ipod/i.test(userAgent)) {
+                      deviceType = "mobile";
+                      DeviceIcon = Smartphone;
+                      if (/iphone|ipod/i.test(userAgent)) osName = "iOS";
+                      else if (/android/i.test(userAgent)) {
+                        const androidMatch = userAgent.match(/Android ([0-9.]+)/i);
+                        osName = `Android${androidMatch ? ` ${androidMatch[1]}` : ""}`;
+                      }
+                    } else if (/tablet|ipad/i.test(userAgent)) {
+                      deviceType = "tablet";
+                      DeviceIcon = Tablet;
+                      if (/ipad/i.test(userAgent)) osName = "iPadOS";
+                      else if (/android/i.test(userAgent)) osName = "Android";
+                    } else {
+                      if (/windows/i.test(userAgent)) osName = "Windows";
+                      else if (/macintosh|mac os/i.test(userAgent)) {
+                        const macMatch = userAgent.match(/Mac OS X ([0-9_]+)/i);
+                        osName = macMatch ? `macOS ${macMatch[1].replace(/_/g, ".")}` : "macOS";
+                      }
+                      else if (/linux/i.test(userAgent)) osName = "Linux";
+                      else if (/ubuntu/i.test(userAgent)) osName = "Ubuntu";
+                    }
+                    
+                    if (ua.includes("edg") || ua.includes("edg/")) {
+                      browserName = "Edge";
+                      const match = userAgent.match(/Edg(?:e)?\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("opr") || ua.includes("opera")) {
+                      browserName = "Opera";
+                      const match = userAgent.match(/(?:OPR|Opera)\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr")) {
+                      browserName = "Chrome";
+                      const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("firefox")) {
+                      browserName = "Firefox";
+                      const match = userAgent.match(/Firefox\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("safari") && !ua.includes("chrome")) {
+                      browserName = "Safari";
+                      const match = userAgent.match(/Version\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else {
+                      const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/i);
+                      if (browserMatch) {
+                        browserName = browserMatch[1];
+                        browserVersion = browserMatch[2] || "";
+                      }
+                    }
+                  }
+
+                  const formatIP = (ip: string | null) => {
+                    if (!ip) return null;
+                    if (ip.includes(":")) {
+                      const parts = ip.split(":");
+                      if (parts.length > 4) {
+                        return `${parts[0]}:${parts[1]}:xxxx:xxxx`;
+                      }
+                      return ip;
+                    }
+                    const parts = ip.split(".");
+                    if (parts.length === 4) {
+                      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+                    }
+                    return ip;
+                  };
+
+                  const maskedIP = formatIP(session.ip_address);
+                  const deviceTypeLabel = deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop";
+                  const browserVersionMajor = browserVersion ? browserVersion.split(".")[0] : "";
+
+                  return (
+                    <Card
+                      key={session.id}
+                      className="rounded-3xl border-2 border-destructive/40 bg-destructive/5 opacity-90 overflow-hidden transition-all"
+                    >
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div className="p-3 rounded-2xl flex-shrink-0 bg-destructive/15 text-destructive">
+                              <DeviceIcon className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="font-semibold text-base truncate">
+                                  {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}
+                                </h3>
+                                {osName && (
+                                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                                    • {osName}
+                                  </span>
+                                )}
+                              </div>
+                              {osName && (
+                                <p className="text-xs text-muted-foreground sm:hidden mb-2">{osName}</p>
+                              )}
+                              <div className="flex items-center gap-2 flex-wrap mt-2">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/15 text-destructive border border-destructive/20">
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                  Revoked {revokedAt}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={async () => {
+                              try {
+                                await unrevokeSession(session.id);
+                                toast({
+                                  title: "Session unrevoked",
+                                  description: `${browserName} ${deviceTypeLabel} access has been restored.`,
+                                });
+                              } catch (error) {
+                                logError("Failed to unrevoke session", error);
+                                toast({
+                                  title: "Couldn't unrevoke session",
+                                  description: "Please try again.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            disabled={isUnrevokingSession}
+                          >
+                            {isUnrevokingSession ? "Unrevoking..." : "Unrevoke"}
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>Revoked</span>
+                            </div>
+                            <p className="font-medium text-sm">{revokedDate}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Activity className="h-3.5 w-3.5" />
+                              <span>Last accessed</span>
+                            </div>
+                            <p className="font-medium text-sm">{lastAccessed}</p>
+                          </div>
+                          {maskedIP && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Compass className="h-3.5 w-3.5" />
+                                <span>Location</span>
+                              </div>
+                              <p className="font-medium text-sm font-mono">{maskedIP}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+            </TabsContent>
+            </Tabs>
           </Card>
           </section>
         </TabsContent>

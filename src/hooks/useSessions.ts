@@ -11,6 +11,7 @@ export interface Session {
   last_accessed_at: string;
   expires_at: string;
   is_current_session?: boolean; // True if this is the current session
+  revoked_at?: string | null; // When the session was revoked
 }
 
 export const useSessions = () => {
@@ -81,18 +82,75 @@ export const useSessions = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["revokedSessions", profileId] });
+    },
+  });
+
+  // Get revoked sessions
+  const {
+    data: revokedSessions,
+    isLoading: isLoadingRevoked,
+    refetch: refetchRevoked,
+  } = useQuery({
+    queryKey: ["revokedSessions", profileId],
+    queryFn: async () => {
+      if (!profileId) return [];
+
+      // @ts-ignore - get_revoked_sessions exists but not in types yet
+      const { data, error } = await supabase.rpc("get_revoked_sessions", {
+        p_profile_id: profileId,
+      });
+
+      if (error) {
+        if (
+          error.message?.includes("does not exist") || 
+          error.message?.includes("not found") ||
+          error.code === "42883" ||
+          error.code === "P0001" ||
+          (error as any).status === 400
+        ) {
+          console.warn("⚠️ get_revoked_sessions not available, returning empty array:", error.message);
+          return [];
+        }
+        throw error;
+      }
+
+      return (data || []) as Session[];
+    },
+    enabled: !!profileId,
+    staleTime: 30 * 1000,
+  });
+
+  // Unrevoke session
+  const unrevokeSession = useMutation({
+    mutationFn: async (sessionId: string) => {
+      // @ts-ignore - unrevoke_session exists but not in types yet
+      const { error } = await supabase.rpc("unrevoke_session", {
+        p_session_id: sessionId,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["revokedSessions", profileId] });
     },
   });
 
   return {
     sessions: sessions || [],
+    revokedSessions: revokedSessions || [],
     isLoading,
+    isLoadingRevoked,
     error,
     refetch,
+    refetchRevoked,
     revokeSession: revokeSession.mutateAsync,
     isRevoking: revokeSession.isPending,
     revokeAllSessions: revokeAllSessions.mutateAsync,
     isRevokingAll: revokeAllSessions.isPending,
+    unrevokeSession: unrevokeSession.mutateAsync,
+    isUnrevoking: unrevokeSession.isPending,
   };
 };
 

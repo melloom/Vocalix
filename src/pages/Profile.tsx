@@ -1984,7 +1984,7 @@ const Profile = () => {
                     );
                   } else if (item.type === "topic") {
                     return (
-                      <Card key={`topic-${item.id}`} className="p-6 rounded-3xl">
+                      <Card key={`topic-${item.id}`} className="p-6 rounded-3xl border border-border/20">
                         <div className="flex items-start gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
