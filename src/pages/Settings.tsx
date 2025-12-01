@@ -182,6 +182,7 @@ const Settings = () => {
   const [confirmNewPin, setConfirmNewPin] = useState("");
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [deviceAccessTab, setDeviceAccessTab] = useState<"linking" | "login">("linking");
   const [isPrivateAccount, setIsPrivateAccount] = useState(false);
   const [hideFromSearch, setHideFromSearch] = useState(false);
   const [hideFromDiscovery, setHideFromDiscovery] = useState(false);
@@ -2296,103 +2297,137 @@ const Settings = () => {
                 </div>
               </div>
               
-              {/* PIN Linking Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <Lock className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">PIN Account Linking</p>
-                    <p className="text-xs text-muted-foreground">
-                      Generate a 4-digit PIN to link devices securely
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={pinLinkingEnabled}
-                  onCheckedChange={setPinLinkingEnabled}
-                  className="rounded-full"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                {isMobile ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl flex-1"
-                      onClick={() => setIsMagicLinkDialogOpen(true)}
-                    >
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Generate Link
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl flex-1"
-                      onClick={handleGeneratePin}
-                      disabled={isGeneratingPin || !pinLinkingEnabled}
-                    >
-                      <Key className="mr-2 h-4 w-4" />
-                      {isGeneratingPin ? "Generating..." : "Generate PIN"}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl flex-1"
-                      onClick={handleGeneratePhoneQRCode}
-                      disabled={isGeneratingPhoneQR}
-                    >
-                      <QrCode className="mr-2 h-4 w-4" />
-                      {isGeneratingPhoneQR ? "Generating..." : showSiteQRCode ? "Hide QR" : "Show QR"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl flex-1"
-                      onClick={handleGeneratePin}
-                      disabled={isGeneratingPin || !pinLinkingEnabled}
-                    >
-                      <Key className="mr-2 h-4 w-4" />
-                      {isGeneratingPin ? "Generating..." : "Generate PIN"}
-                    </Button>
-                  </>
-                )}
-              </div>
-              
-              {/* Personal Login PIN */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-primary/10">
-                    <Key className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Personal Login PIN</p>
-                    <p className="text-xs text-muted-foreground">
-                      Choose a PIN you can use with your handle to log in on any device
-                    </p>
-                  </div>
-                </div>
+              {/* Tab Switcher */}
+              <div className="flex gap-2 p-1 rounded-2xl bg-muted/40 border border-border/60">
                 <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    setPinError(null);
-                    setCurrentPin("");
-                    setNewPin("");
-                    setConfirmNewPin("");
-                    setIsPinDialogOpen(true);
-                  }}
+                  variant={deviceAccessTab === "linking" ? "default" : "ghost"}
+                  className={`flex-1 rounded-xl ${deviceAccessTab === "linking" ? "" : "hover:bg-muted"}`}
+                  onClick={() => setDeviceAccessTab("linking")}
                 >
-                  Set / Change PIN
+                  <LinkIcon className="mr-2 h-4 w-4" />
+                  Device Linking
+                </Button>
+                <Button
+                  variant={deviceAccessTab === "login" ? "default" : "ghost"}
+                  className={`flex-1 rounded-xl ${deviceAccessTab === "login" ? "" : "hover:bg-muted"}`}
+                  onClick={() => setDeviceAccessTab("login")}
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  Login PIN
                 </Button>
               </div>
+
+              {/* Device Linking Tab Content */}
+              {deviceAccessTab === "linking" && (
+                <div className="space-y-4">
+                  {/* PIN Linking Toggle */}
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <Lock className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">PIN Account Linking</p>
+                        <p className="text-xs text-muted-foreground">
+                          Generate a 4-digit PIN to link devices securely
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={pinLinkingEnabled}
+                      onCheckedChange={setPinLinkingEnabled}
+                      className="rounded-full"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {isMobile ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl flex-1"
+                          onClick={() => setIsMagicLinkDialogOpen(true)}
+                        >
+                          <QrCode className="mr-2 h-4 w-4" />
+                          Generate Link
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl flex-1"
+                          onClick={handleGeneratePin}
+                          disabled={isGeneratingPin || !pinLinkingEnabled}
+                        >
+                          <Key className="mr-2 h-4 w-4" />
+                          {isGeneratingPin ? "Generating..." : "Generate PIN"}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl flex-1"
+                          onClick={handleGeneratePhoneQRCode}
+                          disabled={isGeneratingPhoneQR}
+                        >
+                          <QrCode className="mr-2 h-4 w-4" />
+                          {isGeneratingPhoneQR ? "Generating..." : showSiteQRCode ? "Hide QR" : "Show QR"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl flex-1"
+                          onClick={handleGeneratePin}
+                          disabled={isGeneratingPin || !pinLinkingEnabled}
+                        >
+                          <Key className="mr-2 h-4 w-4" />
+                          {isGeneratingPin ? "Generating..." : "Generate PIN"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Login PIN Tab Content */}
+              {deviceAccessTab === "login" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <Key className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Personal Login PIN</p>
+                        <p className="text-xs text-muted-foreground">
+                          Choose a PIN you can use with your handle to log in on any device
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl"
+                      onClick={() => {
+                        setPinError(null);
+                        setCurrentPin("");
+                        setNewPin("");
+                        setConfirmNewPin("");
+                        setIsPinDialogOpen(true);
+                      }}
+                    >
+                      Set / Change PIN
+                    </Button>
+                  </div>
+                  <div className="rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/20 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      <strong className="text-foreground">How it works:</strong> Set a personal PIN (4-8 digits) that you can use with your handle to log in on any device. Go to <Link to="/login-pin" className="text-primary underline">/login-pin</Link> and enter your handle and PIN to sign in.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* QR Code Display - Show right after buttons */}
-            {!isMobile && showSiteQRCode && phoneQRCodeUrl && (
+            {/* QR Code Display - Show right after buttons (only for linking tab) */}
+            {deviceAccessTab === "linking" && !isMobile && showSiteQRCode && phoneQRCodeUrl && (
               <div className="space-y-3 mt-4">
                 {isAdmin && (
                   <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 mb-3">
@@ -2418,8 +2453,8 @@ const Settings = () => {
               </div>
             )}
             
-            {/* PIN Display Section */}
-            {accountLinkPin && pinExpiresAt && pinLinkingEnabled && (
+            {/* PIN Display Section (only for linking tab) */}
+            {deviceAccessTab === "linking" && accountLinkPin && pinExpiresAt && pinLinkingEnabled && (
               <div className="mt-4 p-4 rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -2490,7 +2525,7 @@ const Settings = () => {
               </div>
             )}
             
-            {!pinLinkingEnabled && (
+            {deviceAccessTab === "linking" && !pinLinkingEnabled && (
               <div className="mt-4 p-3 rounded-2xl border border-border/60 bg-muted/40">
                 <p className="text-sm text-muted-foreground text-center">
                   PIN linking is disabled. Enable it above to generate PINs for account linking.

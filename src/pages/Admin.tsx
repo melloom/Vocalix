@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles } from "lucide-react";
+import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles, Play, Settings } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -373,6 +373,14 @@ const Admin = () => {
   const [isUpdatingSpotlight, setIsUpdatingSpotlight] = useState(false);
   const [isGeneratingSpotlight, setIsGeneratingSpotlight] = useState(false);
 
+  // Cron Jobs state
+  const [cronJobs, setCronJobs] = useState<any[]>([]);
+  const [cronJobsLoading, setCronJobsLoading] = useState(false);
+  const [cronJobHistory, setCronJobHistory] = useState<Record<string, any[]>>({});
+  const [selectedCronJob, setSelectedCronJob] = useState<string | null>(null);
+  const [testingJob, setTestingJob] = useState<string | null>(null);
+  const [deletingJobHistory, setDeletingJobHistory] = useState<string | null>(null);
+
   const applyQueues = useCallback((payload?: ModerationPayload | null) => {
     const { flags, reports } = mapQueues(payload);
     setFlaggedClips(flags);
@@ -426,6 +434,182 @@ const Admin = () => {
       console.error("Error loading metrics:", error);
     }
   }, []);
+
+  // Cron Jobs Management Functions
+  const loadCronJobs = useCallback(async () => {
+    setCronJobsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("get_all_cron_jobs");
+
+      if (error) {
+        throw error;
+      }
+
+      setCronJobs(data || []);
+    } catch (error) {
+      console.error("Error loading cron jobs:", error);
+      toast({
+        title: "Failed to load cron jobs",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCronJobsLoading(false);
+    }
+  }, [toast]);
+
+  const loadCronJobHistory = useCallback(async (jobName: string, jobId?: number) => {
+    try {
+      const { data, error } = await supabase.rpc("get_cron_job_history", {
+        p_job_id: jobId || null,
+        p_limit: 50,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setCronJobHistory((prev) => ({
+        ...prev,
+        [jobName]: data || [],
+      }));
+    } catch (error) {
+      console.error("Error loading cron job history:", error);
+      toast({
+        title: "Failed to load execution history",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const testCronJob = useCallback(async (jobName: string) => {
+    setTestingJob(jobName);
+    try {
+      const { data, error } = await supabase.rpc("run_cron_job_manual", {
+        p_job_name: jobName,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        if (result.success) {
+          toast({
+            title: "Job triggered successfully",
+            description: result.message,
+          });
+          // Reload history after a delay
+          setTimeout(() => {
+            loadCronJobHistory(jobName);
+          }, 2000);
+        } else {
+          toast({
+            title: "Failed to trigger job",
+            description: result.message,
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error testing cron job:", error);
+      toast({
+        title: "Failed to test cron job",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingJob(null);
+    }
+  }, [toast, loadCronJobHistory]);
+
+  const downloadCronJobReport = useCallback(async (jobName: string) => {
+    try {
+      const { data, error } = await supabase.rpc("export_cron_job_report", {
+        p_job_name: jobName,
+        p_start_date: null,
+        p_end_date: null,
+        p_limit: 1000,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && !data.success) {
+        toast({
+          title: "Failed to generate report",
+          description: data.message || "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cron-job-report-${jobName}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Report downloaded",
+        description: `Downloaded execution report for ${jobName}`,
+      });
+    } catch (error) {
+      console.error("Error downloading cron job report:", error);
+      toast({
+        title: "Failed to download report",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const deleteCronJobHistory = useCallback(async (jobName: string, olderThanDays?: number) => {
+    try {
+      const { data, error } = await supabase.rpc("delete_cron_job_history", {
+        p_job_name: jobName,
+        p_older_than_days: olderThanDays || null,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        if (result.success) {
+          toast({
+            title: "History deleted",
+            description: result.message,
+          });
+          // Reload history
+          loadCronJobHistory(jobName);
+          setDeletingJobHistory(null);
+        } else {
+          toast({
+            title: "Failed to delete history",
+            description: result.message,
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting cron job history:", error);
+      toast({
+        title: "Failed to delete history",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, loadCronJobHistory]);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -1743,9 +1927,11 @@ const Admin = () => {
           setActiveTab(value);
           if (value === "security") {
             loadSecurityDevices(securityFilter);
+          } else if (value === "cron") {
+            loadCronJobs();
           }
         }} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-8 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">
               <FileText className="w-4 h-4 mr-2" />
               Moderation
@@ -1773,6 +1959,10 @@ const Admin = () => {
             <TabsTrigger value="spotlight" className="rounded-2xl">
               <Sparkles className="w-4 h-4 mr-2" />
               Spotlight
+            </TabsTrigger>
+            <TabsTrigger value="cron" className="rounded-2xl">
+              <Settings className="w-4 h-4 mr-2" />
+              Cron Jobs
             </TabsTrigger>
           </TabsList>
 
