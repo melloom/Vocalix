@@ -498,52 +498,6 @@ const LinkPin = () => {
                   </div>
                 </div>
               )}
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/50 to-amber-950/50 p-4 text-left space-y-3">
-                    <p className="text-sm text-gray-200 font-medium">
-                      <strong className="text-white">How to use a login link:</strong>
-                    </p>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">1</div>
-                        <p className="text-xs text-gray-300">
-                          On your other device, go to <strong className="text-white">Settings → Account</strong>
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">2</div>
-                        <p className="text-xs text-gray-300">
-                          Click <strong className="text-white">"Send link"</strong> in the Device Linking section
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">3</div>
-                        <p className="text-xs text-gray-300">
-                          Choose a link type and click <strong className="text-white">"Generate link"</strong>
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">4</div>
-                        <p className="text-xs text-gray-300">
-                          Copy the link or scan the QR code, then open it on <strong className="text-white">this device</strong>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2 pt-2 border-t border-red-800/30">
-                      <Shield className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-gray-300">
-                        Login links expire after 7 days (or 1 hour for quick share) and can only be used once for security.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-4">
-                    <p className="text-sm text-gray-200 font-medium mb-2">💡 Don't have a login link yet?</p>
-                    <p className="text-xs text-gray-300">
-                      Generate one from your other device's Settings → Account page, then come back here and open the link on this device.
-                    </p>
-                  </div>
-                </div>
-              )}
             </>
           )}
 
