@@ -710,7 +710,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               }
         }
       >
-        <Card className="shadow-2xl border-2 border-primary/30 bg-background backdrop-blur-xl">
+        <Card className="shadow-2xl border border-primary/20 bg-background backdrop-blur-xl">
           <CardHeader className="space-y-3 pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

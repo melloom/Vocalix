@@ -3886,7 +3886,7 @@ const IndexInner = () => {
                       {todayTopic.user_created_by && todayTopic.creator && (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground/70 flex items-center gap-1 px-2 py-1 rounded-full bg-muted/50 border border-border/40">
+                            <span className="text-xs text-muted-foreground/70 flex items-center gap-1 px-2 py-1 rounded-full bg-muted/50 border border-border/30">
                               <span>{todayTopic.creator.emoji_avatar}</span>
                               <span>@{todayTopic.creator.handle}</span>
                             </span>

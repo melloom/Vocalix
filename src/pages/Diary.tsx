@@ -1009,8 +1009,8 @@ export default function Diary() {
             {filteredEntries.map((entry) => (
               <Card
                 key={entry.id}
-                className={`p-6 cursor-pointer hover:shadow-xl transition-all border-2 ${
-                  entry.is_pinned ? 'border-l-4 border-l-primary' : ''
+                className={`p-6 cursor-pointer hover:shadow-xl transition-all border ${
+                  entry.is_pinned ? 'border-l-2 border-l-primary/20' : ''
                 } ${entry.is_favorite ? 'bg-gradient-to-br from-yellow-50/50 to-amber-50/50 dark:from-yellow-950/50 dark:to-amber-950/50' : ''}`}
                 onClick={() => {
                   setSelectedEntry(entry);

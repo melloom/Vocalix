@@ -809,10 +809,10 @@ export const ClipCard = ({
     const compactProfileHandle = clip.profiles?.handle || "Anonymous";
     
     return (
-      <Card ref={clipRef} data-clip-id={clip.id} className={`p-3 space-y-2 card-hover bg-card border border-border/50 hover:border-border transition-colors ${isReply ? "ml-4 border-l-2 border-l-primary/30" : ""}`}>
+      <Card ref={clipRef} data-clip-id={clip.id} className={`p-3 space-y-2 card-hover bg-card border border-border/30 hover:border-border transition-colors ${isReply ? "ml-4 border-l border-l-primary/20" : ""}`}>
         <div className="flex items-center gap-2">
           <Link to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"} className="flex-shrink-0">
-            <Avatar className="h-6 w-6 border border-border/50">
+            <Avatar className="h-6 w-6 border border-border/30">
               <AvatarFallback className="text-xs bg-muted/50">
                 {compactEmojiAvatar}
               </AvatarFallback>
@@ -981,11 +981,11 @@ export const ClipCard = ({
   const profileHandle = clip.profiles?.handle || "Anonymous";
 
   return (
-    <Card ref={clipRef} data-clip-id={clip.id} className={`p-4 space-y-3 card-hover bg-card border border-border/50 hover:border-border transition-all duration-300 animate-fade-in ${isReply ? "ml-8 border-l-2 border-l-primary/30" : ""}`}>
+    <Card ref={clipRef} data-clip-id={clip.id} className={`p-4 space-y-3 card-hover bg-card border border-border/30 hover:border-border transition-all duration-300 animate-fade-in ${isReply ? "ml-8 border-l border-l-primary/20" : ""}`}>
       {/* Reddit-style header with avatar and username */}
       <div className="flex items-start gap-3">
         <Link to={clip.profiles?.handle ? `/profile/${clip.profiles.handle}` : "#"} className="flex-shrink-0">
-          <Avatar className="h-8 w-8 border border-border/50">
+          <Avatar className="h-8 w-8 border border-border/30">
             <AvatarFallback className="text-base bg-muted/50">
               {emojiAvatar}
             </AvatarFallback>
@@ -1235,7 +1235,7 @@ export const ClipCard = ({
             )}
 
             {showCaptions && getDisplayCaption() && (
-              <div className="p-3 bg-muted/50 rounded-lg border border-border/50">
+              <div className="p-3 bg-muted/50 rounded-lg border border-border/30">
                 <p className="text-sm leading-relaxed">
                   <MentionText text={getDisplayCaption() || ""} highlightQuery={highlightNeedle} />
                 </p>
@@ -1298,7 +1298,7 @@ export const ClipCard = ({
             )}
           </div>
 
-          <div className="flex items-center gap-3 pt-1 border-t border-border/50">
+          <div className="flex items-center gap-3 pt-1 border-t border-border/30">
             <VoteButtons
               clipId={clip.id}
               initialVoteScore={clip.vote_score || 0}

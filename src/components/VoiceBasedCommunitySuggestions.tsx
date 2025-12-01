@@ -69,7 +69,7 @@ const VoiceBasedCommunityCard = ({ suggestion }: VoiceBasedCommunityCardProps) =
   const matchPercentage = Math.round(suggestion.match_score * 100);
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all">
+    <div className="flex items-start gap-3 p-3 rounded-lg border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
       <div className="text-2xl">{suggestion.avatar_emoji || "🎤"}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">

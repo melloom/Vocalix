@@ -39,7 +39,7 @@ export const UpNextPreview = () => {
       <div className="flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Avatar className="h-6 w-6 border border-border/50">
+            <Avatar className="h-6 w-6 border border-border/30">
               <AvatarFallback className="text-xs bg-muted/50">
                 {emojiAvatar}
               </AvatarFallback>

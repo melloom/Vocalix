@@ -212,7 +212,7 @@ export const FeatureDiscovery = ({
       {visibleFeatures.map((feature) => (
         <Card
           key={feature.id}
-          className="shadow-lg border-2 border-primary/30 bg-background/95 backdrop-blur-sm animate-slide-in-right"
+          className="shadow-lg border border-primary/20 bg-background/95 backdrop-blur-sm animate-slide-in-right"
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">

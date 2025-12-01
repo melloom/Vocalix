@@ -184,7 +184,7 @@ export function FeedFilterSelector({
 
               {/* Sub-options under For You */}
               {showForYouOptions && (
-                <div className="ml-4 mt-1 space-y-1 border-l-2 border-border/50 pl-3">
+                <div className="ml-4 mt-1 space-y-1 border-l border-border/30 pl-3">
                   {forYouSubOptions.map((option) => (
                     <button
                       key={option.value}

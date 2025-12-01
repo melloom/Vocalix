@@ -358,7 +358,7 @@ export default function VoiceAMAs() {
           ) : (
             <div className="space-y-4">
               {liveAmas.map((ama) => (
-                <Card key={ama.id} className="rounded-3xl border-2 border-primary">
+                <Card key={ama.id} className="rounded-3xl border border-primary/20">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">

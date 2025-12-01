@@ -253,7 +253,7 @@ export const CommunityRecommendationsSidebar = () => {
                 to={`/community/${community.slug}`}
                 className="block group"
               >
-                <div className="p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all">
+                <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
                   <div className="flex items-start gap-3">
                     <div className="text-3xl shrink-0">{community.avatar_emoji}</div>
                     <div className="flex-1 min-w-0">
@@ -308,7 +308,7 @@ export const CommunityRecommendationsSidebar = () => {
             {newsItems.map((item) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all overflow-hidden group"
+                className="rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all overflow-hidden group"
               >
                 {item.url ? (
                   // External news article with image
@@ -468,7 +468,7 @@ export const CommunityRecommendationsSidebar = () => {
                   to={`/live-room/${room.id}`}
                   className="block group"
                 >
-                  <div className="p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all">
+                  <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
                     <div className="flex items-start gap-3">
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

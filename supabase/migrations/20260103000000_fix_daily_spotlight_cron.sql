@@ -83,7 +83,7 @@ AS $$
 DECLARE
   v_today DATE := CURRENT_DATE;
   v_exists BOOLEAN;
-  v_fallback_question TEXT := 'What brightened your day?';
+  v_fallback_question TEXT := 'What''s a small victory you''re celebrating?';
 BEGIN
   -- Check if question for today already exists
   SELECT EXISTS(

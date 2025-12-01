@@ -172,7 +172,7 @@ export const LeftSidebar = () => {
                 to={`/topic/${topic.id}`}
                 className="block group"
               >
-                <div className="p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all">
+                <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       {topic.communities ? (
@@ -298,7 +298,7 @@ export const LeftSidebar = () => {
                   to={`/live-room/${room.id}`}
                   className="block group"
                 >
-                  <div className="p-3 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-muted/50 transition-all">
+                  <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
                     <div className="flex items-start gap-3">
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

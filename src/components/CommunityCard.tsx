@@ -37,7 +37,7 @@ export const CommunityCard = ({ community }: CommunityCardProps) => {
 
   return (
     <Link to={`/community/${community.slug}`}>
-      <Card className="group relative p-6 space-y-5 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:scale-[1.02] border-2 hover:border-primary/40 bg-gradient-to-br from-card via-card/98 to-card/95 rounded-3xl overflow-hidden backdrop-blur-sm">
+      <Card className="group relative p-6 space-y-5 cursor-pointer transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:scale-[1.02] border hover:border-primary/20 bg-gradient-to-br from-card via-card/98 to-card/95 rounded-3xl overflow-hidden backdrop-blur-sm">
         {/* Decorative gradient overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-primary/0 transition-all duration-500 pointer-events-none rounded-3xl" />
         
@@ -125,7 +125,7 @@ export const CommunityCard = ({ community }: CommunityCardProps) => {
           </div>
         </div>
         
-        <div className="relative flex items-center justify-between pt-5 border-t border-border/60">
+        <div className="relative flex items-center justify-between pt-5 border-t border-border/30">
           <div className="flex items-center gap-6 text-sm">
             <div className={`flex items-center gap-3 font-medium transition-all ${hasActivity ? 'text-foreground' : 'text-muted-foreground/50'}`}>
               <div className={`p-2 rounded-xl transition-all ${hasActivity ? 'bg-primary/10 group-hover:bg-primary/15' : 'bg-muted/50'} shadow-sm`}>

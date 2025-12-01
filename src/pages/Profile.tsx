@@ -1217,7 +1217,7 @@ const Profile = () => {
         backgroundColor: colorScheme.background || undefined,
       }}
     >
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/30 shadow-sm">
         <div className="w-full px-4 md:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10 transition-colors">
@@ -1547,7 +1547,7 @@ const Profile = () => {
           </div>
 
           {/* Stats - Enhanced with more metrics */}
-          <div className="grid grid-cols-3 md:grid-cols-5 gap-4 py-6 border-y border-border/50">
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-4 py-6 border-y border-border/30">
             <div className="text-center">
               <p className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
                 {metrics.clipCount}
@@ -1689,7 +1689,7 @@ const Profile = () => {
 
           {/* Mutual Follows Section - Simplified */}
           {!isOwnProfile && mutualFollows.length > 0 && (
-            <div className="py-3 border-b border-border/50">
+            <div className="py-3 border-b border-border/30">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <p className="text-sm font-medium">

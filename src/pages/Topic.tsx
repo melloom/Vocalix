@@ -682,7 +682,7 @@ const Topic = () => {
           {/* Extra onboarding content for Welcome Garden */}
           {topic.title === "Welcome Garden" && (
             <div className="mt-8 space-y-4">
-              <Card className="p-5 rounded-3xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 border border-red-500/40 space-y-3">
+              <Card className="p-5 rounded-3xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 border border-red-500/20 space-y-3">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="space-y-1">
                     <p className="text-xs font-semibold tracking-wide uppercase text-red-200 dark:text-red-200">
@@ -760,7 +760,7 @@ const Topic = () => {
         <section className="space-y-4">
           {/* Daily reflection helper for today’s topic */}
           {topic.date === new Date().toISOString().slice(0, 10) && (
-            <Card className="p-4 rounded-2xl bg-muted/60 border-dashed border-primary/40">
+            <Card className="p-4 rounded-2xl bg-muted/60 border-dashed border-primary/20">
               <p className="text-sm font-medium">Daily reflection</p>
               <p className="text-xs text-muted-foreground">
                 How did today feel? Share a short voice or comment about your day.
@@ -820,7 +820,7 @@ const Topic = () => {
 
           {/* Add Comment Form */}
           {isAddingComment && (
-            <Card className="p-5 rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+            <Card className="p-5 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-background">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <input
@@ -967,7 +967,7 @@ const Topic = () => {
                                 </p>
                                 
                                 {/* Action Bar */}
-                                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                                <div className="flex items-center gap-2 pt-2 border-t border-border/30">
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -1096,7 +1096,7 @@ const Topic = () => {
               })}
             </div>
           ) : (
-            <Card className="p-12 rounded-2xl bg-gradient-to-br from-muted/50 to-background text-center border-2 border-dashed border-border">
+            <Card className="p-12 rounded-2xl bg-gradient-to-br from-muted/50 to-background text-center border border-dashed border-border/30">
               <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               {viewerProfile ? (
                 <>

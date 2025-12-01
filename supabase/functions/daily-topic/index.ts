@@ -14,7 +14,6 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 // Expanded fallback topics pool - more variety to avoid repetition
 const FALLBACK_TOPICS = [
-  { title: "What brightened your day?", description: "Share a small moment that lifted your spirits today." },
   { title: "A little act of kindness", description: "Talk about a kind thing you gave or received recently." },
   { title: "Your calm corner", description: "Describe a place or ritual that helps you feel grounded." },
   { title: "What are you grateful for?", description: "Name one thing you're thankful for and why it matters." },

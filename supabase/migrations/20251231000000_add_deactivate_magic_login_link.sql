@@ -44,3 +44,6 @@ COMMENT ON FUNCTION public.deactivate_magic_login_link(UUID) IS
 'Deactivate/delete a magic login link by ID. Only the owner of the link can deactivate it.';
 
 
+
+
+

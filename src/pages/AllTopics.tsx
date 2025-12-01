@@ -134,7 +134,7 @@ export default function AllTopics() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 pb-24">
       {/* Header with gradient */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/50 shadow-sm">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/30 shadow-sm">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -185,7 +185,7 @@ export default function AllTopics() {
               placeholder="Search topics by title, description, community, or creator..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 h-12 text-base rounded-xl border-2 focus:border-primary/50 transition-all shadow-sm"
+              className="pl-12 pr-4 h-12 text-base rounded-xl border focus:border-primary/20 transition-all shadow-sm"
             />
           </div>
 
@@ -304,7 +304,7 @@ export default function AllTopics() {
                 to={`/topic/${topic.id}`}
                 className="block group"
               >
-                <Card className="p-6 rounded-3xl h-full border-2 hover:border-primary/40 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-card/50 group-hover:scale-[1.02] overflow-hidden relative">
+                <Card className="p-6 rounded-3xl h-full border hover:border-primary/20 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-card/50 group-hover:scale-[1.02] overflow-hidden relative">
                   {/* Gradient overlay on hover */}
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:to-transparent transition-all duration-300 rounded-3xl" />
                   
@@ -355,7 +355,7 @@ export default function AllTopics() {
                     </div>
 
                     {/* Stats */}
-                    <div className="flex items-center gap-5 text-xs text-muted-foreground pt-4 border-t border-border/50">
+                    <div className="flex items-center gap-5 text-xs text-muted-foreground pt-4 border-t border-border/30">
                       <div className="flex items-center gap-1.5 font-medium">
                         <Users className="w-4 h-4" />
                         <span>{topic.clips_count || 0} clips</span>

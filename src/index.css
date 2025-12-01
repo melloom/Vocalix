@@ -701,7 +701,8 @@ body.theme-midnight * {
   }
 
   .glass-surface {
-    @apply bg-card/80 backdrop-blur-lg supports-[backdrop-filter]:bg-card/70 border border-border/60;
+    @apply bg-card/80 backdrop-blur-lg supports-[backdrop-filter]:bg-card/70 border border-border/30;
+    border-width: 1px;
   }
 
   .scrollbar-hide {

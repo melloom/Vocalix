@@ -706,7 +706,7 @@ const MyRecordings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
-      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/50 shadow-sm">
+      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/30 shadow-sm">
         <div className="w-full px-4 md:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10">
@@ -770,13 +770,13 @@ const MyRecordings = () => {
             <div className="flex-1 space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent">{profile.handle}</h2>
-                <Button variant="outline" size="sm" asChild className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/50 transition-all">
+                <Button variant="outline" size="sm" asChild className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/20 transition-all">
                   <Link to="/settings">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit Profile
                   </Link>
                 </Button>
-                <Button variant="outline" size="icon" className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/50 transition-all">
+                <Button variant="outline" size="icon" className="rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border-primary/30 hover:from-primary/20 hover:to-accent/20 hover:border-primary/20 transition-all">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -829,7 +829,7 @@ const MyRecordings = () => {
           </div>
 
           {/* Level & XP Card - Enhanced with Better Colors */}
-          <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border-2 border-primary/30 shadow-xl shadow-primary/10 mb-4 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+          <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border border-primary/20 shadow-xl shadow-primary/10 mb-4 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
@@ -874,7 +874,7 @@ const MyRecordings = () => {
 
           {/* Streak Card - Enhanced with Fire Effects */}
           {metrics.currentStreak > 0 && (
-            <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-500/20 border-2 border-orange-500/40 shadow-xl shadow-orange-500/20 mb-4 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+            <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-500/20 border border-orange-500/20 shadow-xl shadow-orange-500/20 mb-4 hover:shadow-2xl hover:shadow-orange-500/30 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-red-500/10 to-orange-500/10 animate-pulse" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between">
@@ -925,7 +925,7 @@ const MyRecordings = () => {
           <TabsContent value="badges" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             {/* Recent Achievements - Enhanced */}
             {recentBadges.length > 0 && (
-              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl shadow-primary/5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300">
+              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl shadow-primary/5 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
                     <Award className="h-5 w-5 text-primary" />
@@ -936,7 +936,7 @@ const MyRecordings = () => {
                   {recentBadges.map((userBadge) => (
                     <div
                       key={userBadge.id}
-                      className={`p-4 rounded-2xl border-2 ${getRarityColor(userBadge.badges.rarity)} text-center transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-primary/20 cursor-pointer`}
+                      className={`p-4 rounded-2xl border ${getRarityColor(userBadge.badges.rarity)} text-center transition-all duration-300 hover:scale-110 hover:shadow-xl hover:shadow-primary/20 cursor-pointer`}
                     >
                       <div className="text-4xl mb-2 drop-shadow-lg">{userBadge.badges.icon_emoji}</div>
                       <p className="text-xs font-semibold mb-1">{userBadge.badges.name}</p>
@@ -958,13 +958,13 @@ const MyRecordings = () => {
                 if (categoryBadges.length === 0) return null;
 
                 return (
-                  <Card key={category} className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Card key={category} className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-lg hover:shadow-xl transition-all duration-300">
                     <h3 className="text-lg font-semibold mb-4 capitalize bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">{category} Badges</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {categoryBadges.map((bp) => (
                         <div
                           key={bp.badge.code}
-                          className={`p-4 rounded-2xl border-2 ${getRarityColor(bp.badge.rarity)} text-center transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer`}
+                          className={`p-4 rounded-2xl border ${getRarityColor(bp.badge.rarity)} text-center transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer`}
                         >
                           <div className="text-4xl mb-2 drop-shadow-lg">{bp.badge.icon_emoji}</div>
                           <p className="text-xs font-semibold">{bp.badge.name}</p>
@@ -977,7 +977,7 @@ const MyRecordings = () => {
             </div>
 
             {unlockedBadges.length === 0 && (
-              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
                 <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
                   <Trophy className="h-12 w-12 text-primary" />
                 </div>
@@ -990,7 +990,7 @@ const MyRecordings = () => {
           <TabsContent value="progress" className="space-y-6 mt-6 px-4 md:px-6 lg:px-8">
             {/* Next Badges */}
             {nextBadges.length > 0 && (
-              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl hover:shadow-2xl transition-all duration-300">
+              <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
                     <Target className="h-5 w-5 text-primary" />
@@ -1028,7 +1028,7 @@ const MyRecordings = () => {
             )}
 
             {/* All Progress */}
-            <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+            <Card className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
               <h3 className="text-lg font-semibold mb-4 bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">All Badge Progress</h3>
               <div className="space-y-4">
                 {badgeProgress
@@ -1076,7 +1076,7 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.filter(c => c.status === 'live').length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
                 <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
                   <BarChart3 className="h-12 w-12 text-primary" />
                 </div>
@@ -1093,7 +1093,7 @@ const MyRecordings = () => {
                     .map((clip) => (
                       <Card 
                         key={clip.id} 
-                        className="p-4 rounded-2xl cursor-pointer bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.02]"
+                        className="p-4 rounded-2xl cursor-pointer bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.02]"
                         onClick={() => {
                           setAnalyticsClip(clip);
                           setIsAnalyticsOpen(true);
@@ -1178,7 +1178,7 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
                 <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
                   <Calendar className="h-12 w-12 text-primary" />
                 </div>
@@ -1191,7 +1191,7 @@ const MyRecordings = () => {
               <>
                 <div className="space-y-4">
                   {paginatedClips.map((clip) => (
-                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3 bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
+                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3 bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
                       <ClipCard
                         clip={clip}
                         captionsDefault={profile.default_captions ?? true}
@@ -1290,7 +1290,7 @@ const MyRecordings = () => {
                 variant="card"
               />
             ) : clips.filter(c => c.status === 'draft' && c.scheduled_for).length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border-2 border-primary/20 shadow-xl">
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
                 <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
                   <Clock className="h-12 w-12 text-primary" />
                 </div>
@@ -1310,7 +1310,7 @@ const MyRecordings = () => {
                       return aTime - bTime;
                     })
                     .map((clip) => (
-                      <Card key={clip.id} className="p-4 rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-card via-card/95 to-primary/5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
+                      <Card key={clip.id} className="p-4 rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card/95 to-primary/5 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
                         <div className="flex items-start gap-4">
                           <div className="flex-1">
                             <ClipCard
