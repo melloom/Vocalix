@@ -99,7 +99,7 @@ const LinkPin = () => {
         // Clear PIN on error
         setPin(["", "", "", ""]);
         requestAnimationFrame(() => {
-          inputRefs.current[0]?.focus();
+        inputRefs.current[0]?.focus();
         });
         return;
       }
@@ -135,7 +135,7 @@ const LinkPin = () => {
       setStatus("error");
       setPin(["", "", "", ""]);
       requestAnimationFrame(() => {
-        inputRefs.current[0]?.focus();
+      inputRefs.current[0]?.focus();
       });
     }
   };
@@ -154,15 +154,15 @@ const LinkPin = () => {
           : false;
 
       if (!sessionCreationDisabled) {
-        const userAgent =
-          typeof navigator !== "undefined" ? navigator.userAgent : null;
+          const userAgent =
+            typeof navigator !== "undefined" ? navigator.userAgent : null;
         // Fire and forget - don't await or handle errors
         (supabase.rpc as any)(
-          "create_session",
-          {
-            p_profile_id: accountInfo.profile_id,
-            p_device_id: deviceId,
-            p_user_agent: userAgent,
+            "create_session",
+            {
+              p_profile_id: accountInfo.profile_id,
+              p_device_id: deviceId,
+              p_user_agent: userAgent,
             p_duration_hours: 720,
           }
         ).then(({ data: sessionData, error: sessionError }: any) => {
@@ -189,7 +189,7 @@ const LinkPin = () => {
             window.location.replace("/");
           } catch (navError) {
             // Fallback if replace fails
-            window.location.href = "/";
+        window.location.href = "/";
           }
         });
       });
@@ -219,7 +219,7 @@ const LinkPin = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Cleanup on unmount to prevent DOM errors
+  // Track mounted state and clear timeouts on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -229,9 +229,9 @@ const LinkPin = () => {
         clearTimeout(navigationTimeoutRef.current);
         navigationTimeoutRef.current = null;
       }
-      // Prevent any state updates during unmount
-      setStatus("entering");
-      setShowConfirmDialog(false);
+      // IMPORTANT: do NOT call setState here; React is unmounting this component.
+      // Calling setStatus/setShowConfirmDialog during unmount can cause the
+      // "removeChild" DOM error we keep seeing in production.
     };
   }, []);
 
