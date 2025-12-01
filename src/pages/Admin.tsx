@@ -491,6 +491,14 @@ const Admin = () => {
 
   const testCronJob = useCallback(async (jobName: string) => {
     setTestingJob(jobName);
+    
+    // Clear previous result
+    setJobRunResults((prev) => {
+      const next = { ...prev };
+      delete next[jobName];
+      return next;
+    });
+
     try {
       const { data, error } = await (supabase.rpc as any)("run_cron_job_manual", {
         p_job_name: jobName,
@@ -500,35 +508,43 @@ const Admin = () => {
         throw error;
       }
 
+      // Handle response - it should be an array with one result
+      let result: any = null;
       if (data && Array.isArray(data) && data.length > 0) {
-        const result = data[0] as any;
-        const runResult = {
-          success: result.success,
-          message: result.message || (result.success ? "Job started successfully" : "Job failed to start"),
-          timestamp: new Date(),
-        };
-        
-        setJobRunResults((prev) => ({
-          ...prev,
-          [jobName]: runResult,
-        }));
+        result = data[0];
+      } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+        // Sometimes RPC returns object directly
+        result = data;
+      } else {
+        throw new Error("Unexpected response format from run_cron_job_manual");
+      }
 
-        if (result.success) {
-          toast({
-            title: "✅ Job triggered successfully",
-            description: result.message,
-          });
-          // Reload history after a delay
-          setTimeout(() => {
-            loadCronJobHistory(jobName);
-          }, 2000);
-        } else {
-          toast({
-            title: "❌ Failed to trigger job",
-            description: result.message,
-            variant: "destructive",
-          });
-        }
+      const runResult = {
+        success: result.success === true || result.success === 'true',
+        message: result.message || (result.success ? "Job started successfully" : "Job failed to start"),
+        timestamp: new Date(),
+      };
+      
+      setJobRunResults((prev) => ({
+        ...prev,
+        [jobName]: runResult,
+      }));
+
+      if (runResult.success) {
+        toast({
+          title: "✅ Job triggered successfully",
+          description: runResult.message,
+        });
+        // Reload history after a delay to see the execution
+        setTimeout(() => {
+          loadCronJobHistory(jobName);
+        }, 3000);
+      } else {
+        toast({
+          title: "❌ Failed to trigger job",
+          description: runResult.message,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       const errorResult = {
@@ -4528,22 +4544,22 @@ const Admin = () => {
                   return (
                     <Card 
                       key={job.jobid} 
-                      className={`p-6 rounded-2xl border-l-4 ${
+                      className={`p-6 rounded-2xl transition-all duration-200 hover:shadow-lg border-l-4 ${
                         job.active 
-                          ? "border-l-green-500 bg-green-50/50 dark:bg-green-950/10" 
-                          : "border-l-gray-400 bg-gray-50/50 dark:bg-gray-950/10"
+                          ? "border-l-green-500 bg-gradient-to-r from-green-50/80 to-background dark:from-green-950/20 dark:to-background shadow-sm" 
+                          : "border-l-gray-400 bg-gradient-to-r from-gray-50/50 to-background dark:from-gray-950/10 dark:to-background shadow-sm opacity-75"
                       }`}
                     >
                       {/* Header with Status */}
-                      <div className="flex items-start justify-between flex-wrap gap-4 mb-4">
+                      <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-3">
-                            <h3 className="font-semibold text-lg truncate">{job.jobname}</h3>
+                          <div className="flex items-center gap-3 mb-4 flex-wrap">
+                            <h3 className="font-bold text-xl truncate text-foreground">{job.jobname}</h3>
                             <Badge 
                               variant={job.active ? "default" : "secondary"}
-                              className={job.active ? "bg-green-600 hover:bg-green-700" : ""}
+                              className={`${job.active ? "bg-green-600 hover:bg-green-700 text-white shadow-sm" : "bg-gray-400 text-gray-100"} font-semibold px-3 py-1`}
                             >
-                              {job.active ? "✅ Active" : "⏸️ Inactive"}
+                              {job.active ? "✓ Active" : "⏸ Inactive"}
                             </Badge>
                             {lastRun && (
                               <Badge 
@@ -4564,63 +4580,69 @@ const Admin = () => {
                           </div>
                           
                           {/* Status Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Clock className="w-4 h-4 text-muted-foreground" />
-                                <span className="font-medium">Schedule:</span>
-                                <code className="text-xs bg-muted px-2 py-0.5 rounded">{job.schedule}</code>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                            <div className="space-y-2.5">
+                              <div className="flex items-center gap-2.5 p-2 bg-muted/50 rounded-lg">
+                                <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                                <span className="font-semibold text-foreground">Schedule:</span>
+                                <code className="text-xs bg-background px-2.5 py-1 rounded-md border font-mono font-semibold text-primary">{job.schedule}</code>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Settings className="w-4 h-4 text-muted-foreground" />
-                                <span className="font-medium">Database:</span>
-                                <span className="text-muted-foreground">{job.database}</span>
+                              <div className="flex items-center gap-2.5 p-2 bg-muted/50 rounded-lg">
+                                <Settings className="w-4 h-4 text-primary flex-shrink-0" />
+                                <span className="font-semibold text-foreground">Database:</span>
+                                <span className="text-muted-foreground font-medium">{job.database}</span>
                               </div>
                               {lastRun && (
-                                <div className="flex items-center gap-2">
-                                  <Activity className="w-4 h-4 text-muted-foreground" />
-                                  <span className="font-medium">Last Run:</span>
-                                  <span className="text-muted-foreground">
+                                <div className="flex items-center gap-2.5 p-2 bg-muted/50 rounded-lg">
+                                  <Activity className="w-4 h-4 text-primary flex-shrink-0" />
+                                  <span className="font-semibold text-foreground">Last Run:</span>
+                                  <span className="text-muted-foreground font-medium">
                                     {new Date(lastRun.start_time).toLocaleString()}
                                   </span>
                                 </div>
                               )}
                               {runResult && (
-                                <div className="flex items-center gap-2">
-                                  <Play className="w-4 h-4 text-muted-foreground" />
-                                  <span className="font-medium">Last Test:</span>
-                                  <span className="text-muted-foreground">
+                                <div className="flex items-center gap-2.5 p-2 bg-muted/50 rounded-lg">
+                                  <Play className="w-4 h-4 text-primary flex-shrink-0" />
+                                  <span className="font-semibold text-foreground">Last Test:</span>
+                                  <span className="text-muted-foreground font-medium">
                                     {runResult.timestamp.toLocaleTimeString()}
                                   </span>
                                 </div>
                               )}
                             </div>
-                            <div>
-                              <div className="break-all">
-                                <span className="font-medium text-xs text-muted-foreground">Command:</span>
-                                <code className="block text-xs bg-muted p-2 rounded mt-1 break-all">{job.command}</code>
-                              </div>
+                            <div className="p-3 bg-muted/30 rounded-lg border">
+                              <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2 block">Command:</span>
+                              <code className="block text-xs bg-background p-3 rounded-md border font-mono break-all text-foreground shadow-inner">{job.command}</code>
                             </div>
                           </div>
 
                           {/* Run Result Message */}
                           {runResult && (
-                            <div className={`mt-3 p-3 rounded-lg ${
+                            <div className={`mt-4 p-4 rounded-xl border-2 shadow-sm animate-in slide-in-from-top-2 duration-300 ${
                               runResult.success 
-                                ? "bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-800" 
-                                : "bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800"
+                                ? "bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-400 dark:border-green-700" 
+                                : "bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-400 dark:border-red-700"
                             }`}>
-                              <div className="flex items-start gap-2">
+                              <div className="flex items-start gap-3">
                                 {runResult.success ? (
-                                  <span className="text-green-600 dark:text-green-400">✓</span>
+                                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-white text-sm font-bold">✓</span>
+                                  </div>
                                 ) : (
-                                  <span className="text-red-600 dark:text-red-400">✗</span>
+                                  <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-white text-sm font-bold">✗</span>
+                                  </div>
                                 )}
                                 <div className="flex-1">
-                                  <div className="text-sm font-medium">
+                                  <div className={`text-sm font-bold mb-1 ${
+                                    runResult.success ? "text-green-800 dark:text-green-300" : "text-red-800 dark:text-red-300"
+                                  }`}>
                                     {runResult.success ? "Test Run Successful" : "Test Run Failed"}
                                   </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
+                                  <div className={`text-xs ${
+                                    runResult.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
+                                  }`}>
                                     {runResult.message}
                                   </div>
                                 </div>
@@ -4629,7 +4651,7 @@ const Admin = () => {
                           )}
                         </div>
                         {/* Action Buttons */}
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap items-start">
                           <Button
                             size="sm"
                             variant="outline"
@@ -4641,30 +4663,41 @@ const Admin = () => {
                                 loadCronJobHistory(job.jobname, job.jobid);
                               }
                             }}
-                            className="rounded-full"
+                            className="rounded-xl shadow-sm hover:shadow-md transition-shadow font-medium"
                           >
                             <Activity className="w-4 h-4 mr-2" />
-                            {selectedCronJob === job.jobname ? "Hide" : "View"} History
+                            {selectedCronJob === job.jobname ? "Hide History" : "View History"}
                           </Button>
                           <Button
                             size="sm"
                             variant={job.active ? "default" : "secondary"}
                             onClick={() => testCronJob(job.jobname)}
                             disabled={testingJob === job.jobname || !job.active}
-                            className="rounded-full"
+                            className={`rounded-xl shadow-sm hover:shadow-md transition-all font-semibold ${
+                              testingJob === job.jobname ? "animate-pulse" : ""
+                            }`}
                             title={!job.active ? "Cannot test inactive job" : "Manually trigger this job"}
                           >
-                            <Play className="w-4 h-4 mr-2" />
-                            {testingJob === job.jobname ? "Running..." : "Test Run"}
+                            {testingJob === job.jobname ? (
+                              <>
+                                <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                Running...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-4 h-4 mr-2" />
+                                Test Run
+                              </>
+                            )}
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => downloadCronJobReport(job.jobname)}
-                            className="rounded-full"
+                            className="rounded-xl shadow-sm hover:shadow-md transition-shadow font-medium"
                           >
                             <Download className="w-4 h-4 mr-2" />
-                            Download Report
+                            Download
                           </Button>
                           <Dialog
                             open={deletingJobHistory === job.jobname}
@@ -4674,10 +4707,10 @@ const Admin = () => {
                               size="sm"
                               variant="destructive"
                               onClick={() => setDeletingJobHistory(job.jobname)}
-                              className="rounded-full"
+                              className="rounded-xl shadow-sm hover:shadow-md transition-shadow font-medium"
                             >
                               <Trash2 className="w-4 h-4 mr-2" />
-                              Delete History
+                              Delete
                             </Button>
                             <DialogContent>
                               <DialogHeader>
@@ -4710,11 +4743,14 @@ const Admin = () => {
 
                       {/* Execution History */}
                       {selectedCronJob === job.jobname && (
-                        <div className="mt-4 pt-4 border-t">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-semibold">Execution History</h4>
+                        <div className="mt-6 pt-6 border-t-2 border-muted">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-bold text-lg flex items-center gap-2">
+                              <Activity className="w-5 h-5 text-primary" />
+                              Execution History
+                            </h4>
                             {hasHistory && (
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="font-semibold px-3 py-1">
                                 {cronJobHistory[job.jobname].length} execution{cronJobHistory[job.jobname].length !== 1 ? 's' : ''}
                               </Badge>
                             )}

@@ -285,20 +285,52 @@ const handler = async (req?: Request) => {
   }
 };
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-device-id, x-user-agent, x-session-token-hash",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+const getCorsHeaders = (req: Request): Record<string, string> => {
+  const origin = req.headers.get("origin");
+  const envOrigins = Deno.env.get("ALLOWED_ORIGINS");
+  const envOrigin = Deno.env.get("ORIGIN");
+
+  let allowOrigin = "*";
+
+  if (origin) {
+    if (envOrigins) {
+      const allowedList = envOrigins.split(",").map((o) => o.trim());
+      if (allowedList.includes(origin)) {
+        allowOrigin = origin;
+      }
+    }
+
+    if (allowOrigin === "*" && (origin.includes("localhost") || origin.includes("127.0.0.1"))) {
+      allowOrigin = origin;
+    }
+
+    if (allowOrigin === "*" && envOrigin) {
+      allowOrigin = envOrigin;
+    }
+  } else if (envOrigin) {
+    allowOrigin = envOrigin;
+  }
+
+  if (allowOrigin === "*" && origin) {
+    allowOrigin = origin;
+  }
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-device-id, x-user-agent, x-session-token-hash",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
+  };
 };
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { 
-      headers: {
-        ...corsHeaders,
-        "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
-      },
+      headers: corsHeaders,
     });
   }
 
