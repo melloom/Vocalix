@@ -338,10 +338,16 @@ const IndexInner = () => {
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
   const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestion | null>(null);
+  const [pastSpotlightQuestions, setPastSpotlightQuestions] = useState<Array<{id: string; date: string; question: string; topic_id: string | null}>>([]);
   const [clips, setClips] = useState<Clip[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [topicMetrics, setTopicMetrics] = useState<Record<string, TopicMetrics>>({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Track retry attempts and generation state to prevent infinite loops
+  const spotlightRetryCountRef = useRef(0);
+  const isGeneratingSpotlightRef = useRef(false);
+  const MAX_SPOTLIGHT_RETRIES = 3;
   const [sortMode, setSortMode] = useState<"hot" | "top" | "controversial" | "rising" | "trending" | "for_you" | null>(null);
   const [feedFilter, setFeedFilter] = useState<FeedFilterType>("for_you");
   const [feedTimePeriod, setFeedTimePeriod] = useState<TimePeriod>("day");
@@ -647,17 +653,28 @@ const IndexInner = () => {
         // If function doesn't exist yet or RLS issue, try to generate question
         console.warn("Could not fetch spotlight question:", error);
         
-        // Try to generate a question if it doesn't exist
-        try {
-          await supabase.functions.invoke("daily-spotlight-question", {
-            body: {},
-          });
-          // Retry after a short delay
-          setTimeout(() => fetchSpotlightQuestion(true), 2000);
-        } catch (invokeError: any) {
-          if (invokeError?.code !== 403) {
-            console.warn("Failed to generate daily spotlight question:", invokeError);
+        // Only try to generate if we haven't exceeded retry limit and aren't already generating
+        if (spotlightRetryCountRef.current < MAX_SPOTLIGHT_RETRIES && !isGeneratingSpotlightRef.current) {
+          isGeneratingSpotlightRef.current = true;
+          spotlightRetryCountRef.current += 1;
+          
+          try {
+            await supabase.functions.invoke("daily-spotlight-question", {
+              body: {},
+            });
+            // Retry after a short delay
+            setTimeout(() => {
+              isGeneratingSpotlightRef.current = false;
+              fetchSpotlightQuestion(true);
+            }, 2000);
+          } catch (invokeError: any) {
+            isGeneratingSpotlightRef.current = false;
+            if (invokeError?.code !== 403) {
+              console.warn("Failed to generate daily spotlight question:", invokeError);
+            }
           }
+        } else {
+          console.log('[Spotlight] Max retries reached or already generating, stopping retry loop');
         }
         setSpotlightQuestion(null);
         return;
@@ -674,26 +691,42 @@ const IndexInner = () => {
       if (questionData && Array.isArray(questionData) && questionData.length > 0) {
         const question = questionData[0];
         console.log('[Spotlight] Found question:', question);
+        // Reset retry counter on success
+        spotlightRetryCountRef.current = 0;
+        isGeneratingSpotlightRef.current = false;
         // Daily spotlight questions are always shown (they're AI-generated daily)
-          setSpotlightQuestion(question);
-        } else {
+        setSpotlightQuestion(question);
+      } else {
         console.log('[Spotlight] No question found, data:', data);
-        // No question found - try to generate one
-        try {
-          await supabase.functions.invoke("daily-spotlight-question", {
-            body: {},
-          });
-          // Retry after a short delay
-          setTimeout(() => fetchSpotlightQuestion(true), 2000);
-        } catch (invokeError: any) {
-          if (invokeError?.code !== 403) {
-            console.warn("Failed to generate daily spotlight question:", invokeError);
-        }
+        // No question found - try to generate one (only if we haven't exceeded retry limit)
+        if (spotlightRetryCountRef.current < MAX_SPOTLIGHT_RETRIES && !isGeneratingSpotlightRef.current) {
+          isGeneratingSpotlightRef.current = true;
+          spotlightRetryCountRef.current += 1;
+          
+          try {
+            await supabase.functions.invoke("daily-spotlight-question", {
+              body: {},
+            });
+            // Retry after a short delay
+            setTimeout(() => {
+              isGeneratingSpotlightRef.current = false;
+              fetchSpotlightQuestion(true);
+            }, 2000);
+          } catch (invokeError: any) {
+            isGeneratingSpotlightRef.current = false;
+            if (invokeError?.code !== 403) {
+              console.warn("Failed to generate daily spotlight question:", invokeError);
+            }
+          }
+        } else {
+          console.log('[Spotlight] Max retries reached or already generating, stopping retry loop');
+          isGeneratingSpotlightRef.current = false;
         }
         setSpotlightQuestion(null);
       }
     } catch (error) {
       console.warn("Error fetching spotlight question:", error);
+      isGeneratingSpotlightRef.current = false;
       setSpotlightQuestion(null);
     }
   }, [todayTopic?.id]);
@@ -836,6 +869,30 @@ const IndexInner = () => {
 
       // Fetch spotlight question (best/most engaging question)
       await fetchSpotlightQuestion();
+
+      // Fetch past week's daily spotlight questions
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgoISO = sevenDaysAgo.toISOString().slice(0, 10);
+        
+        const { data: pastQuestions, error: pastQuestionsError } = await supabase
+          .from("daily_spotlight_questions")
+          .select("id, date, question, topic_id")
+          .lte("date", today)
+          .gte("date", sevenDaysAgoISO)
+          .order("date", { ascending: false })
+          .limit(7);
+
+        if (!pastQuestionsError && pastQuestions) {
+          setPastSpotlightQuestions(pastQuestions);
+        } else {
+          console.warn("Error fetching past spotlight questions:", pastQuestionsError);
+        }
+      } catch (error) {
+        console.warn("Error fetching past spotlight questions:", error);
+      }
 
       // Load new voices (clips with very few listens) to highlight first-time creators
       try {
@@ -2600,6 +2657,9 @@ const IndexInner = () => {
         // Check if date has changed - if so, refresh spotlight question
         if (lastDateRef.current !== todayISO) {
           lastDateRef.current = todayISO;
+          // Reset retry counter for new day
+          spotlightRetryCountRef.current = 0;
+          isGeneratingSpotlightRef.current = false;
           // Force refresh spotlight question when date changes
           fetchSpotlightQuestion(true);
         }
@@ -3974,7 +4034,7 @@ const IndexInner = () => {
           </Card>
         )}
 
-        {!isSearching && recentTopics.length > 0 && (
+        {!isSearching && pastSpotlightQuestions.length > 0 && (
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -3982,25 +4042,33 @@ const IndexInner = () => {
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {recentTopics
+              {pastSpotlightQuestions
+                .filter((q) => {
+                  // Exclude today's question if it's in the list
+                  const today = new Date().toISOString().slice(0, 10);
+                  return q.date !== today;
+                })
                 .slice(0, 7)
-                .filter((topic) => !todayTopic || topic.id !== todayTopic.id)
-                .map((topic) => (
+                .map((question) => (
                   <Button
-                    key={topic.id}
+                    key={question.id}
                     variant="outline"
                     size="sm"
                     className="rounded-full h-7 px-3 text-xs"
-                    onClick={() => navigate(`/topic/${topic.id}`)}
+                    onClick={() => {
+                      if (question.topic_id) {
+                        navigate(`/topic/${question.topic_id}`);
+                      }
+                    }}
                   >
                     {(() => {
-                      const [year, month, day] = topic.date.split("-").map(Number);
+                      const [year, month, day] = question.date.split("-").map(Number);
                       const localDate = new Date(year, month - 1, day);
                       const label = localDate.toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
                       });
-                      return `${label}: ${topic.title}`;
+                      return `${label}: ${question.question}`;
                     })()}
                   </Button>
                 ))}

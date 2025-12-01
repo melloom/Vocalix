@@ -273,16 +273,20 @@ const handler = async (req?: Request) => {
 
     console.log(`[daily-spotlight-question] Selected ${source} question: "${selected}"`);
 
-    // Insert the question
+    // Use upsert to prevent duplicates - Supabase automatically uses unique constraint on 'date'
+    // This ensures only one question exists per date, even if called concurrently
     const { data: inserted, error: insertError } = await supabase
       .from("daily_spotlight_questions")
-      .insert({
+      .upsert({
         date: today,
         question: selected,
         topic_id: todayTopic?.id || null,
         topic_title: todayTopic?.title || null,
         topic_description: todayTopic?.description || null,
         generated_by: source,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'date'
       })
       .select()
       .single();

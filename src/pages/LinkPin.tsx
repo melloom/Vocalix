@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield, Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -345,6 +345,12 @@ const LinkPin = () => {
                       <Shield className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-gray-300">
                         PINs expire after 10 minutes and can only be used once for security.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2 pt-2 border-t border-red-800/30">
+                      <Link2 className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-300">
+                        <strong className="text-white">Alternative:</strong> You can also use a login link from <strong className="text-white">Settings → Account</strong> on your other device. Generate a magic login link and open it on this device to link your account.
                       </p>
                     </div>
                   </div>
