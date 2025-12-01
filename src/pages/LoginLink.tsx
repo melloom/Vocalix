@@ -137,10 +137,25 @@ const LoginLink = () => {
 
   const handleConfirmLink = async () => {
     setShowConfirmDialog(false);
+    
+    // Ensure device ID is available before attempting redemption
+    if (!deviceId) {
+      setStatus("error");
+      setErrorMessage("Device identification failed. Please refresh the page and try again.");
+      return;
+    }
+    
     setStatus("redeeming");
     try {
       const { data, error } = await supabase.rpc("redeem_magic_login_link", { link_token: token });
-      if (error) throw error;
+      if (error) {
+        // Create a proper Error object from Supabase error
+        const errorMessage = error.message || error.details || error.hint || "Failed to redeem login link";
+        const rpcError = new Error(errorMessage);
+        // Preserve the original error object for better debugging
+        (rpcError as any).originalError = error;
+        throw rpcError;
+      }
 
       const result = data?.[0];
       if (!result?.profile_id) {
@@ -183,8 +198,10 @@ const LoginLink = () => {
             sessionError.message?.includes("not found") ||
             sessionError.message?.includes("does not exist")
           )) {
-            // Completely silent - don't log 404 errors
-            return;
+            // Completely silent - don't log 404 errors, but continue with redemption
+          } else if (sessionError) {
+            // Only log non-404 errors (non-critical, don't block redemption)
+            console.warn("Failed to create session (non-critical):", sessionError);
           }
         } catch (sessionError: any) {
           // Silently ignore 404 errors (PostgREST cache issue)
@@ -195,11 +212,11 @@ const LoginLink = () => {
             sessionError?.message?.includes("not found") ||
             sessionError?.message?.includes("does not exist")
           ) {
-            // Completely silent - don't log 404 errors
-            return;
-          }
-          // Only log non-404 errors
+            // Completely silent - don't log 404 errors, but continue with redemption
+          } else {
+            // Only log non-404 errors (non-critical, don't block redemption)
           console.warn("Failed to create session (non-critical):", sessionError);
+          }
         }
         }
 
@@ -215,16 +232,36 @@ const LoginLink = () => {
       console.error("Login link redemption failed", error);
       let message = "Something went wrong while redeeming this link.";
       
+      // Extract error message from various error object structures
+      let errorMessage: string | null = null;
+      
       if (error instanceof Error) {
-        // Check for specific error messages
-        if (error.message.includes("already been used") || error.message.includes("already used")) {
+        errorMessage = error.message;
+      } else if (error && typeof error === 'object') {
+        // Handle Supabase error objects
+        const supabaseError = error as any;
+        errorMessage = supabaseError.message || supabaseError.error?.message || supabaseError.details || supabaseError.hint || null;
+      }
+      
+      if (errorMessage) {
+        // Check for specific error messages from the database function
+        const lowerMessage = errorMessage.toLowerCase();
+        
+        if (lowerMessage.includes("missing x-device-id header") || lowerMessage.includes("missing device")) {
+          message = "Device identification failed. Please refresh the page and try again.";
+        } else if (lowerMessage.includes("already been used") || lowerMessage.includes("already used")) {
           message = "This login link has already been used. Each link can only be used once. Please request a new link from Settings.";
-        } else if (error.message.includes("expired")) {
+        } else if (lowerMessage.includes("expired")) {
           message = "This login link has expired. Please request a new link from Settings.";
-        } else if (error.message.includes("not found")) {
+        } else if (lowerMessage.includes("not found") || lowerMessage.includes("invalid")) {
+          message = "This login link is invalid or no longer exists. Please request a new link from Settings.";
+        } else if (lowerMessage.includes("profile not found")) {
+          message = "The account associated with this link no longer exists. Please request a new link from Settings.";
+        } else if (lowerMessage.includes("login link not found")) {
           message = "This login link is invalid or no longer exists. Please request a new link from Settings.";
         } else {
-          message = error.message;
+          // Use the extracted error message if available, otherwise use generic
+          message = errorMessage || message;
         }
       }
       
