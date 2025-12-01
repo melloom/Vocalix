@@ -675,8 +675,8 @@ const IndexInner = () => {
         const question = questionData[0];
         console.log('[Spotlight] Found question:', question);
         // Daily spotlight questions are always shown (they're AI-generated daily)
-        setSpotlightQuestion(question);
-      } else {
+          setSpotlightQuestion(question);
+        } else {
         console.log('[Spotlight] No question found, data:', data);
         // No question found - try to generate one
         try {
@@ -688,7 +688,7 @@ const IndexInner = () => {
         } catch (invokeError: any) {
           if (invokeError?.code !== 403) {
             console.warn("Failed to generate daily spotlight question:", invokeError);
-          }
+        }
         }
         setSpotlightQuestion(null);
       }
@@ -1344,7 +1344,7 @@ const IndexInner = () => {
           // Double-check localStorage before showing (in case it was set during the delay)
           const stillNotCompleted = localStorage.getItem("echo_garden_tutorial_completed") !== "true";
           if (stillNotCompleted && !showTutorial) {
-            setShowTutorial(true);
+          setShowTutorial(true);
           }
         }, 1000);
         return () => clearTimeout(timer);
@@ -3752,10 +3752,10 @@ const IndexInner = () => {
                       to={`/topic/${spotlightQuestion.topic_id || todayTopic?.id}`} 
                       className="block hover:opacity-80 transition-opacity"
                     >
-                      <p className="text-sm text-muted-foreground mb-2 hover:underline">
+                    <p className="text-sm text-muted-foreground mb-2 hover:underline">
                         {spotlightQuestion.topic_title || todayTopic?.title || 'Today\'s Topic'}
-                      </p>
-                    </Link>
+                    </p>
+                  </Link>
                   )}
                   {(spotlightQuestion.topic_id || todayTopic?.id) ? (
                     <Link 
@@ -3767,7 +3767,7 @@ const IndexInner = () => {
                       </h2>
                     </Link>
                   ) : (
-                    <h2 className="text-xl font-bold mb-3">{spotlightQuestion.content}</h2>
+                  <h2 className="text-xl font-bold mb-3">{spotlightQuestion.content}</h2>
                   )}
                   <p className="text-xs text-muted-foreground mb-4">
                     💡 A fresh question generated daily to spark conversation
@@ -3776,7 +3776,7 @@ const IndexInner = () => {
                     {/* Use topic_id from spotlight question, or fallback to todayTopic */}
                     {(spotlightQuestion.topic_id || todayTopic?.id) && (
                       <>
-                        <Button
+                    <Button
                           onClick={() => {
                             const topicId = spotlightQuestion.topic_id || todayTopic?.id;
                             if (topicId) {
@@ -3784,12 +3784,12 @@ const IndexInner = () => {
                               setIsRecordModalOpen(true);
                             }
                           }}
-                          size="lg"
+                      size="lg"
                           className="h-10 px-6 rounded-md"
-                        >
+                    >
                           <MicIcon className="h-4 w-4 mr-2" />
                           Answer Question
-                        </Button>
+                    </Button>
                         {(spotlightQuestion.topic_id || todayTopic?.id) && (
                           <Button
                             variant="outline"
@@ -3799,7 +3799,7 @@ const IndexInner = () => {
                           >
                             <Link to={`/topic/${spotlightQuestion.topic_id || todayTopic?.id}`}>
                               View Discussion
-                            </Link>
+                  </Link>
                           </Button>
                         )}
                       </>

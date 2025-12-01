@@ -476,6 +476,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   }, [RECAPTCHA_SITE_KEY]);
 
   const handleSubmit = async () => {
+    // Check if we're in development mode (used throughout the function)
+    const isDevelopment = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    
     if (!handle.trim()) {
       toast({
         title: "Handle required",
@@ -626,6 +630,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       // Execute reCAPTCHA Enterprise and get token
       let enterpriseToken: string | null = null;
+      
       if (RECAPTCHA_SITE_KEY) {
         try {
             // Execute v3 reCAPTCHA
@@ -635,62 +640,83 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               
               const grecaptcha = (window as any).grecaptcha;
               
-              // Try multiple times with delays - v3 might load slowly
-              for (let attempt = 0; attempt < 3; attempt++) {
-                if (grecaptcha && typeof grecaptcha.execute === 'function') {
-                  console.log(`[OnboardingFlow] Attempting reCAPTCHA v3 execution (attempt ${attempt + 1})...`);
-                  try {
-                    // Strategy 1: Try ready() callback
-                    if (typeof grecaptcha.ready === 'function') {
-                      enterpriseToken = await new Promise<string | null>((resolve) => {
-                        const timeout = setTimeout(() => {
-                          resolve(null); // Timeout - try direct execute
-                        }, 2000);
-                        
-                        grecaptcha.ready(async () => {
-                          clearTimeout(timeout);
-                          try {
-                            const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
-                              action: 'ACCOUNT_CREATION'
-                            });
-                            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained');
-                            resolve(token);
-                          } catch (error) {
-                            console.warn('[OnboardingFlow] v3 ready() execution failed:', error);
-                            resolve(null);
+              // In development, skip reCAPTCHA if it's not working (graceful degradation)
+              if (!grecaptcha || typeof grecaptcha.execute !== 'function') {
+                if (isDevelopment) {
+                  console.log('[OnboardingFlow] reCAPTCHA not available in development, continuing without verification');
+                } else {
+                  console.warn('[OnboardingFlow] reCAPTCHA not loaded - this may be a configuration issue');
+                }
+              } else {
+                // Try multiple times with delays - v3 might load slowly
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  if (grecaptcha && typeof grecaptcha.execute === 'function') {
+                    try {
+                      // Strategy 1: Try ready() callback
+                      if (typeof grecaptcha.ready === 'function') {
+                        enterpriseToken = await new Promise<string | null>((resolve) => {
+                          const timeout = setTimeout(() => {
+                            resolve(null); // Timeout - try direct execute
+                          }, 2000);
+                          
+                          grecaptcha.ready(async () => {
+                            clearTimeout(timeout);
+                            try {
+                              const token = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
+                                action: 'ACCOUNT_CREATION'
+                              });
+                              if (!isDevelopment) {
+                                console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained');
+                              }
+                              resolve(token);
+                            } catch (error: any) {
+                              // In development, silently fail
+                              if (!isDevelopment) {
+                                console.warn('[OnboardingFlow] v3 ready() execution failed:', error?.message || error);
+                              }
+                              resolve(null);
+                            }
+                          });
+                        });
+                      }
+                      
+                      // Strategy 2: Direct execute if ready() didn't work or doesn't exist
+                      if (!enterpriseToken) {
+                        try {
+                          enterpriseToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
+                            action: 'ACCOUNT_CREATION'
+                          });
+                          if (!isDevelopment) {
+                            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained (direct)');
                           }
-                        });
-                      });
-                    }
-                    
-                    // Strategy 2: Direct execute if ready() didn't work or doesn't exist
-                    if (!enterpriseToken) {
-                      try {
-                        enterpriseToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
-                          action: 'ACCOUNT_CREATION'
-                        });
-                        console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained (direct)');
-                      } catch (error) {
-                        console.warn('[OnboardingFlow] Direct execute failed:', error);
+                        } catch (error: any) {
+                          // In development, silently fail
+                          if (!isDevelopment && error?.message && !error.message.includes('Invalid site key')) {
+                            console.warn('[OnboardingFlow] Direct execute failed:', error?.message || error);
+                          }
+                        }
+                      }
+                      
+                      if (enterpriseToken) {
+                        setRecaptchaToken(enterpriseToken);
+                        break; // Success!
+                      }
+                    } catch (error: any) {
+                      // In development, silently fail
+                      if (!isDevelopment) {
+                        console.warn(`[OnboardingFlow] v3 attempt ${attempt + 1} failed:`, error?.message || error);
                       }
                     }
-                    
-                    if (enterpriseToken) {
-                      setRecaptchaToken(enterpriseToken);
-                      break; // Success!
-                    }
-                  } catch (error: any) {
-                    console.warn(`[OnboardingFlow] v3 attempt ${attempt + 1} failed:`, error?.message || error);
                   }
-                }
-                
-                // Wait before next attempt
-                if (!enterpriseToken && attempt < 2) {
-                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
+                  // Wait before next attempt
+                  if (!enterpriseToken && attempt < 2) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  }
                 }
               }
               
-              if (!enterpriseToken) {
+              if (!enterpriseToken && !isDevelopment) {
                 console.warn('[OnboardingFlow] Could not obtain reCAPTCHA token after all attempts');
                 console.warn('[OnboardingFlow] Check:');
                 console.warn('  1. Script loaded? Check Network tab for recaptcha/api.js');
@@ -700,11 +726,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               }
             }
         } catch (error: any) {
-          console.warn('[OnboardingFlow] Enterprise execution error:', error?.message || error);
+          // In development, silently fail
+          if (!isDevelopment) {
+            console.warn('[OnboardingFlow] Enterprise execution error:', error?.message || error);
+          }
           // Continue without token - backend will handle gracefully
         }
       } else {
-        console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
+        if (!isDevelopment) {
+          console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
+        }
       }
 
       // Validate account creation with reCAPTCHA Enterprise token (if validation function exists)
@@ -730,11 +761,31 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
         // If function doesn't exist (404), skip validation gracefully
         if (validationResponse.status === 404) {
-          console.warn('[OnboardingFlow] Validation function not found, skipping backend validation');
-          // If reCAPTCHA is configured and we have a token, log warning but continue
-          // The token will still be validated if there's a database trigger
-          if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
-            console.warn('[OnboardingFlow] reCAPTCHA token missing but validation function unavailable');
+          if (!isDevelopment) {
+            console.warn('[OnboardingFlow] Validation function not found, skipping backend validation');
+          }
+          // Continue without validation - function may not be deployed yet
+        } else if (validationResponse.status === 400) {
+          // Parse 400 errors - might be missing reCAPTCHA token in production
+          const errorData = await validationResponse.json().catch(() => ({}));
+          const errorMessage = errorData.reason || errorData.error || 'Account validation failed';
+          
+          // In development, if it's a reCAPTCHA error, allow it to proceed
+          if (isDevelopment && (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification'))) {
+            // Silently continue in development - reCAPTCHA may not be configured
+          } else {
+            // In production, show error
+            toast({
+              title: "Validation failed",
+              description: errorMessage,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            // Reset Enterprise token if verification failed
+            if (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification')) {
+              setRecaptchaToken(null);
+            }
+            return;
           }
         } else if (!validationResponse.ok) {
           // For other errors, try to parse error message
@@ -795,12 +846,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
       } catch (validationError: any) {
         // Network errors or other exceptions - log but allow graceful degradation
-        console.warn('[OnboardingFlow] Account validation error:', validationError.message);
+        // In development, silently continue
+        if (!isDevelopment) {
+          console.warn('[OnboardingFlow] Account validation error:', validationError.message);
+        }
         
         // Only block if reCAPTCHA is required and we're in production
         // In development, allow graceful degradation
-        const isDevelopment = typeof window !== 'undefined' && 
-          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
         
         if (!isDevelopment && RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
           toast({

@@ -56,7 +56,7 @@ export const AuthenticatedLayout = () => {
     >
       <AuthGuard>
         <AudioPlayerProvider>
-          <div className="pb-20 md:pb-4" key={location.pathname}>
+          <div className="pb-20 md:pb-4 w-full max-w-full overflow-x-hidden" key={location.pathname}>
             <Outlet />
           </div>
           <MiniPlayer />

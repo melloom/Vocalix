@@ -630,6 +630,10 @@ body.theme-midnight * {
     height: 100%;
     background-color: hsl(30 40% 97%);
     @apply bg-background;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
   }
 
   body {
@@ -639,6 +643,10 @@ body.theme-midnight * {
     min-height: 100%;
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
     /* Performance optimization for theme switching */
     will-change: background-color, color;
   }
@@ -968,6 +976,65 @@ body.theme-midnight * {
 
   /* Mobile optimizations */
   @media (max-width: 768px) {
+    /* Prevent horizontal scrolling */
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+      position: relative;
+    }
+
+    /* Fix header overflow on mobile */
+    header {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Fix bottom navigation overflow */
+    nav[class*="fixed bottom-0"] {
+      max-width: 100vw;
+      overflow-x: hidden;
+      left: 0;
+      right: 0;
+    }
+
+    /* Ensure viewport units work correctly */
+    #root {
+      width: 100vw;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Ensure all containers respect viewport width */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Prevent specific elements from overflowing */
+    div, section, article, main, header, footer, aside {
+      max-width: 100%;
+    }
+
+    /* Prevent elements from overflowing */
+    img, video, iframe, embed, object {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Fix table overflow */
+    table {
+      width: 100%;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+
+    /* Ensure containers don't exceed viewport */
+    .container, [class*="max-w-"] {
+      max-width: 100vw;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
     /* Reduce animations on mobile for better performance */
     .hover-lift:hover {
       transform: none;
@@ -1012,6 +1079,26 @@ body.theme-midnight * {
     textarea,
     select {
       font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    /* Fix padding on mobile - ensure content doesn't touch edges */
+    main:not([class*="px-"]):not([class*="p-"]), 
+    section:not([class*="px-"]):not([class*="p-"]), 
+    article:not([class*="px-"]):not([class*="p-"]) {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    /* Ensure text doesn't overflow */
+    p, span, div, h1, h2, h3, h4, h5, h6 {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* Fix long words and URLs */
+    a {
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
   }
 

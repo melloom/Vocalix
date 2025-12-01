@@ -253,8 +253,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
         
         // Track device activity on successful requests (non-blocking)
         // Use native fetch to avoid circular dependency
-        // Note: This will show 404 errors in console if migrations haven't been run yet
-        // These errors are harmless and will disappear once update_device_activity function is deployed
+        // Silently handle 404s - function may not exist yet (migrations not run)
         if (deviceId && response.ok && !urlString.includes("/storage/")) {
           // Update device activity with session management in background (fire-and-forget)
           // Try new session-aware function first, fall back to old function for backward compatibility
@@ -262,15 +261,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
             p_device_id: deviceId,
             p_user_agent: getUserAgent(),
             p_auto_refresh_session: true,
-          }).catch(() => {
+          }).catch((err) => {
+            // Silently ignore 404s - function may not exist
+            if (err?.message?.includes("404") || err?.message?.includes("not found") || err?.message?.includes("does not exist")) {
+              return; // Silently ignore
+            }
             // Fall back to old function if new one doesn't exist
             callRpcNative("update_device_activity", {
               p_device_id: deviceId,
               p_user_agent: getUserAgent(),
-            }).catch((err) => {
-              // Only log if it's not a "function doesn't exist" error
-              if (err?.message && !err.message.includes("does not exist") && !err.message.includes("not found")) {
-                console.warn("Failed to update device activity:", err);
+            }).catch((fallbackErr) => {
+              // Silently ignore 404s and "not found" errors
+              if (fallbackErr?.message?.includes("404") || 
+                  fallbackErr?.message?.includes("not found") || 
+                  fallbackErr?.message?.includes("does not exist")) {
+                return; // Silently ignore
+              }
+              // Only log other errors
+              if (fallbackErr?.message) {
+                console.warn("Failed to update device activity:", fallbackErr);
               }
             });
           });

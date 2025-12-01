@@ -259,18 +259,31 @@ serve(async (req) => {
     }
 
     // Verify reCAPTCHA Enterprise token if configured
+    // In development (localhost), allow requests without reCAPTCHA token
+    const isDevelopment = req.headers.get("host")?.includes("localhost") || 
+                         req.headers.get("host")?.includes("127.0.0.1") ||
+                         req.headers.get("origin")?.includes("localhost") ||
+                         req.headers.get("origin")?.includes("127.0.0.1");
+    
     if (RECAPTCHA_API_KEY && RECAPTCHA_PROJECT_ID && RECAPTCHA_SITE_KEY) {
       if (!recaptcha_token || recaptcha_token.trim().length === 0) {
-        return new Response(
-          JSON.stringify({
-            allowed: false,
-            reason: "reCAPTCHA verification is required",
-          }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "content-type": "application/json" },
-          }
-        );
+        // In development, allow without reCAPTCHA token
+        if (isDevelopment) {
+          console.log("[validate-account-creation] Development mode: Allowing request without reCAPTCHA token");
+          // Continue without reCAPTCHA verification in development
+        } else {
+          // In production, require reCAPTCHA token
+          return new Response(
+            JSON.stringify({
+              allowed: false,
+              reason: "reCAPTCHA verification is required",
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, "content-type": "application/json" },
+            }
+          );
+        }
       }
 
       // Verify token with reCAPTCHA Enterprise Assessment API

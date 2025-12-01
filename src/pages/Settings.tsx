@@ -176,6 +176,12 @@ const Settings = () => {
   const [pinLinkingEnabled, setPinLinkingEnabled] = useState(true); // Toggle for PIN linking
   const [phoneQRCodeUrl, setPhoneQRCodeUrl] = useState<string | null>(null);
   const [isGeneratingPhoneQR, setIsGeneratingPhoneQR] = useState(false);
+  const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmNewPin, setConfirmNewPin] = useState("");
+  const [isSavingPin, setIsSavingPin] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [isPrivateAccount, setIsPrivateAccount] = useState(false);
   const [hideFromSearch, setHideFromSearch] = useState(false);
   const [hideFromDiscovery, setHideFromDiscovery] = useState(false);
@@ -2355,6 +2361,34 @@ const Settings = () => {
                   </>
                 )}
               </div>
+              
+              {/* Personal Login PIN */}
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Key className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Personal Login PIN</p>
+                    <p className="text-xs text-muted-foreground">
+                      Choose a PIN you can use with your handle to log in on any device
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => {
+                    setPinError(null);
+                    setCurrentPin("");
+                    setNewPin("");
+                    setConfirmNewPin("");
+                    setIsPinDialogOpen(true);
+                  }}
+                >
+                  Set / Change PIN
+                </Button>
+              </div>
             </div>
 
             {/* QR Code Display - Show right after buttons */}
@@ -2918,6 +2952,137 @@ const Settings = () => {
           </Card>
           </section>
         </TabsContent>
+
+        {/* Personal Login PIN Dialog */}
+        <AlertDialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
+          <AlertDialogContent className="rounded-3xl max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Set your login PIN</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4 pt-1">
+                  <p className="text-sm text-muted-foreground">
+                    This PIN lets you log in with your Echo Garden name on any device. It&apos;s
+                    separate from the one-time device linking PIN above.
+                  </p>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Current PIN (leave blank if you&apos;ve never set one)
+                      </p>
+                      <Input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={currentPin}
+                        onChange={(e) => setCurrentPin(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="••••"
+                        className="rounded-2xl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        New PIN (4–8 digits)
+                      </p>
+                      <Input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={newPin}
+                        onChange={(e) => setNewPin(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="Choose a PIN"
+                        className="rounded-2xl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Confirm new PIN
+                      </p>
+                      <Input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={8}
+                        value={confirmNewPin}
+                        onChange={(e) => setConfirmNewPin(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="Repeat your PIN"
+                        className="rounded-2xl"
+                      />
+                    </div>
+                  </div>
+                  {pinError && (
+                    <div className="rounded-2xl bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+                      {pinError}
+                    </div>
+                  )}
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel
+                className="rounded-2xl"
+                onClick={() => {
+                  if (isSavingPin) return;
+                  setIsPinDialogOpen(false);
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="rounded-2xl"
+                disabled={isSavingPin}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if (isSavingPin) return;
+                  setPinError(null);
+
+                  if (!newPin || newPin.length < 4 || newPin.length > 8) {
+                    setPinError("PIN must be 4–8 digits.");
+                    return;
+                  }
+                  if (newPin !== confirmNewPin) {
+                    setPinError("New PIN and confirmation do not match.");
+                    return;
+                  }
+
+                  setIsSavingPin(true);
+                  try {
+                    // @ts-ignore - RPC defined in migrations but not in generated types
+                    const { data, error } = await (supabase.rpc as any)("set_login_pin", {
+                      p_current_pin: currentPin || null,
+                      p_new_pin: newPin,
+                    });
+
+                    if (error) {
+                      console.error("set_login_pin error", error);
+                      throw error;
+                    }
+
+                    const result = Array.isArray(data) ? data[0] : null;
+                    if (!result?.success) {
+                      setPinError(result?.message || "Could not update your PIN. Please try again.");
+                      return;
+                    }
+
+                    toast({
+                      title: "Login PIN updated",
+                      description:
+                        "You can now log in with your handle and this PIN on any device via the Login with PIN page.",
+                    });
+                    setIsPinDialogOpen(false);
+                  } catch (err: any) {
+                    console.error("Failed to set login PIN", err);
+                    setPinError(
+                      err?.message || "Something went wrong while saving your PIN. Please try again."
+                    );
+                  } finally {
+                    setIsSavingPin(false);
+                  }
+                }}
+              >
+                {isSavingPin ? "Saving…" : "Save PIN"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <TabsContent value="security" className="space-y-8 mt-6">
           {/* Device Activity Section */}

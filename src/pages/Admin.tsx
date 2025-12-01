@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle } from "lucide-react";
+import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -222,6 +222,18 @@ interface ModerationStatistics {
   items_by_workflow_state: Record<string, number>;
 }
 
+interface SpotlightQuestionRow {
+  id: string;
+  date: string;
+  question: string;
+  topic_id: string | null;
+  topic_title: string | null;
+  topic_description: string | null;
+  generated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const mapClip = (clip: RawClip): ClipForCard => ({
   id: clip.id,
   profile_id: clip.profile_id,
@@ -354,6 +366,13 @@ const Admin = () => {
   const [selectedSecurityMetric, setSelectedSecurityMetric] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Garden Spotlight admin controls
+  const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestionRow | null>(null);
+  const [isLoadingSpotlight, setIsLoadingSpotlight] = useState(false);
+  const [manualQuestion, setManualQuestion] = useState("");
+  const [isUpdatingSpotlight, setIsUpdatingSpotlight] = useState(false);
+  const [isGeneratingSpotlight, setIsGeneratingSpotlight] = useState(false);
+
   const applyQueues = useCallback((payload?: ModerationPayload | null) => {
     const { flags, reports } = mapQueues(payload);
     setFlaggedClips(flags);
@@ -477,6 +496,166 @@ const Admin = () => {
       console.error("Error loading moderation statistics:", error);
     }
   }, []);
+
+  // Load today's spotlight question for admins
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const loadSpotlightQuestion = async () => {
+      setIsLoadingSpotlight(true);
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data, error } = await supabase
+          .from("daily_spotlight_questions")
+          .select("*")
+          .eq("date", today)
+          .maybeSingle();
+
+        if (error && (error as any).code !== "PGRST116") {
+          console.error("Error loading spotlight question:", error);
+          toast({
+            title: "Garden Spotlight",
+            description: "Could not load today's spotlight question.",
+            variant: "destructive",
+          });
+        } else if (data) {
+          setSpotlightQuestion(data as SpotlightQuestionRow);
+          setManualQuestion((data as SpotlightQuestionRow).question ?? "");
+        } else {
+          setSpotlightQuestion(null);
+          setManualQuestion("");
+        }
+      } catch (error) {
+        console.error("Error loading spotlight question:", error);
+      } finally {
+        setIsLoadingSpotlight(false);
+      }
+    };
+
+    loadSpotlightQuestion();
+  }, [isAdmin, toast]);
+
+  const handleUpdateSpotlightQuestion = useCallback(async () => {
+    if (!isAdmin) return;
+    const trimmed = manualQuestion.trim();
+    if (trimmed.length < 5) {
+      toast({
+        title: "Garden Spotlight",
+        description: "Please enter a question at least 5 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUpdatingSpotlight(true);
+    try {
+      const deviceId = localStorage.getItem("deviceId") || undefined;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (deviceId) {
+        headers["x-device-id"] = deviceId;
+      }
+
+      const { data, error } = await supabase.functions.invoke("admin-spotlight-question", {
+        method: "POST",
+        headers,
+        body: {
+          question: trimmed,
+          topic_id: spotlightQuestion?.topic_id ?? null,
+          topic_title: spotlightQuestion?.topic_title ?? null,
+          topic_description: spotlightQuestion?.topic_description ?? null,
+        },
+      });
+
+      if (error) {
+        console.error("Error updating spotlight question via function:", error);
+        toast({
+          title: "Garden Spotlight",
+          description: "Could not update today's spotlight question.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updated = (data as any)?.question as SpotlightQuestionRow | undefined;
+      if (updated) {
+        setSpotlightQuestion(updated);
+        toast({
+          title: "Garden Spotlight updated",
+          description: "Today's Garden Spotlight question was updated for everyone.",
+        });
+      } else {
+        toast({
+          title: "Garden Spotlight",
+          description: "Spotlight question updated, but no data was returned.",
+        });
+      }
+    } catch (error) {
+      console.error("Unexpected error updating spotlight question:", error);
+      toast({
+        title: "Garden Spotlight",
+        description: "Something went wrong while updating today's question.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingSpotlight(false);
+    }
+  }, [isAdmin, manualQuestion, spotlightQuestion, toast]);
+
+  const handleGenerateSpotlightNow = useCallback(async () => {
+    if (!isAdmin) return;
+    setIsGeneratingSpotlight(true);
+    try {
+      // Trigger the daily-spotlight-question edge function to generate (or reuse) today's AI question
+      const { data, error } = await supabase.functions.invoke("daily-spotlight-question", {
+        body: {},
+      });
+
+      if (error) {
+        console.error("Error invoking daily-spotlight-question:", error);
+        toast({
+          title: "Garden Spotlight",
+          description: "Could not generate a new AI question.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // After generation, reload today's spotlight question from the table
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: fresh, error: freshError } = await supabase
+          .from("daily_spotlight_questions")
+          .select("*")
+          .eq("date", today)
+          .maybeSingle();
+
+        if (freshError && (freshError as any).code !== "PGRST116") {
+          console.error("Error reloading spotlight question after generation:", freshError);
+        } else if (fresh) {
+          setSpotlightQuestion(fresh as SpotlightQuestionRow);
+          setManualQuestion((fresh as SpotlightQuestionRow).question ?? "");
+        }
+      } catch (reloadError) {
+        console.error("Error reloading spotlight question after generation:", reloadError);
+      }
+
+      toast({
+        title: "AI question generated",
+        description: "A fresh AI-generated Garden Spotlight question has been created for today.",
+      });
+    } catch (error) {
+      console.error("Unexpected error generating spotlight question:", error);
+      toast({
+        title: "Garden Spotlight",
+        description: "Something went wrong while generating a new AI question.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSpotlight(false);
+    }
+  }, [isAdmin, toast]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -1566,7 +1745,7 @@ const Admin = () => {
             loadSecurityDevices(securityFilter);
           }
         }} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-7 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">
               <FileText className="w-4 h-4 mr-2" />
               Moderation
@@ -1590,6 +1769,10 @@ const Admin = () => {
             <TabsTrigger value="stats" className="rounded-2xl">
               <BarChart3 className="w-4 h-4 mr-2" />
               Stats
+            </TabsTrigger>
+            <TabsTrigger value="spotlight" className="rounded-2xl">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Spotlight
             </TabsTrigger>
           </TabsList>
 
@@ -3976,6 +4159,97 @@ const Admin = () => {
             ) : (
               <Card className="p-6 rounded-2xl text-center">Loading stats...</Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="spotlight" className="space-y-6">
+            <section className="space-y-4">
+              <Card className="p-4 md:p-6 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-primary" />
+                      Garden Spotlight
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Manually set or adjust today&apos;s Garden Spotlight question. This controls what appears on the home
+                      screen card.
+                    </p>
+                  </div>
+                </div>
+
+                {!isAdmin && (
+                  <p className="text-sm text-destructive">
+                    You don&apos;t have admin permissions to change the Garden Spotlight.
+                  </p>
+                )}
+
+                {isAdmin && (
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Today&apos;s question
+                      </p>
+                      {isLoadingSpotlight ? (
+                        <p className="text-sm text-muted-foreground">Loading current question…</p>
+                      ) : spotlightQuestion ? (
+                        <div className="rounded-2xl border bg-muted/60 p-3 space-y-1 text-sm">
+                          {spotlightQuestion.topic_title && (
+                            <p className="text-xs text-muted-foreground">
+                              Topic: <span className="font-medium">{spotlightQuestion.topic_title}</span>
+                            </p>
+                          )}
+                          <p className="font-medium">{spotlightQuestion.question}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Source: {spotlightQuestion.generated_by || "unknown"} · Last updated{" "}
+                            {new Date(spotlightQuestion.updated_at).toLocaleString()}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No question has been generated yet for today. You can create one manually below.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Set custom question for today</label>
+                      <Textarea
+                        value={manualQuestion}
+                        onChange={(e) => setManualQuestion(e.target.value)}
+                        placeholder="What brightened your day?"
+                        rows={3}
+                        className="resize-none rounded-2xl"
+                        disabled={isUpdatingSpotlight}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This will immediately replace the current Garden Spotlight question for everyone. The automatic
+                        rotation still runs nightly to create a fresh question for tomorrow.
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between gap-2 flex-wrap">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleGenerateSpotlightNow}
+                        disabled={isGeneratingSpotlight}
+                        className="rounded-2xl"
+                      >
+                        {isGeneratingSpotlight ? "Generating…" : "Generate new AI question for today"}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleUpdateSpotlightQuestion}
+                        disabled={isUpdatingSpotlight}
+                        className="rounded-2xl"
+                      >
+                        {isUpdatingSpotlight ? "Updating…" : "Save today’s question"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </section>
           </TabsContent>
         </Tabs>
       </main>

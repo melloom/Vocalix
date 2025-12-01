@@ -10,29 +10,22 @@ SECURITY DEFINER
 AS $$
 DECLARE
   supabase_url TEXT;
-  service_role_key TEXT;
   request_id BIGINT;
 BEGIN
-  -- Get environment variables (set in Supabase Dashboard → Settings → Edge Functions)
+  -- Try to read Supabase URL from settings if available, otherwise fall back to hardcoded project URL
   supabase_url := current_setting('app.settings.supabase_url', true);
-  service_role_key := current_setting('app.settings.service_role_key', true);
-  
-  -- Fallback to hardcoded values if not set (replace with your actual values)
   IF supabase_url IS NULL THEN
+    -- Fallback to your project URL
     supabase_url := 'https://xgblxtopsapvacyaurcr.supabase.co';
   END IF;
-  
-  IF service_role_key IS NULL THEN
-    RAISE EXCEPTION 'Service role key not configured. Please set app.settings.service_role_key';
-  END IF;
 
-  -- Call the daily-spotlight-question edge function using pg_net (if available)
+  -- Call the daily-spotlight-question edge function using pg_net (no auth header required;
+  -- the function uses its own service role key from environment)
   BEGIN
     SELECT net.http_post(
       url := supabase_url || '/functions/v1/daily-spotlight-question',
       headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || service_role_key
+        'Content-Type', 'application/json'
       ),
       body := '{}'::jsonb
     ) INTO request_id;
