@@ -164,11 +164,13 @@ function chooseFallbackQuestion(usedQuestions: Set<string>): string {
   return availableQuestions[index];
 }
 
-const handler = async () => {
+const handler = async (req?: Request) => {
   const today = formatISODate(new Date());
   console.log(`[daily-spotlight-question] Processing spotlight question for ${today}`);
 
   try {
+    // This function can be called from cron (no auth) or from frontend (with auth)
+    // Both should work fine since we use service role key internally
     // Check if question for today already exists
     const { data: existingToday, error: todayError } = await supabase
       .from("daily_spotlight_questions")
@@ -219,7 +221,7 @@ const handler = async () => {
     const usedQuestions = new Set(recentQuestionTexts.map((q) => q.toLowerCase().trim()));
 
     // Try to generate question with AI
-    let generated = null;
+    let generated: string | null = null;
     let source = "fallback";
     
     try {
@@ -285,26 +287,51 @@ const handler = async () => {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-device-id, x-user-agent, x-session-token-hash",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { 
+      headers: {
+        ...corsHeaders,
+        "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
+      },
+    });
   }
 
   try {
-    const response = await handler();
+    // Call handler - can be called from cron (no auth needed) or frontend
+    const response = await handler(req);
     return new Response(JSON.stringify(response), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("[daily-spotlight-question] Handler error:", error);
+    console.error("[daily-spotlight-question] Error details:", error instanceof Error ? error.message : String(error));
+    console.error("[daily-spotlight-question] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+    
     logErrorSafely("daily-spotlight-question", error);
+    
     const isDevelopment = Deno.env.get("ENVIRONMENT") === "development";
-    const errorResponse = createErrorResponse(error, 500, isDevelopment);
-    return new Response(errorResponse.body, {
-      ...errorResponse,
-      headers: { ...corsHeaders, ...errorResponse.headers },
+    
+    // Create error response directly with proper JSON
+    const errorMessage = isDevelopment 
+      ? (error instanceof Error ? error.message : String(error))
+      : "Failed to generate spotlight question. Please try again later.";
+    
+    const errorBody = JSON.stringify({
+      error: "Internal server error",
+      message: errorMessage,
+      ...(isDevelopment && error instanceof Error ? { details: error.stack } : {}),
+    });
+    
+    return new Response(errorBody, {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

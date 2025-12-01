@@ -376,10 +376,12 @@ const Admin = () => {
   // Cron Jobs state
   const [cronJobs, setCronJobs] = useState<any[]>([]);
   const [cronJobsLoading, setCronJobsLoading] = useState(false);
+  const [cronJobsError, setCronJobsError] = useState<string | null>(null);
   const [cronJobHistory, setCronJobHistory] = useState<Record<string, any[]>>({});
   const [selectedCronJob, setSelectedCronJob] = useState<string | null>(null);
   const [testingJob, setTestingJob] = useState<string | null>(null);
   const [deletingJobHistory, setDeletingJobHistory] = useState<string | null>(null);
+  const [jobRunResults, setJobRunResults] = useState<Record<string, { success: boolean; message: string; timestamp: Date }>>({});
 
   const applyQueues = useCallback((payload?: ModerationPayload | null) => {
     const { flags, reports } = mapQueues(payload);
@@ -438,19 +440,23 @@ const Admin = () => {
   // Cron Jobs Management Functions
   const loadCronJobs = useCallback(async () => {
     setCronJobsLoading(true);
+    setCronJobsError(null);
     try {
-      const { data, error } = await supabase.rpc("get_all_cron_jobs");
+      const { data, error } = await (supabase.rpc as any)("get_all_cron_jobs");
 
       if (error) {
         throw error;
       }
 
-      setCronJobs(data || []);
+      setCronJobs(Array.isArray(data) ? data : []);
+      setCronJobsError(null);
     } catch (error) {
       console.error("Error loading cron jobs:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to load cron jobs. The RPC function 'get_all_cron_jobs' may not exist or pg_cron extension may not be enabled.";
+      setCronJobsError(errorMessage);
       toast({
         title: "Failed to load cron jobs",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -460,7 +466,7 @@ const Admin = () => {
 
   const loadCronJobHistory = useCallback(async (jobName: string, jobId?: number) => {
     try {
-      const { data, error } = await supabase.rpc("get_cron_job_history", {
+      const { data, error } = await (supabase.rpc as any)("get_cron_job_history", {
         p_job_id: jobId || null,
         p_limit: 50,
       });
@@ -471,7 +477,7 @@ const Admin = () => {
 
       setCronJobHistory((prev) => ({
         ...prev,
-        [jobName]: data || [],
+        [jobName]: Array.isArray(data) ? data : [],
       }));
     } catch (error) {
       console.error("Error loading cron job history:", error);
@@ -486,7 +492,7 @@ const Admin = () => {
   const testCronJob = useCallback(async (jobName: string) => {
     setTestingJob(jobName);
     try {
-      const { data, error } = await supabase.rpc("run_cron_job_manual", {
+      const { data, error } = await (supabase.rpc as any)("run_cron_job_manual", {
         p_job_name: jobName,
       });
 
@@ -494,11 +500,22 @@ const Admin = () => {
         throw error;
       }
 
-      if (data && data.length > 0) {
-        const result = data[0];
+      if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as any;
+        const runResult = {
+          success: result.success,
+          message: result.message || (result.success ? "Job started successfully" : "Job failed to start"),
+          timestamp: new Date(),
+        };
+        
+        setJobRunResults((prev) => ({
+          ...prev,
+          [jobName]: runResult,
+        }));
+
         if (result.success) {
           toast({
-            title: "Job triggered successfully",
+            title: "✅ Job triggered successfully",
             description: result.message,
           });
           // Reload history after a delay
@@ -507,13 +524,22 @@ const Admin = () => {
           }, 2000);
         } else {
           toast({
-            title: "Failed to trigger job",
+            title: "❌ Failed to trigger job",
             description: result.message,
             variant: "destructive",
           });
         }
       }
     } catch (error) {
+      const errorResult = {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error occurred",
+        timestamp: new Date(),
+      };
+      setJobRunResults((prev) => ({
+        ...prev,
+        [jobName]: errorResult,
+      }));
       console.error("Error testing cron job:", error);
       toast({
         title: "Failed to test cron job",
@@ -527,7 +553,7 @@ const Admin = () => {
 
   const downloadCronJobReport = useCallback(async (jobName: string) => {
     try {
-      const { data, error } = await supabase.rpc("export_cron_job_report", {
+      const { data, error } = await (supabase.rpc as any)("export_cron_job_report", {
         p_job_name: jobName,
         p_start_date: null,
         p_end_date: null,
@@ -538,17 +564,18 @@ const Admin = () => {
         throw error;
       }
 
-      if (data && !data.success) {
+      const reportData = data as any;
+      if (reportData && !reportData.success) {
         toast({
           title: "Failed to generate report",
-          description: data.message || "Please try again.",
+          description: reportData.message || "Please try again.",
           variant: "destructive",
         });
         return;
       }
 
       // Download as JSON file
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -574,7 +601,7 @@ const Admin = () => {
 
   const deleteCronJobHistory = useCallback(async (jobName: string, olderThanDays?: number) => {
     try {
-      const { data, error } = await supabase.rpc("delete_cron_job_history", {
+      const { data, error } = await (supabase.rpc as any)("delete_cron_job_history", {
         p_job_name: jobName,
         p_older_than_days: olderThanDays || null,
       });
@@ -583,8 +610,8 @@ const Admin = () => {
         throw error;
       }
 
-      if (data && data.length > 0) {
-        const result = data[0];
+      if (data && Array.isArray(data) && data.length > 0) {
+        const result = data[0] as any;
         if (result.success) {
           toast({
             title: "History deleted",
@@ -4440,6 +4467,369 @@ const Admin = () => {
                 )}
               </Card>
             </section>
+          </TabsContent>
+
+          <TabsContent value="cron" className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">Cron Jobs Management</h2>
+                <p className="text-sm text-muted-foreground">
+                  View, test, and manage scheduled cron jobs
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => loadCronJobs()}
+                disabled={cronJobsLoading}
+                className="rounded-2xl"
+              >
+                {cronJobsLoading ? "Refreshing…" : "Refresh"}
+              </Button>
+            </div>
+
+            {cronJobsLoading ? (
+              <Card className="p-6 rounded-2xl text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <span>Loading cron jobs...</span>
+                </div>
+              </Card>
+            ) : cronJobsError ? (
+              <Card className="p-6 rounded-2xl border-destructive/50 bg-destructive/10">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-destructive mb-2">Error Loading Cron Jobs</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{cronJobsError}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadCronJobs()}
+                      className="rounded-2xl"
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ) : cronJobs.length === 0 ? (
+              <Card className="p-6 rounded-2xl text-center text-muted-foreground">
+                <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-medium mb-1">No cron jobs found</p>
+                <p className="text-sm">Make sure pg_cron extension is enabled in your Supabase database.</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {cronJobs.map((job) => {
+                  const runResult = jobRunResults[job.jobname];
+                  const hasHistory = cronJobHistory[job.jobname] && cronJobHistory[job.jobname].length > 0;
+                  const lastRun = hasHistory ? cronJobHistory[job.jobname][0] : null;
+                  
+                  return (
+                    <Card 
+                      key={job.jobid} 
+                      className={`p-6 rounded-2xl border-l-4 ${
+                        job.active 
+                          ? "border-l-green-500 bg-green-50/50 dark:bg-green-950/10" 
+                          : "border-l-gray-400 bg-gray-50/50 dark:bg-gray-950/10"
+                      }`}
+                    >
+                      {/* Header with Status */}
+                      <div className="flex items-start justify-between flex-wrap gap-4 mb-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-3">
+                            <h3 className="font-semibold text-lg truncate">{job.jobname}</h3>
+                            <Badge 
+                              variant={job.active ? "default" : "secondary"}
+                              className={job.active ? "bg-green-600 hover:bg-green-700" : ""}
+                            >
+                              {job.active ? "✅ Active" : "⏸️ Inactive"}
+                            </Badge>
+                            {lastRun && (
+                              <Badge 
+                                variant={lastRun.status === "succeeded" ? "default" : "destructive"}
+                                className="text-xs"
+                              >
+                                {lastRun.status === "succeeded" ? "✓ Last: Success" : "✗ Last: Failed"}
+                              </Badge>
+                            )}
+                            {runResult && (
+                              <Badge 
+                                variant={runResult.success ? "default" : "destructive"}
+                                className="text-xs animate-pulse"
+                              >
+                                {runResult.success ? "✓ Test: Success" : "✗ Test: Failed"}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Status Info */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                <span className="font-medium">Schedule:</span>
+                                <code className="text-xs bg-muted px-2 py-0.5 rounded">{job.schedule}</code>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Settings className="w-4 h-4 text-muted-foreground" />
+                                <span className="font-medium">Database:</span>
+                                <span className="text-muted-foreground">{job.database}</span>
+                              </div>
+                              {lastRun && (
+                                <div className="flex items-center gap-2">
+                                  <Activity className="w-4 h-4 text-muted-foreground" />
+                                  <span className="font-medium">Last Run:</span>
+                                  <span className="text-muted-foreground">
+                                    {new Date(lastRun.start_time).toLocaleString()}
+                                  </span>
+                                </div>
+                              )}
+                              {runResult && (
+                                <div className="flex items-center gap-2">
+                                  <Play className="w-4 h-4 text-muted-foreground" />
+                                  <span className="font-medium">Last Test:</span>
+                                  <span className="text-muted-foreground">
+                                    {runResult.timestamp.toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="break-all">
+                                <span className="font-medium text-xs text-muted-foreground">Command:</span>
+                                <code className="block text-xs bg-muted p-2 rounded mt-1 break-all">{job.command}</code>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Run Result Message */}
+                          {runResult && (
+                            <div className={`mt-3 p-3 rounded-lg ${
+                              runResult.success 
+                                ? "bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-800" 
+                                : "bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-800"
+                            }`}>
+                              <div className="flex items-start gap-2">
+                                {runResult.success ? (
+                                  <span className="text-green-600 dark:text-green-400">✓</span>
+                                ) : (
+                                  <span className="text-red-600 dark:text-red-400">✗</span>
+                                )}
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium">
+                                    {runResult.success ? "Test Run Successful" : "Test Run Failed"}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {runResult.message}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (selectedCronJob === job.jobname) {
+                                setSelectedCronJob(null);
+                              } else {
+                                setSelectedCronJob(job.jobname);
+                                loadCronJobHistory(job.jobname, job.jobid);
+                              }
+                            }}
+                            className="rounded-full"
+                          >
+                            <Activity className="w-4 h-4 mr-2" />
+                            {selectedCronJob === job.jobname ? "Hide" : "View"} History
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={job.active ? "default" : "secondary"}
+                            onClick={() => testCronJob(job.jobname)}
+                            disabled={testingJob === job.jobname || !job.active}
+                            className="rounded-full"
+                            title={!job.active ? "Cannot test inactive job" : "Manually trigger this job"}
+                          >
+                            <Play className="w-4 h-4 mr-2" />
+                            {testingJob === job.jobname ? "Running..." : "Test Run"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => downloadCronJobReport(job.jobname)}
+                            className="rounded-full"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Report
+                          </Button>
+                          <Dialog
+                            open={deletingJobHistory === job.jobname}
+                            onOpenChange={(open) => !open && setDeletingJobHistory(null)}
+                          >
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setDeletingJobHistory(job.jobname)}
+                              className="rounded-full"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete History
+                            </Button>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Delete Execution History</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to delete execution history for job "{job.jobname}"?
+                                  This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setDeletingJobHistory(null)}
+                                  className="rounded-2xl"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => deleteCronJobHistory(job.jobname)}
+                                  className="rounded-2xl"
+                                >
+                                  Delete All History
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </div>
+
+                      {/* Execution History */}
+                      {selectedCronJob === job.jobname && (
+                        <div className="mt-4 pt-4 border-t">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold">Execution History</h4>
+                            {hasHistory && (
+                              <Badge variant="outline">
+                                {cronJobHistory[job.jobname].length} execution{cronJobHistory[job.jobname].length !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </div>
+                          {cronJobHistory[job.jobname] ? (
+                            cronJobHistory[job.jobname].length === 0 ? (
+                              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                  No execution history available. This may require enabling execution logging in pg_cron.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {cronJobHistory[job.jobname].map((run: any) => (
+                                  <div
+                                    key={run.runid}
+                                    className={`p-3 rounded-lg border text-sm ${
+                                      run.status === "succeeded"
+                                        ? "bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-900"
+                                        : run.status === "failed"
+                                        ? "bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900"
+                                        : "bg-muted/50 border-border"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">
+                                          {run.start_time
+                                            ? new Date(run.start_time).toLocaleString()
+                                            : "N/A"}
+                                        </span>
+                                      </div>
+                                      <Badge
+                                        variant={
+                                          run.status === "succeeded"
+                                            ? "default"
+                                            : run.status === "failed"
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {run.status === "succeeded" ? "✓ Success" : run.status === "failed" ? "✗ Failed" : run.status || "unknown"}
+                                      </Badge>
+                                    </div>
+                                    {run.end_time && run.start_time && (
+                                      <div className="text-xs text-muted-foreground mb-1">
+                                        <Clock className="w-3 h-3 inline mr-1" />
+                                        Duration:{" "}
+                                        {Math.round(
+                                          (new Date(run.end_time).getTime() -
+                                            new Date(run.start_time).getTime()) /
+                                            1000
+                                        )}{" "}
+                                        seconds
+                                      </div>
+                                    )}
+                                    {run.return_message && (
+                                      <div className={`text-xs mt-2 p-2 rounded break-all ${
+                                        run.status === "succeeded"
+                                          ? "bg-green-100/50 dark:bg-green-900/20"
+                                          : run.status === "failed"
+                                          ? "bg-red-100/50 dark:bg-red-900/20"
+                                          : "bg-muted"
+                                      }`}>
+                                        <span className="font-medium">Result:</span> {run.return_message}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          ) : (
+                            <div className="p-4 rounded-lg bg-muted/50 text-center">
+                              <p className="text-sm text-muted-foreground">Loading history...</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Summary Stats */}
+            {cronJobs.length > 0 && (
+              <Card className="p-6 rounded-2xl">
+                <h3 className="font-semibold mb-4">Summary</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total Jobs</div>
+                    <div className="text-2xl font-bold">{cronJobs.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Active Jobs</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {cronJobs.filter((j) => j.active).length}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Inactive Jobs</div>
+                    <div className="text-2xl font-bold text-red-600">
+                      {cronJobs.filter((j) => !j.active).length}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Jobs with History</div>
+                    <div className="text-2xl font-bold">
+                      {Object.keys(cronJobHistory).length}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>
