@@ -62,10 +62,18 @@ const LoginLink = () => {
         
         if (error) {
           console.error("Preview magic login link error:", error);
-          // Check for specific error codes
-          if (error.code === "PGRST301" || error.message?.includes("not found") || error.message?.includes("does not exist")) {
-            setStatus("error");
-            setErrorMessage("This login link is invalid or the validation function is not available. Please request a new link from Settings.");
+          // If the preview function isn't available in PostgREST yet (404 / not found),
+          // fall back to directly redeeming the link instead of failing validation.
+          if (
+            error.code === "PGRST301" ||
+            (error as any)?.status === 404 ||
+            error.message?.includes("not found") ||
+            error.message?.includes("does not exist")
+          ) {
+            // Skip preview UI and try redeeming immediately
+            setStatus("redeeming");
+            setShowConfirmDialog(false);
+            await handleConfirmLink();
             return;
           }
           throw error;
