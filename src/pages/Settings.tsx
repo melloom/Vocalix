@@ -53,7 +53,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
-import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon, Key, Clock, Lock } from "lucide-react";
+import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon, Key, Clock, Lock, Activity } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -3194,44 +3194,53 @@ const Settings = () => {
           <Card className="p-6 rounded-3xl space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-4">
-                View and manage devices where you're logged in. You can revoke access from any device.
+                View and manage devices where you're logged in. See detailed information about each device including browser, operating system, location, and activity. You can revoke access from any device to sign it out immediately.
               </p>
               
               {/* Account Linking Info */}
-              <div className="mt-4 p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-xl bg-primary/10 flex-shrink-0">
-                    <LinkIcon className="h-5 w-5 text-primary" />
+              <div className="mt-4 p-5 rounded-3xl border-2 border-primary/20 bg-primary/5 space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-2xl bg-primary/15 flex-shrink-0">
+                    <LinkIcon className="h-6 w-6 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm mb-1">Account Linking</h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Link your account to multiple devices using magic login links. All linked devices will have access to the same account, including admin privileges if your account has them.
+                    <h3 className="font-semibold text-base mb-2">Account Linking</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Link your account to multiple devices using magic login links. All linked devices will have access to the same account, including admin privileges if your account has them. Perfect for accessing your account on your phone, tablet, and computer.
                     </p>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
-                        <p className="text-muted-foreground">
-                          <strong className="text-foreground">Current devices:</strong> {devices.filter(d => !d.is_revoked).length} device{devices.filter(d => !d.is_revoked).length !== 1 ? 's' : ''} linked to your account
-                        </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60">
+                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm text-foreground mb-0.5">Current devices</p>
+                          <p className="text-xs text-muted-foreground">
+                            {devices.filter(d => !d.is_revoked).length} device{devices.filter(d => !d.is_revoked).length !== 1 ? 's' : ''} linked to your account
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
-                        <p className="text-muted-foreground">
-                          <strong className="text-foreground">Link more devices:</strong> Go to the <strong className="text-foreground">Account</strong> tab and generate a magic login link
-                        </p>
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60">
+                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm text-foreground mb-0.5">Link more devices</p>
+                          <p className="text-xs text-muted-foreground">
+                            Go to the <strong className="text-foreground">Account</strong> tab to generate a magic login link
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
-                        <p className="text-muted-foreground">
-                          <strong className="text-foreground">Security:</strong> Revoke any device to sign it out immediately
-                        </p>
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60 sm:col-span-2">
+                        <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm text-foreground mb-0.5">Security</p>
+                          <p className="text-xs text-muted-foreground">
+                            Revoke any device to sign it out immediately. All devices show detailed information including browser, OS, location, and activity for your security.
+                          </p>
+                        </div>
                       </div>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-3 rounded-xl"
+                      className="rounded-xl"
                       onClick={() => {
                         // Switch to Account tab
                         const accountTab = document.querySelector('[value="account"]') as HTMLElement;
@@ -3313,13 +3322,22 @@ const Settings = () => {
             ) : (
               <div className="space-y-3">
                 {/* Show count and "Revoke All Others" if multiple devices */}
-                {devices.length > 1 && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/60">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm font-medium">
-                        {devices.length} {devices.length === 1 ? "device" : "devices"} active
-                      </p>
+                {devices.length > 0 && (
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/60">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Monitor className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {devices.filter(d => !d.is_revoked).length} {devices.filter(d => !d.is_revoked).length === 1 ? "device" : "devices"} active
+                        </p>
+                        {devices.length > devices.filter(d => !d.is_revoked).length && (
+                          <p className="text-xs text-muted-foreground">
+                            {devices.filter(d => d.is_revoked).length} revoked
+                          </p>
+                        )}
+                      </div>
                     </div>
                     {devices.filter(d => d.device_id !== deviceId && !d.is_revoked).length > 0 && (
                       <AlertDialog>
@@ -3394,24 +3412,48 @@ const Settings = () => {
                         year: "numeric",
                       })
                     : "Unknown";
+                  const lastSeenDate = device.last_seen_at
+                    ? new Date(device.last_seen_at).toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : null;
 
                   // Detect device type from user agent
                   const userAgent = device.user_agent || "";
                   let deviceType: "mobile" | "desktop" | "tablet" = "desktop";
                   let DeviceIcon = Monitor;
+                  let osName = "";
                   if (/mobile|android|iphone|ipod/i.test(userAgent)) {
                     deviceType = "mobile";
                     DeviceIcon = Smartphone;
+                    if (/iphone|ipod/i.test(userAgent)) osName = "iOS";
+                    else if (/android/i.test(userAgent)) {
+                      const androidMatch = userAgent.match(/Android ([0-9.]+)/i);
+                      osName = `Android${androidMatch ? ` ${androidMatch[1]}` : ""}`;
+                    }
                   } else if (/tablet|ipad/i.test(userAgent)) {
                     deviceType = "tablet";
                     DeviceIcon = Tablet;
+                    if (/ipad/i.test(userAgent)) osName = "iPadOS";
+                    else if (/android/i.test(userAgent)) osName = "Android";
+                  } else {
+                    if (/windows/i.test(userAgent)) osName = "Windows";
+                    else if (/macintosh|mac os/i.test(userAgent)) {
+                      const macMatch = userAgent.match(/Mac OS X ([0-9_]+)/i);
+                      osName = macMatch ? `macOS ${macMatch[1].replace(/_/g, ".")}` : "macOS";
+                    }
+                    else if (/linux/i.test(userAgent)) osName = "Linux";
+                    else if (/ubuntu/i.test(userAgent)) osName = "Ubuntu";
                   }
 
                   // Get browser name and version (improved detection)
                   let browserName = "Unknown Browser";
                   let browserVersion = "";
                   
-                  // Debug: log user agent to help diagnose issues
                   if (!userAgent || userAgent.trim() === "") {
                     console.warn("⚠️ Device has no user_agent stored:", {
                       device_id: device.device_id.slice(0, 8) + "...",
@@ -3420,8 +3462,6 @@ const Settings = () => {
                     });
                     browserName = "Unknown Browser";
                   } else {
-                    // Debug: log the user agent we're trying to parse
-                    console.log("✅ Parsing user agent:", userAgent.substring(0, 100));
                     const ua = userAgent.toLowerCase();
                     
                     // Check for Edge first (since it contains Chrome)
@@ -3484,7 +3524,7 @@ const Settings = () => {
 
                   // Format IP address (mask for privacy)
                   const formatIP = (ip: string | null) => {
-                    if (!ip) return "Unknown location";
+                    if (!ip) return null;
                     // For IPv4, show first two octets
                     if (ip.includes(".")) {
                       const parts = ip.split(".");
@@ -3498,212 +3538,269 @@ const Settings = () => {
                     return ip;
                   };
 
+                  const maskedIP = formatIP(device.ip_address);
+                  const deviceTypeLabel = deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop";
+                  const browserVersionMajor = browserVersion ? browserVersion.split(".")[0] : "";
+
                   return (
-                    <div
+                    <Card
                       key={device.id}
-                      className={`rounded-2xl border p-4 space-y-3 ${
+                      className={`rounded-3xl border-2 overflow-hidden transition-all ${
                         isCurrentDevice
-                          ? "border-primary/50 bg-primary/5"
+                          ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/10"
                           : device.is_revoked
-                          ? "border-destructive/30 bg-destructive/5 opacity-60"
-                          : "border-border/60 bg-card/80"
+                          ? "border-destructive/40 bg-destructive/5 opacity-70"
+                          : "border-border/60 bg-card hover:border-border/80 hover:shadow-md"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div
-                            className={`p-2 rounded-xl flex-shrink-0 ${
-                              isCurrentDevice ? "bg-primary/10" : device.is_revoked ? "bg-destructive/10" : "bg-muted"
-                            }`}
-                          >
-                            <DeviceIcon className="h-5 w-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <p className="font-medium truncate">
-                                {browserName} {browserVersion && `v${browserVersion.split(".")[0]}`} {deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop"}
-                              </p>
-                              {isCurrentDevice && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary flex-shrink-0">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  This device
-                                </span>
-                              )}
-                              {device.is_revoked && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive flex-shrink-0">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  Revoked
-                                </span>
-                              )}
-                              {device.is_suspicious && !device.is_revoked && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 flex-shrink-0">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    Suspicious
+                      <div className="p-5 space-y-4">
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div
+                              className={`p-3 rounded-2xl flex-shrink-0 ${
+                                isCurrentDevice 
+                                  ? "bg-primary/15 text-primary" 
+                                  : device.is_revoked 
+                                  ? "bg-destructive/15 text-destructive"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              <DeviceIcon className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="font-semibold text-base truncate">
+                                  {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}
+                                </h3>
+                                {osName && (
+                                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                                    • {osName}
                                   </span>
+                                )}
+                              </div>
+                              {osName && (
+                                <p className="text-xs text-muted-foreground sm:hidden mb-2">{osName}</p>
+                              )}
+                              <div className="flex items-center gap-2 flex-wrap mt-2">
+                                {isCurrentDevice && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/20">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    This device
+                                  </span>
+                                )}
+                                {device.is_revoked && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-destructive/15 text-destructive border border-destructive/20">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    Revoked
+                                  </span>
+                                )}
+                                {device.is_suspicious && !device.is_revoked && (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20">
+                                      <AlertTriangle className="h-3.5 w-3.5" />
+                                      Suspicious
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 px-2.5 text-xs border-yellow-500/30"
+                                      onClick={async () => {
+                                        try {
+                                          await clearSuspiciousFlag(device.device_id);
+                                          toast({
+                                            title: "Suspicious flag cleared",
+                                            description: "This device is no longer marked as suspicious.",
+                                          });
+                                        } catch (error) {
+                                          logError("Failed to clear suspicious flag", error);
+                                          toast({
+                                            title: "Error",
+                                            description: "Failed to clear suspicious flag. Please try again.",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                      disabled={isClearingSuspicious}
+                                    >
+                                      {isClearingSuspicious ? "Clearing..." : "Clear Flag"}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Revoke Button */}
+                          {!isCurrentDevice && !device.is_revoked && (
+                            <div className="flex-shrink-0">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={async () => {
-                                      try {
-                                        await clearSuspiciousFlag(device.device_id);
-                                        toast({
-                                          title: "Suspicious flag cleared",
-                                          description: "This device is no longer marked as suspicious.",
-                                        });
-                                      } catch (error) {
-                                        logError("Failed to clear suspicious flag", error);
-                                        toast({
-                                          title: "Error",
-                                          description: "Failed to clear suspicious flag. Please try again.",
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    }}
-                                    disabled={isClearingSuspicious}
+                                    className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
+                                    disabled={isRevoking}
                                   >
-                                    {isClearingSuspicious ? "Clearing..." : "Clear Flag"}
+                                    Revoke
                                   </Button>
-                                </div>
-                              )}
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-3xl">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Revoke this device?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      <div className="space-y-2 mt-2">
+                                        <p>This will sign out this device and prevent it from accessing your account.</p>
+                                        <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
+                                          <p><strong>Device:</strong> {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}</p>
+                                          {osName && <p><strong>OS:</strong> {osName}</p>}
+                                          <p><strong>Last seen:</strong> {lastSeen}</p>
+                                          {maskedIP && <p><strong>Location:</strong> {maskedIP}</p>}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
+                                      </div>
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="rounded-2xl bg-destructive hover:bg-destructive/90"
+                                      onClick={async () => {
+                                        try {
+                                          await revokeDevice(device.device_id);
+                                          toast({
+                                            title: "Device revoked",
+                                            description: `${browserName} ${deviceTypeLabel} has been signed out.`,
+                                          });
+                                        } catch (error) {
+                                          logError("Failed to revoke device", error);
+                                          toast({
+                                            title: "Couldn't revoke device",
+                                            description: "Please try again.",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Revoke Device
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
-                            
-                            {/* Device Details */}
-                            <div className="space-y-2 text-sm">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <div>
-                                  <p className="text-muted-foreground text-xs mb-0.5">Last seen</p>
-                                  <p className="font-medium">{lastSeen}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs mb-0.5">First seen</p>
-                                  <p className="font-medium">{firstSeen}</p>
-                                </div>
-                                {device.ip_address && (
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-0.5">Location</p>
-                                    <p className="font-medium">{formatIP(device.ip_address)}</p>
-                                  </div>
-                                )}
-                                {device.request_count > 0 && (
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-0.5">Activity</p>
-                                    <p className="font-medium">{device.request_count.toLocaleString()} requests</p>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {/* Device ID (truncated) */}
-                              <div className="pt-2 border-t border-border/60">
-                                <p className="text-muted-foreground text-xs mb-0.5">Device ID</p>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-mono text-xs text-muted-foreground break-all">
-                                    {device.device_id.slice(0, 8)}...{device.device_id.slice(-4)}
-                                  </p>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 px-2 text-xs"
-                                    onClick={async () => {
-                                      try {
-                                        await navigator.clipboard.writeText(device.device_id);
-                                        toast({
-                                          title: "Copied!",
-                                          description: "Device ID copied to clipboard",
-                                        });
-                                      } catch {
-                                        // Fallback if clipboard API fails
-                                        const textArea = document.createElement("textarea");
-                                        textArea.value = device.device_id;
-                                        document.body.appendChild(textArea);
-                                        textArea.select();
-                                        document.execCommand("copy");
-                                        document.body.removeChild(textArea);
-                                        toast({
-                                          title: "Copied!",
-                                          description: "Device ID copied to clipboard",
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    Copy
-                                  </Button>
-                                </div>
-                              </div>
-                              
-                              {/* Account Info */}
-                              {device.profile_id && (
-                                <div className="pt-2 border-t border-border/60">
-                                  <p className="text-muted-foreground text-xs mb-0.5">Linked to account</p>
-                                  <p className="font-medium text-xs">
-                                    {profile?.handle || "Your account"}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          )}
                         </div>
                         
-                        {/* Revoke Button - Show for all non-current devices that aren't revoked */}
-                        {!isCurrentDevice && !device.is_revoked && (
-                          <div className="flex-shrink-0">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
-                                  disabled={isRevoking}
-                                >
-                                  Revoke
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="rounded-3xl">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Revoke this device?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    <div className="space-y-2 mt-2">
-                                      <p>This will sign out this device and prevent it from accessing your account.</p>
-                                      <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
-                                        <p><strong>Device:</strong> {browserName} {deviceType}</p>
-                                        <p><strong>Last seen:</strong> {lastSeen}</p>
-                                        {device.ip_address && <p><strong>Location:</strong> {formatIP(device.ip_address)}</p>}
-                                      </div>
-                                      <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="rounded-2xl bg-destructive hover:bg-destructive/90"
-                                    onClick={async () => {
-                                      try {
-                                        await revokeDevice(device.device_id);
-                                        toast({
-                                          title: "Device revoked",
-                                          description: `${browserName} ${deviceType} has been signed out.`,
-                                        });
-                                      } catch (error) {
-                                        logError("Failed to revoke device", error);
-                                        toast({
-                                          title: "Couldn't revoke device",
-                                          description: "Please try again.",
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    Revoke Device
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                        {/* Device Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>Last seen</span>
+                            </div>
+                            <p className="font-medium text-sm">{lastSeen}</p>
+                            {lastSeenDate && (
+                              <p className="text-xs text-muted-foreground">{lastSeenDate}</p>
+                            )}
                           </div>
-                        )}
+                          
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>First seen</span>
+                            </div>
+                            <p className="font-medium text-sm">{firstSeen}</p>
+                            {device.first_seen_at && (
+                              <p className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(device.first_seen_at), { addSuffix: true })}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {maskedIP && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Compass className="h-3.5 w-3.5" />
+                                <span>Location</span>
+                              </div>
+                              <p className="font-medium text-sm font-mono">{maskedIP}</p>
+                            </div>
+                          )}
+                          
+                          {device.request_count > 0 && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Activity className="h-3.5 w-3.5" />
+                                <span>Activity</span>
+                              </div>
+                              <p className="font-medium text-sm">{device.request_count.toLocaleString()} requests</p>
+                              {device.last_seen_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  {Math.round(device.request_count / Math.max(1, (Date.now() - new Date(device.first_seen_at || device.last_seen_at).getTime()) / (1000 * 60 * 60 * 24))).toLocaleString()} per day
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Device ID and Account Info */}
+                        <div className="pt-3 border-t border-border/60 space-y-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                                <HardDrive className="h-3.5 w-3.5" />
+                                <span>Device ID</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono text-xs text-muted-foreground break-all">
+                                  {device.device_id.slice(0, 10)}...{device.device_id.slice(-6)}
+                                </p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(device.device_id);
+                                      toast({
+                                        title: "Copied!",
+                                        description: "Device ID copied to clipboard",
+                                      });
+                                    } catch {
+                                      const textArea = document.createElement("textarea");
+                                      textArea.value = device.device_id;
+                                      document.body.appendChild(textArea);
+                                      textArea.select();
+                                      document.execCommand("copy");
+                                      document.body.removeChild(textArea);
+                                      toast({
+                                        title: "Copied!",
+                                        description: "Device ID copied to clipboard",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {device.profile_id && (
+                            <div>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                                <LinkIcon className="h-3.5 w-3.5" />
+                                <span>Linked to account</span>
+                              </div>
+                              <p className="font-medium text-sm">
+                                @{profile?.handle || "your account"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </Card>
                   );
                 })}
               </div>
@@ -3728,7 +3825,7 @@ const Settings = () => {
           <Card className="p-6 rounded-3xl space-y-4">
             <div>
               <p className="text-sm text-muted-foreground mb-4">
-                View and manage your active login sessions across different browsers and devices. You can revoke any session to sign out from that browser or device.
+                View and manage your active login sessions across different browsers and devices. Each session shows detailed information including browser, operating system, location, and expiration time. You can revoke any session to sign out from that browser or device immediately.
               </p>
             </div>
             {isLoadingSessions ? (
@@ -3744,11 +3841,21 @@ const Settings = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {sessions.length > 1 && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-                    <p className="text-sm font-medium">
-                      {sessions.length} active {sessions.length === 1 ? "session" : "sessions"}
-                    </p>
+                {sessions.length > 0 && (
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/60">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10">
+                        <Lock className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {sessions.length} active {sessions.length === 1 ? "session" : "sessions"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Login sessions across different browsers and devices
+                        </p>
+                      </div>
+                    </div>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
@@ -3798,32 +3905,105 @@ const Settings = () => {
                 {sessions.map((session) => {
                   const isCurrentSession = session.is_current_session ?? (session.device_id === deviceId);
                   const lastAccessed = formatDistanceToNow(new Date(session.last_accessed_at), { addSuffix: true });
+                  const lastAccessedDate = new Date(session.last_accessed_at).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  });
                   const created = formatDistanceToNow(new Date(session.created_at), { addSuffix: true });
+                  const createdDate = new Date(session.created_at).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  });
                   const expires = formatDistanceToNow(new Date(session.expires_at), { addSuffix: true });
+                  const expiresDate = new Date(session.expires_at).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  });
 
-                  // Parse user agent
+                  // Parse user agent with improved detection
                   const userAgent = session.user_agent || "Unknown";
-                  const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/i);
-                  const browserName = browserMatch ? browserMatch[1] : "Browser";
-                  const browserVersion = browserMatch ? browserMatch[2] : null;
+                  let browserName = "Browser";
+                  let browserVersion = "";
+                  let deviceType: "mobile" | "desktop" | "tablet" = "desktop";
+                  let DeviceIcon = Monitor;
+                  let osName = "";
                   
-                  // Detect device type from user agent
-                  const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent);
-                  const isTablet = /iPad|Tablet/i.test(userAgent);
-                  const deviceType = isMobile ? "Mobile" : isTablet ? "Tablet" : "Desktop";
+                  if (userAgent !== "Unknown") {
+                    const ua = userAgent.toLowerCase();
+                    
+                    // Detect device type
+                    if (/mobile|android|iphone|ipod/i.test(userAgent)) {
+                      deviceType = "mobile";
+                      DeviceIcon = Smartphone;
+                      if (/iphone|ipod/i.test(userAgent)) osName = "iOS";
+                      else if (/android/i.test(userAgent)) {
+                        const androidMatch = userAgent.match(/Android ([0-9.]+)/i);
+                        osName = `Android${androidMatch ? ` ${androidMatch[1]}` : ""}`;
+                      }
+                    } else if (/tablet|ipad/i.test(userAgent)) {
+                      deviceType = "tablet";
+                      DeviceIcon = Tablet;
+                      if (/ipad/i.test(userAgent)) osName = "iPadOS";
+                      else if (/android/i.test(userAgent)) osName = "Android";
+                    } else {
+                      if (/windows/i.test(userAgent)) osName = "Windows";
+                      else if (/macintosh|mac os/i.test(userAgent)) {
+                        const macMatch = userAgent.match(/Mac OS X ([0-9_]+)/i);
+                        osName = macMatch ? `macOS ${macMatch[1].replace(/_/g, ".")}` : "macOS";
+                      }
+                      else if (/linux/i.test(userAgent)) osName = "Linux";
+                      else if (/ubuntu/i.test(userAgent)) osName = "Ubuntu";
+                    }
+                    
+                    // Browser detection
+                    if (ua.includes("edg") || ua.includes("edg/")) {
+                      browserName = "Edge";
+                      const match = userAgent.match(/Edg(?:e)?\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("opr") || ua.includes("opera")) {
+                      browserName = "Opera";
+                      const match = userAgent.match(/(?:OPR|Opera)\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("chrome") && !ua.includes("edg") && !ua.includes("opr")) {
+                      browserName = "Chrome";
+                      const match = userAgent.match(/Chrome\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("firefox")) {
+                      browserName = "Firefox";
+                      const match = userAgent.match(/Firefox\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else if (ua.includes("safari") && !ua.includes("chrome")) {
+                      browserName = "Safari";
+                      const match = userAgent.match(/Version\/([0-9.]+)/i);
+                      browserVersion = match ? match[1] : "";
+                    } else {
+                      const browserMatch = userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/(\d+)/i);
+                      if (browserMatch) {
+                        browserName = browserMatch[1];
+                        browserVersion = browserMatch[2] || "";
+                      }
+                    }
+                  }
 
                   // Format IP address (mask for privacy)
                   const formatIP = (ip: string | null) => {
-                    if (!ip) return "Unknown";
+                    if (!ip) return null;
                     if (ip.includes(":")) {
-                      // IPv6
                       const parts = ip.split(":");
                       if (parts.length > 4) {
                         return `${parts[0]}:${parts[1]}:xxxx:xxxx`;
                       }
                       return ip;
                     }
-                    // IPv4 - mask last octet
                     const parts = ip.split(".");
                     if (parts.length === 4) {
                       return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
@@ -3831,117 +4011,100 @@ const Settings = () => {
                     return ip;
                   };
 
+                  const maskedIP = formatIP(session.ip_address);
+                  const deviceTypeLabel = deviceType === "mobile" ? "Mobile" : deviceType === "tablet" ? "Tablet" : "Desktop";
+                  const browserVersionMajor = browserVersion ? browserVersion.split(".")[0] : "";
+
                   return (
-                    <div
+                    <Card
                       key={session.id}
-                      className={`rounded-2xl border p-4 space-y-3 ${
+                      className={`rounded-3xl border-2 overflow-hidden transition-all ${
                         isCurrentSession
-                          ? "border-primary/50 bg-primary/5"
-                          : "border-border/60 bg-card/80"
+                          ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/10"
+                          : "border-border/60 bg-card hover:border-border/80 hover:shadow-md"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div
-                            className={`p-2 rounded-xl flex-shrink-0 ${
-                              isCurrentSession ? "bg-primary/10" : "bg-muted"
-                            }`}
-                          >
-                            <Monitor className="h-5 w-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <p className="font-medium truncate">
-                                {browserName} {browserVersion && `v${browserVersion}`} {deviceType}
-                              </p>
-                              {isCurrentSession && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary flex-shrink-0">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  This session
-                                </span>
-                              )}
+                      <div className="p-5 space-y-4">
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            <div
+                              className={`p-3 rounded-2xl flex-shrink-0 ${
+                                isCurrentSession ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              <DeviceIcon className="h-6 w-6" />
                             </div>
-                            
-                            {/* Session Details */}
-                            <div className="space-y-2 text-sm">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                <div>
-                                  <p className="text-muted-foreground text-xs mb-0.5">Last accessed</p>
-                                  <p className="font-medium">{lastAccessed}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground text-xs mb-0.5">Created</p>
-                                  <p className="font-medium">{created}</p>
-                                </div>
-                                {session.ip_address && (
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-0.5">Location</p>
-                                    <p className="font-medium">{formatIP(session.ip_address)}</p>
-                                  </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <h3 className="font-semibold text-base truncate">
+                                  {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}
+                                </h3>
+                                {osName && (
+                                  <span className="text-xs text-muted-foreground hidden sm:inline">
+                                    • {osName}
+                                  </span>
                                 )}
-                                <div>
-                                  <p className="text-muted-foreground text-xs mb-0.5">Expires</p>
-                                  <p className="font-medium">{expires}</p>
-                                </div>
                               </div>
-                              
-                              {/* Session ID (truncated) */}
-                              {session.device_id && (
-                                <div className="pt-2 border-t border-border/60">
-                                  <p className="text-muted-foreground text-xs mb-0.5">Device ID</p>
-                                  <p className="font-mono text-xs text-muted-foreground break-all">
-                                    {session.device_id.slice(0, 8)}...{session.device_id.slice(-4)}
-                                  </p>
-                                </div>
+                              {osName && (
+                                <p className="text-xs text-muted-foreground sm:hidden mb-2">{osName}</p>
                               )}
+                              <div className="flex items-center gap-2 flex-wrap mt-2">
+                                {isCurrentSession && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/20">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    This session
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        {/* Revoke Button - Show for all non-current sessions */}
-                        {!isCurrentSession && (
-                          <div className="flex-shrink-0">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
-                                  disabled={isRevokingSession}
-                                >
-                                  Revoke
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="rounded-3xl">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Revoke this session?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    <div className="space-y-2 mt-2">
-                                      <p>This will sign out this session and prevent it from accessing your account.</p>
-                                      <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
-                                        <p><strong>Browser:</strong> {browserName} {deviceType}</p>
-                                        <p><strong>Last accessed:</strong> {lastAccessed}</p>
-                                        {session.ip_address && <p><strong>Location:</strong> {formatIP(session.ip_address)}</p>}
+                          
+                          {/* Revoke Button */}
+                          {!isCurrentSession && (
+                            <div className="flex-shrink-0">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-xl text-destructive hover:text-destructive hover:border-destructive"
+                                    disabled={isRevokingSession}
+                                  >
+                                    Revoke
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-3xl">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Revoke this session?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      <div className="space-y-2 mt-2">
+                                        <p>This will sign out this session and prevent it from accessing your account.</p>
+                                        <div className="p-3 rounded-xl bg-muted space-y-1 text-sm">
+                                          <p><strong>Browser:</strong> {browserName} {browserVersionMajor && `v${browserVersionMajor}`} {deviceTypeLabel}</p>
+                                          {osName && <p><strong>OS:</strong> {osName}</p>}
+                                          <p><strong>Last accessed:</strong> {lastAccessed}</p>
+                                          {maskedIP && <p><strong>Location:</strong> {maskedIP}</p>}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
                                       </div>
-                                      <p className="text-xs text-muted-foreground">You can sign in again using a login link.</p>
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={async () => {
-                                      try {
-                                        await revokeSession(session.id);
-                                        toast({
-                                          title: "Session revoked",
-                                          description: `${browserName} ${deviceType} has been signed out.`,
-                                        });
-                                      } catch (error) {
-                                        logError("Failed to revoke session", error);
-                                        toast({
-                                          title: "Couldn't revoke session",
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-2xl">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={async () => {
+                                        try {
+                                          await revokeSession(session.id);
+                                          toast({
+                                            title: "Session revoked",
+                                            description: `${browserName} ${deviceTypeLabel} has been signed out.`,
+                                          });
+                                        } catch (error) {
+                                          logError("Failed to revoke session", error);
+                                          toast({
+                                            title: "Couldn't revoke session",
                                           description: "Please try again.",
                                           variant: "destructive",
                                         });
@@ -3956,7 +4119,95 @@ const Settings = () => {
                           </div>
                         )}
                       </div>
+                      
+                      {/* Session Details Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>Last accessed</span>
+                          </div>
+                          <p className="font-medium text-sm">{lastAccessed}</p>
+                          <p className="text-xs text-muted-foreground">{lastAccessedDate}</p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Created</span>
+                          </div>
+                          <p className="font-medium text-sm">{created}</p>
+                          <p className="text-xs text-muted-foreground">{createdDate}</p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Lock className="h-3.5 w-3.5" />
+                            <span>Expires</span>
+                          </div>
+                          <p className="font-medium text-sm">{expires}</p>
+                          <p className="text-xs text-muted-foreground">{expiresDate}</p>
+                        </div>
+                        
+                        {maskedIP && (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Compass className="h-3.5 w-3.5" />
+                              <span>Location</span>
+                            </div>
+                            <p className="font-medium text-sm font-mono">{maskedIP}</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Device ID */}
+                      {session.device_id && (
+                        <div className="pt-3 border-t border-border/60">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                                <HardDrive className="h-3.5 w-3.5" />
+                                <span>Device ID</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono text-xs text-muted-foreground break-all">
+                                  {session.device_id.slice(0, 10)}...{session.device_id.slice(-6)}
+                                </p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={async () => {
+                                    try {
+                                      await navigator.clipboard.writeText(session.device_id!);
+                                      toast({
+                                        title: "Copied!",
+                                        description: "Device ID copied to clipboard",
+                                      });
+                                    } catch {
+                                      const textArea = document.createElement("textarea");
+                                      textArea.value = session.device_id!;
+                                      document.body.appendChild(textArea);
+                                      textArea.select();
+                                      document.execCommand("copy");
+                                      document.body.removeChild(textArea);
+                                      toast({
+                                        title: "Copied!",
+                                        description: "Device ID copied to clipboard",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  </Card>
                   );
                 })}
               </div>
