@@ -982,14 +982,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
         {/* Top header with welcome and link account button */}
         <div className="flex items-center justify-between mb-8 lg:mb-12 relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-5 py-2.5 text-sm font-bold text-white dark:text-white border border-red-800/60 dark:border-red-700/50 shadow-lg backdrop-blur-md animate-in fade-in-0 zoom-in-95 duration-500">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-5 py-2.5 text-sm font-bold text-white dark:text-white border border-red-800/60 dark:border-red-700/50 shadow-lg backdrop-blur-md">
             <Radio className="h-4 w-4" />
             Welcome to The Echo Chamber
           </div>
           <Button
             asChild
             variant="outline"
-            className="rounded-full border-2 border-red-900/40 dark:border-red-800/30 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group animate-in fade-in-0 zoom-in-95 duration-500"
+            className="rounded-full border-2 border-red-900/40 dark:border-red-800/30 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group"
             size="default"
           >
             <Link to="/link-pin" className="flex items-center gap-2 px-4 py-2">
