@@ -236,7 +236,7 @@ export const TopicDiscovery = ({
     <div className={cn("space-y-6", className)}>
       {/* Recommended Topics */}
       {showRecommendations && (
-        <Card className="p-4">
+        <Card className="p-4 border border-border/20">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Recommended for You</h3>
@@ -253,7 +253,7 @@ export const TopicDiscovery = ({
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg hover:bg-muted transition-colors"
+                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -290,7 +290,7 @@ export const TopicDiscovery = ({
 
       {/* Similar Topics */}
       {showSimilar && currentTopicId && (
-        <Card className="p-4">
+        <Card className="p-4 border border-border/20">
           <div className="flex items-center gap-2 mb-4">
             <Hash className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Similar Topics</h3>
@@ -307,7 +307,7 @@ export const TopicDiscovery = ({
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg hover:bg-muted transition-colors"
+                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -342,7 +342,7 @@ export const TopicDiscovery = ({
 
       {/* Trending Topics */}
       {showTrending && (
-        <Card className="p-4">
+        <Card className="p-4 border border-border/20">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -367,7 +367,7 @@ export const TopicDiscovery = ({
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg hover:bg-muted transition-colors"
+                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">

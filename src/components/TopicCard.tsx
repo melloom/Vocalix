@@ -19,7 +19,7 @@ interface TopicCardProps {
 export const TopicCard = ({ topic, clipCount = 0, isToday }: TopicCardProps) => {
   return (
     <Link to={`/topic/${topic.id}`}>
-      <Card className={`p-6 space-y-3 cursor-pointer transition-all hover:shadow-lg ${
+      <Card className={`p-6 space-y-3 cursor-pointer transition-all hover:shadow-lg border border-border/20 ${
         isToday ? 'border-2 border-primary bg-primary/5' : ''
       }`}>
         {isToday && (

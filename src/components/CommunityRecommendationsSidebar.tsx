@@ -224,7 +224,7 @@ export const CommunityRecommendationsSidebar = () => {
   return (
     <div className="space-y-6">
       {/* Best Communities */}
-      <Card className="p-4 rounded-2xl">
+      <Card className="p-4 rounded-2xl border border-border/20">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
@@ -253,7 +253,7 @@ export const CommunityRecommendationsSidebar = () => {
                 to={`/community/${community.slug}`}
                 className="block group"
               >
-                <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
+                <div className="p-3 rounded-xl border border-border/20 hover:border-primary/30 hover:bg-muted/50 transition-all">
                   <div className="flex items-start gap-3">
                     <div className="text-3xl shrink-0">{community.avatar_emoji}</div>
                     <div className="flex-1 min-w-0">
@@ -289,7 +289,7 @@ export const CommunityRecommendationsSidebar = () => {
       </Card>
 
       {/* News Section */}
-      <Card className="p-4 rounded-2xl">
+      <Card className="p-4 rounded-2xl border border-border/20">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Newspaper className="w-5 h-5 text-primary" />
@@ -308,7 +308,7 @@ export const CommunityRecommendationsSidebar = () => {
             {newsItems.map((item) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all overflow-hidden group"
+                className="rounded-xl border border-border/20 hover:border-primary/30 hover:bg-muted/50 transition-all overflow-hidden group"
               >
                 {item.url ? (
                   // External news article with image
@@ -439,7 +439,7 @@ export const CommunityRecommendationsSidebar = () => {
 
       {/* Live Rooms */}
       {liveRooms && liveRooms.length > 0 && (
-        <Card className="p-4 rounded-2xl">
+        <Card className="p-4 rounded-2xl border border-border/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Radio className="w-5 h-5 text-primary" />
@@ -468,7 +468,7 @@ export const CommunityRecommendationsSidebar = () => {
                   to={`/live-room/${room.id}`}
                   className="block group"
                 >
-                  <div className="p-3 rounded-xl border border-border/30 hover:border-primary/20 hover:bg-muted/50 transition-all">
+                  <div className="p-3 rounded-xl border border-border/20 hover:border-primary/30 hover:bg-muted/50 transition-all">
                     <div className="flex items-start gap-3">
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

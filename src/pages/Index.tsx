@@ -240,7 +240,7 @@ const CreatorSearchResult = ({ profile, viewerProfileId }: { profile: SearchProf
   const isOwnProfile = viewerProfileId === profile.id;
 
   return (
-    <div className="rounded-2xl border border-border/30 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
+    <div className="rounded-2xl border border-black/20 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-black/30 hover:shadow-lg">
       <div className="flex items-center gap-3">
         <div className="text-2xl">{profile.emoji_avatar}</div>
         <div className="flex-1 min-w-0">
@@ -3442,7 +3442,7 @@ const IndexInner = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-8 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card border border-border/30 rounded-lg p-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-card border border-black/20 rounded-lg p-2">
           <div className="flex items-center gap-2">
             <div data-tutorial="view-mode">
               <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
@@ -3686,7 +3686,7 @@ const IndexInner = () => {
                           setShowSuggestions(false);
                           setSearchQuery("");
                         }}
-                        className="block rounded-2xl border border-border/30 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg cursor-pointer"
+                        className="block rounded-2xl border border-black/20 bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-black/30 hover:shadow-lg cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground/70">
@@ -3734,7 +3734,7 @@ const IndexInner = () => {
         )}
 
         {!isSearching && !sortMode && profileId && (
-          <Card className="p-4 rounded-2xl border border-primary/20 bg-primary/5">
+          <Card className="p-4 rounded-2xl border border-black/20 bg-primary/5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Today&apos;s check-in</h3>
@@ -3784,7 +3784,7 @@ const IndexInner = () => {
 
         {!isSearching && !sortMode && (spotlightQuestion || todayTopic) && (
           <div className="space-y-4">
-            <div className="bg-card border border-primary/20 rounded-lg p-6 text-center space-y-3 shadow-sm" data-tutorial="today-topic">
+            <div className="bg-card border border-black/20 rounded-lg p-6 text-center space-y-3 shadow-sm" data-tutorial="today-topic">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Garden Spotlight
               </p>
@@ -3945,7 +3945,7 @@ const IndexInner = () => {
 
         {/* Welcome Garden highlight card - only when Welcome Garden is focused */}
         {!isSearching && welcomeGardenTopicId && selectedTopicId === welcomeGardenTopicId && (
-          <Card className="relative overflow-hidden border border-red-400/20 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
+          <Card className="relative overflow-hidden border border-black/20 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
             <div className="pointer-events-none absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-red-400/10 blur-3xl" />
             <div className="flex items-center justify-between gap-4 flex-wrap relative">
               <div className="flex items-center gap-3">

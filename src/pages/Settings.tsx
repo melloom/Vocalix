@@ -1815,7 +1815,7 @@ const Settings = () => {
                     </div>
 
               {/* Digest settings section */}
-              <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/30">
+              <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
                 <div className="flex-1 space-y-3">
                   <div>
                     <p className="font-medium">Email digest</p>
@@ -2298,7 +2298,7 @@ const Settings = () => {
               </div>
               
               {/* Tab Switcher */}
-              <div className="flex gap-2 p-1 rounded-2xl bg-muted/40 border border-border/30">
+              <div className="flex gap-2 p-1 rounded-2xl bg-muted/40 border border-border/60">
                 <Button
                   variant={deviceAccessTab === "linking" ? "default" : "ghost"}
                   className={`flex-1 rounded-xl ${deviceAccessTab === "linking" ? "" : "hover:bg-muted"}`}
@@ -2321,7 +2321,7 @@ const Settings = () => {
               {deviceAccessTab === "linking" && (
                 <div className="space-y-4">
                   {/* PIN Linking Toggle */}
-                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-primary/10">
                         <Lock className="h-5 w-5 text-primary" />
@@ -2391,7 +2391,7 @@ const Settings = () => {
               {/* Login PIN Tab Content */}
               {deviceAccessTab === "login" && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-full bg-primary/10">
                         <Key className="h-5 w-5 text-primary" />
@@ -2439,7 +2439,7 @@ const Settings = () => {
                     </p>
                   </div>
                 )}
-                <div className="flex justify-center p-4 bg-background rounded-xl border border-border/30">
+                <div className="flex justify-center p-4 bg-background rounded-xl border-2 border-border/40">
                   <QRCodeSVG 
                     value={phoneQRCodeUrl} 
                     size={200}
@@ -2526,7 +2526,7 @@ const Settings = () => {
             )}
             
             {deviceAccessTab === "linking" && !pinLinkingEnabled && (
-              <div className="mt-4 p-3 rounded-2xl border border-border/30 bg-muted/40">
+              <div className="mt-4 p-3 rounded-2xl border border-border/60 bg-muted/40">
                 <p className="text-sm text-muted-foreground text-center">
                   PIN linking is disabled. Enable it above to generate PINs for account linking.
                 </p>
@@ -2534,7 +2534,7 @@ const Settings = () => {
             )}
             
             {/* Privacy Settings Section */}
-            <div className="mt-6 pt-6 border-t border-border/30 space-y-4">
+            <div className="mt-6 pt-6 border-t border-border/60 space-y-4">
               <div>
                 <h3 className="font-semibold mb-1">Privacy Settings</h3>
                 <p className="text-sm text-muted-foreground">
@@ -2543,7 +2543,7 @@ const Settings = () => {
               </div>
               
               {/* Private Account */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="p-2 rounded-full bg-primary/10">
                     <Lock className="h-5 w-5 text-primary" />
@@ -2581,7 +2581,7 @@ const Settings = () => {
               </div>
               
               {/* Hide from Search */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="p-2 rounded-full bg-muted">
                     <SearchIcon className="h-5 w-5" />
@@ -2616,7 +2616,7 @@ const Settings = () => {
               </div>
               
               {/* Hide from Discovery */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+              <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="p-2 rounded-full bg-muted">
                     <Compass className="h-5 w-5" />
@@ -2652,7 +2652,7 @@ const Settings = () => {
               
               {/* Require Approval to Follow */}
               {isPrivateAccount && (
-                <div className="flex items-center justify-between p-4 rounded-2xl border border-border/30 bg-muted/40">
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="p-2 rounded-full bg-muted">
                       <UserCheck className="h-5 w-5" />
@@ -2690,7 +2690,7 @@ const Settings = () => {
             
             {/* Active Links Section */}
             {(activeLinks.length > 0 || isLoadingActiveLinks) && (
-              <div className="mt-6 pt-6 border-t border-border/30">
+              <div className="mt-6 pt-6 border-t border-border/60">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <p className="font-medium">Active login links</p>
@@ -2741,7 +2741,7 @@ const Settings = () => {
                         return (
                           <div
                             key={link.id}
-                            className="rounded-2xl border border-border/30 bg-muted/40 p-4 space-y-2"
+                            className="rounded-2xl border border-border/60 bg-muted/40 p-4 space-y-2"
                           >
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
@@ -2755,11 +2755,11 @@ const Settings = () => {
                                   )}
                                 </div>
                                 {link.url && link.url.length > 0 ? (
-                                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/30 mt-2">
+                                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40 mt-2">
                                     {link.url}
                                   </div>
                                 ) : (
-                                  <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground mt-2 border border-border/30">
+                                  <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground mt-2 border border-border/40">
                                     <p className="font-medium mb-1">Link is active</p>
                                     <p className="text-xs opacity-80">
                                       This link was generated on another device or in a previous session. 
@@ -2928,7 +2928,7 @@ const Settings = () => {
                       </div>
                       
                       {/* Keep Content Option */}
-                      <div className="flex items-start gap-3 p-3 rounded-xl border border-border/30 bg-muted/40">
+                      <div className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-muted/40">
                         <input
                           type="checkbox"
                           id="keepContent"
@@ -3198,7 +3198,7 @@ const Settings = () => {
               </p>
               
               {/* Account Linking Info */}
-              <div className="mt-4 p-5 rounded-3xl border border-primary/20 bg-primary/5 space-y-4">
+              <div className="mt-4 p-5 rounded-3xl border-2 border-primary/20 bg-primary/5 space-y-4">
                 <div className="flex items-start gap-4">
                   <div className="p-3 rounded-2xl bg-primary/15 flex-shrink-0">
                     <LinkIcon className="h-6 w-6 text-primary" />
@@ -3209,7 +3209,7 @@ const Settings = () => {
                       Link your account to multiple devices using magic login links. All linked devices will have access to the same account, including admin privileges if your account has them. Perfect for accessing your account on your phone, tablet, and computer.
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/30">
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60">
                         <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="font-medium text-sm text-foreground mb-0.5">Current devices</p>
@@ -3218,7 +3218,7 @@ const Settings = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/30">
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60">
                         <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="font-medium text-sm text-foreground mb-0.5">Link more devices</p>
@@ -3227,7 +3227,7 @@ const Settings = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/30 sm:col-span-2">
+                      <div className="flex items-start gap-2.5 p-3 rounded-xl bg-background/50 border border-border/60 sm:col-span-2">
                         <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="font-medium text-sm text-foreground mb-0.5">Security</p>
@@ -3264,7 +3264,7 @@ const Settings = () => {
                   {devicesError.message || "Please make sure migrations have been run."}
                 </p>
                 {deviceId && (
-                  <div className="mt-4 p-4 rounded-2xl border border-border/30 bg-card/80">
+                  <div className="mt-4 p-4 rounded-2xl border border-border/60 bg-card/80">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
                         <Monitor className="h-5 w-5" />
@@ -3295,7 +3295,7 @@ const Settings = () => {
                     : "No devices found"}
                 </p>
                 {deviceId && (
-                  <div className="mt-4 p-4 rounded-2xl border border-primary/20 bg-primary/5">
+                  <div className="mt-4 p-4 rounded-2xl border border-primary/50 bg-primary/5">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
                         <Monitor className="h-5 w-5" />
@@ -3323,7 +3323,7 @@ const Settings = () => {
               <div className="space-y-3">
                 {/* Show count and "Revoke All Others" if multiple devices */}
                 {devices.length > 0 && (
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/30">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/60">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
                         <Monitor className="h-5 w-5 text-primary" />
@@ -3545,9 +3545,9 @@ const Settings = () => {
                   return (
                     <Card
                       key={device.id}
-                      className={`rounded-3xl border overflow-hidden transition-all ${
+                      className={`rounded-3xl border-2 overflow-hidden transition-all ${
                         isCurrentDevice
-                          ? "border-primary/20 bg-primary/5 shadow-lg shadow-primary/10"
+                          ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/10"
                           : device.is_revoked
                           ? "border-destructive/40 bg-destructive/5 opacity-70"
                           : "border-border/60 bg-card hover:border-border/80 hover:shadow-md"
@@ -3692,7 +3692,7 @@ const Settings = () => {
                         </div>
                         
                         {/* Device Details Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/30">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3.5 w-3.5" />
@@ -3744,7 +3744,7 @@ const Settings = () => {
                         </div>
                         
                         {/* Device ID and Account Info */}
-                        <div className="pt-3 border-t border-border/30 space-y-3">
+                        <div className="pt-3 border-t border-border/60 space-y-3">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -3842,7 +3842,7 @@ const Settings = () => {
             ) : (
               <div className="space-y-3">
                 {sessions.length > 0 && (
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/30">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-muted/50 border border-border/60">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-primary/10">
                         <Lock className="h-5 w-5 text-primary" />
@@ -4018,9 +4018,9 @@ const Settings = () => {
                   return (
                     <Card
                       key={session.id}
-                      className={`rounded-3xl border overflow-hidden transition-all ${
+                      className={`rounded-3xl border-2 overflow-hidden transition-all ${
                         isCurrentSession
-                          ? "border-primary/20 bg-primary/5 shadow-lg shadow-primary/10"
+                          ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/10"
                           : "border-border/60 bg-card hover:border-border/80 hover:shadow-md"
                       }`}
                     >
@@ -4121,7 +4121,7 @@ const Settings = () => {
                       </div>
                       
                       {/* Session Details Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/30">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-border/60">
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Clock className="h-3.5 w-3.5" />
@@ -4162,7 +4162,7 @@ const Settings = () => {
                       
                       {/* Device ID */}
                       {session.device_id && (
-                        <div className="pt-3 border-t border-border/30">
+                        <div className="pt-3 border-t border-border/60">
                           <div className="flex items-center justify-between gap-2 flex-wrap">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -4404,7 +4404,7 @@ const Settings = () => {
             </div>
 
             {magicLinkUrl && (
-              <div className="space-y-3 rounded-2xl border border-border/30 bg-muted/40 p-3">
+              <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/40 p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Quick Access - Copy link or scan QR code
@@ -4423,7 +4423,7 @@ const Settings = () => {
 
                 {showQRCode && (
                   <div className="space-y-2 mt-3">
-                    <div className="flex justify-center p-3 bg-background rounded-xl border border-border/30">
+                    <div className="flex justify-center p-3 bg-background rounded-xl border-2 border-border/40">
                       <div id="magic-link-qr-code">
                         <QRCodeSVG 
                           value={magicLinkUrl} 
@@ -4453,7 +4453,7 @@ const Settings = () => {
                   <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Or copy the link
                   </Label>
-                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/30">
+                  <div className="rounded-xl bg-background/80 px-3 py-2 text-xs font-mono break-all border border-border/40">
                     {magicLinkUrl}
                 </div>
                 {magicLinkExpiresDisplay && (
