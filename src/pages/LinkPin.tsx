@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield, Link2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield, Link2, Key } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ const LinkPin = () => {
   const navigate = useNavigate();
   const deviceId = useDeviceId();
   const { refetchProfile } = useAuth();
+  const [linkMethod, setLinkMethod] = useState<"pin" | "link">("pin");
   const [status, setStatus] = useState<PinStatus>("entering");
   const [pin, setPin] = useState(["", "", "", ""]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -319,23 +320,44 @@ const LinkPin = () => {
         <div className="max-w-md w-full space-y-6 text-center relative z-10">
           {status === "entering" && (
             <>
-              {/* Header with explanation */}
-              <div className="space-y-4 mb-8">
+              {/* Header */}
+              <div className="space-y-4 mb-6">
                 <div className="flex justify-center">
                   <div className="p-4 rounded-full bg-gradient-to-br from-red-900/40 to-amber-900/40 border border-red-800/30">
                     <Lock className="h-10 w-10 text-red-300" />
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <h1 className="text-3xl font-extrabold text-white">Link Your Account</h1>
-                  <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/50 to-amber-950/50 p-4 text-left space-y-2">
-                    <p className="text-sm text-gray-200 font-medium">
-                      <strong className="text-white">What is account linking?</strong>
-                    </p>
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      Link this device to your existing Echo Garden account. You&apos;ll access the same profile, clips, and settings across all your devices. Perfect for using the app on your phone, tablet, and computer.
-                    </p>
-                    <div className="flex items-start gap-2 pt-2 border-t border-red-800/30">
+                <h1 className="text-3xl font-extrabold text-white">Link Your Account</h1>
+                <p className="text-sm text-gray-300">
+                  Link this device to your existing Echo Garden account to access your profile, clips, and settings across all devices.
+                </p>
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="flex gap-2 p-1 rounded-2xl bg-red-950/40 border border-red-800/40 mb-6">
+                <Button
+                  variant={linkMethod === "pin" ? "default" : "ghost"}
+                  className={`flex-1 rounded-xl ${linkMethod === "pin" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  onClick={() => setLinkMethod("pin")}
+                >
+                  <Key className="mr-2 h-4 w-4" />
+                  Login PIN
+                </Button>
+                <Button
+                  variant={linkMethod === "link" ? "default" : "ghost"}
+                  className={`flex-1 rounded-xl ${linkMethod === "link" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  onClick={() => setLinkMethod("link")}
+                >
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Login Link
+                </Button>
+              </div>
+
+              {/* PIN Tab Content */}
+              {linkMethod === "pin" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/50 to-amber-950/50 p-4 text-left space-y-3">
+                    <div className="flex items-start gap-2">
                       <Smartphone className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-gray-300">
                         Generate a 4-digit PIN from <strong className="text-white">Settings → Account</strong> on your other device, then enter it here.
@@ -347,44 +369,86 @@ const LinkPin = () => {
                         PINs expire after 10 minutes and can only be used once for security.
                       </p>
                     </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h2 className="text-xl font-bold text-white">Enter Your PIN</h2>
+                      <p className="text-sm text-gray-300">
+                        Enter the 4-digit PIN from your other device
+                      </p>
+                    </div>
+                    <div className="flex justify-center gap-3" onPaste={handlePaste}>
+                      {pin.map((digit, index) => (
+                        <Input
+                          key={index}
+                          ref={(el) => (inputRefs.current[index] = el)}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handlePinChange(index, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl border-2 border-red-800/40 bg-red-950/30 text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                        />
+                      ))}
+                    </div>
+                    {errorMessage && (
+                      <div className="rounded-xl bg-red-950/50 border border-red-800/50 p-3">
+                        <p className="text-sm text-red-200 font-medium">{errorMessage}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Login Link Tab Content */}
+              {linkMethod === "link" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/50 to-amber-950/50 p-4 text-left space-y-3">
+                    <p className="text-sm text-gray-200 font-medium">
+                      <strong className="text-white">How to use a login link:</strong>
+                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">1</div>
+                        <p className="text-xs text-gray-300">
+                          On your other device, go to <strong className="text-white">Settings → Account</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">2</div>
+                        <p className="text-xs text-gray-300">
+                          Click <strong className="text-white">"Send link"</strong> in the Device Linking section
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">3</div>
+                        <p className="text-xs text-gray-300">
+                          Choose a link type and click <strong className="text-white">"Generate link"</strong>
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold mt-0.5">4</div>
+                        <p className="text-xs text-gray-300">
+                          Copy the link or scan the QR code, then open it on <strong className="text-white">this device</strong>
+                        </p>
+                      </div>
+                    </div>
                     <div className="flex items-start gap-2 pt-2 border-t border-red-800/30">
-                      <Link2 className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <Shield className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-gray-300">
-                        <strong className="text-white">Alternative:</strong> You can also use a login link from <strong className="text-white">Settings → Account</strong> on your other device. Generate a magic login link and open it on this device to link your account.
+                        Login links expire after 7 days (or 1 hour for quick share) and can only be used once for security.
                       </p>
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h2 className="text-xl font-bold text-white">Enter Your PIN</h2>
-                  <p className="text-sm text-gray-300">
-                    Enter the 4-digit PIN from your other device
-                  </p>
-                </div>
-                <div className="flex justify-center gap-3" onPaste={handlePaste}>
-                  {pin.map((digit, index) => (
-                    <Input
-                      key={index}
-                      ref={(el) => (inputRefs.current[index] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handlePinChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl border-2 border-red-800/40 bg-red-950/30 text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
-                    />
-                  ))}
-                </div>
-                {errorMessage && (
-                  <div className="rounded-xl bg-red-950/50 border border-red-800/50 p-3">
-                    <p className="text-sm text-red-200 font-medium">{errorMessage}</p>
+                  <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-4">
+                    <p className="text-sm text-gray-200 font-medium mb-2">💡 Don't have a login link yet?</p>
+                    <p className="text-xs text-gray-300">
+                      Generate one from your other device's Settings → Account page, then come back here and open the link on this device.
+                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
 
