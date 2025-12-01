@@ -5,8 +5,12 @@
 -- Step 1: Ensure pg_net extension is enabled
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Step 2: Update the trigger function with better error handling and auth
-CREATE OR REPLACE FUNCTION public.trigger_daily_spotlight_question()
+-- Step 2: Drop old function if it exists (to allow return type change)
+-- Need to drop with exact signature to avoid issues
+DROP FUNCTION IF EXISTS public.trigger_daily_spotlight_question() CASCADE;
+
+-- Step 3: Create the trigger function with better error handling and auth
+CREATE FUNCTION public.trigger_daily_spotlight_question()
 RETURNS TABLE (
   success BOOLEAN,
   message TEXT,
@@ -108,9 +112,53 @@ BEGIN
 END;
 $$;
 
+-- Wrapper function that handles the full logic for cron job
+CREATE OR REPLACE FUNCTION public.execute_daily_spotlight_question_cron()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_result RECORD;
+  v_has_question BOOLEAN;
+BEGIN
+  -- First check if question already exists for today
+  SELECT EXISTS(
+    SELECT 1 FROM public.daily_spotlight_questions
+    WHERE date = CURRENT_DATE
+  ) INTO v_has_question;
+  
+  IF v_has_question THEN
+    RAISE NOTICE 'Question for today already exists, skipping generation';
+    RETURN;
+  END IF;
+  
+  -- Try to trigger edge function
+  BEGIN
+    SELECT * INTO v_result FROM public.trigger_daily_spotlight_question();
+    
+    -- If it failed, use fallback after a short delay
+    IF NOT v_result.success THEN
+      RAISE WARNING 'Edge function failed: %. Using fallback.', v_result.message;
+      PERFORM pg_sleep(2); -- Wait 2 seconds before fallback
+      PERFORM public.trigger_daily_spotlight_question_fallback();
+    ELSE
+      RAISE NOTICE 'Successfully triggered edge function: %', v_result.message;
+    END IF;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- Last resort: use fallback
+      RAISE WARNING 'Error triggering edge function: %. Using fallback.', SQLERRM;
+      PERFORM public.trigger_daily_spotlight_question_fallback();
+  END;
+END;
+$$;
+
 -- Grant permissions
 GRANT EXECUTE ON FUNCTION public.trigger_daily_spotlight_question() TO postgres, service_role;
 GRANT EXECUTE ON FUNCTION public.trigger_daily_spotlight_question_fallback() TO postgres, service_role;
+GRANT EXECUTE ON FUNCTION public.execute_daily_spotlight_question_cron() TO postgres, service_role;
 
 -- Step 2: Update the cron job to use improved function with error handling
 DO $$
@@ -144,44 +192,7 @@ BEGIN
   PERFORM cron.schedule(
     'daily-spotlight-question-generation',
     '5 12 * * *', -- 12:05 PM UTC daily
-    $$
-    DO $$
-    DECLARE
-      v_result RECORD;
-      v_has_question BOOLEAN;
-    BEGIN
-      -- First check if question already exists for today
-      SELECT EXISTS(
-        SELECT 1 FROM public.daily_spotlight_questions
-        WHERE date = CURRENT_DATE
-      ) INTO v_has_question;
-      
-      IF v_has_question THEN
-        RAISE NOTICE 'Question for today already exists, skipping generation';
-        RETURN;
-      END IF;
-      
-      -- Try to trigger edge function
-      BEGIN
-        SELECT * INTO v_result FROM public.trigger_daily_spotlight_question();
-        
-        -- If it failed, use fallback after a short delay
-        IF NOT v_result.success THEN
-          RAISE WARNING 'Edge function failed: %. Using fallback.', v_result.message;
-          PERFORM pg_sleep(2); -- Wait 2 seconds before fallback
-          PERFORM public.trigger_daily_spotlight_question_fallback();
-        ELSE
-          RAISE NOTICE 'Successfully triggered edge function: %', v_result.message;
-        END IF;
-      EXCEPTION
-        WHEN OTHERS THEN
-          -- Last resort: use fallback
-          RAISE WARNING 'Error triggering edge function: %. Using fallback.', SQLERRM;
-          PERFORM public.trigger_daily_spotlight_question_fallback();
-      END;
-    END;
-    $$;
-    $$
+    'SELECT public.execute_daily_spotlight_question_cron()'
   );
 
   RAISE NOTICE '✅ Cron job "daily-spotlight-question-generation" updated and scheduled successfully!';
@@ -212,6 +223,9 @@ COMMENT ON FUNCTION public.trigger_daily_spotlight_question() IS
 
 COMMENT ON FUNCTION public.trigger_daily_spotlight_question_fallback() IS 
 'Fallback function that creates a default spotlight question if the edge function fails. Should only be used as a backup.';
+
+COMMENT ON FUNCTION public.execute_daily_spotlight_question_cron() IS 
+'Main wrapper function for the cron job. Checks if question exists, tries edge function, and falls back if needed. Called by pg_cron daily at 12:05 PM UTC.';
 
 -- ============================================================================
 -- DIAGNOSTIC QUERIES
