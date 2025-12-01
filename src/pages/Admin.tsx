@@ -1718,7 +1718,14 @@ const Admin = () => {
 
       if (error) throw error;
 
-      setSecurityDevices(data?.devices || []);
+      // Filter out revoked devices when viewing "all" or "suspicious" tabs
+      // Revoked devices should only appear in the "revoked" tab
+      let devices = data?.devices || [];
+      if (filter !== "revoked") {
+        devices = devices.filter((device: any) => !device.is_revoked);
+      }
+
+      setSecurityDevices(devices);
     } catch (error) {
       console.error("Error loading security devices:", error);
       toast({
@@ -2101,7 +2108,7 @@ const Admin = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-red-500/20 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("all");
@@ -2116,7 +2123,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-orange-500/50 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/20 dark:to-orange-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-orange-500/20 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/20 dark:to-orange-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("all");
@@ -2131,7 +2138,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-purple-500/50 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/20 dark:to-purple-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-purple-500/20 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/20 dark:to-purple-900/10"
                 onClick={() => {
                   setActiveTab("users");
                 }}
@@ -2144,7 +2151,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">All time</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-pink-500/50 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-950/20 dark:to-pink-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-pink-500/20 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-pink-950/20 dark:to-pink-900/10"
                 onClick={() => {
                   setActiveTab("users");
                 }}
@@ -2157,7 +2164,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Last 24 hours</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-yellow-500/50 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/20 dark:to-yellow-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-yellow-500/20 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-950/20 dark:to-yellow-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("suspicious");
@@ -2172,7 +2179,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Click to view details</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-red-500/20 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("revoked");
@@ -2187,7 +2194,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Click to view details</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-red-500/50 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-red-500/20 bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/20 dark:to-red-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("all");
@@ -2202,7 +2209,7 @@ const Admin = () => {
                 <div className="text-xs text-muted-foreground mt-1">Blocked addresses</div>
               </Card>
               <Card 
-                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border-2 hover:border-blue-500/50 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10"
+                className="p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200 border hover:border-blue-500/20 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/20 dark:to-blue-900/10"
                 onClick={() => {
                   setActiveTab("security");
                   setSecurityFilter("all");
@@ -2263,7 +2270,7 @@ const Admin = () => {
                         </thead>
                         <tbody>
                           {abuseMetrics.abusePatterns.suspiciousIPs.slice(0, 10).map((ip, idx) => (
-                            <tr key={idx} className="border-b border-border/50">
+                            <tr key={idx} className="border-b border-border/30">
                               <td className="p-2 font-mono text-xs">{ip.ip_address}</td>
                               <td className="p-2 capitalize">{ip.pattern_type.replace(/_/g, " ")}</td>
                               <td className="p-2">
@@ -4109,7 +4116,7 @@ const Admin = () => {
             ) : (
               <div className="space-y-4">
                 {securityDevices.map((device) => (
-                  <Card key={device.device_id} className="p-6 rounded-2xl border-2 hover:shadow-lg transition-all">
+                  <Card key={device.device_id} className="p-6 rounded-2xl border hover:shadow-lg transition-all">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 space-y-4">
                         {/* Account/Profile Section - Prominent */}
@@ -4704,10 +4711,10 @@ const Admin = () => {
                   return (
                     <Card 
                       key={job.jobid} 
-                      className={`p-6 rounded-2xl transition-all duration-200 hover:shadow-lg border-l-4 ${
+                      className={`p-6 rounded-2xl transition-all duration-200 hover:shadow-lg border-l-2 ${
                         job.active 
-                          ? "border-l-green-500 bg-gradient-to-r from-green-50/80 to-background dark:from-green-950/20 dark:to-background shadow-sm" 
-                          : "border-l-gray-400 bg-gradient-to-r from-gray-50/50 to-background dark:from-gray-950/10 dark:to-background shadow-sm opacity-75"
+                          ? "border-l-green-500/30 bg-gradient-to-r from-green-50/80 to-background dark:from-green-950/20 dark:to-background shadow-sm" 
+                          : "border-l-gray-400/30 bg-gradient-to-r from-gray-50/50 to-background dark:from-gray-950/10 dark:to-background shadow-sm opacity-75"
                       }`}
                     >
                       {/* Header with Status */}
@@ -4779,7 +4786,7 @@ const Admin = () => {
 
                           {/* Run Result Message */}
                           {runResult && (
-                            <div className={`mt-4 p-4 rounded-xl border-2 shadow-sm animate-in slide-in-from-top-2 duration-300 ${
+                            <div className={`mt-4 p-4 rounded-xl border shadow-sm animate-in slide-in-from-top-2 duration-300 ${
                               runResult.success 
                                 ? "bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-400 dark:border-green-700" 
                                 : "bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-400 dark:border-red-700"
@@ -4927,7 +4934,7 @@ const Admin = () => {
                                 {cronJobHistory[job.jobname].map((run: any) => (
                                   <div
                                     key={run.runid}
-                                    className={`p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-shadow text-sm ${
+                                    className={`p-4 rounded-xl border shadow-sm hover:shadow-md transition-shadow text-sm ${
                                       run.status === "succeeded"
                                         ? "bg-gradient-to-r from-green-50 to-green-100/30 dark:from-green-950/20 dark:to-green-900/10 border-green-300 dark:border-green-800"
                                         : run.status === "failed"
