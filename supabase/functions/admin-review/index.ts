@@ -1493,8 +1493,51 @@ serve(async (req) => {
           }
         }
 
+        // Helper function to clean device IDs (remove leading/trailing dashes, validate format)
+        const cleanDeviceIdForDisplay = (deviceId: string | null | undefined): string => {
+          if (!deviceId) return '';
+          let cleaned = deviceId.trim();
+          
+          // Remove leading and trailing dashes/whitespace
+          cleaned = cleaned.replace(/^[\s-]+|[\s-]+$/g, '');
+          
+          // Try to extract valid UUID pattern (8-4-4-4-12 hex digits)
+          const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+          const uuidMatch = cleaned.match(uuidPattern);
+          
+          if (uuidMatch && uuidMatch[1]) {
+            return uuidMatch[1].toLowerCase();
+          }
+          
+          // If no UUID pattern found, return cleaned version (might be a different format)
+          return cleaned || deviceId;
+        };
+
         // Get security audit logs for these devices
-        const deviceIds = devices.map(d => d.device_id);
+        const deviceIds = devices.map(d => d.device_id).filter((id): id is string => id != null);
+        
+        // Get total count of security events per device (accurate count)
+        // Count events for each stored device_id (as stored in database)
+        const eventCounts: Record<string, number> = {};
+        if (deviceIds.length > 0) {
+          // Use Promise.all for parallel queries (more efficient)
+          const countPromises = deviceIds.map(async (deviceId) => {
+            const { count, error: countError } = await supabase
+              .from("security_audit_log")
+              .select("*", { count: "exact", head: true })
+              .eq("device_id", deviceId);
+            
+            if (!countError && count !== null) {
+              eventCounts[deviceId] = count;
+            } else {
+              eventCounts[deviceId] = 0;
+            }
+          });
+          
+          await Promise.all(countPromises);
+        }
+
+        // Get recent audit logs for display (limited to most recent)
         const { data: auditLogs, error: logsError } = await supabase
           .from("security_audit_log")
           .select("*")
@@ -1506,22 +1549,44 @@ serve(async (req) => {
           console.error("Error fetching audit logs:", logsError);
         }
 
-        // Group audit logs by device
+        // Group audit logs by device (for recent events display)
         const logsByDevice: Record<string, any[]> = {};
         auditLogs?.forEach(log => {
-          if (!logsByDevice[log.device_id]) {
-            logsByDevice[log.device_id] = [];
+          const normalizedId = cleanDeviceIdForDisplay(log.device_id);
+          const originalId = log.device_id;
+          
+          // Store under both normalized and original ID
+          if (!logsByDevice[normalizedId]) {
+            logsByDevice[normalizedId] = [];
           }
-          logsByDevice[log.device_id].push(log);
+          if (normalizedId !== originalId && !logsByDevice[originalId]) {
+            logsByDevice[originalId] = [];
+          }
+          
+          logsByDevice[normalizedId].push(log);
+          if (normalizedId !== originalId) {
+            logsByDevice[originalId].push(log);
+          }
         });
 
         // Enrich devices with profiles and audit logs
-        const enrichedDevices = devices.map(device => ({
-          ...device,
-          profile: device.profile_id ? profilesMap[device.profile_id] || null : null,
-          auditLogs: logsByDevice[device.device_id] || [],
-          recentEvents: (logsByDevice[device.device_id] || []).slice(0, 10),
-        }));
+        const enrichedDevices = devices.map(device => {
+          const cleanedDeviceId = cleanDeviceIdForDisplay(device.device_id);
+          // Get logs using original device_id (as stored in DB), with fallback to cleaned version
+          const deviceLogs = logsByDevice[device.device_id] || logsByDevice[cleanedDeviceId] || [];
+          // Get count using original device_id (as stored in database)
+          const totalEventCount = eventCounts[device.device_id] ?? 0;
+          
+          return {
+            ...device,
+            device_id: cleanedDeviceId || device.device_id, // Use cleaned version for display
+            original_device_id: device.device_id, // Keep original for reference
+            profile: device.profile_id ? profilesMap[device.profile_id] || null : null,
+            auditLogs: deviceLogs, // For recent events display
+            totalSecurityEvents: totalEventCount, // Accurate total count
+            recentEvents: deviceLogs.slice(0, 10),
+          };
+        });
 
         return new Response(JSON.stringify({ devices: enrichedDevices }), {
           headers: {

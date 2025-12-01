@@ -49,6 +49,7 @@ $$;
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.get_cron_job_history(
   p_job_id BIGINT DEFAULT NULL,
+  p_job_name TEXT DEFAULT NULL,
   p_limit INTEGER DEFAULT 100
 )
 RETURNS TABLE (
@@ -68,34 +69,64 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_job_id BIGINT;
 BEGIN
-  -- Check if execution history table exists
+  -- Check if execution history table exists - if not, return empty result
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.tables 
     WHERE table_schema = 'cron' AND table_name = 'job_run_details'
   ) THEN
-    RAISE NOTICE 'Execution history table (cron.job_run_details) not available';
+    -- Return empty result set with proper structure
+    RETURN QUERY
+    SELECT 
+      NULL::BIGINT, NULL::BIGINT, NULL::BIGINT,
+      NULL::TEXT, NULL::TEXT, NULL::TEXT,
+      NULL::TEXT, NULL::TEXT,
+      NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ,
+      NULL::TEXT
+    WHERE FALSE;
     RETURN;
   END IF;
   
-  RETURN QUERY
-  SELECT 
-    jrd.jobid,
-    jrd.runid,
-    jrd.job_pid,
-    jrd.database::TEXT,
-    jrd.username::TEXT,
-    jrd.command::TEXT,
-    jrd.status::TEXT,
-    jrd.return_message::TEXT,
-    jrd.start_time,
-    jrd.end_time,
-    j.jobname::TEXT
-  FROM cron.job_run_details jrd
-  LEFT JOIN cron.job j ON j.jobid = jrd.jobid
-  WHERE (p_job_id IS NULL OR jrd.jobid = p_job_id)
-  ORDER BY jrd.start_time DESC
-  LIMIT p_limit;
+  -- Resolve job ID from job name if provided
+  IF p_job_id IS NULL AND p_job_name IS NOT NULL AND trim(p_job_name) != '' THEN
+    BEGIN
+      SELECT jobid INTO v_job_id
+      FROM cron.job
+      WHERE jobname = p_job_name
+      LIMIT 1;
+    EXCEPTION WHEN OTHERS THEN
+      v_job_id := NULL;
+    END;
+  ELSE
+    v_job_id := p_job_id;
+  END IF;
+  
+  -- Return query results
+  BEGIN
+    RETURN QUERY
+    SELECT 
+      jrd.jobid,
+      jrd.runid,
+      jrd.job_pid,
+      jrd.database::TEXT,
+      jrd.username::TEXT,
+      jrd.command::TEXT,
+      jrd.status::TEXT,
+      jrd.return_message::TEXT,
+      jrd.start_time,
+      jrd.end_time,
+      COALESCE(j.jobname::TEXT, '')::TEXT
+    FROM cron.job_run_details jrd
+    LEFT JOIN cron.job j ON j.jobid = jrd.jobid
+    WHERE (v_job_id IS NULL OR jrd.jobid = v_job_id)
+    ORDER BY jrd.start_time DESC NULLS LAST
+    LIMIT COALESCE(NULLIF(p_limit, 0), 100);
+  EXCEPTION WHEN OTHERS THEN
+    -- If query fails, return empty result
+    RETURN;
+  END;
 END;
 $$;
 
@@ -116,7 +147,9 @@ SET search_path = public
 AS $$
 DECLARE
   v_job_id BIGINT;
-  v_result BIGINT;
+  v_command TEXT;
+  v_database TEXT;
+  v_execution_result TEXT;
 BEGIN
   -- Check if pg_cron extension exists
   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
@@ -124,8 +157,8 @@ BEGIN
     RETURN;
   END IF;
   
-  -- Get job ID
-  SELECT jobid INTO v_job_id
+  -- Get job details
+  SELECT jobid, command, database INTO v_job_id, v_command, v_database
   FROM cron.job
   WHERE jobname = p_job_name;
   
@@ -140,13 +173,27 @@ BEGIN
     RETURN;
   END IF;
   
-  -- Run the job
+  -- Execute the job command directly
+  -- Since cron jobs are typically SELECT statements, we use EXECUTE to run them
   BEGIN
-    SELECT cron.run_job(v_job_id) INTO v_result;
-    RETURN QUERY SELECT true, format('Job "%s" started successfully (run ID: %s)', p_job_name, v_result)::TEXT, v_job_id;
+    -- For SELECT statements, use PERFORM to execute without returning results
+    -- For other statements, we'll try EXECUTE
+    
+    IF v_command ~* '^SELECT' OR v_command ~* '^PERFORM' OR v_command ~* '^DO' THEN
+      -- It's a SELECT/PERFORM/DO statement - execute it directly
+      EXECUTE v_command;
+      v_execution_result := 'Command executed successfully';
+    ELSE
+      -- Try executing as-is (might be a function call or other SQL)
+      EXECUTE v_command;
+      v_execution_result := 'Command executed successfully';
+    END IF;
+    
+    RETURN QUERY SELECT true, format('Job "%s" executed successfully: %s', p_job_name, v_execution_result)::TEXT, v_job_id;
+    
   EXCEPTION
     WHEN OTHERS THEN
-      RETURN QUERY SELECT false, format('Error running job: %s', SQLERRM)::TEXT, v_job_id;
+      RETURN QUERY SELECT false, format('Error running job "%s": %s', p_job_name, SQLERRM)::TEXT, v_job_id;
   END;
 END;
 $$;
@@ -386,7 +433,7 @@ $$;
 -- 7. GRANT PERMISSIONS
 -- ============================================================================
 GRANT EXECUTE ON FUNCTION public.get_all_cron_jobs() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_cron_job_history(BIGINT, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_cron_job_history(BIGINT, TEXT, INTEGER) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.run_cron_job_manual(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_cron_job_details(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_cron_job_history(TEXT, INTEGER) TO authenticated;
@@ -396,7 +443,7 @@ GRANT EXECUTE ON FUNCTION public.export_cron_job_report(TEXT, TIMESTAMPTZ, TIMES
 -- 8. COMMENTS
 -- ============================================================================
 COMMENT ON FUNCTION public.get_all_cron_jobs() IS 'Returns all cron jobs with their current status and configuration';
-COMMENT ON FUNCTION public.get_cron_job_history(BIGINT, INTEGER) IS 'Returns execution history for cron jobs';
+COMMENT ON FUNCTION public.get_cron_job_history(BIGINT, TEXT, INTEGER) IS 'Returns execution history for cron jobs. Can filter by job_id or job_name.';
 COMMENT ON FUNCTION public.run_cron_job_manual(TEXT) IS 'Manually triggers a cron job for testing';
 COMMENT ON FUNCTION public.get_cron_job_details(TEXT) IS 'Returns detailed information about a specific cron job including execution stats';
 COMMENT ON FUNCTION public.delete_cron_job_history(TEXT, INTEGER) IS 'Deletes execution history for a cron job (optionally older than specified days)';

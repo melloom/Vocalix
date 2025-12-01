@@ -169,6 +169,17 @@ const handler = async (req?: Request) => {
   console.log(`[daily-spotlight-question] Processing spotlight question for ${today}`);
 
   try {
+    // Parse request body to check for force flag
+    let forceRegenerate = false;
+    if (req) {
+      try {
+        const body = await req.json();
+        forceRegenerate = body?.force === true;
+      } catch {
+        // No body or invalid JSON - that's ok, just use defaults
+      }
+    }
+
     // This function can be called from cron (no auth) or from frontend (with auth)
     // Both should work fine since we use service role key internally
     // Check if question for today already exists
@@ -182,13 +193,23 @@ const handler = async (req?: Request) => {
       throw todayError;
     }
 
-    if (existingToday) {
+    // If question exists and not forcing regeneration, return existing
+    if (existingToday && !forceRegenerate) {
       console.log(`[daily-spotlight-question] Question for ${today} already exists: "${existingToday.question}"`);
       return {
         status: "ok",
         message: "Question for today already exists.",
         question: existingToday,
       };
+    }
+
+    // If forcing regeneration, delete the existing question first
+    if (existingToday && forceRegenerate) {
+      console.log(`[daily-spotlight-question] Force regenerating - deleting existing question: "${existingToday.question}"`);
+      await supabase
+        .from("daily_spotlight_questions")
+        .delete()
+        .eq("id", existingToday.id);
     }
 
     // Get today's topic
@@ -217,8 +238,8 @@ const handler = async (req?: Request) => {
       console.warn("[daily-spotlight-question] Error fetching recent questions:", recentError);
     }
 
-    const recentQuestionTexts = (recentQuestions || []).map((q) => q.question);
-    const usedQuestions = new Set(recentQuestionTexts.map((q) => q.toLowerCase().trim()));
+    const recentQuestionTexts = (recentQuestions || []).map((q: any) => q.question as string);
+    const usedQuestions = new Set<string>(recentQuestionTexts.map((q: string) => q.toLowerCase().trim()));
 
     // Try to generate question with AI
     let generated: string | null = null;
@@ -317,20 +338,25 @@ const getCorsHeaders = (req: Request): Record<string, string> => {
 
   return {
     "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-device-id, x-user-agent, x-session-token-hash",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-device-id, x-user-agent, x-session-token-hash, accept, origin",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400", // Cache preflight for 24 hours
   };
 };
 
 serve(async (req) => {
+  // Always set up CORS headers first
   const corsHeaders = getCorsHeaders(req);
 
-  // Handle CORS preflight
+  // Handle CORS preflight - MUST return with all CORS headers
   if (req.method === "OPTIONS") {
-    return new Response("ok", { 
-      headers: corsHeaders,
+    return new Response(null, { 
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        "Content-Length": "0",
+      },
     });
   }
 
@@ -339,14 +365,22 @@ serve(async (req) => {
     const response = await handler(req);
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { 
+        ...corsHeaders, 
+        "Content-Type": "application/json",
+      },
     });
   } catch (error) {
     console.error("[daily-spotlight-question] Handler error:", error);
     console.error("[daily-spotlight-question] Error details:", error instanceof Error ? error.message : String(error));
     console.error("[daily-spotlight-question] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
     
-    logErrorSafely("daily-spotlight-question", error);
+    // Ensure error logging doesn't crash
+    try {
+      logErrorSafely("daily-spotlight-question", error);
+    } catch (logError) {
+      console.error("[daily-spotlight-question] Error logging failed:", logError);
+    }
     
     const isDevelopment = Deno.env.get("ENVIRONMENT") === "development";
     
@@ -361,9 +395,13 @@ serve(async (req) => {
       ...(isDevelopment && error instanceof Error ? { details: error.stack } : {}),
     });
     
+    // ALWAYS return CORS headers, even on error
     return new Response(errorBody, {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { 
+        ...corsHeaders, 
+        "Content-Type": "application/json",
+      },
     });
   }
 });

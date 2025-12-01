@@ -366,6 +366,26 @@ const Admin = () => {
   const [selectedSecurityMetric, setSelectedSecurityMetric] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Helper function to clean and format device IDs
+  const cleanDeviceId = (deviceId: string | null | undefined): string => {
+    if (!deviceId) return 'Unknown';
+    let cleaned = deviceId.trim();
+    
+    // Remove leading and trailing dashes/whitespace
+    cleaned = cleaned.replace(/^[\s-]+|[\s-]+$/g, '');
+    
+    // Try to extract valid UUID pattern (8-4-4-4-12 hex digits)
+    const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+    const uuidMatch = cleaned.match(uuidPattern);
+    
+    if (uuidMatch && uuidMatch[1]) {
+      return uuidMatch[1].toLowerCase();
+    }
+    
+    // If no UUID pattern found, return cleaned version
+    return cleaned || deviceId;
+  };
+
   // Garden Spotlight admin controls
   const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestionRow | null>(null);
   const [isLoadingSpotlight, setIsLoadingSpotlight] = useState(false);
@@ -379,7 +399,7 @@ const Admin = () => {
   const [cronJobsError, setCronJobsError] = useState<string | null>(null);
   const [cronJobHistory, setCronJobHistory] = useState<Record<string, any[]>>({});
   const [selectedCronJob, setSelectedCronJob] = useState<string | null>(null);
-  const [testingJob, setTestingJob] = useState<string | null>(null);
+  const [runningJob, setRunningJob] = useState<string | null>(null);
   const [deletingJobHistory, setDeletingJobHistory] = useState<string | null>(null);
   const [jobRunResults, setJobRunResults] = useState<Record<string, { success: boolean; message: string; timestamp: Date }>>({});
 
@@ -468,29 +488,51 @@ const Admin = () => {
     try {
       const { data, error } = await (supabase.rpc as any)("get_cron_job_history", {
         p_job_id: jobId || null,
+        p_job_name: jobId ? null : jobName,
         p_limit: 50,
       });
 
       if (error) {
+        // If it's a 400 error about table not existing, just set empty array (history not available)
+        if (error.code === '42883' || error.message?.includes('does not exist') || error.message?.includes('not available')) {
+          setCronJobHistory((prev) => ({
+            ...prev,
+            [jobName]: [],
+          }));
+          return;
+        }
         throw error;
       }
 
+      // Filter out NULL rows (which indicate table doesn't exist)
+      const filteredData = Array.isArray(data) 
+        ? data.filter((row: any) => row.jobid !== null && row.runid !== null)
+        : [];
+
       setCronJobHistory((prev) => ({
         ...prev,
-        [jobName]: Array.isArray(data) ? data : [],
+        [jobName]: filteredData,
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading cron job history:", error);
-      toast({
-        title: "Failed to load execution history",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
+      // Don't show error toast for missing history table - it's expected in some setups
+      if (error?.code === '42883' || error?.message?.includes('does not exist') || error?.message?.includes('not available')) {
+        setCronJobHistory((prev) => ({
+          ...prev,
+          [jobName]: [],
+        }));
+      } else {
+        toast({
+          title: "Failed to load execution history",
+          description: error?.message || "Execution history may not be available in this setup.",
+          variant: "destructive",
+        });
+      }
     }
   }, [toast]);
 
-  const testCronJob = useCallback(async (jobName: string) => {
-    setTestingJob(jobName);
+  const runCronJob = useCallback(async (jobName: string) => {
+    setRunningJob(jobName);
     
     // Clear previous result
     setJobRunResults((prev) => {
@@ -508,15 +550,18 @@ const Admin = () => {
         throw error;
       }
 
-      // Handle response - it should be an array with one result
+      // Handle response - it should be an array with one result or object directly
       let result: any = null;
       if (data && Array.isArray(data) && data.length > 0) {
         result = data[0];
       } else if (data && typeof data === 'object' && !Array.isArray(data)) {
         // Sometimes RPC returns object directly
         result = data;
+      } else if (data === null || data === undefined) {
+        // Empty response might mean success in some cases
+        result = { success: true, message: "Job execution started (no immediate result returned)" };
       } else {
-        throw new Error("Unexpected response format from run_cron_job_manual");
+        throw new Error(`Unexpected response format from run_cron_job_manual: ${JSON.stringify(data)}`);
       }
 
       const runResult = {
@@ -531,39 +576,39 @@ const Admin = () => {
       }));
 
       if (runResult.success) {
-        toast({
-          title: "✅ Job triggered successfully",
-          description: runResult.message,
-        });
-        // Reload history after a delay to see the execution
-        setTimeout(() => {
-          loadCronJobHistory(jobName);
-        }, 3000);
-      } else {
-        toast({
-          title: "❌ Failed to trigger job",
-          description: runResult.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      const errorResult = {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error occurred",
-        timestamp: new Date(),
-      };
-      setJobRunResults((prev) => ({
-        ...prev,
-        [jobName]: errorResult,
-      }));
-      console.error("Error testing cron job:", error);
       toast({
-        title: "Failed to test cron job",
-        description: error instanceof Error ? error.message : "Please try again.",
+        title: "✅ Job executed successfully",
+        description: runResult.message,
+      });
+      // Reload history after a delay to see the execution
+      setTimeout(() => {
+        loadCronJobHistory(jobName);
+      }, 3000);
+    } else {
+      toast({
+        title: "❌ Failed to execute job",
+        description: runResult.message,
         variant: "destructive",
       });
+    }
+  } catch (error) {
+    const errorResult = {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred",
+      timestamp: new Date(),
+    };
+    setJobRunResults((prev) => ({
+      ...prev,
+      [jobName]: errorResult,
+    }));
+    console.error("Error running cron job:", error);
+    toast({
+      title: "Failed to run cron job",
+      description: error instanceof Error ? error.message : "Please try again.",
+      variant: "destructive",
+    });
     } finally {
-      setTestingJob(null);
+      setRunningJob(null);
     }
   }, [toast, loadCronJobHistory]);
 
@@ -808,9 +853,11 @@ const Admin = () => {
       const updated = (data as any)?.question as SpotlightQuestionRow | undefined;
       if (updated) {
         setSpotlightQuestion(updated);
+        setManualQuestion(updated.question ?? manualQuestion);
         toast({
-          title: "Garden Spotlight updated",
-          description: "Today's Garden Spotlight question was updated for everyone.",
+          title: "🚀 Pushed to Garden!",
+          description: `"${updated.question || manualQuestion}" is now live for everyone to see!`,
+          duration: 5000,
         });
       } else {
         toast({
@@ -834,49 +881,77 @@ const Admin = () => {
     if (!isAdmin) return;
     setIsGeneratingSpotlight(true);
     try {
-      // Trigger the daily-spotlight-question edge function to generate (or reuse) today's AI question
+      // Generate a new AI question - force regeneration by passing force: true
       const { data, error } = await supabase.functions.invoke("daily-spotlight-question", {
-        body: {},
+        body: {
+          force: true, // Force generation even if question exists
+        },
       });
 
       if (error) {
         console.error("Error invoking daily-spotlight-question:", error);
         toast({
           title: "Garden Spotlight",
-          description: "Could not generate a new AI question.",
+          description: "Could not generate a new AI question. " + (error.message || ""),
           variant: "destructive",
         });
         return;
       }
 
-      // After generation, reload today's spotlight question from the table
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const { data: fresh, error: freshError } = await supabase
-          .from("daily_spotlight_questions")
-          .select("*")
-          .eq("date", today)
-          .maybeSingle();
-
-        if (freshError && (freshError as any).code !== "PGRST116") {
-          console.error("Error reloading spotlight question after generation:", freshError);
-        } else if (fresh) {
-          setSpotlightQuestion(fresh as SpotlightQuestionRow);
-          setManualQuestion((fresh as SpotlightQuestionRow).question ?? "");
+      // Extract the generated question from the response
+      let generatedQuestion = "";
+      if (data?.question) {
+        if (typeof data.question === "string") {
+          generatedQuestion = data.question;
+        } else if (data.question.question) {
+          generatedQuestion = data.question.question;
         }
-      } catch (reloadError) {
-        console.error("Error reloading spotlight question after generation:", reloadError);
       }
 
-      toast({
-        title: "AI question generated",
-        description: "A fresh AI-generated Garden Spotlight question has been created for today.",
-      });
-    } catch (error) {
+      // Show the generated question in the textarea for preview/edit
+      if (generatedQuestion) {
+        setManualQuestion(generatedQuestion);
+        
+        // Show success message with the generated question
+        toast({
+          title: "✨ AI Question Generated!",
+          description: `"${generatedQuestion}" - Edit it below, then click "Push to Garden" to publish it.`,
+          duration: 8000,
+        });
+      } else {
+        // Fallback: reload from database
+        try {
+          const today = new Date().toISOString().slice(0, 10);
+          const { data: fresh, error: freshError } = await supabase
+            .from("daily_spotlight_questions")
+            .select("*")
+            .eq("date", today)
+            .maybeSingle();
+
+          if (freshError && (freshError as any).code !== "PGRST116") {
+            console.error("Error reloading spotlight question after generation:", freshError);
+          } else if (fresh) {
+            setSpotlightQuestion(fresh as SpotlightQuestionRow);
+            setManualQuestion((fresh as SpotlightQuestionRow).question ?? "");
+            toast({
+              title: "✨ AI Question Generated!",
+              description: `"${(fresh as SpotlightQuestionRow).question}" - Edit it below, then click "Push to Garden" to publish it.`,
+              duration: 8000,
+            });
+          }
+        } catch (reloadError) {
+          console.error("Error reloading spotlight question after generation:", reloadError);
+          toast({
+            title: "Question Generated",
+            description: "Please check the textarea below and click 'Push to Garden' to publish it.",
+          });
+        }
+      }
+    } catch (error: any) {
       console.error("Unexpected error generating spotlight question:", error);
       toast({
         title: "Garden Spotlight",
-        description: "Something went wrong while generating a new AI question.",
+        description: "Something went wrong while generating a new AI question: " + (error?.message || ""),
         variant: "destructive",
       });
     } finally {
@@ -4035,9 +4110,61 @@ const Admin = () => {
               <div className="space-y-4">
                 {securityDevices.map((device) => (
                   <Card key={device.device_id} className="p-6 rounded-2xl border-2 hover:shadow-lg transition-all">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-4">
+                        {/* Account/Profile Section - Prominent */}
+                        {device.profile ? (
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                            <div className="text-3xl" role="img" aria-label="User avatar">
+                              {device.profile.emoji_avatar ? String(device.profile.emoji_avatar) : "👤"}
+                            </div>
+                            <div className="flex-1">
+                              <button
+                                onClick={() => {
+                                  if (device.profile?.id) {
+                                    loadUserDetails(device.profile.id);
+                                  }
+                                }}
+                                className="text-left hover:opacity-80 transition-opacity"
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-lg font-semibold text-primary hover:underline">
+                                    @{device.profile.handle || device.profile.display_name || 'Unknown'}
+                                  </span>
+                                  {device.profile.is_banned && (
+                                    <Badge variant="destructive" className="text-xs">Banned</Badge>
+                                  )}
+                                </div>
+                                {device.profile.display_name && device.profile.display_name !== device.profile.handle && (
+                                  <div className="text-sm text-muted-foreground">{device.profile.display_name}</div>
+                                )}
+                              </button>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (device.profile?.id) {
+                                  loadUserDetails(device.profile.id);
+                                }
+                              }}
+                              className="rounded-full"
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              View Account
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="p-3 rounded-lg bg-muted/30 border border-dashed">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <User className="w-4 h-4" />
+                              <span className="text-sm">No account linked to this device</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Device Info Section */}
+                        <div className="flex items-start gap-3">
                           <div className={`p-2 rounded-lg ${device.is_revoked ? 'bg-red-100 dark:bg-red-950/30' : 'bg-yellow-100 dark:bg-yellow-950/30'}`}>
                             {device.is_revoked ? (
                               <Lock className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -4046,8 +4173,11 @@ const Admin = () => {
                             )}
                           </div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <code className="font-mono text-sm font-semibold bg-muted px-2 py-1 rounded">{device.device_id}</code>
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="text-xs text-muted-foreground">Device ID:</span>
+                              <code className="font-mono text-xs font-semibold bg-muted px-2 py-1 rounded" title={device.device_id}>
+                                {cleanDeviceId(device.device_id)}
+                              </code>
                               {device.is_suspicious && (
                                 <Badge variant="outline" className="text-yellow-600 border-yellow-600">
                                   Suspicious
@@ -4059,18 +4189,64 @@ const Admin = () => {
                                 </Badge>
                               )}
                             </div>
-                            {device.profile && (
-                              <div className="text-sm text-muted-foreground">
-                                User: <span className="font-medium">{device.profile.handle || device.profile.display_name || 'Unknown'}</span>
-                                {device.profile.is_banned && (
-                                  <Badge variant="destructive" className="ml-2">Banned</Badge>
-                                )}
-                              </div>
-                            )}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                        {/* Metrics Grid - Cleaner */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 pt-3 border-t">
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Activity className="w-3 h-3" />
+                              Requests
+                            </div>
+                            <div className="text-lg font-bold">{(device.request_count ?? 0).toLocaleString()}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              Failed Auth
+                            </div>
+                            <div className="text-lg font-bold text-red-600">{(device.failed_auth_count ?? 0).toLocaleString()}</div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Security Events
+                            </div>
+                            <div className="text-lg font-bold">
+                              {device.totalSecurityEvents !== undefined 
+                                ? device.totalSecurityEvents.toLocaleString() 
+                                : (device.auditLogs?.length || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Last Seen
+                            </div>
+                            <div className="text-sm font-medium">
+                              {device.last_seen_at ? new Date(device.last_seen_at).toLocaleDateString() : "Never"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {device.last_seen_at ? new Date(device.last_seen_at).toLocaleTimeString() : ""}
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Activity className="w-3 h-3" />
+                              First Seen
+                            </div>
+                            <div className="text-sm font-medium">
+                              {device.first_seen_at ? new Date(device.first_seen_at).toLocaleDateString() : "Unknown"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {device.first_seen_at ? new Date(device.first_seen_at).toLocaleTimeString() : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Additional Info */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t">
                           {device.ip_address && (
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -4083,44 +4259,12 @@ const Admin = () => {
                           {device.user_agent && (
                             <div className="space-y-1">
                               <div className="text-xs text-muted-foreground">User Agent</div>
-                              <div className="text-sm truncate" title={device.user_agent}>
-                                {device.user_agent.substring(0, 50)}...
+                              <div className="text-xs font-mono truncate" title={device.user_agent}>
+                                {device.user_agent.substring(0, 60)}
+                                {device.user_agent.length > 60 ? '...' : ''}
                               </div>
                             </div>
                           )}
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Last Seen
-                            </div>
-                            <div className="text-sm">
-                              {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : "Never"}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Activity className="w-3 h-3" />
-                              First Seen
-                            </div>
-                            <div className="text-sm">
-                              {device.first_seen_at ? new Date(device.first_seen_at).toLocaleString() : "Unknown"}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t">
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">Request Count</div>
-                            <div className="text-lg font-semibold">{device.request_count || 0}</div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">Failed Auth Attempts</div>
-                            <div className="text-lg font-semibold text-red-600">{device.failed_auth_count || 0}</div>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">Security Events</div>
-                            <div className="text-lg font-semibold">{device.auditLogs?.length || 0}</div>
-                          </div>
                         </div>
 
                         {device.recentEvents && device.recentEvents.length > 0 && (
@@ -4445,18 +4589,33 @@ const Admin = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Set custom question for today</label>
+                      <label className="text-sm font-medium">
+                        {manualQuestion ? "Preview & Edit Question" : "Set custom question for today"}
+                      </label>
                       <Textarea
                         value={manualQuestion}
                         onChange={(e) => setManualQuestion(e.target.value)}
                         placeholder="What brightened your day?"
                         rows={3}
-                        className="resize-none rounded-2xl"
-                        disabled={isUpdatingSpotlight}
+                        className="resize-none rounded-2xl font-medium"
+                        disabled={isUpdatingSpotlight || isGeneratingSpotlight}
                       />
+                      {manualQuestion && (
+                        <div className="rounded-lg bg-primary/10 border border-primary/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-primary flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            Preview: This is what users will see
+                          </p>
+                          <p className="text-sm font-medium">{manualQuestion}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Click "Push to Garden" below to publish this question live for everyone.
+                          </p>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
-                        This will immediately replace the current Garden Spotlight question for everyone. The automatic
-                        rotation still runs nightly to create a fresh question for tomorrow.
+                        {manualQuestion 
+                          ? "Click 'Push to Garden' to immediately replace the current question for everyone." 
+                          : "This will immediately replace the current Garden Spotlight question for everyone. The automatic rotation still runs nightly to create a fresh question for tomorrow."}
                       </p>
                     </div>
 
@@ -4465,18 +4624,19 @@ const Admin = () => {
                         type="button"
                         variant="outline"
                         onClick={handleGenerateSpotlightNow}
-                        disabled={isGeneratingSpotlight}
+                        disabled={isGeneratingSpotlight || isUpdatingSpotlight}
                         className="rounded-2xl"
                       >
-                        {isGeneratingSpotlight ? "Generating…" : "Generate new AI question for today"}
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        {isGeneratingSpotlight ? "Generating AI Question…" : "Generate new AI question"}
                       </Button>
                       <Button
                         type="button"
                         onClick={handleUpdateSpotlightQuestion}
-                        disabled={isUpdatingSpotlight}
+                        disabled={isUpdatingSpotlight || isGeneratingSpotlight || !manualQuestion.trim()}
                         className="rounded-2xl"
                       >
-                        {isUpdatingSpotlight ? "Updating…" : "Save today’s question"}
+                        {isUpdatingSpotlight ? "Pushing to Garden…" : "🚀 Push to Garden"}
                       </Button>
                     </div>
                   </div>
@@ -4574,7 +4734,7 @@ const Admin = () => {
                                 variant={runResult.success ? "default" : "destructive"}
                                 className="text-xs animate-pulse"
                               >
-                                {runResult.success ? "✓ Test: Success" : "✗ Test: Failed"}
+                                {runResult.success ? "✓ Run: Success" : "✗ Run: Failed"}
                               </Badge>
                             )}
                           </div>
@@ -4604,7 +4764,7 @@ const Admin = () => {
                               {runResult && (
                                 <div className="flex items-center gap-2.5 p-2 bg-muted/50 rounded-lg">
                                   <Play className="w-4 h-4 text-primary flex-shrink-0" />
-                                  <span className="font-semibold text-foreground">Last Test:</span>
+                                  <span className="font-semibold text-foreground">Last Run:</span>
                                   <span className="text-muted-foreground font-medium">
                                     {runResult.timestamp.toLocaleTimeString()}
                                   </span>
@@ -4638,7 +4798,7 @@ const Admin = () => {
                                   <div className={`text-sm font-bold mb-1 ${
                                     runResult.success ? "text-green-800 dark:text-green-300" : "text-red-800 dark:text-red-300"
                                   }`}>
-                                    {runResult.success ? "Test Run Successful" : "Test Run Failed"}
+                                    {runResult.success ? "Execution Successful" : "Execution Failed"}
                                   </div>
                                   <div className={`text-xs ${
                                     runResult.success ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
@@ -4671,14 +4831,14 @@ const Admin = () => {
                           <Button
                             size="sm"
                             variant={job.active ? "default" : "secondary"}
-                            onClick={() => testCronJob(job.jobname)}
-                            disabled={testingJob === job.jobname || !job.active}
+                            onClick={() => runCronJob(job.jobname)}
+                            disabled={runningJob === job.jobname || !job.active}
                             className={`rounded-xl shadow-sm hover:shadow-md transition-all font-semibold ${
-                              testingJob === job.jobname ? "animate-pulse" : ""
+                              runningJob === job.jobname ? "animate-pulse" : ""
                             }`}
-                            title={!job.active ? "Cannot test inactive job" : "Manually trigger this job"}
+                            title={!job.active ? "Cannot run inactive job" : "Manually execute this job now"}
                           >
-                            {testingJob === job.jobname ? (
+                            {runningJob === job.jobname ? (
                               <>
                                 <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
                                 Running...
@@ -4686,7 +4846,7 @@ const Admin = () => {
                             ) : (
                               <>
                                 <Play className="w-4 h-4 mr-2" />
-                                Test Run
+                                Run Now
                               </>
                             )}
                           </Button>
@@ -4763,15 +4923,15 @@ const Admin = () => {
                                 </p>
                               </div>
                             ) : (
-                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                              <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
                                 {cronJobHistory[job.jobname].map((run: any) => (
                                   <div
                                     key={run.runid}
-                                    className={`p-3 rounded-lg border text-sm ${
+                                    className={`p-4 rounded-xl border-2 shadow-sm hover:shadow-md transition-shadow text-sm ${
                                       run.status === "succeeded"
-                                        ? "bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-900"
+                                        ? "bg-gradient-to-r from-green-50 to-green-100/30 dark:from-green-950/20 dark:to-green-900/10 border-green-300 dark:border-green-800"
                                         : run.status === "failed"
-                                        ? "bg-red-50/50 dark:bg-red-950/10 border-red-200 dark:border-red-900"
+                                        ? "bg-gradient-to-r from-red-50 to-red-100/30 dark:from-red-950/20 dark:to-red-900/10 border-red-300 dark:border-red-800"
                                         : "bg-muted/50 border-border"
                                     }`}
                                   >
