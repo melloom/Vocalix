@@ -3843,7 +3843,6 @@ const Settings = () => {
                     </Card>
                   );
                 })}
-              </div>
               </TabsContent>
               <TabsContent value="revoked" className="space-y-3">
                 <div>
