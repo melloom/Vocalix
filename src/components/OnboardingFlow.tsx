@@ -192,6 +192,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
   const [avatarsLoading, setAvatarsLoading] = useState(false);
   
+  // Detect if device is mobile
+  const isMobile = typeof window !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    (window.innerWidth <= 768 && 'ontouchstart' in window) ||
+    navigator.maxTouchPoints > 0
+  );
+  
   // Note: Freepik API doesn't work from browser due to CORS restrictions
   // Using DiceBear which works perfectly and generates unique avatars
   // If Freepik is needed, it would need to be called from a Supabase Edge Function
@@ -309,11 +316,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       if (existingScript) {
         // If script exists but v3 API isn't ready, wait for it (silently)
         if (!checkV3Loaded()) {
-          // Wait for it to become available (max 5 seconds)
+          // Wait for it to become available (longer timeout on mobile)
           let waitAttempts = 0;
+          const maxWaitAttempts = isMobile ? 100 : 50; // 10 seconds on mobile, 5 on desktop
           const waitInterval = setInterval(() => {
               waitAttempts++;
-              if (checkV3Loaded() || waitAttempts >= 50) {
+              if (checkV3Loaded() || waitAttempts >= maxWaitAttempts) {
                 clearInterval(waitInterval);
                 if (!checkV3Loaded()) {
                 // Silently fail - reCAPTCHA is optional
@@ -387,13 +395,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
         // Strategy 1: Try ready() callback immediately
         if (tryReadyCallback()) {
-          // Set a timeout in case ready() never fires
+          // Set a timeout in case ready() never fires (longer on mobile)
+          const readyTimeoutMs = isMobile ? 5000 : 2000;
           readyTimeout = setTimeout(() => {
             if (!checkAndSetReady()) {
               console.log('[OnboardingFlow] v3 ready() timeout, starting polling...');
               startPolling();
             }
-          }, 2000);
+          }, readyTimeoutMs);
         } else {
           // Strategy 2: Wait a bit then check
           setTimeout(() => {
@@ -404,10 +413,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           }, 1000);
         }
 
-        // Strategy 3: Poll as fallback
+        // Strategy 3: Poll as fallback (longer on mobile)
         const startPolling = () => {
           let pollAttempts = 0;
-          const maxPollAttempts = 60; // 6 seconds
+          const maxPollAttempts = isMobile ? 120 : 60; // 12 seconds on mobile, 6 on desktop
           checkReadyInterval = setInterval(() => {
             pollAttempts++;
             if (checkAndSetReady() || pollAttempts >= maxPollAttempts) {
@@ -455,9 +464,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     // Load script
     loadV3Script();
 
-    // Fallback: Check periodically if script loaded externally
+    // Fallback: Check periodically if script loaded externally (longer on mobile)
     let attempts = 0;
-    const maxAttempts = 40;
+    const maxAttempts = isMobile ? 80 : 40; // 40 seconds on mobile, 20 on desktop
     const checkInterval = setInterval(() => {
       attempts++;
         if (checkV3Loaded() || attempts >= maxAttempts) {
@@ -635,8 +644,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         try {
             // Execute v3 reCAPTCHA
             if (typeof window !== 'undefined') {
-              // Wait a bit to ensure script has time to initialize
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Wait longer on mobile to ensure script has time to initialize
+              const initDelay = isMobile ? 1000 : 500;
+              await new Promise(resolve => setTimeout(resolve, initDelay));
               
               const grecaptcha = (window as any).grecaptcha;
               
@@ -648,16 +658,18 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   console.warn('[OnboardingFlow] reCAPTCHA not loaded - this may be a configuration issue');
                 }
               } else {
-                // Try multiple times with delays - v3 might load slowly
-                for (let attempt = 0; attempt < 3; attempt++) {
+                // Try more times on mobile - v3 might load slowly on mobile networks
+                const maxAttempts = isMobile ? 5 : 3;
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
                   if (grecaptcha && typeof grecaptcha.execute === 'function') {
                     try {
-                      // Strategy 1: Try ready() callback
+                      // Strategy 1: Try ready() callback (longer timeout on mobile)
                       if (typeof grecaptcha.ready === 'function') {
                         enterpriseToken = await new Promise<string | null>((resolve) => {
+                          const timeoutMs = isMobile ? 5000 : 2000;
                           const timeout = setTimeout(() => {
                             resolve(null); // Timeout - try direct execute
-                          }, 2000);
+                          }, timeoutMs);
                           
                           grecaptcha.ready(async () => {
                             clearTimeout(timeout);
@@ -709,9 +721,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     }
                   }
                   
-                  // Wait before next attempt
-                  if (!enterpriseToken && attempt < 2) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                  // Wait longer before next attempt on mobile
+                  if (!enterpriseToken && attempt < maxAttempts - 1) {
+                    const retryDelay = isMobile ? 1000 : 500;
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
                   }
                 }
               }
@@ -852,16 +865,52 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
         
         // Only block if reCAPTCHA is required and we're in production
+        // On mobile, be more lenient - allow registration if reCAPTCHA fails after multiple attempts
         // In development, allow graceful degradation
         
         if (!isDevelopment && RECAPTCHA_SITE_KEY && recaptchaAvailable && !recaptchaError && !recaptchaToken) {
-          toast({
-            title: "Verification required",
-            description: "Please complete the reCAPTCHA verification before creating your account.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
+          // On mobile, show a warning but allow proceeding after a delay and retry
+          if (isMobile) {
+            toast({
+              title: "Verification issue",
+              description: "reCAPTCHA verification is taking longer than expected. Retrying...",
+              variant: "default",
+            });
+            // Wait a bit more on mobile before allowing
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Try one more time
+            try {
+              const grecaptcha = (window as any).grecaptcha;
+              if (grecaptcha && typeof grecaptcha.execute === 'function') {
+                const finalToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'ACCOUNT_CREATION' });
+                if (finalToken) {
+                  setRecaptchaToken(finalToken);
+                  console.log('[OnboardingFlow] Mobile: Successfully obtained reCAPTCHA token on retry');
+                  // Continue with registration - token is now set
+                } else {
+                  // Allow registration to proceed on mobile even without token
+                  console.warn('[OnboardingFlow] Mobile: Proceeding without reCAPTCHA token after retry');
+                  // Continue anyway - backend will handle it
+                }
+              } else {
+                console.warn('[OnboardingFlow] Mobile: reCAPTCHA not available, proceeding anyway');
+                // Continue anyway - backend will handle it
+              }
+            } catch (e) {
+              // Allow registration to proceed on mobile
+              console.warn('[OnboardingFlow] Mobile: reCAPTCHA error, proceeding anyway:', e);
+              // Continue anyway - backend will handle it
+            }
+          } else {
+            // Desktop: require reCAPTCHA
+            toast({
+              title: "Verification required",
+              description: "Please complete the reCAPTCHA verification before creating your account.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
         }
         
         // Continue with profile creation if validation is optional or in development

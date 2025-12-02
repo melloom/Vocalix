@@ -50,3 +50,4 @@ COMMENT ON FUNCTION public.deactivate_magic_login_link(UUID) IS
 
 
 
+
