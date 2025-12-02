@@ -603,11 +603,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       // Ensure we have an auth user
       let currentUserId = userId;
       if (!currentUserId) {
-        await signInAnonymously();
-        const { data: { session } } = await supabase.auth.getSession();
-        currentUserId = session?.user?.id || null;
-        if (!currentUserId) {
-          throw new Error("Failed to create anonymous user. Please enable Anonymous Auth in Supabase.");
+        // Check for existing session first before attempting sign-in
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        if (existingSession?.user) {
+          currentUserId = existingSession.user.id;
+        } else {
+          // Only sign in if we don't have a session
+          if (signInAnonymously) {
+            await signInAnonymously();
+            const { data: { session } } = await supabase.auth.getSession();
+            currentUserId = session?.user?.id || null;
+            if (!currentUserId) {
+              throw new Error("Failed to create anonymous user. Please enable Anonymous Auth in Supabase.");
+            }
+          } else {
+            throw new Error("Authentication not available. Please refresh the page.");
+          }
         }
       }
 

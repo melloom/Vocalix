@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useMemo, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
@@ -34,31 +34,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const queryClient = useQueryClient();
+  
+  // Prevent multiple simultaneous sign-in attempts
+  const signInAttemptRef = useRef(false);
+  const lastSignInAttemptRef = useRef<number>(0);
+  const signInPromiseRef = useRef<Promise<void> | null>(null);
 
-  // Sign in anonymously
+  // Sign in anonymously (with rate limiting to prevent spam)
   const signInAnonymously = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) {
-        // If anonymous auth is disabled, don't spam console - just return
-        if (error.message?.includes("Anonymous sign-ins are disabled") || error.message?.includes("disabled")) {
-          console.warn("⚠️ Anonymous Auth is not enabled in Supabase. Enable it at: https://supabase.com/dashboard/project/xgblxtopsapvacyaurcr/auth/providers");
-          return; // Don't throw - app can still work
-        }
-        throw error;
+    // Prevent multiple simultaneous calls
+    if (signInAttemptRef.current) {
+      // If there's already a sign-in in progress, return that promise
+      if (signInPromiseRef.current) {
+        return signInPromiseRef.current;
       }
-      
-      if (data.user) {
-        setUserId(data.user.id);
-        logWarn("Signed in anonymously:", data.user.id);
-      }
-    } catch (error: any) {
-      // Only log if it's not the "disabled" error
-      if (!error?.message?.includes("Anonymous sign-ins are disabled") && !error?.message?.includes("disabled")) {
-        logError("Failed to sign in anonymously", error);
-      }
-      // Don't throw - let app continue without auth
+      return;
     }
+    
+    // Rate limiting: Don't attempt more than once per 5 minutes
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastSignInAttemptRef.current;
+    const MIN_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+    
+    if (timeSinceLastAttempt < MIN_COOLDOWN && lastSignInAttemptRef.current > 0) {
+      console.log(`[Auth] Sign-in attempt blocked - cooldown active (${Math.round((MIN_COOLDOWN - timeSinceLastAttempt) / 1000)}s remaining)`);
+      return;
+    }
+    
+    // Check if we already have a session before attempting
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUserId(session.user.id);
+      return;
+    }
+    
+    signInAttemptRef.current = true;
+    lastSignInAttemptRef.current = now;
+    
+    const signInPromise = (async () => {
+      try {
+        const { data, error } = await supabase.auth.signInAnonymously();
+        if (error) {
+          // If anonymous auth is disabled, don't spam console - just return
+          if (error.message?.includes("Anonymous sign-ins are disabled") || error.message?.includes("disabled")) {
+            console.warn("⚠️ Anonymous Auth is not enabled in Supabase. Enable it at: https://supabase.com/dashboard/project/xgblxtopsapvacyaurcr/auth/providers");
+            signInAttemptRef.current = false;
+            return; // Don't throw - app can still work
+          }
+          throw error;
+        }
+        
+        if (data.user) {
+          setUserId(data.user.id);
+          console.log('[Auth] Signed in anonymously:', data.user.id.substring(0, 8) + '...');
+        }
+      } catch (error: any) {
+        // Only log if it's not the "disabled" error
+        if (!error?.message?.includes("Anonymous sign-ins are disabled") && !error?.message?.includes("disabled")) {
+          logError("Failed to sign in anonymously", error);
+        }
+        // Don't throw - let app continue without auth
+      } finally {
+        signInAttemptRef.current = false;
+        signInPromiseRef.current = null;
+      }
+    })();
+    
+    signInPromiseRef.current = signInPromise;
+    return signInPromise;
   };
 
   // Initialize auth state with timeout for mobile
@@ -125,16 +168,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserId(session.user.id);
       } else {
         setUserId(null);
-        // Try to sign in anonymously again (but don't block)
-        // Only try once per minute to avoid spam
-        const lastAttempt = sessionStorage.getItem("last_anonymous_auth_attempt");
-        const now = Date.now();
-        if (!lastAttempt || (now - parseInt(lastAttempt, 10)) > 60000) {
-          sessionStorage.setItem("last_anonymous_auth_attempt", now.toString());
-          signInAnonymously().catch(() => {
-            // Silently fail - anonymous auth might not be enabled yet
-          });
-        }
+        // Don't automatically try to sign in on auth state change
+        // This was causing too many sign-in attempts
+        // Only sign in when explicitly needed (e.g., during onboarding)
       }
     });
 
