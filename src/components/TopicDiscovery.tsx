@@ -502,7 +502,7 @@ export const TopicDiscovery = ({
     <div className={cn("space-y-6", className)}>
       {/* Recommended Topics - Shows personalized recommendations or trending topics */}
       {showRecommendations && (
-        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
+        <Card className="p-4 !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Recommended for You</h3>
@@ -556,7 +556,7 @@ export const TopicDiscovery = ({
 
       {/* Similar Topics */}
       {showSimilar && currentTopicId && (
-        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
+        <Card className="p-4 !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors">
           <div className="flex items-center gap-2 mb-4">
             <Hash className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Similar Topics</h3>
@@ -608,7 +608,7 @@ export const TopicDiscovery = ({
 
       {/* Trending Topics - Reddit Style */}
       {showTrending && (
-        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
+        <Card className="p-4 !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />

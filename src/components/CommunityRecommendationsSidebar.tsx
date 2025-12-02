@@ -223,7 +223,7 @@ export const CommunityRecommendationsSidebar = () => {
   return (
     <div className="space-y-6">
       {/* Best Communities - Reddit Style */}
-      <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
+      <Card className="p-4 !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" />
@@ -293,7 +293,7 @@ export const CommunityRecommendationsSidebar = () => {
       </Card>
 
       {/* News & Updates - Reddit Style */}
-      <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
+      <Card className="p-4 !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Newspaper className="h-4 w-4 text-primary" />

@@ -3724,7 +3724,7 @@ const IndexInner = () => {
         )}
 
         {!isSearching && !sortMode && profileId && (
-          <Card className="p-4 rounded-2xl border border-black/20 bg-primary/5">
+          <Card className="p-4 rounded-2xl !border-black/30 dark:!border-border/30 hover:!border-primary/50 dark:hover:!border-primary/30 transition-colors bg-primary/5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Today&apos;s check-in</h3>
