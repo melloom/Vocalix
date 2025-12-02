@@ -239,6 +239,18 @@ const LoginPin = () => {
                 </Link>{" "}
                 on any device that&apos;s already signed in.
               </p>
+              <p className="text-xs text-slate-400">
+                Forgot your PIN?{" "}
+                <Link to="/reset-pin" className="underline underline-offset-2 text-sky-400">
+                  Reset it with your recovery email
+                </Link>
+              </p>
+              <p className="text-xs text-slate-400">
+                Don't have a PIN?{" "}
+                <Link to="/request-magic-link" className="underline underline-offset-2 text-sky-400">
+                  Request a login link via email
+                </Link>
+              </p>
             </div>
           </>
         ) : null}

@@ -412,19 +412,61 @@ const LoginLink = () => {
         {status === "error" && (
           <>
             <AlertCircle className="mx-auto h-10 w-10 text-destructive" />
-            <div className="space-y-2">
-              <h1 className="text-2xl font-semibold">We couldn&apos;t use that link</h1>
-              <p className="text-sm text-muted-foreground">
-                {errorMessage ?? "The link may have expired. Request a new one from Settings."}
-              </p>
-            </div>
-            <div className="flex justify-center gap-3">
-              <Button asChild className="rounded-2xl">
-                <Link to="/settings">Request a new link</Link>
-              </Button>
-              <Button variant="outline" asChild className="rounded-2xl">
-                <Link to="/">Back home</Link>
-              </Button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h1 className="text-2xl font-semibold">We couldn&apos;t use that link</h1>
+                <p className="text-sm text-muted-foreground">
+                  {errorMessage ?? "The link may have expired. Request a new one from Settings."}
+                </p>
+              </div>
+              
+              <div className="rounded-xl bg-muted/50 border border-border p-4 text-left space-y-3">
+                <p className="text-sm font-medium">🔐 Account Recovery Options</p>
+                <div className="space-y-2">
+                  <div>
+                    <Link 
+                      to="/request-magic-link" 
+                      className="block text-sm text-primary hover:underline font-medium"
+                    >
+                      📧 Request a new login link via email
+                    </Link>
+                    <p className="text-xs text-muted-foreground ml-5">
+                      Get a fresh login link sent to your recovery email
+                    </p>
+                  </div>
+                  <div>
+                    <Link 
+                      to="/reset-pin" 
+                      className="block text-sm text-primary hover:underline font-medium"
+                    >
+                      🔑 Reset your login PIN
+                    </Link>
+                    <p className="text-xs text-muted-foreground ml-5">
+                      Reset your PIN if you forgot it
+                    </p>
+                  </div>
+                  <div>
+                    <Link 
+                      to="/login-pin" 
+                      className="block text-sm text-primary hover:underline font-medium"
+                    >
+                      🔢 Sign in with your handle + PIN
+                    </Link>
+                    <p className="text-xs text-muted-foreground ml-5">
+                      If you remember your PIN, use it to log in
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Button asChild className="rounded-2xl">
+                  <Link to="/request-magic-link">Request Link via Email</Link>
+                </Button>
+                <Button variant="outline" asChild className="rounded-2xl">
+                  <Link to="/">Back Home</Link>
+                </Button>
+              </div>
             </div>
           </>
         )}

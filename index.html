@@ -7,9 +7,99 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Echo Garden" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="msapplication-TileColor" content="#ffffff" />
-    <meta name="msapplication-navbutton-color" content="#ffffff" />
+    <meta name="theme-color" content="#2a1f3d" />
+    <meta name="msapplication-TileColor" content="#2a1f3d" />
+    <meta name="msapplication-navbutton-color" content="#2a1f3d" />
+    <!-- Apply theme immediately on page load before React renders -->
+    <script>
+      (function() {
+        // Apply theme immediately from localStorage
+        const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
+        const root = document.documentElement;
+        const body = document.body;
+        
+        // Remove all existing theme classes
+        const themeClasses = ["theme-indigo", "theme-light", "theme-dark", "theme-ocean", "theme-sunset", "theme-forest", "theme-neon", "theme-midnight", "theme-aurora", "theme-rose"];
+        themeClasses.forEach(themeClass => {
+          root.classList.remove(themeClass);
+          body.classList.remove(themeClass);
+        });
+        root.classList.remove("dark", "light");
+        
+        // Apply the stored theme
+        if (storedTheme && storedTheme !== "light" && storedTheme !== "dark") {
+          root.classList.add(`theme-${storedTheme}`);
+          body.classList.add(`theme-${storedTheme}`);
+          
+          // Apply dark class for dark themes
+          if (storedTheme === "midnight" || storedTheme === "indigo") {
+            root.classList.add("dark");
+          } else {
+            root.classList.add("light");
+          }
+        } else if (storedTheme === "dark") {
+          root.classList.add("dark");
+          root.classList.remove("light");
+        } else if (storedTheme === "light") {
+          root.classList.add("light");
+          root.classList.remove("dark");
+        } else {
+          // Default to indigo
+          root.classList.add("theme-indigo");
+          body.classList.add("theme-indigo");
+          root.classList.add("dark");
+        }
+        
+        // Apply theme colors immediately as inline styles for instant rendering
+        if (storedTheme === "indigo") {
+          root.style.setProperty("--background", "260 55% 16%");
+          root.style.setProperty("--foreground", "0 0% 98%");
+          root.style.setProperty("--card", "260 50% 20%");
+          root.style.setProperty("--card-foreground", "0 0% 98%");
+          root.style.setProperty("--popover", "260 50% 20%");
+          root.style.setProperty("--popover-foreground", "0 0% 98%");
+          root.style.setProperty("--primary", "15 85% 62%");
+          root.style.setProperty("--primary-foreground", "0 0% 98%");
+          root.style.setProperty("--secondary", "260 45% 25%");
+          root.style.setProperty("--secondary-foreground", "0 0% 98%");
+          root.style.setProperty("--muted", "260 40% 22%");
+          root.style.setProperty("--muted-foreground", "0 0% 75%");
+          root.style.setProperty("--accent", "25 95% 55%");
+          root.style.setProperty("--accent-foreground", "0 0% 98%");
+          root.style.setProperty("--destructive", "0 72% 51%");
+          root.style.setProperty("--destructive-foreground", "0 0% 98%");
+          root.style.setProperty("--border", "260 40% 28%");
+          root.style.setProperty("--input", "260 40% 28%");
+          root.style.setProperty("--ring", "15 85% 62%");
+          root.style.setProperty("--record-pulse", "15 85% 62%");
+          root.style.setProperty("--waveform", "15 75% 55%");
+          root.style.setProperty("--emoji-glow", "45 100% 60%");
+        } else if (storedTheme === "light") {
+          root.style.setProperty("--background", "0 0% 100%");
+          root.style.setProperty("--foreground", "0 0% 3.9%");
+          root.style.setProperty("--card", "0 0% 100%");
+          root.style.setProperty("--card-foreground", "0 0% 3.9%");
+          root.style.setProperty("--popover", "0 0% 100%");
+          root.style.setProperty("--popover-foreground", "0 0% 3.9%");
+          root.style.setProperty("--primary", "0 0% 9%");
+          root.style.setProperty("--primary-foreground", "0 0% 98%");
+          root.style.setProperty("--secondary", "0 0% 96.1%");
+          root.style.setProperty("--secondary-foreground", "0 0% 9%");
+          root.style.setProperty("--muted", "0 0% 96.1%");
+          root.style.setProperty("--muted-foreground", "0 0% 45.1%");
+          root.style.setProperty("--accent", "0 0% 96.1%");
+          root.style.setProperty("--accent-foreground", "0 0% 9%");
+          root.style.setProperty("--destructive", "0 84.2% 60.2%");
+          root.style.setProperty("--destructive-foreground", "0 0% 98%");
+          root.style.setProperty("--border", "0 0% 89.8%");
+          root.style.setProperty("--input", "0 0% 89.8%");
+          root.style.setProperty("--ring", "0 0% 3.9%");
+          root.style.setProperty("--record-pulse", "0 72% 51%");
+          root.style.setProperty("--waveform", "0 65% 45%");
+          root.style.setProperty("--emoji-glow", "0 100% 60%");
+        }
+      })();
+    </script>
     <!-- Critical CSS fallback for mobile white screen fix -->
     <style>
       html, body {
@@ -19,7 +109,6 @@
         width: 100%;
         max-width: 100vw;
         overflow-x: hidden;
-        background-color: #f9f7f3;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       }
       #root {
@@ -27,7 +116,41 @@
         width: 100%;
         max-width: 100vw;
         overflow-x: hidden;
-        background-color: #f9f7f3;
+      }
+      /* Theme-based background colors - will be set by script */
+      html.theme-indigo, html.dark {
+        background-color: #2a1f3d;
+      }
+      html.theme-light, html.light {
+        background-color: #ffffff;
+      }
+      html.theme-dark {
+        background-color: #1a1a1a;
+      }
+      html.theme-ocean {
+        background-color: #e0f2fe;
+      }
+      html.theme-sunset {
+        background-color: #fff5e6;
+      }
+      html.theme-forest {
+        background-color: #f0fdf4;
+      }
+      html.theme-neon {
+        background-color: #faf5ff;
+      }
+      html.theme-midnight {
+        background-color: #1e1b4b;
+      }
+      html.theme-aurora {
+        background-color: #ecfeff;
+      }
+      html.theme-rose {
+        background-color: #fff1f2;
+      }
+      /* Default to indigo if no theme set */
+      html:not([class*="theme-"]):not(.light):not(.dark) {
+        background-color: #2a1f3d;
       }
     </style>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -60,12 +183,42 @@
   <body>
     <div id="root">
       <!-- Loading fallback for mobile - shows immediately while JS loads -->
-      <div id="loading-screen" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;">
+      <div id="loading-screen" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; -webkit-font-smoothing: antialiased;">
         <div style="text-align: center; padding: 20px;">
-          <div style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
-          <p style="color: #666; font-size: 16px;">Loading Echo Garden...</p>
+          <div id="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p id="loading-text" style="color: #666; font-size: 16px;">Loading Echo Garden...</p>
         </div>
       </div>
+      <script>
+        // Update loading screen colors based on theme
+        (function() {
+          const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
+          const loadingScreen = document.getElementById("loading-screen");
+          const loadingSpinner = document.getElementById("loading-spinner");
+          const loadingText = document.getElementById("loading-text");
+          
+          const themeColors = {
+            indigo: { bg: "#2a1f3d", text: "#e0e0e0", spinner: "#667eea" },
+            light: { bg: "#ffffff", text: "#333", spinner: "#000" },
+            dark: { bg: "#1a1a1a", text: "#e0e0e0", spinner: "#667eea" },
+            ocean: { bg: "#e0f2fe", text: "#0c4a6e", spinner: "#0ea5e9" },
+            sunset: { bg: "#fff5e6", text: "#7c2d12", spinner: "#ff6b6b" },
+            forest: { bg: "#f0fdf4", text: "#14532d", spinner: "#22c55e" },
+            neon: { bg: "#faf5ff", text: "#581c87", spinner: "#a855f7" },
+            midnight: { bg: "#1e1b4b", text: "#e0e0e0", spinner: "#6366f1" },
+            aurora: { bg: "#ecfeff", text: "#083344", spinner: "#06b6d4" },
+            rose: { bg: "#fff1f2", text: "#881337", spinner: "#f43f5e" }
+          };
+          
+          const colors = themeColors[storedTheme] || themeColors.indigo;
+          if (loadingScreen) loadingScreen.style.backgroundColor = colors.bg;
+          if (loadingText) loadingText.style.color = colors.text;
+          if (loadingSpinner) {
+            loadingSpinner.style.borderColor = colors.text + "40";
+            loadingSpinner.style.borderTopColor = colors.spinner;
+          }
+        })();
+      </script>
       <style>
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -83,7 +236,7 @@
           const loading = document.getElementById('loading-screen');
           if (root && (loading || root.innerHTML.includes('Loading Echo Garden'))) {
             console.log('[HTML] Force clearing loading screen after timeout');
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">App Loading</h1><p style="color: #666; margin-bottom: 24px;">If this screen persists, please refresh the page.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">App Loading</h1><p style="color: #e0e0e0; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">If this screen persists, please refresh the page.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
             cleared = true;
           }
         };
@@ -140,7 +293,7 @@
           console.error('[HTML] ❌ Main script file failed to load:', e);
           var root = document.getElementById('root');
           if (root) {
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script File Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main script file could not be loaded from the server.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">This might be a network issue or the file doesn\'t exist.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Script File Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main script file could not be loaded from the server.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">This might be a network issue or the file doesn\'t exist.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
           }
         };
       }
@@ -176,8 +329,8 @@
             var root = document.getElementById('root');
             if (root && !root.innerHTML.includes('Module Failed') && !root.innerHTML.includes('Module Import') && !root.innerHTML.includes('Script File Failed')) {
               var errorMsg = e.message || 'Unknown error';
-              var errorStack = e.error?.stack ? '<br><br><details style="text-align: left; margin-top: 12px;"><summary style="cursor: pointer; color: #667eea;">Stack Trace</summary><pre style="font-size: 10px; overflow: auto; max-height: 200px; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px;">' + e.error.stack + '</pre></details>' : '';
-              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 600px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Module Error</h1><p style="color: #666; margin-bottom: 12px;">An error occurred while loading the application module.</p><p style="color: #999; font-size: 12px; margin-bottom: 12px; word-break: break-all;">Error: ' + errorMsg + '</p><p style="color: #999; font-size: 12px; margin-bottom: 12px;">File: ' + (e.filename || 'unknown') + '</p><p style="color: #999; font-size: 12px; margin-bottom: 12px;">Line: ' + (e.lineno || 'unknown') + ', Col: ' + (e.colno || 'unknown') + '</p>' + errorStack + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+              var errorStack = e.error?.stack ? '<br><br><details style="text-align: left; margin-top: 12px;"><summary style="cursor: pointer; color: #667eea;">Stack Trace</summary><pre style="font-size: 10px; overflow: auto; max-height: 200px; background: #1a1525; color: #d0d0d0; padding: 8px; border-radius: 4px; margin-top: 8px; -webkit-font-smoothing: antialiased;">' + e.error.stack + '</pre></details>' : '';
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 600px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Module Error</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">An error occurred while loading the application module.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; word-break: break-all; -webkit-font-smoothing: antialiased;">Error: ' + errorMsg + '</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">File: ' + (e.filename || 'unknown') + '</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">Line: ' + (e.lineno || 'unknown') + ', Col: ' + (e.colno || 'unknown') + '</p>' + errorStack + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
             }
           }
         }
@@ -208,7 +361,7 @@
             window.__MODULE_IMPORT_ERROR__ = true;
             var root = document.getElementById('root');
             if (root && (root.innerHTML.includes('Loading Echo Garden') || root.children.length === 0)) {
-              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Module Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main application module did not execute. This usually means there is a JavaScript error preventing the code from running.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">Please check the browser console for errors and try clearing your cache.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Module Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main application module did not execute. This usually means there is a JavaScript error preventing the code from running.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">Please check the browser console for errors and try clearing your cache.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
             }
           }
           // If script hasn't loaded yet, don't show error - script might still be loading
@@ -252,7 +405,7 @@
             var root = document.getElementById('root');
             if (root && !window.__ERROR_SHOWN__) {
               window.__ERROR_SHOWN__ = true;
-              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Script Failed to Load</h1><p style="color: #666; margin-bottom: 12px;">The main application script could not be loaded.</p><p style="color: #999; font-size: 12px; margin-bottom: 24px;">File: ' + (mainScript.src || '/src/main.tsx') + '</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Script Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main application script could not be loaded.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">File: ' + (mainScript.src || '/src/main.tsx') + '</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
             }
           };
           
@@ -593,7 +746,7 @@
               ? 'React failed to load. This can happen on mobile browsers with cached files.'
               : 'Script failed to load. This might be a network issue or cached file problem.';
             
-            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">' + (isReactError ? 'React Loading Error' : 'Script Loading Error') + '</h1><p style="color: #666; margin-bottom: 12px;">' + errorMsg + '</p>' + errorDetailsHtml + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Completely reset cached files?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset App Cache</button><button onclick="if(confirm(\'Clear local/session storage?\')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Storage</button></div></div></div>';
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">' + (isReactError ? 'React Loading Error' : 'Script Loading Error') + '</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">' + errorMsg + '</p>' + errorDetailsHtml + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Completely reset cached files?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset App Cache</button><button onclick="if(confirm(\'Clear local/session storage?\')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Storage</button></div></div></div>';
           }
         }
       }, true);
@@ -613,7 +766,7 @@
         );
         if (stillLoading) {
           console.error('[App] Timeout: App did not load within 15 seconds');
-          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Loading Taking Too Long</h1><p style="color: #666; margin-bottom: 24px;">The app is taking longer than expected to load. This might be due to a slow connection or a JavaScript error. Please check the browser console and try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
+          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Loading Taking Too Long</h1><p style="color: #e0e0e0; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">The app is taking longer than expected to load. This might be due to a slow connection or a JavaScript error. Please check the browser console and try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
         }
       }, 15000);
     </script>

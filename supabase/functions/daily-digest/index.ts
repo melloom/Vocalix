@@ -345,42 +345,155 @@ Manage your preferences: ${APP_URL}/settings
   `.trim();
 };
 
-// Send email via Resend
-const sendEmail = async (digest: DigestData): Promise<boolean> => {
-  if (!RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY not set, skipping email send");
-    return false;
+// Send email via SMTP2GO (final fallback - 1,000 emails/month free forever)
+const sendEmailViaSMTP2GO = async (digest: DigestData): Promise<boolean> => {
+  const SMTP2GO_API_KEY = Deno.env.get("SMTP2GO_API_KEY");
+  
+  if (!SMTP2GO_API_KEY) {
+    return false; // SMTP2GO not configured
   }
 
   try {
-    const response = await fetch("https://api.resend.com/emails", {
+    const emailData = {
+      api_key: SMTP2GO_API_KEY,
+      to: [digest.email],
+      sender: "noreply@echogarden.app",
+      subject: `🎧 Your Daily Digest: ${digest.clip_count} new clips`,
+      html_body: generateEmailHTML(digest),
+      text_body: generateEmailText(digest),
+    };
+
+    const response = await fetch("https://api.smtp2go.com/v3/email/send", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: "Echo Garden <digest@echogarden.app>", // Update with your verified domain
-        to: digest.email,
-        subject: `🎧 Your Daily Digest: ${digest.clip_count} new clips`,
-        html: generateEmailHTML(digest),
-        text: generateEmailText(digest),
-      }),
+      body: JSON.stringify(emailData),
     });
 
-    if (!response.ok) {
+    if (response.ok) {
+      const result = await response.json();
+      if (result.data?.error_code === 0) {
+        console.log("Email sent successfully via SMTP2GO fallback");
+        return true;
+      } else {
+        console.warn("SMTP2GO API error:", result.data?.error);
+        return false;
+      }
+    } else {
       const errorText = await response.text();
-      console.error("Resend API error:", response.status, errorText);
+      console.warn("SMTP2GO API error:", response.status, errorText);
       return false;
     }
-
-    const result = await response.json();
-    console.log("Email sent successfully:", result.id);
-    return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error sending email via SMTP2GO fallback:", error);
     return false;
   }
+};
+
+// Send email via Brevo (free fallback - 300 emails/day = 9,000/month free forever)
+const sendEmailViaBrevo = async (digest: DigestData): Promise<boolean> => {
+  const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
+  
+  if (!BREVO_API_KEY) {
+    return false; // Brevo not configured
+  }
+
+  try {
+    const emailData = {
+      sender: {
+        name: "Echo Garden",
+        email: "noreply@echogarden.app",
+      },
+      to: [
+        {
+          email: digest.email,
+        },
+      ],
+      subject: `🎧 Your Daily Digest: ${digest.clip_count} new clips`,
+      htmlContent: generateEmailHTML(digest),
+      textContent: generateEmailText(digest),
+    };
+
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(emailData),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log("Email sent successfully via Brevo fallback:", result.messageId);
+      return true;
+    } else {
+      const errorText = await response.text();
+      console.warn("Brevo API error:", response.status, errorText);
+      return false;
+    }
+  } catch (error) {
+    console.error("Error sending email via Brevo fallback:", error);
+    return false;
+  }
+};
+
+// Send email via Resend (primary) with fallback
+const sendEmail = async (digest: DigestData): Promise<boolean> => {
+  // Try Resend first (primary service)
+  if (RESEND_API_KEY) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "Echo Garden <digest@echogarden.app>", // Update with your verified domain
+          to: digest.email,
+          subject: `🎧 Your Daily Digest: ${digest.clip_count} new clips`,
+          html: generateEmailHTML(digest),
+          text: generateEmailText(digest),
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Email sent successfully via Resend:", result.id);
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.warn("Resend API error, trying fallback:", response.status, errorText);
+      }
+    } catch (error) {
+      console.warn("Resend failed, trying fallback:", error);
+    }
+  } else {
+    console.warn("RESEND_API_KEY not set, trying fallback");
+  }
+
+  // Fallback 1: Try Brevo (free tier: 300 emails/day = 9,000/month, free forever)
+  const brevoSuccess = await sendEmailViaBrevo(digest);
+  if (brevoSuccess) {
+    return true;
+  }
+
+  // Fallback 2: Try SMTP2GO (free tier: 1,000 emails/month, free forever)
+  const smtp2goSuccess = await sendEmailViaSMTP2GO(digest);
+  if (smtp2goSuccess) {
+    return true;
+  }
+
+  console.warn("All email services failed. Email not sent to:", digest.email);
+  console.warn("To enable fallbacks, set up:");
+  console.warn("  1. Brevo: https://www.brevo.com (free: 300 emails/day = 9,000/month forever)");
+  console.warn("     Set BREVO_API_KEY in Supabase Edge Functions secrets");
+  console.warn("  2. SMTP2GO: https://www.smtp2go.com (free: 1,000 emails/month forever)");
+  console.warn("     Set SMTP2GO_API_KEY in Supabase Edge Functions secrets");
+  
+  return false;
 };
 
 // Process digest for a single user

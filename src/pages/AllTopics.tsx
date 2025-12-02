@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, TrendingUp, Calendar, Users, Plus, Search, Sparkles, Clock, Filter } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Calendar, Users, Plus, Search, Sparkles, Clock, Filter, MessageCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { CreateTopicModal } from '@/components/CreateTopicModal';
 import { useProfile } from '@/hooks/useProfile';
@@ -132,11 +132,11 @@ export default function AllTopics() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 pb-24">
-      {/* Header with gradient */}
-      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/30 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-4 py-4">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
@@ -147,22 +147,17 @@ export default function AllTopics() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold flex items-center gap-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg">
-                    <Sparkles className="w-5 h-5 text-primary-foreground" />
-                  </div>
-                  All Topics
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1.5">
-                  Discover and explore trending discussion topics
+                <h1 className="text-2xl font-bold">All Topics</h1>
+                <p className="text-sm text-muted-foreground">
+                  Discover and explore discussion topics
                 </p>
               </div>
             </div>
             {profile && (
               <Button
                 onClick={() => setIsCreateTopicOpen(true)}
-                className="flex items-center gap-2 shadow-md hover:shadow-lg transition-shadow bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-                size="lg"
+                className="flex items-center gap-2"
+                size="default"
               >
                 <Plus className="w-4 h-4" />
                 Create Topic
@@ -172,216 +167,191 @@ export default function AllTopics() {
         </div>
       </header>
 
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div className="w-full">
-          {/* Main Content */}
-          <div>
-        {/* Search and Filters */}
-        <div className="space-y-6 mb-8">
-          {/* Search Bar */}
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 group-focus-within:text-primary transition-colors" />
-            <Input
-              placeholder="Search topics by title, description, community, or creator..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-4 h-12 text-base rounded-xl border focus:border-primary/20 transition-all shadow-sm"
-            />
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-6">
+          {/* Main Content - Reddit Style Feed */}
+          <main className="flex-1 min-w-0">
+            {/* Search and Filters */}
+            <div className="space-y-4 mb-6">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search topics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-9 rounded-md border-border/30"
+                />
+              </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            <Button
-              variant={filterBy === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterBy('all')}
-              className={`rounded-full px-4 h-9 transition-all ${
-                filterBy === 'all' 
-                  ? 'bg-gradient-to-r from-primary to-primary/80 shadow-md' 
-                  : 'hover:bg-muted'
-              }`}
-            >
-              All
-            </Button>
-            <Button
-              variant={filterBy === 'trending' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterBy('trending')}
-              className={`flex items-center gap-1.5 rounded-full px-4 h-9 transition-all ${
-                filterBy === 'trending' 
-                  ? 'bg-gradient-to-r from-primary to-primary/80 shadow-md' 
-                  : 'hover:bg-muted'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Trending
-            </Button>
-            <Button
-              variant={filterBy === 'community' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterBy('community')}
-              className={`rounded-full px-4 h-9 transition-all ${
-                filterBy === 'community' 
-                  ? 'bg-gradient-to-r from-primary to-primary/80 shadow-md' 
-                  : 'hover:bg-muted'
-              }`}
-            >
-              Communities
-            </Button>
-            <Button
-              variant={filterBy === 'user_created' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterBy('user_created')}
-              className={`rounded-full px-4 h-9 transition-all ${
-                filterBy === 'user_created' 
-                  ? 'bg-gradient-to-r from-primary to-primary/80 shadow-md' 
-                  : 'hover:bg-muted'
-              }`}
-            >
-              User Created
-            </Button>
-          </div>
+              {/* Filter Tabs and Sort */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <Button
+                    variant={filterBy === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterBy('all')}
+                    className="h-8 rounded-md"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={filterBy === 'trending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterBy('trending')}
+                    className="h-8 rounded-md flex items-center gap-1.5"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Trending
+                  </Button>
+                  <Button
+                    variant={filterBy === 'community' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterBy('community')}
+                    className="h-8 rounded-md"
+                  >
+                    Communities
+                  </Button>
+                  <Button
+                    variant={filterBy === 'user_created' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterBy('user_created')}
+                    className="h-8 rounded-md"
+                  >
+                    User Created
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                    <SelectTrigger className="w-[140px] h-8 rounded-md border-border/30">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="trending">Trending</SelectItem>
+                      <SelectItem value="newest">Newest</SelectItem>
+                      <SelectItem value="oldest">Oldest</SelectItem>
+                      <SelectItem value="most_clips">Most Clips</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
 
-          {/* Sort Dropdown */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-                <SelectTrigger className="w-[200px] rounded-xl border-2 h-10">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="trending">🔥 Trending</SelectItem>
-                  <SelectItem value="newest">🆕 Newest</SelectItem>
-                  <SelectItem value="oldest">📅 Oldest</SelectItem>
-                  <SelectItem value="most_clips">📊 Most Clips</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-sm font-medium text-muted-foreground">
-              <span className="text-foreground font-semibold">{filteredTopics.length}</span>{' '}
-              {filteredTopics.length === 1 ? 'topic' : 'topics'} found
-            </div>
-          </div>
-        </div>
-
-        {/* Topics Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <Skeleton key={i} className="h-64 rounded-3xl" />
-            ))}
-          </div>
-        ) : filteredTopics.length === 0 ? (
-          <Card className="p-16 rounded-3xl text-center border-2 bg-gradient-to-br from-card to-card/50 shadow-xl">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <Sparkles className="w-10 h-10 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3">
-              {searchQuery ? 'No topics found' : 'No topics yet'}
-            </h3>
-            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-              {searchQuery
-                ? 'Try adjusting your search or filters to find what you\'re looking for'
-                : 'Be the first to create a topic and start the conversation!'}
-            </p>
-            {profile && !searchQuery && (
-              <Button 
-                onClick={() => setIsCreateTopicOpen(true)}
-                size="lg"
-                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create First Topic
-              </Button>
-            )}
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTopics.map((topic) => (
-              <Link
-                key={topic.id}
-                to={`/topic/${topic.id}`}
-                className="block group"
-              >
-                <Card className="p-6 rounded-3xl h-full border hover:border-primary/20 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-card/50 group-hover:scale-[1.02] overflow-hidden relative">
-                  {/* Gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:to-transparent transition-all duration-300 rounded-3xl" />
-                  
-                  <div className="space-y-4 relative z-10">
-                    {/* Header */}
-                    <div className="flex items-start gap-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-all duration-300 ${
-                        topic.communities 
-                          ? 'bg-gradient-to-br from-primary/20 to-primary/10' 
-                          : 'bg-gradient-to-br from-primary/20 to-primary/10'
-                      } group-hover:scale-110 group-hover:shadow-lg`}>
-                        {topic.communities ? (
-                          <span className="text-3xl">{topic.communities.avatar_emoji}</span>
-                        ) : (
-                          <TrendingUp className="w-7 h-7 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-xl line-clamp-2 group-hover:text-primary transition-colors mb-2">
-                          {topic.title}
-                        </h3>
-                        {topic.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {topic.description}
-                          </p>
-                        )}
+            {/* Topics Feed - Reddit Style */}
+            {isLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Card key={i} className="p-4 border-border/30">
+                    <div className="flex gap-4">
+                      <Skeleton className="w-10 h-20 rounded" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-1/2" />
                       </div>
                     </div>
-
-                    {/* Badges */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {topic.communities && (
-                        <Badge variant="secondary" className="text-xs px-3 py-1 rounded-full font-medium">
-                          <span className="mr-1.5">{topic.communities.avatar_emoji}</span>
-                          {topic.communities.name}
-                        </Badge>
-                      )}
-                      {topic.profiles && (
-                        <Badge variant="outline" className="text-xs px-3 py-1 rounded-full font-medium">
-                          @{topic.profiles.handle}
-                        </Badge>
-                      )}
-                      {topic.trending_score > 0 && (
-                        <Badge className="text-xs px-3 py-1 rounded-full font-medium bg-gradient-to-r from-orange-500 to-red-500 text-white border-0">
-                          🔥 Trending
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center gap-5 text-xs text-muted-foreground pt-4 border-t border-border/30">
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <Users className="w-4 h-4" />
-                        <span>{topic.clips_count || 0} clips</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" />
-                        <span>{format(new Date(topic.date), 'MMM d, yyyy')}</span>
-                      </div>
-                      {topic.created_at && (
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-4 h-4" />
-                          <span>{formatDistanceToNow(new Date(topic.created_at), { addSuffix: true })}</span>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredTopics.length === 0 ? (
+              <Card className="p-12 text-center border-border/30">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <Sparkles className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {searchQuery ? 'No topics found' : 'No topics yet'}
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  {searchQuery
+                    ? 'Try adjusting your search or filters'
+                    : 'Be the first to create a topic!'}
+                </p>
+                {profile && !searchQuery && (
+                  <Button 
+                    onClick={() => setIsCreateTopicOpen(true)}
+                    size="default"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Topic
+                  </Button>
+                )}
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {filteredTopics.map((topic) => (
+                  <Link
+                    key={topic.id}
+                    to={`/topic/${topic.id}`}
+                    className="block"
+                  >
+                    <Card className="border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors bg-card">
+                      <div className="flex gap-3 p-3">
+                        {/* Left Side - Icon/Vote Area (Reddit Style) */}
+                        <div className="flex flex-col items-center gap-1 pt-1">
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            {topic.communities ? (
+                              <span className="text-xl">{topic.communities.avatar_emoji}</span>
+                            ) : topic.profiles ? (
+                              <span className="text-xl">{topic.profiles.emoji_avatar}</span>
+                            ) : (
+                              <TrendingUp className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-          </div>
 
-          {/* Right Sidebar - Topic Discovery */}
-          <aside className="hidden lg:block lg:col-span-4">
-            <div className="sticky top-4">
+                        {/* Main Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Title */}
+                          <h3 className="font-semibold text-base mb-1 hover:text-primary transition-colors line-clamp-2">
+                            {topic.title}
+                          </h3>
+
+                          {/* Description */}
+                          {topic.description && (
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {topic.description}
+                            </p>
+                          )}
+
+                          {/* Metadata Row - Reddit Style */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                            {topic.communities && (
+                              <span className="flex items-center gap-1">
+                                <span>{topic.communities.avatar_emoji}</span>
+                                <span className="font-medium hover:text-foreground">r/{topic.communities.name}</span>
+                              </span>
+                            )}
+                            {topic.profiles && (
+                              <span className="flex items-center gap-1">
+                                <span>Posted by</span>
+                                <span className="font-medium hover:text-foreground">u/{topic.profiles.handle}</span>
+                              </span>
+                            )}
+                            {topic.created_at && (
+                              <span>{formatDistanceToNow(new Date(topic.created_at), { addSuffix: true })}</span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="w-3 h-3" />
+                              <span>{topic.clips_count || 0} {topic.clips_count === 1 ? 'clip' : 'clips'}</span>
+                            </span>
+                            {topic.trending_score > 0 && (
+                              <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                                🔥 Trending
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </main>
+
+          {/* Right Sidebar */}
+          <aside className="hidden lg:block w-80 shrink-0">
+            <div className="sticky top-4 space-y-4">
               <TopicDiscovery
                 profileId={profile?.id}
                 showRecommendations={true}
@@ -391,7 +361,7 @@ export default function AllTopics() {
             </div>
           </aside>
         </div>
-      </main>
+      </div>
 
       <CreateTopicModal
         open={isCreateTopicOpen}

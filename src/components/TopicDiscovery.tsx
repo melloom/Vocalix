@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ interface Topic {
   community_id?: string | null;
   user_created_by?: string | null;
   created_at: string;
+  tags?: string[] | null;
+  similarity_score?: number;
   communities?: {
     id: string;
     name: string;
@@ -55,22 +57,130 @@ export const TopicDiscovery = ({
   const [similarTopics, setSimilarTopics] = useState<Topic[]>([]);
 
   // Get recommended topics based on user interests (topics they've engaged with)
+  // Falls back to trending topics if no personalized data available
   const { data: recommended, isLoading: isLoadingRecommended } = useQuery({
-    queryKey: ["topicRecommendations", profileId],
+    queryKey: ["topicRecommendations", profileId, currentTopicId],
     queryFn: async () => {
-      if (!profileId) return [];
+      try {
+        // If no profile, show trending topics as recommendations
+        if (!profileId) {
+          let query = supabase
+            .from("topics")
+            .select(`
+              *,
+              communities (
+                id,
+                name,
+                slug,
+                avatar_emoji
+              ),
+              profiles:user_created_by (
+                id,
+                handle,
+                emoji_avatar
+              )
+            `)
+            .eq("is_active", true);
+          
+          if (currentTopicId) {
+            query = query.neq("id", currentTopicId);
+          }
+          
+          const { data: trending, error: trendingError } = await query
+            .order("trending_score", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5);
 
-      // Get topics the user has engaged with (clips they've listened to or reacted to)
-      const { data: userClips } = await supabase
-        .from("clips")
-        .select("topic_id")
-        .eq("profile_id", profileId)
-        .not("topic_id", "is", null)
-        .limit(50);
+          if (trendingError) {
+            console.error("Error fetching trending for recommendations:", trendingError);
+            return [];
+          }
 
-      if (!userClips || userClips.length === 0) {
-        // No engagement history, return trending topics
-        const { data: trending } = await supabase
+          return (trending || []) as Topic[];
+        }
+
+        // Get topics the user has engaged with (clips they've listened to or reacted to)
+        const { data: userClips, error: clipsError } = await supabase
+          .from("clips")
+          .select("topic_id")
+          .eq("profile_id", profileId)
+          .not("topic_id", "is", null)
+          .limit(50);
+
+        if (clipsError) {
+          console.error("Error fetching user clips:", clipsError);
+        }
+
+        if (!userClips || userClips.length === 0) {
+          // No engagement history, return trending topics (excluding current topic)
+          let query = supabase
+            .from("topics")
+            .select(`
+              *,
+              communities (
+                id,
+                name,
+                slug,
+                avatar_emoji
+              )
+            `)
+            .eq("is_active", true);
+          
+          if (currentTopicId) {
+            query = query.neq("id", currentTopicId);
+          }
+          
+          const { data: trending, error: trendingError } = await query
+            .order("trending_score", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+          if (trendingError) {
+            console.error("Error fetching trending topics:", trendingError);
+            return [];
+          }
+
+          return (trending || []) as Topic[];
+        }
+
+        // Get unique topic IDs the user has engaged with
+        const userTopicIds = [...new Set(userClips.map((c) => c.topic_id).filter(Boolean))];
+
+        if (userTopicIds.length === 0) {
+          // No topics found, return trending (excluding current topic)
+          let query = supabase
+            .from("topics")
+            .select(`
+              *,
+              communities (
+                id,
+                name,
+                slug,
+                avatar_emoji
+              )
+            `)
+            .eq("is_active", true);
+          
+          if (currentTopicId) {
+            query = query.neq("id", currentTopicId);
+          }
+          
+          const { data: trending, error: trendingError } = await query
+            .order("trending_score", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+          if (trendingError) {
+            console.error("Error fetching trending topics:", trendingError);
+            return [];
+          }
+
+          return (trending || []) as Topic[];
+        }
+
+        // Find similar topics (topics with similar engagement patterns)
+        // Get topics that are trending and not in the user's history
+        let query = supabase
           .from("topics")
           .select(`
             *,
@@ -81,142 +191,256 @@ export const TopicDiscovery = ({
               avatar_emoji
             )
           `)
-          .eq("is_active", true)
-          .gt("trending_score", 0)
+          .eq("is_active", true);
+        
+        if (currentTopicId) {
+          query = query.neq("id", currentTopicId);
+        }
+        
+        const { data: allTopics, error: topicsError } = await query
           .order("trending_score", { ascending: false })
-          .limit(5);
+          .order("created_at", { ascending: false })
+          .limit(20); // Get more to filter out user's topics
 
-        return (trending || []) as Topic[];
+        if (topicsError) {
+          console.error("Error fetching topics for recommendations:", topicsError);
+          return [];
+        }
+
+        // Filter out topics user has already engaged with
+        let filtered = (allTopics || []).filter(
+          (topic) => !userTopicIds.includes(topic.id)
+        );
+
+        // If we don't have enough filtered topics, fill with trending topics
+        if (filtered.length < 5) {
+          let fillQuery = supabase
+            .from("topics")
+            .select(`
+              *,
+              communities (
+                id,
+                name,
+                slug,
+                avatar_emoji
+              )
+            `)
+            .eq("is_active", true);
+          
+          if (currentTopicId) {
+            fillQuery = fillQuery.neq("id", currentTopicId);
+          }
+          
+          if (userTopicIds.length > 0) {
+            fillQuery = fillQuery.not("id", "in", `(${userTopicIds.join(",")})`);
+          }
+          
+          const { data: trending, error: trendingError } = await fillQuery
+            .order("trending_score", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(5 - filtered.length);
+
+          if (!trendingError && trending) {
+            // Add trending topics that aren't already in filtered and aren't in user's history
+            const trendingToAdd = (trending as Topic[]).filter(
+              (topic) => !filtered.some(t => t.id === topic.id) && !userTopicIds.includes(topic.id)
+            );
+            filtered.push(...trendingToAdd);
+          }
+        }
+
+        // Return up to 5 recommendations
+        return filtered.slice(0, 5) as Topic[];
+      } catch (error) {
+        console.error("Error in topic recommendations query:", error);
+        return [];
       }
-
-      // Get unique topic IDs the user has engaged with
-      const userTopicIds = [...new Set(userClips.map((c) => c.topic_id).filter(Boolean))];
-
-      if (userTopicIds.length === 0) {
-        // No topics found, return trending
-        const { data: trending } = await supabase
-          .from("topics")
-          .select(`
-            *,
-            communities (
-              id,
-              name,
-              slug,
-              avatar_emoji
-            )
-          `)
-          .eq("is_active", true)
-          .gt("trending_score", 0)
-          .order("trending_score", { ascending: false })
-          .limit(5);
-
-        return (trending || []) as Topic[];
-      }
-
-      // Find similar topics (topics with similar engagement patterns)
-      // Get topics that are trending and not in the user's history
-      const { data: allTopics } = await supabase
-        .from("topics")
-        .select(`
-          *,
-          communities (
-            id,
-            name,
-            slug,
-            avatar_emoji
-          )
-        `)
-        .eq("is_active", true)
-        .gt("trending_score", 0)
-        .order("trending_score", { ascending: false })
-        .limit(20); // Get more to filter out user's topics
-
-      // Filter out topics user has already engaged with
-      const filtered = (allTopics || []).filter(
-        (topic) => !userTopicIds.includes(topic.id)
-      ).slice(0, 5);
-
-      return filtered as Topic[];
     },
-    enabled: !!profileId && showRecommendations,
+    enabled: showRecommendations, // Always enabled - shows trending if no profile
   });
 
-  // Get similar topics to the current one
+  // Get similar topics to the current one using the similarity algorithm
+  // Limit to 4 items when on a topic page
   const { data: similar, isLoading: isLoadingSimilar } = useQuery({
     queryKey: ["similarTopics", currentTopicId],
     queryFn: async () => {
-      if (!currentTopicId) return [];
+      try {
+        if (!currentTopicId) return [];
 
-      // Get the current topic
-      const { data: currentTopic } = await supabase
-        .from("topics")
-        .select("*")
-        .eq("id", currentTopicId)
-        .single();
+        const similarLimit = 4; // Always 4 on topic pages
+        
+        // Use the database function to get similar topics with similarity scoring
+        const { data: similarData, error } = await supabase.rpc("get_similar_topics", {
+          p_topic_id: currentTopicId,
+          p_limit: similarLimit,
+        });
 
-      if (!currentTopic) return [];
+        if (!error && similarData && similarData.length > 0) {
+          // Transform the RPC result to match Topic interface
+          return similarData.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            is_active: item.is_active,
+            clips_count: item.clips_count,
+            trending_score: item.trending_score,
+            community_id: item.community_id,
+            user_created_by: item.user_created_by,
+            created_at: item.created_at,
+            communities: item.communities ? {
+              id: item.communities.id,
+              name: item.communities.name,
+              slug: item.communities.slug,
+              avatar_emoji: item.communities.avatar_emoji,
+            } : null,
+            profiles: item.profiles ? {
+              id: item.profiles.id,
+              handle: item.profiles.handle,
+              emoji_avatar: item.profiles.emoji_avatar,
+            } : null,
+          })) as Topic[];
+        }
 
-      // Find similar topics based on:
-      // 1. Similar trending scores
-      // 2. Similar clip counts
-      // 3. Recent topics
-      const { data: similar } = await supabase
-        .from("topics")
-        .select(`
-          *,
-          communities (
-            id,
-            name,
-            slug,
-            avatar_emoji
-          )
-        `)
-        .eq("is_active", true)
-        .neq("id", currentTopicId)
-        .order("trending_score", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(5);
+        // Fallback to basic query if RPC fails or returns empty
+        const { data: fallback, error: fallbackError } = await supabase
+          .from("topics")
+          .select(`
+            *,
+            communities (
+              id,
+              name,
+              slug,
+              avatar_emoji
+            ),
+            profiles:user_created_by (
+              id,
+              handle,
+              emoji_avatar
+            )
+          `)
+          .eq("is_active", true)
+          .neq("id", currentTopicId)
+          .order("trending_score", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(4); // Always 4 on topic pages
 
-      return (similar || []) as Topic[];
+        if (fallbackError) {
+          console.error("Error in fallback similar topics query:", fallbackError);
+          return [];
+        }
+
+        return (fallback || []) as Topic[];
+      } catch (error) {
+        console.error("Error in similar topics query:", error);
+        return [];
+      }
     },
     enabled: !!currentTopicId && showSimilar,
   });
 
   // Get trending topics
-  // Include current date in query key to ensure daily refresh
+  // Limit to 4 items when on a topic page, 10 otherwise
   const today = new Date().toISOString().slice(0, 10);
   const { data: trending, isLoading: isLoadingTrending } = useQuery({
-    queryKey: ["trendingTopicsDiscovery", today],
+    queryKey: ["trendingTopicsDiscovery", today, currentTopicId],
     queryFn: async () => {
-      // Try RPC function first
-      const { data: rpcData, error: rpcError } = await supabase.rpc("get_trending_topics", {
-        p_limit: 10,
-      });
+      try {
+        const trendingLimit = currentTopicId ? 4 : 10;
+        
+        // Try RPC function first
+        const { data: rpcData, error: rpcError } = await supabase.rpc("get_trending_topics", {
+          p_limit: trendingLimit,
+        });
 
-      if (!rpcError && rpcData && rpcData.length > 0) {
-        return rpcData as Topic[];
+        if (!rpcError && rpcData && rpcData.length > 0) {
+          // Transform RPC data to match Topic interface
+          return rpcData.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            date: item.date,
+            is_active: item.is_active,
+            clips_count: item.clips_count,
+            trending_score: item.trending_score,
+            community_id: item.community_id,
+            user_created_by: item.user_created_by,
+            created_at: item.created_at,
+            communities: item.communities,
+            profiles: item.profiles,
+          })) as Topic[];
+        }
+
+        // Fallback to direct query - try with trending_score > 0 first
+        let query = supabase
+          .from("topics")
+          .select(`
+            *,
+            communities (
+              id,
+              name,
+              slug,
+              avatar_emoji
+            ),
+            profiles:user_created_by (
+              id,
+              handle,
+              emoji_avatar
+            )
+          `)
+          .eq("is_active", true);
+        
+        if (currentTopicId) {
+          query = query.neq("id", currentTopicId);
+        }
+        
+        const { data, error } = await query
+          .order("trending_score", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(currentTopicId ? 4 : 10);
+
+        if (error) {
+          console.error("Error fetching trending topics:", error);
+          // Last resort: get any active topics (excluding current)
+          let fallbackQuery = supabase
+            .from("topics")
+            .select(`
+              *,
+              communities (
+                id,
+                name,
+                slug,
+                avatar_emoji
+              ),
+              profiles:user_created_by (
+                id,
+                handle,
+                emoji_avatar
+              )
+            `)
+            .eq("is_active", true);
+          
+          if (currentTopicId) {
+            fallbackQuery = fallbackQuery.neq("id", currentTopicId);
+          }
+          
+          const { data: fallbackData, error: fallbackError } = await fallbackQuery
+            .order("created_at", { ascending: false })
+            .limit(currentTopicId ? 4 : 10);
+
+          if (fallbackError) {
+            console.error("Error in fallback query:", fallbackError);
+            return [];
+          }
+
+          return (fallbackData || []) as Topic[];
+        }
+
+        return (data || []) as Topic[];
+      } catch (error) {
+        console.error("Error in trending topics query:", error);
+        return [];
       }
-
-      // Fallback to direct query
-      const { data, error } = await supabase
-        .from("topics")
-        .select(`
-          *,
-          communities (
-            id,
-            name,
-            slug,
-            avatar_emoji
-          )
-        `)
-        .eq("is_active", true)
-        .gt("trending_score", 0)
-        .order("trending_score", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      return (data || []) as Topic[];
     },
     enabled: showTrending,
     staleTime: 2 * 60 * 1000, // 2 minutes - refresh more frequently for trending topics
@@ -232,11 +456,53 @@ export const TopicDiscovery = ({
     if (similar) setSimilarTopics(similar);
   }, [similar]);
 
+  // Deduplicate topics across sections to avoid showing the same topic multiple times
+  // Priority: Recommended > Similar > Trending (so recommended topics don't get filtered out)
+  const filteredRecommended = useMemo(() => {
+    if (!recommendedTopics || recommendedTopics.length === 0) return [];
+    
+    // Get IDs of topics already shown in other sections
+    const excludedIds = new Set<string>();
+    if (currentTopicId) excludedIds.add(currentTopicId);
+    // Don't exclude similar/trending from recommended - recommended has priority
+    
+    // Filter out current topic only
+    return recommendedTopics.filter(topic => !excludedIds.has(topic.id)).slice(0, 5);
+  }, [recommendedTopics, currentTopicId]);
+
+  const filteredSimilar = useMemo(() => {
+    if (!similarTopics || similarTopics.length === 0) return [];
+    
+    // Get IDs of topics already shown in other sections
+    const excludedIds = new Set<string>();
+    if (currentTopicId) excludedIds.add(currentTopicId);
+    filteredRecommended.forEach(t => excludedIds.add(t.id));
+    if (trending) trending.forEach(t => excludedIds.add(t.id));
+    
+    // Filter out duplicates and current topic, limit to 4 on topic pages
+    const limit = currentTopicId ? 4 : 5;
+    return similarTopics.filter(topic => !excludedIds.has(topic.id)).slice(0, limit);
+  }, [similarTopics, filteredRecommended, trending, currentTopicId]);
+
+  const filteredTrending = useMemo(() => {
+    if (!trending || trending.length === 0) return [];
+    
+    // Get IDs of topics already shown in other sections
+    const excludedIds = new Set<string>();
+    if (currentTopicId) excludedIds.add(currentTopicId);
+    filteredRecommended.forEach(t => excludedIds.add(t.id));
+    filteredSimilar.forEach(t => excludedIds.add(t.id));
+    
+    // Filter out duplicates and current topic, limit to 4 on topic pages
+    const limit = currentTopicId ? 4 : 10;
+    return trending.filter(topic => !excludedIds.has(topic.id)).slice(0, limit);
+  }, [trending, filteredRecommended, filteredSimilar, currentTopicId]);
+
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Recommended Topics */}
+      {/* Recommended Topics - Shows personalized recommendations or trending topics */}
       {showRecommendations && (
-        <Card className="p-4 border border-border/20">
+        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Recommended for You</h3>
@@ -247,13 +513,13 @@ export const TopicDiscovery = ({
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : recommendedTopics.length > 0 ? (
+          ) : filteredRecommended.length > 0 ? (
             <div className="space-y-2">
-              {recommendedTopics.map((topic) => (
+              {filteredRecommended.map((topic) => (
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
+                  className="block p-3 rounded-lg border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-muted/50 transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -290,7 +556,7 @@ export const TopicDiscovery = ({
 
       {/* Similar Topics */}
       {showSimilar && currentTopicId && (
-        <Card className="p-4 border border-border/20">
+        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
           <div className="flex items-center gap-2 mb-4">
             <Hash className="h-4 w-4 text-primary" />
             <h3 className="font-semibold text-sm">Similar Topics</h3>
@@ -301,13 +567,13 @@ export const TopicDiscovery = ({
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : similarTopics.length > 0 ? (
+          ) : filteredSimilar.length > 0 ? (
             <div className="space-y-2">
-              {similarTopics.map((topic) => (
+              {filteredSimilar.map((topic) => (
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
+                  className="block p-3 rounded-lg border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-muted/50 transition-all cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -340,9 +606,9 @@ export const TopicDiscovery = ({
         </Card>
       )}
 
-      {/* Trending Topics */}
+      {/* Trending Topics - Reddit Style */}
       {showTrending && (
-        <Card className="p-4 border border-border/20">
+        <Card className="p-4 border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -361,35 +627,59 @@ export const TopicDiscovery = ({
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
-          ) : trending && trending.length > 0 ? (
-            <div className="space-y-2">
-              {trending.map((topic, index) => (
+          ) : filteredTrending.length > 0 ? (
+            <div className="space-y-1">
+              {filteredTrending.map((topic, index) => (
                 <Link
                   key={topic.id}
                   to={`/topic/${topic.id}`}
-                  className="block p-3 rounded-lg border border-border/20 hover:border-border/30 hover:bg-muted transition-all"
+                  className="block"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="h-5 w-5 flex items-center justify-center text-xs font-bold">
-                        {index + 1}
-                      </Badge>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm truncate">{topic.title}</h4>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          {topic.clips_count !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {topic.clips_count}
-                            </span>
-                          )}
-                          {topic.trending_score !== undefined && topic.trending_score > 0 && (
-                            <span className="flex items-center gap-1 text-primary">
-                              <TrendingUp className="h-3 w-3" />
-                              {Math.round(topic.trending_score)}
-                            </span>
-                          )}
-                        </div>
+                  <div className="flex gap-3 p-2 rounded border border-black/10 dark:border-transparent hover:border-primary/40 dark:hover:border-border/30 hover:bg-primary/5 dark:hover:bg-muted/50 transition-all cursor-pointer">
+                    {/* Left Side - Icon Area */}
+                    <div className="flex flex-col items-center gap-1 pt-1">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        {topic.communities ? (
+                          <span className="text-lg">{topic.communities.avatar_emoji}</span>
+                        ) : topic.profiles ? (
+                          <span className="text-lg">{topic.profiles.emoji_avatar}</span>
+                        ) : (
+                          <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm mb-1 hover:text-primary transition-colors line-clamp-1">
+                        {topic.title}
+                      </h4>
+                      {topic.description && (
+                        <p className="text-xs text-muted-foreground mb-1.5 line-clamp-1">
+                          {topic.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                        {topic.communities && (
+                          <span className="flex items-center gap-1">
+                            <span>{topic.communities.avatar_emoji}</span>
+                            <span className="font-medium hover:text-foreground">r/{topic.communities.name}</span>
+                          </span>
+                        )}
+                        {topic.profiles && (
+                          <span className="flex items-center gap-1">
+                            <span>u/{topic.profiles.handle}</span>
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Users className="w-3 h-3" />
+                          <span>{topic.clips_count || 0} {topic.clips_count === 1 ? 'clip' : 'clips'}</span>
+                        </span>
+                        {topic.trending_score !== undefined && topic.trending_score > 0 && (
+                          <Badge variant="secondary" className="h-4 px-1.5 text-xs">
+                            🔥 {Math.round(topic.trending_score)}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -27,7 +27,6 @@ const FALLBACK_QUESTIONS = [
   "What's something that helped you recharge?",
   "What's a lesson you've learned this month?",
   "What's something that gives you hope?",
-  "What's a moment of connection you experienced?",
   "What's something you're curious about right now?",
 ];
 

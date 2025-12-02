@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Zap, Bookmark, UserPlus, UserMinus, Trophy, Award, Sparkles, Users, Ban, MoreVertical, Flag, BarChart3, Calendar, Clock, Settings, Share2, Edit2, Pencil, Camera, Image as ImageIcon, Palette, Shield, AlertTriangle, VolumeX, Pause, Trash2, Plus, Mic, Type, Video, MessageSquare, Heart, Send, Radio, Hash } from "lucide-react";
+import { ArrowLeft, Zap, Bookmark, UserPlus, UserMinus, Trophy, Award, Sparkles, Users, Ban, MoreVertical, Flag, BarChart3, Calendar, Clock, Settings, Share2, Edit2, Pencil, Camera, Image as ImageIcon, Palette, Shield, AlertTriangle, VolumeX, Pause, Trash2, Plus, Mic, Type, Video, MessageSquare, Heart, Send, Radio, Hash, UserCheck, Music, Bell } from "lucide-react";
 import { FindVoiceTwinDialog } from "@/components/FindVoiceTwinDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
@@ -11,8 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useProfile } from "@/hooks/useProfile";
-import { useFollow, useFollowerCount, useFollowingCount, useMutualFollows } from "@/hooks/useFollow";
+import { useFollow, useFollowerCount, useFollowingCount, useMutualFollows, useFollowing } from "@/hooks/useFollow";
 import { useBlock } from "@/hooks/useBlock";
+import { useFollowedTopics } from "@/hooks/useTopicFollow";
+import { useFollowedChallenges } from "@/hooks/useChallengeFollow";
+import { useFollowedCollections } from "@/hooks/useCollectionFollow";
+import { useFollowedCommunities } from "@/hooks/useCommunityFollow";
 import { getEmojiAvatar } from "@/utils/avatar";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -241,6 +245,13 @@ const Profile = () => {
   const { mutualFollows, isLoading: isLoadingMutualFollows } = useMutualFollows(profile?.id ?? null);
   const { isBlocked, toggleBlock, isBlocking, isUnblocking } = useBlock(profile?.id ?? null);
   const { isAdmin } = useAdminStatus();
+  
+  // Followed content hooks (only for own profile)
+  const { following: followedUsers } = useFollowing();
+  const { followedTopics, isLoading: isLoadingFollowedTopics } = useFollowedTopics();
+  const { followedChallenges, isLoading: isLoadingFollowedChallenges } = useFollowedChallenges();
+  const { followedCollections, isLoading: isLoadingFollowedCollections } = useFollowedCollections();
+  const { followedCommunities, isLoading: isLoadingFollowedCommunities } = useFollowedCommunities();
 
   // Admin moderation state
   const [showMuteDialog, setShowMuteDialog] = useState(false);
@@ -1929,6 +1940,10 @@ const Profile = () => {
                   <Clock className="h-3.5 w-3.5 mr-1.5" />
                   Drafts
                 </TabsTrigger>
+                <TabsTrigger value="following" className="rounded-md data-[state=active]:bg-background flex-shrink-0">
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  Following
+                </TabsTrigger>
               </>
             )}
             <TabsTrigger value="badges" className="rounded-md data-[state=active]:bg-background flex-shrink-0">
@@ -2516,6 +2531,258 @@ const Profile = () => {
                   ))}
                 </div>
               )}
+            </TabsContent>
+          )}
+
+          {isOwnProfile && (
+            <TabsContent value="following" className="space-y-6 mt-6">
+              <div className="space-y-6">
+                {/* Followed Users */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Followed Users</h3>
+                    <Badge variant="secondary" className="ml-2">
+                      {followedUsers.length}
+                    </Badge>
+                  </div>
+                  {followedUsers.length === 0 ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium mb-2">Not following anyone yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">Start following people to see their content!</p>
+                      <Button variant="outline" asChild className="rounded-full">
+                        <Link to="/?focusSearch=true">Explore Users</Link>
+                      </Button>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {followedUsers.map((user: any) => {
+                        const userProfile = user.profile || user;
+                        return (
+                          <Card key={user.id || userProfile.id} className="p-4 rounded-3xl hover:bg-card/80 transition-colors">
+                            <Link to={`/profile/${userProfile.handle}`}>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-12 w-12">
+                                  <AvatarFallback className="text-lg">
+                                    {userProfile.emoji_avatar || getEmojiAvatar(userProfile.handle || "")}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold truncate">@{userProfile.handle}</p>
+                                  {userProfile.bio && (
+                                    <p className="text-sm text-muted-foreground line-clamp-1">{userProfile.bio}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </Link>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* Followed Topics */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Followed Topics</h3>
+                    <Badge variant="secondary" className="ml-2">
+                      {isLoadingFollowedTopics ? "..." : followedTopics.length}
+                    </Badge>
+                  </div>
+                  {isLoadingFollowedTopics ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <p className="text-muted-foreground">Loading topics...</p>
+                    </Card>
+                  ) : followedTopics.length === 0 ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium mb-2">Not following any topics yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">Follow topics to get notified of new content!</p>
+                      <Button variant="outline" asChild className="rounded-full">
+                        <Link to="/topics">Discover Topics</Link>
+                      </Button>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {followedTopics.map((topic: any) => (
+                        <Card key={topic.id} className="p-4 rounded-3xl hover:bg-card/80 transition-colors">
+                          <Link to={`/topic/${topic.id}`}>
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <h4 className="font-semibold line-clamp-2">{topic.title}</h4>
+                                {topic.is_active === false && (
+                                  <Badge variant="outline" className="text-xs">Inactive</Badge>
+                                )}
+                              </div>
+                              {topic.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{topic.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                <span>{new Date(topic.date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          </Link>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Followed Challenges */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Followed Challenges</h3>
+                    <Badge variant="secondary" className="ml-2">
+                      {isLoadingFollowedChallenges ? "..." : followedChallenges.length}
+                    </Badge>
+                  </div>
+                  {isLoadingFollowedChallenges ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <p className="text-muted-foreground">Loading challenges...</p>
+                    </Card>
+                  ) : followedChallenges.length === 0 ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium mb-2">Not following any challenges yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">Follow challenges to stay updated!</p>
+                      <Button variant="outline" asChild className="rounded-full">
+                        <Link to="/challenges">Explore Challenges</Link>
+                      </Button>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {followedChallenges.map((challenge: any) => (
+                        <Card key={challenge.id} className="p-4 rounded-3xl hover:bg-card/80 transition-colors">
+                          <Link to={`/challenge/${challenge.id}`}>
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <h4 className="font-semibold line-clamp-2">{challenge.title}</h4>
+                                {challenge.is_active === false && (
+                                  <Badge variant="outline" className="text-xs">Ended</Badge>
+                                )}
+                              </div>
+                              {challenge.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{challenge.description}</p>
+                              )}
+                              {challenge.topics && (
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <MessageSquare className="h-3 w-3" />
+                                  <span>{challenge.topics.title}</span>
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Followed Communities */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Followed Communities</h3>
+                    <Badge variant="secondary" className="ml-2">
+                      {isLoadingFollowedCommunities ? "..." : followedCommunities.length}
+                    </Badge>
+                  </div>
+                  {isLoadingFollowedCommunities ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <p className="text-muted-foreground">Loading communities...</p>
+                    </Card>
+                  ) : followedCommunities.length === 0 ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium mb-2">Not following any communities yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">Join communities to connect with others!</p>
+                      <Button variant="outline" asChild className="rounded-full">
+                        <Link to="/communities">Explore Communities</Link>
+                      </Button>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {followedCommunities.map((community: any) => (
+                        <Card key={community.id} className="p-4 rounded-3xl hover:bg-card/80 transition-colors">
+                          <Link to={`/community/${community.slug}`}>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">{community.avatar_emoji}</span>
+                                <h4 className="font-semibold line-clamp-1">{community.name}</h4>
+                              </div>
+                              {community.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{community.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {community.member_count !== undefined && (
+                                  <span>{community.member_count} members</span>
+                                )}
+                                {community.is_member && (
+                                  <Badge variant="outline" className="text-xs">Member</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Followed Collections */}
+                <section className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Music className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Followed Collections</h3>
+                    <Badge variant="secondary" className="ml-2">
+                      {isLoadingFollowedCollections ? "..." : followedCollections.length}
+                    </Badge>
+                  </div>
+                  {isLoadingFollowedCollections ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <p className="text-muted-foreground">Loading collections...</p>
+                    </Card>
+                  ) : followedCollections.length === 0 ? (
+                    <Card className="p-8 rounded-3xl text-center bg-muted/50">
+                      <Music className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-muted-foreground font-medium mb-2">Not following any collections yet</p>
+                      <p className="text-sm text-muted-foreground mb-4">Follow collections to discover curated content!</p>
+                      <Button variant="outline" asChild className="rounded-full">
+                        <Link to="/playlists">Explore Collections</Link>
+                      </Button>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {followedCollections.map((collection: any) => (
+                        <Card key={collection.id} className="p-4 rounded-3xl hover:bg-card/80 transition-colors">
+                          <Link to={`/playlist/${collection.share_token || collection.id}`}>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Music className="h-4 w-4 text-primary" />
+                                <h4 className="font-semibold line-clamp-1">{collection.name}</h4>
+                              </div>
+                              {collection.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">{collection.description}</p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>{collection.clip_count || 0} clips</span>
+                                {collection.profiles && (
+                                  <span>by @{collection.profiles.handle}</span>
+                                )}
+                              </div>
+                            </div>
+                          </Link>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
             </TabsContent>
           )}
 

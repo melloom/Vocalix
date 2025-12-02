@@ -106,11 +106,18 @@ async function detect18PlusContent(text: string): Promise<{
     return { is18Plus: false, confidence: 0, detectedIssues: [] };
   }
 
+  // Enhanced explicit patterns - comprehensive NSFW detection
   const explicitPatterns = [
-    /(?:sex|sexual|nude|naked|porn|xxx|nsfw|explicit|adult|18\+|mature)/gi,
-    /(?:fuck|shit|damn|bitch|ass|dick|pussy|cock|tits|boobs)/gi,
-    /(?:violence|gore|blood|death|kill|murder)/gi,
-    /(?:drug|alcohol|drunk|high|stoned|weed|cocaine)/gi,
+    // Sexual content patterns
+    /(?:sex|sexual|nude|naked|porn|xxx|nsfw|explicit|adult|18\+|mature|erotic|sexy|horny|orgasm|masturbat|fap|cum|sperm|ejaculat)/gi,
+    // Explicit language
+    /(?:fuck|fucking|fucked|shit|damn|bitch|ass|dick|pussy|cock|tits|boobs|nipple|vagina|penis|clit|dildo|vibrator|kink|fetish|bdsm)/gi,
+    // Violence/gore
+    /(?:violence|gore|blood|death|kill|murder|torture|rape|abuse|assault|weapon|gun|knife|violence)/gi,
+    // Substance references
+    /(?:drug|alcohol|drunk|high|stoned|weed|cocaine|heroin|meth|addiction|overdose)/gi,
+    // Taboo topics
+    /(?:incest|pedophile|minor|underage|child porn|cp|bestiality|zoophilia)/gi,
   ];
 
   let matchCount = 0;
@@ -183,9 +190,9 @@ async function detect18PlusContent(text: string): Promise<{
   }
 
   // Calculate confidence based on pattern matches and OpenAI scores
-  const patternScore = Math.min(matchCount * 0.2, 1.0);
+  const patternScore = Math.min(matchCount * 0.15, 1.0); // More sensitive pattern matching
   const confidence = Math.max(patternScore, openai18PlusScore);
-  const is18Plus = confidence > 0.3; // Threshold for 18+ content
+  const is18Plus = confidence > 0.25 || matchCount >= 2; // Lower threshold - be more inclusive for free speech zone
 
   return {
     is18Plus,
@@ -397,30 +404,41 @@ serve(async (req) => {
       .select()
       .single();
 
-    // If 18+ content is detected with high confidence, automatically mark clip as sensitive
-    if (content_type === "clip" && result.is_18_plus && result.eighteen_plus_confidence && result.eighteen_plus_confidence > 0.7) {
+    // If 18+ content is detected with high confidence, automatically tag content
+    if (result.is_18_plus && result.eighteen_plus_confidence && result.eighteen_plus_confidence > 0.7) {
       try {
-        await supabase
-          .from("clips")
-          .update({ content_rating: "sensitive" })
-          .eq("id", content_id);
-        
-        // Create a moderation flag for admin review
-        await supabase
-          .from("moderation_flags")
-          .insert({
-            clip_id: content_id,
-            reasons: [`18+ content detected by AI (confidence: ${(result.eighteen_plus_confidence * 100).toFixed(0)}%)`],
-            risk: Math.min(result.eighteen_plus_confidence * 10, 10),
-            source: "ai",
-            priority: 50,
-            workflow_state: "pending",
-          })
-          .select()
-          .single();
+        if (content_type === "clip") {
+          // Auto-tag clips as sensitive
+          await supabase
+            .from("clips")
+            .update({ content_rating: "sensitive" })
+            .eq("id", content_id);
+          
+          // Create a moderation flag for admin review
+          await supabase
+            .from("moderation_flags")
+            .insert({
+              clip_id: content_id,
+              reasons: [`18+ content detected by AI (confidence: ${(result.eighteen_plus_confidence * 100).toFixed(0)}%)`],
+              risk: Math.min(result.eighteen_plus_confidence * 10, 10),
+              source: "ai",
+              priority: 50,
+              workflow_state: "pending",
+            })
+            .select()
+            .single();
+        } else if (content_type === "post" || content_type === "comment") {
+          // Auto-tag posts as NSFW
+          if (content_type === "post") {
+            await supabase
+              .from("posts")
+              .update({ is_nsfw: true })
+              .eq("id", content_id);
+          }
+        }
       } catch (autoFlagError) {
-        console.error("Error auto-flagging 18+ content:", autoFlagError);
-        // Don't fail the whole request if auto-flagging fails
+        console.error("Error auto-tagging 18+ content:", autoFlagError);
+        // Don't fail the whole request if auto-tagging fails
       }
     }
 

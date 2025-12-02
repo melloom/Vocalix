@@ -506,7 +506,7 @@ const initApp = () => {
         className="min-h-screen bg-background flex items-center justify-center p-4"
         style={{
           minHeight: '100vh',
-          backgroundColor: 'hsl(30, 40%, 97%)',
+          backgroundColor: 'hsl(260, 55%, 16%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -522,7 +522,7 @@ const initApp = () => {
             padding: '24px',
             borderRadius: '24px',
             border: '1px solid hsl(0, 72%, 51%)',
-            backgroundColor: 'hsl(30, 50%, 99%)'
+            backgroundColor: 'hsl(260, 50%, 20%)'
           }}
         >
           <h2 className="text-xl font-semibold text-destructive">Something went wrong</h2>
@@ -732,10 +732,10 @@ const initApp = () => {
     }
     
     rootElement.innerHTML = `
-      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #f9f7f3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
         <div style="max-width: 400px; text-align: center;">
-          <h1 style="font-size: 24px; margin-bottom: 16px; color: #333;">Unable to Load</h1>
-          <p style="color: #666; margin-bottom: 24px;">There was an error loading the app. Please try refreshing the page.</p>
+          <h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Unable to Load</h1>
+          <p style="color: #e0e0e0; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">There was an error loading the app. Please try refreshing the page.</p>
           <button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
             Refresh Page
           </button>

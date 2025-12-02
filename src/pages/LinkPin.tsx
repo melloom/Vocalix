@@ -394,12 +394,33 @@ const LinkPin = () => {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    asChild
-                    className="w-full rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0"
-                  >
-                    <Link to="/login-pin">Go to Login with PIN Page</Link>
-                  </Button>
+                  <div className="space-y-3">
+                    <Button
+                      asChild
+                      className="w-full rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0"
+                    >
+                      <Link to="/login-pin">Go to Login with PIN Page</Link>
+                    </Button>
+                    <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-3 text-left">
+                      <p className="text-xs text-gray-300 mb-2">
+                        <strong className="text-white">Forgot your PIN?</strong>
+                      </p>
+                      <div className="space-y-1">
+                        <Link 
+                          to="/reset-pin" 
+                          className="block text-xs text-red-300 hover:text-red-200 underline underline-offset-2"
+                        >
+                          Reset your login PIN with recovery email
+                        </Link>
+                        <Link 
+                          to="/request-magic-link" 
+                          className="block text-xs text-red-300 hover:text-red-200 underline underline-offset-2"
+                        >
+                          Request a login link via email
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -502,11 +523,38 @@ const LinkPin = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-4">
-                    <p className="text-sm text-gray-200 font-medium mb-2">💡 Don't have a login link yet?</p>
-                    <p className="text-xs text-gray-300">
-                      Generate one from your other device's Settings → Account page, then come back here and open the link on this device.
-                    </p>
+                  <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-4 space-y-3">
+                    <div>
+                      <p className="text-sm text-gray-200 font-medium mb-2">💡 Don't have a login link yet?</p>
+                      <p className="text-xs text-gray-300">
+                        Generate one from your other device's Settings → Account page, then come back here and open the link on this device.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-red-800/30">
+                      <p className="text-xs text-gray-300 mb-2">
+                        <strong className="text-white">Can't access your other device?</strong>
+                      </p>
+                      <div className="space-y-1.5">
+                        <Link 
+                          to="/request-magic-link" 
+                          className="block text-xs text-red-300 hover:text-red-200 underline underline-offset-2"
+                        >
+                          Request a login link via email
+                        </Link>
+                        <Link 
+                          to="/reset-pin" 
+                          className="block text-xs text-red-300 hover:text-red-200 underline underline-offset-2"
+                        >
+                          Reset your login PIN
+                        </Link>
+                        <Link 
+                          to="/login-pin" 
+                          className="block text-xs text-red-300 hover:text-red-200 underline underline-offset-2"
+                        >
+                          Try logging in with handle + PIN
+                        </Link>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -616,21 +664,50 @@ const LinkPin = () => {
                   </ul>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
-                <Button
-                  onClick={() => {
-                    setStatus("entering");
-                    setPin(["", "", "", ""]);
-                    setErrorMessage(null);
-                    inputRefs.current[0]?.focus();
-                  }}
-                  className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0"
-                >
-                  Try Again
-                </Button>
-                <Button variant="outline" asChild className="rounded-2xl border-red-800/40 bg-red-950/20 text-white hover:bg-red-950/40">
-                  <Link to="/">Back Home</Link>
-                </Button>
+              <div className="space-y-3">
+                <div className="rounded-xl bg-red-950/30 border border-red-800/30 p-4 text-left">
+                  <p className="text-xs font-medium text-white mb-2">🔐 Account Recovery Options</p>
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-300">
+                      <strong className="text-white">Forgot your PIN?</strong> You can recover your account:
+                    </p>
+                    <ul className="text-xs text-gray-300 space-y-1.5 list-disc list-inside ml-2">
+                      <li>
+                        <Link to="/reset-pin" className="underline underline-offset-2 text-red-300 hover:text-red-200">
+                          Reset your login PIN
+                        </Link>{" "}
+                        with your recovery email
+                      </li>
+                      <li>
+                        <Link to="/request-magic-link" className="underline underline-offset-2 text-red-300 hover:text-red-200">
+                          Request a login link
+                        </Link>{" "}
+                        via email
+                      </li>
+                      <li>
+                        <Link to="/login-pin" className="underline underline-offset-2 text-red-300 hover:text-red-200">
+                          Try logging in with your handle + PIN
+                        </Link>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <Button
+                    onClick={() => {
+                      setStatus("entering");
+                      setPin(["", "", "", ""]);
+                      setErrorMessage(null);
+                      inputRefs.current[0]?.focus();
+                    }}
+                    className="rounded-2xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-0"
+                  >
+                    Try Again
+                  </Button>
+                  <Button variant="outline" asChild className="rounded-2xl border-red-800/40 bg-red-950/20 text-white hover:bg-red-950/40">
+                    <Link to="/">Back Home</Link>
+                  </Button>
+                </div>
               </div>
             </>
           )}

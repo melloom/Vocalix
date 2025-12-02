@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const THEMES = [
+  { id: "indigo", name: "Indigo", icon: "🌌", colors: ["#2a1f3d", "#667eea", "#8b5cf6"] },
   { id: "light", name: "Light", icon: "☀️", colors: ["#F5F5F5", "#FF6B6B", "#4ECDC4"] },
   { id: "dark", name: "Dark", icon: "🌙", colors: ["#1A1A1A", "#FF6B6B", "#4ECDC4"] },
   { id: "ocean", name: "Ocean", icon: "🌊", colors: ["#E0F2FE", "#0EA5E9", "#06B6D4"] },
@@ -32,7 +33,7 @@ const THEMES = [
 export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentTheme, setCurrentTheme] = useState<string>("light");
+  const [currentTheme, setCurrentTheme] = useState<string>("indigo");
 
   // Theme color definitions - Enhanced vibrant colors
   const themeColors: Record<string, Record<string, string>> = {
@@ -201,6 +202,30 @@ export const ThemeToggle = () => {
       "--input": "240 25% 18%",
       "--ring": "230 75% 55%",
     },
+    indigo: {
+      "--background": "260 55% 16%",
+      "--foreground": "0 0% 98%",
+      "--card": "260 50% 20%",
+      "--card-foreground": "0 0% 98%",
+      "--popover": "260 50% 20%",
+      "--popover-foreground": "0 0% 98%",
+      "--primary": "15 85% 62%",
+      "--primary-foreground": "0 0% 98%",
+      "--secondary": "260 45% 25%",
+      "--secondary-foreground": "0 0% 98%",
+      "--muted": "260 40% 22%",
+      "--muted-foreground": "0 0% 75%",
+      "--accent": "25 95% 55%",
+      "--accent-foreground": "0 0% 98%",
+      "--destructive": "0 72% 51%",
+      "--destructive-foreground": "0 0% 98%",
+      "--border": "260 40% 28%",
+      "--input": "260 40% 28%",
+      "--ring": "15 85% 62%",
+      "--record-pulse": "15 85% 62%",
+      "--waveform": "15 75% 55%",
+      "--emoji-glow": "45 100% 60%",
+    },
   };
 
   // Function to apply theme classes to the document root
@@ -248,8 +273,8 @@ export const ThemeToggle = () => {
         });
       }
       
-      // Midnight theme uses dark mode variant
-      if (themeId === "midnight") {
+      // Midnight and indigo themes use dark mode variant
+      if (themeId === "midnight" || themeId === "indigo") {
         root.classList.add("dark");
       } else {
         root.classList.add("light");
@@ -298,7 +323,7 @@ export const ThemeToggle = () => {
           });
         }
         
-        if (themeId === "midnight") {
+        if (themeId === "midnight" || themeId === "indigo") {
           root.classList.add("dark");
         } else {
           root.classList.add("light");
@@ -320,23 +345,27 @@ export const ThemeToggle = () => {
   useEffect(() => {
     setMounted(true);
     // Get theme from localStorage
-    const storedTheme = localStorage.getItem("echo-garden-theme") || "light";
+    const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
     
-    // Initialize theme with next-themes
-    if (!theme && storedTheme) {
+    // Apply theme immediately - don't wait for next-themes
+    setCurrentTheme(storedTheme);
+    applyTheme(storedTheme);
+    
+    // Initialize theme with next-themes (for compatibility)
+    if (storedTheme === "light" || storedTheme === "dark") {
       setTheme(storedTheme);
+    } else if (storedTheme === "midnight" || storedTheme === "indigo") {
+      setTheme("dark");
+    } else {
+      setTheme("light");
     }
-    
-    const themeToApply = theme || storedTheme;
-    setCurrentTheme(themeToApply);
-    applyTheme(themeToApply);
   }, []); // Only run once on mount
 
   // Apply theme whenever it changes - but prioritize localStorage
   useEffect(() => {
     if (mounted) {
       // Always check localStorage first for the actual theme
-      const storedTheme = localStorage.getItem("echo-garden-theme") || "light";
+      const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
       const themeToApply = storedTheme;
       
       setCurrentTheme(themeToApply);
@@ -371,7 +400,7 @@ export const ThemeToggle = () => {
       
       // Continuously reapply theme to prevent next-themes from removing it
       const interval = setInterval(() => {
-        const storedTheme = localStorage.getItem("echo-garden-theme") || "light";
+        const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
         if (storedTheme && !["light", "dark"].includes(storedTheme)) {
           applyTheme(storedTheme);
         }
@@ -398,23 +427,16 @@ export const ThemeToggle = () => {
     setCurrentTheme(themeId);
     localStorage.setItem("echo-garden-theme", themeId);
     
-    // Remove any inline style overrides that might interfere
-    if (themeId !== "light" && themeId !== "dark") {
-      // For custom themes, remove inline style overrides
-      document.documentElement.style.removeProperty("--primary");
-      document.documentElement.style.removeProperty("--secondary");
-      document.documentElement.style.removeProperty("--accent");
-      document.documentElement.style.removeProperty("--background");
-      document.documentElement.style.removeProperty("--card");
-    }
+    // Don't remove inline styles - they ensure proper rendering
+    // The CSS will override them with !important if needed
     
     // For next-themes, only set light/dark, but store custom theme in localStorage
     if (themeId === "light" || themeId === "dark") {
       setTheme(themeId);
     } else {
-      // For custom themes, set next-themes to light (except midnight which is dark)
+      // For custom themes, set next-themes to light (except midnight and indigo which are dark)
       // but we'll apply our custom theme classes directly
-      if (themeId === "midnight") {
+      if (themeId === "midnight" || themeId === "indigo") {
         setTheme("dark");
       } else {
         setTheme("light");

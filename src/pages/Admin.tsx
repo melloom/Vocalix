@@ -26,6 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles, Play, Settings } from "lucide-react";
+import { NSFWMonitoringDashboard } from "@/components/NSFWMonitoringDashboard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2056,7 +2057,7 @@ const Admin = () => {
             loadCronJobs();
           }
         }} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-9 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">
               <FileText className="w-4 h-4 mr-2" />
               Moderation
@@ -2072,6 +2073,10 @@ const Admin = () => {
             <TabsTrigger value="clips" className="rounded-2xl">
               <Film className="w-4 h-4 mr-2" />
               Clips
+            </TabsTrigger>
+            <TabsTrigger value="nsfw" className="rounded-2xl">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              NSFW
             </TabsTrigger>
             <TabsTrigger value="security" className="rounded-2xl">
               <Shield className="w-4 h-4 mr-2" />
@@ -4650,6 +4655,10 @@ const Admin = () => {
                 )}
               </Card>
             </section>
+          </TabsContent>
+
+          <TabsContent value="nsfw" className="space-y-6">
+            <NSFWMonitoringDashboard />
           </TabsContent>
 
           <TabsContent value="cron" className="space-y-6">

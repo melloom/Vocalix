@@ -60,11 +60,15 @@ const moderateTranscript = async (transcript: string) => {
   // Check if content is 18+ (sexual/explicit content)
   const categories = result.categories || {};
   const categoryScores = result.category_scores || {};
+  // Lower threshold for free speech zone - be more inclusive in tagging NSFW content
   const is18Plus = Boolean(
     categories.sexual || 
     categories.sexual_minors || 
-    (categoryScores.sexual && Number(categoryScores.sexual) > 0.7) ||
-    (categoryScores.sexual_minors && Number(categoryScores.sexual_minors) > 0.7)
+    (categoryScores.sexual && Number(categoryScores.sexual) > 0.5) ||  // Lowered from 0.7
+    (categoryScores.sexual_minors && Number(categoryScores.sexual_minors) > 0.5) ||  // Lowered from 0.7
+    categories.violence ||
+    categories.violence_graphic ||
+    (categoryScores.violence && Number(categoryScores.violence) > 0.6)
   );
 
   return { 
@@ -646,8 +650,8 @@ serve(async (req) => {
       },
     };
 
-    // If 18+ content detected with high confidence, mark as sensitive
-    if (moderationData.is18Plus && moderationData.risk >= 0.7) {
+    // If 18+ content detected, mark as sensitive (lower threshold for free speech zone)
+    if (moderationData.is18Plus && moderationData.risk >= 0.5) {
       updateData.content_rating = "sensitive";
     }
     

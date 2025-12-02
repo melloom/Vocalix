@@ -72,7 +72,20 @@ export const FirstClipGuidance = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
-  const { profile, isLoading: isProfileLoading } = useAuth();
+  
+  // Safely get auth - handle case where AuthProvider might not be available
+  let profile = null;
+  let isProfileLoading = true;
+  try {
+    const auth = useAuth();
+    profile = auth.profile;
+    isProfileLoading = auth.isLoading;
+  } catch (e) {
+    // AuthProvider not available - component will handle gracefully
+    // Return early to prevent errors
+    return null;
+  }
+  
   const checkingRef = useRef(false);
   const profileIdRef = useRef<string | null>(null);
 

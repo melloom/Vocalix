@@ -1,0 +1,17 @@
+NSFW Analyzer Access Code
+==========================
+
+This is the access code for the analyze-nsfw-content edge function.
+
+Access Code: 195e760d9b32952ccc27b26b54f63d2472855ccafaf6330e1ae41996aa847e55
+
+⚠️ IMPORTANT: Keep this code secure and private!
+
+Function URL: https://xgblxtopsapvacyaurcr.supabase.co/functions/v1/analyze-nsfw-content
+
+Usage:
+- Include in header: x-access-code: 195e760d9b32952ccc27b26b54f63d2472855ccafaf6330e1ae41996aa847e55
+- Or in request body: { "access_code": "195e760d9b32952ccc27b26b54f63d2472855ccafaf6330e1ae41996aa847e55" }
+
+Generated: 2025-01-13
+

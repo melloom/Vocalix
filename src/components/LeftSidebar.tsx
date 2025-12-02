@@ -141,9 +141,9 @@ export const LeftSidebar = () => {
   return (
     <div className="space-y-6">
       {/* Trending Topics */}
-      <Card className="p-4 rounded-2xl border border-border/40">
+      <Card className="p-4 rounded-2xl border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
+          <h3 className="text-lg font-semibold flex items-center gap-2" style={{ letterSpacing: '0.05em', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', fontWeight: 500 }}>
             <Sparkles className="w-5 h-5 text-primary" />
             Trending Topics
           </h3>
@@ -172,7 +172,7 @@ export const LeftSidebar = () => {
                 to={`/topic/${topic.id}`}
                 className="block group"
               >
-                <div className="p-3 rounded-xl border border-border/40 hover:border-primary/50 hover:bg-muted/50 transition-all">
+                <div className="p-3 rounded-xl border border-black/20 dark:border-border/30 hover:border-primary/50 dark:hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-muted/50 transition-all cursor-pointer">
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       {topic.communities ? (
@@ -182,7 +182,7 @@ export const LeftSidebar = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+                      <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors" style={{ letterSpacing: '0.05em', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', fontWeight: 500 }}>
                         {topic.title}
                       </h4>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -269,9 +269,9 @@ export const LeftSidebar = () => {
 
       {/* Live Rooms Preview */}
       {liveRooms && liveRooms.length > 0 && (
-        <Card className="p-4 rounded-2xl border border-border/40">
+        <Card className="p-4 rounded-2xl border border-black/20 dark:border-border/40 hover:border-primary/50 dark:hover:border-primary/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
+            <h3 className="text-lg font-semibold flex items-center gap-2" style={{ letterSpacing: '0.05em', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', fontWeight: 500 }}>
               <Radio className="w-5 h-5 text-primary" />
               Live Rooms
             </h3>
@@ -298,7 +298,7 @@ export const LeftSidebar = () => {
                   to={`/live-room/${room.id}`}
                   className="block group"
                 >
-                  <div className="p-3 rounded-xl border border-border/40 hover:border-primary/50 hover:bg-muted/50 transition-all">
+                  <div className="p-3 rounded-xl border border-black/20 dark:border-border/40 hover:border-primary/50 dark:hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-muted/50 transition-all cursor-pointer">
                     <div className="flex items-start gap-3">
                       <div className="relative shrink-0">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -307,7 +307,7 @@ export const LeftSidebar = () => {
                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                        <h4 className="font-semibold text-sm truncate group-hover:text-primary transition-colors" style={{ letterSpacing: '0.05em', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', fontWeight: 500 }}>
                           {room.title}
                         </h4>
                         <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -326,7 +326,7 @@ export const LeftSidebar = () => {
 
       {/* Quick Stats */}
       <Card className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-border/40">
-        <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+        <h3 className="text-lg font-semibold mb-4" style={{ letterSpacing: '0.05em', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale', fontWeight: 500 }}>Quick Links</h3>
         <div className="space-y-2">
           <Link
             to="/communities"

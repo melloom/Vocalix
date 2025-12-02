@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, HelpCircle, X, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -206,7 +208,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   // Using DiceBear which works perfectly and generates unique avatars
   // If Freepik is needed, it would need to be called from a Supabase Edge Function
   useEffect(() => {
-    console.log('[Avatar] Using DiceBear avatars (no CORS issues, all unique)');
     setAvatarsLoading(false);
   }, []);
   
@@ -274,16 +275,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
   
-  // Debug logging for localhost
-  useEffect(() => {
-    if (RECAPTCHA_SITE_KEY) {
-      console.log('[OnboardingFlow] reCAPTCHA Site Key:', RECAPTCHA_SITE_KEY);
-      console.log('[OnboardingFlow] Current domain:', typeof window !== 'undefined' ? window.location.hostname : 'unknown');
-      console.log('[OnboardingFlow] Full URL:', typeof window !== 'undefined' ? window.location.href : 'unknown');
-    } else {
-      console.warn('[OnboardingFlow] VITE_RECAPTCHA_SITE_KEY is not set!');
-    }
-  }, []);
+  // Removed debug logging to reduce console noise
 
   // Update avatar when handle changes
   useEffect(() => {
@@ -299,7 +291,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
     
     if (!RECAPTCHA_SITE_KEY) {
-      console.log('[OnboardingFlow] No reCAPTCHA v3 site key configured');
       setRecaptchaLoading(false);
       setRecaptchaAvailable(false);
       recaptchaInitializedRef.current = true;
@@ -307,8 +298,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
     
     recaptchaInitializedRef.current = true;
-    console.log('[OnboardingFlow] Starting reCAPTCHA v3 load...');
-    console.log('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...` : 'missing');
 
     // Check if v3 script is already loaded
     const checkV3Loaded = () => {
@@ -362,12 +351,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       let readyTimeout: NodeJS.Timeout | null = null;
       
       script.onload = () => {
-        console.log('[OnboardingFlow] ✅ reCAPTCHA v3 script file loaded');
-        
         // Function to check and set ready state
         const checkAndSetReady = () => {
           if (checkV3Loaded()) {
-            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 API is ready!');
             if (checkReadyInterval) clearInterval(checkReadyInterval);
             if (readyTimeout) clearTimeout(readyTimeout);
             setRecaptchaLoading(false);
@@ -387,7 +373,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               // Check if v3 API exists (has execute function)
               if (typeof grecaptcha.ready === 'function') {
                 grecaptcha.ready(() => {
-                  console.log('[OnboardingFlow] v3 ready() callback executed');
+                  // v3 ready() callback executed
                   setTimeout(() => {
                     if (!checkAndSetReady()) {
                       // Still not ready, but might work on execute
@@ -398,7 +384,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 return true;
               } else if (typeof grecaptcha.execute === 'function') {
                 // v3 exists but no ready() method
-                console.log('[OnboardingFlow] v3 API exists, checking directly...');
+                // v3 API exists, checking directly
                 setTimeout(() => {
                   checkAndSetReady();
                 }, 1000);
@@ -417,7 +403,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           const readyTimeoutMs = isMobile ? 5000 : 2000;
           readyTimeout = setTimeout(() => {
             if (!checkAndSetReady()) {
-              console.log('[OnboardingFlow] v3 ready() timeout, starting polling...');
+              // v3 ready() timeout, starting polling
               startPolling();
             }
           }, readyTimeoutMs);
@@ -425,7 +411,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           // Strategy 2: Wait a bit then check
           setTimeout(() => {
             if (!checkAndSetReady()) {
-              console.log('[OnboardingFlow] v3 not immediately available, starting polling...');
+              // v3 not immediately available, starting polling
               startPolling();
             }
           }, 1000);
@@ -739,7 +725,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               // In development, skip reCAPTCHA if it's not working (graceful degradation)
               if (!grecaptcha || typeof grecaptcha.execute !== 'function') {
                 if (isDevelopment) {
-                  console.log('[OnboardingFlow] reCAPTCHA not available in development, continuing without verification');
+                  // reCAPTCHA not available in development, continuing without verification
                 } else {
                   console.warn('[OnboardingFlow] reCAPTCHA not loaded - this may be a configuration issue');
                 }
@@ -764,7 +750,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                                 action: 'ACCOUNT_CREATION'
                               });
                               if (!isDevelopment) {
-                                console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained');
+                                // reCAPTCHA v3 token obtained
                               }
                               resolve(token);
                             } catch (error: any) {
@@ -785,7 +771,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                             action: 'ACCOUNT_CREATION'
                           });
                           if (!isDevelopment) {
-                            console.log('[OnboardingFlow] ✅ reCAPTCHA v3 token obtained (direct)');
+                            // reCAPTCHA v3 token obtained (direct)
                           }
                         } catch (error: any) {
                           // In development, silently fail
@@ -833,7 +819,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
       } else {
         if (!isDevelopment) {
-          console.log('[OnboardingFlow] No reCAPTCHA site key configured, skipping verification');
+          // No reCAPTCHA site key configured, skipping verification
         }
       }
 
@@ -971,7 +957,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 const finalToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'ACCOUNT_CREATION' });
                 if (finalToken) {
                   setRecaptchaToken(finalToken);
-                  console.log('[OnboardingFlow] Mobile: Successfully obtained reCAPTCHA token on retry');
+                  // Mobile: Successfully obtained reCAPTCHA token on retry
                   // Continue with registration - token is now set
                 } else {
                   // Allow registration to proceed on mobile even without token
@@ -1004,12 +990,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
       // Create profile
       // Log debug info to help diagnose RLS issues
-      console.log('[OnboardingFlow] Creating profile with:', {
-        auth_user_id: currentUserId,
-        device_id: finalDeviceId,
-        handle: normalizedHandle,
-        deviceIdInStorage: localStorage.getItem('deviceId'),
-      });
+      // Creating profile
+      if (false) { // Debug only
+        console.log('[OnboardingFlow] Creating profile with:', {
+          auth_user_id: currentUserId,
+          device_id: finalDeviceId,
+          handle: normalizedHandle,
+          deviceIdInStorage: localStorage.getItem('deviceId'),
+        });
+      }
 
       const { data, error } = await supabase
         .from("profiles")
@@ -1117,14 +1106,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-12 sm:px-6 lg:px-8">
         {/* Top header with welcome and link account button */}
         <div className="flex items-center justify-between mb-8 lg:mb-12 relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-5 py-2.5 text-sm font-bold text-white dark:text-white border border-red-800/60 dark:border-red-700/50 shadow-lg backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-5 py-2.5 text-sm font-bold text-white dark:text-white shadow-lg backdrop-blur-md">
             <Radio className="h-4 w-4" />
             Welcome to The Echo Chamber
           </div>
           <Button
             asChild
             variant="outline"
-            className="rounded-full border-2 border-red-900/40 dark:border-red-800/30 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group"
+            className="rounded-full border border-red-900/30 dark:border-red-800/20 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group"
             size="default"
           >
             <Link to="/link-pin" className="flex items-center gap-2 px-4 py-2">
@@ -1134,9 +1123,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </Button>
         </div>
 
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 lg:items-center">
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
           {/* Left side - Speakeasy Reddit-themed welcome */}
-          <div className="space-y-8 text-center lg:text-left relative z-10">
+          <div className="space-y-6 text-center lg:text-left relative z-10">
 
             <div className="space-y-6">
               <div className="relative">
@@ -1152,22 +1141,47 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </p>
             </div>
 
+            {/* Privacy & Security Badges */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-4">
+              <Badge 
+                variant="outline" 
+                className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
+              >
+                <MailX className="h-4 w-4 mr-2 text-red-400" />
+                No Email Required
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
+              >
+                <UserX className="h-4 w-4 mr-2 text-red-400" />
+                Anonymous
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
+              >
+                <Smartphone className="h-4 w-4 mr-2 text-red-400" />
+                Device-Based Auth
+              </Badge>
+            </div>
+
             {/* Expanded content section */}
-            <div className="space-y-6 pt-4">
+            <div className="space-y-5 pt-2">
               <div className="prose dark:prose-invert max-w-none">
                 <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
                   <Mic className="h-5 w-5 text-red-400 dark:text-red-400" />
                   What is The Echo Chamber?
                 </h3>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  Reddit for your voice. Share 30-second audio clips—thoughts, rants, stories, whatever. Your identity stays anonymous. Only your voice and handle show.
+                  The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your voice and handle show.
                 </p>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  Speak your mind. React with voice clips. Reply, remix, or continue chains. Join communities. Drop into live rooms. No BS, no filters—just raw voice in an underground community.
+                  Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. No BS, no filters—just raw voice in an underground community built for authentic expression.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-red-900/50 dark:border-red-800/40 bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:border-red-700/60">
+              <div className="rounded-2xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20">
                 <h4 className="font-bold text-white dark:text-white mb-4 flex items-center gap-2">
                   <Radio className="h-5 w-5 text-red-400 dark:text-red-400" />
                   How It Works
@@ -1188,6 +1202,116 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 </ul>
               </div>
 
+              {/* Why Echo Chamber? Section */}
+              <div className="prose dark:prose-invert max-w-none pt-4">
+                <h3 className="text-2xl font-bold text-white dark:text-white mb-4 flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
+                  Why Echo Chamber?
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Privacy Highlights */}
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
+                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-red-400" />
+                      Privacy First
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>No email required</strong> - Create an account with just a handle</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Fully anonymous</strong> - No real names, no personal info collected</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Device-based authentication</strong> - Your device is your key</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Voice-First Benefits */}
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
+                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                      <Mic className="h-4 w-4 text-red-400" />
+                      Voice-First Benefits
+                    </h4>
+                    <p className="text-sm text-gray-200 dark:text-gray-200 mb-3">
+                      Voice captures emotion, tone, and nuance that text can't. Express yourself authentically without the limitations of typing.
+                    </p>
+                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span>Express emotion and tone naturally</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span>Faster communication - speak faster than you type</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span>More authentic conversations and connections</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Community Values */}
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
+                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4 text-red-400" />
+                      Community Values
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Raw and real</strong> - No filters, no polish required</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Respectful discourse</strong> - AI moderation keeps it civil</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Underground vibe</strong> - Like a speakeasy for voices</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Comparison with Text Platforms */}
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
+                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-red-400" />
+                      Why Not Just Use Text?
+                    </h4>
+                    <div className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
+                      <p className="mb-2 text-white dark:text-white">
+                        Text-based platforms miss the human connection. Voice adds:
+                      </p>
+                      <ul className="space-y-2">
+                        <li className="flex items-start gap-2">
+                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                          <span><strong>Tone & emotion</strong> - Hear the real meaning behind words</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                          <span><strong>Authenticity</strong> - Less editing, more genuine expression</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                          <span><strong>Speed</strong> - Speak faster than typing long posts</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                          <span><strong>Accessibility</strong> - Easier for those who struggle with typing</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Quick Feature Highlights - Compact */}
               <div className="flex flex-wrap gap-2 pt-2">
                 {[
@@ -1200,16 +1324,113 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 ].map((feature) => (
                   <div
                     key={feature.title}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-900/30 dark:border-red-800/20 bg-gradient-to-br from-red-950/20 to-amber-950/20 dark:from-red-950/15 dark:to-amber-950/15 text-xs text-gray-200 dark:text-gray-200"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-red-950/20 to-amber-950/20 dark:from-red-950/15 dark:to-amber-950/15 text-xs text-gray-200 dark:text-gray-200"
                   >
                     <feature.icon className="h-3 w-3 text-red-400" />
                     <span className="font-medium">{feature.title}</span>
                   </div>
                 ))}
               </div>
+
+            {/* Example Handles Section */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-red-400 dark:text-red-400" />
+                Get Inspired - Popular Handles
+              </h3>
+              <p className="text-sm text-gray-300 dark:text-gray-300 mb-4">
+                Click any handle to use it as a template for your own
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { handle: "DeepVoice42", avatar: 'avatar1' as AvatarType },
+                  { handle: "SmoothEcho89", avatar: 'avatar2' as AvatarType },
+                  { handle: "RawTone23", avatar: 'avatar3' as AvatarType },
+                  { handle: "CoolWave56", avatar: 'avatar4' as AvatarType },
+                  { handle: "CrispSignal12", avatar: 'avatar5' as AvatarType },
+                  { handle: "WarmBeat78", avatar: 'avatar6' as AvatarType },
+                ].map((example) => (
+                  <button
+                    key={example.handle}
+                    type="button"
+                    onClick={() => {
+                      setHandle(example.handle);
+                      setSelectedAvatar(example.avatar);
+                    }}
+                    className="group flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-4 transition-all duration-300 hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1"
+                  >
+                    <div className="relative">
+                      <AvatarIcon 
+                        type={example.avatar}
+                        className="w-12 h-12 group-hover:scale-110 transition-transform duration-300"
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <ArrowRight className="h-3 w-3 text-white" />
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-200 dark:text-gray-200 group-hover:text-white transition-colors">
+                      @{example.handle}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 pt-4">
+            {/* FAQ Section */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
+                Frequently Asked Questions
+              </h3>
+              <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 overflow-hidden">
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-4">
+                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
+                      Is it really anonymous?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
+                      Yes! We don't require any personal information. No email, no phone number, no real name. 
+                      You create an account with just a handle and an avatar. Your device ID is used for authentication, 
+                      but it's not linked to any personal data. You're as anonymous as you want to be.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-4">
+                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
+                      How long are clips?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
+                      Regular voice clips are limited to 30 seconds—perfect for quick thoughts, reactions, or brief stories. 
+                      For longer content, you can use Podcast Mode which allows up to 10-minute segments. This keeps the feed 
+                      dynamic while still allowing for deeper conversations when needed.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-3" className="border-red-900/20 dark:border-red-800/10 px-4">
+                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
+                      Can I delete my account?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
+                      Yes, absolutely. You have full control over your account and content. You can delete individual clips 
+                      at any time, or delete your entire account from the Settings page. When you delete your account, all 
+                      your clips, profile, and associated data are permanently removed from our servers.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-4" className="border-red-900/20 dark:border-red-800/10 px-4">
+                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
+                      What happens if I lose my device?
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
+                      Your account is tied to your device, but you can link multiple devices using the "Link Account" feature. 
+                      This allows you to access your account from different devices. If you lose your device and haven't linked 
+                      it, you'll need to create a new account, but you can always change your handle to match your previous one 
+                      if it's available.
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3 pt-2">
               {[
                 { 
                   icon: Mic, 
@@ -1238,7 +1459,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               ].map(({ icon: Icon, title, description, iconBg, iconColor, delay }) => (
                 <div
                   key={title}
-                  className="group flex flex-col gap-3 rounded-2xl border border-red-900/40 dark:border-red-800/30 bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1 animate-in fade-in-0 slide-in-from-bottom-3"
+                  className="group flex flex-col gap-3 rounded-2xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 backdrop-blur-sm hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1 animate-in fade-in-0 slide-in-from-bottom-3"
                   style={{ animationDelay: `${delay}ms` }}
                 >
                   <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
@@ -1254,11 +1475,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Right side - Clean modern form */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-red-900/50 dark:border-red-800/40 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300">
-            
-            {/* Decorative corner accents - subtle */}
-            <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-red-800/30 dark:border-red-700/30 rounded-tl-2xl"></div>
-            <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-red-800/30 dark:border-red-700/30 rounded-br-2xl"></div>
+          <Card className="w-full max-w-md mx-auto lg:mx-0 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300">
 
             {/* Progress Indicator */}
             <div className="px-6 pt-6 pb-2">
@@ -1297,7 +1514,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <Mic className="h-4 w-4 text-red-400 dark:text-red-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 border border-red-900/40 dark:border-red-800/30 max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-96 overflow-y-auto">
                   {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
@@ -1340,7 +1557,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-12 text-center text-lg font-semibold tracking-wide border-2 border-red-900/40 dark:border-red-800/30 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
+                    className="h-12 text-center text-lg font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
                   />
                   <Button
                     type="button"
@@ -1349,7 +1566,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onClick={() => {
                       setHandle(generateHandle());
                     }}
-                    className="h-12 w-12 shrink-0 border-2 border-red-900/40 dark:border-red-800/30 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
+                    className="h-12 w-12 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
                     title="Generate random handle"
                   >
                     <Wand2 className="h-5 w-5 text-red-400 dark:text-red-400" />

@@ -18,7 +18,6 @@ const FALLBACK_TOPICS = [
   { title: "Your calm corner", description: "Describe a place or ritual that helps you feel grounded." },
   { title: "What are you grateful for?", description: "Name one thing you're thankful for and why it matters." },
   { title: "A hopeful thought", description: "Share something that makes you feel optimistic right now." },
-  { title: "A moment of connection", description: "Tell us about a meaningful interaction you had recently." },
   { title: "Something that made you smile", description: "What brought joy to your day today?" },
   { title: "A small victory", description: "Celebrate a win, no matter how small it might seem." },
   { title: "What's on your mind?", description: "Share what's been occupying your thoughts lately." },

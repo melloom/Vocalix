@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -28,6 +28,14 @@ export const LiveReactionsDisplay = ({
 }: LiveReactionsDisplayProps) => {
   const [liveReactions, setLiveReactions] = useState<LiveReaction[]>([]);
   const [totalActiveReactions, setTotalActiveReactions] = useState(0);
+  
+  // Use ref to track latest currentTimeSeconds without causing effect re-runs
+  const currentTimeRef = useRef(currentTimeSeconds);
+  
+  // Update ref whenever currentTimeSeconds changes
+  useEffect(() => {
+    currentTimeRef.current = currentTimeSeconds;
+  }, [currentTimeSeconds]);
 
   useEffect(() => {
     if (!isPlaying || !clipId) {
@@ -38,9 +46,10 @@ export const LiveReactionsDisplay = ({
 
     const fetchLiveReactions = async () => {
       try {
+        // Use ref value to get the latest currentTimeSeconds without recreating interval
         const { data, error } = await supabase.rpc("get_live_reactions", {
           p_clip_id: clipId,
-          p_current_time_seconds: currentTimeSeconds,
+          p_current_time_seconds: currentTimeRef.current,
           p_time_window_seconds: timeWindowSeconds,
         });
 
@@ -63,11 +72,11 @@ export const LiveReactionsDisplay = ({
     // Fetch immediately
     fetchLiveReactions();
 
-    // Update every second while playing
-    const interval = setInterval(fetchLiveReactions, 1000);
+    // Update every second while playing (increased from 1s to 2s to reduce load)
+    const interval = setInterval(fetchLiveReactions, 2000);
 
     return () => clearInterval(interval);
-  }, [clipId, currentTimeSeconds, isPlaying, timeWindowSeconds]);
+  }, [clipId, isPlaying, timeWindowSeconds]); // Removed currentTimeSeconds from deps
 
   // Subscribe to new reactions in real-time
   useEffect(() => {
@@ -86,9 +95,10 @@ export const LiveReactionsDisplay = ({
         async () => {
           // Refetch live reactions when a new reaction is added
           try {
+            // Use ref value to get the latest currentTimeSeconds
             const { data } = await supabase.rpc("get_live_reactions", {
               p_clip_id: clipId,
-              p_current_time_seconds: currentTimeSeconds,
+              p_current_time_seconds: currentTimeRef.current,
               p_time_window_seconds: timeWindowSeconds,
             });
             if (data) {
@@ -109,7 +119,7 @@ export const LiveReactionsDisplay = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [clipId, currentTimeSeconds, isPlaying, timeWindowSeconds]);
+  }, [clipId, isPlaying, timeWindowSeconds]); // Removed currentTimeSeconds from deps
 
   if (!isPlaying || liveReactions.length === 0) {
     return null;

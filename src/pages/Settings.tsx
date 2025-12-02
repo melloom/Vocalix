@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -143,6 +143,11 @@ const Settings = () => {
   const [digestFrequency, setDigestFrequency] = useState<'never' | 'daily' | 'weekly'>('daily');
   const [digestStyle, setDigestStyle] = useState<'quiet' | 'normal' | 'energizing'>('normal');
   const [digestEmail, setDigestEmail] = useState("");
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [isRecoveryEmailDialogOpen, setIsRecoveryEmailDialogOpen] = useState(false);
+  const [pendingRecoveryEmail, setPendingRecoveryEmail] = useState("");
+  const [isSavingRecoveryEmail, setIsSavingRecoveryEmail] = useState(false);
+  const [hasAcceptedRecoveryWarning, setHasAcceptedRecoveryWarning] = useState(false);
   const [isHandleDialogOpen, setIsHandleDialogOpen] = useState(false);
   const [pendingHandle, setPendingHandle] = useState("");
   const [isSavingHandle, setIsSavingHandle] = useState(false);
@@ -166,6 +171,7 @@ const Settings = () => {
     createdAt: string;
     email?: string | null;
     isActive: boolean;
+    fromDatabase?: boolean;
   }>>([]);
   const [isLoadingActiveLinks, setIsLoadingActiveLinks] = useState(false);
   const [showQRCode, setShowQRCode] = useState(true); // Show QR code by default for easy sharing
@@ -208,19 +214,39 @@ const Settings = () => {
   const [voiceCloningRevenueShare, setVoiceCloningRevenueShare] = useState(20);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabFromUrl || "preferences");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "general");
 
   // Update tab when URL param changes
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
+    } else if (!tabFromUrl && activeTab !== "general") {
+      // If no tab in URL but we have an active tab, update URL to preserve it
+      setSearchParams({ tab: activeTab });
     }
-  }, [tabFromUrl]);
+  }, [tabFromUrl, activeTab]);
 
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setSearchParams({ tab: value });
+  };
+
+  // Get tab label for mobile dropdown
+  const getTabLabel = (tab: string) => {
+    const labels: Record<string, string> = {
+      general: "General",
+      playback: "Playback",
+      notifications: "Notifications",
+      privacy: "Privacy",
+      profile: "Profile",
+      account: "Account",
+      security: "Security",
+      downloads: "Downloads",
+      accessibility: "Accessibility",
+      voice: "Voice",
+    };
+    return labels[tab] || tab;
   };
 
   // Auto-update device user_agent when Settings page loads
@@ -294,6 +320,8 @@ const Settings = () => {
       setDigestFrequency(profile.digest_frequency ?? 'daily');
       // @ts-ignore
       setDigestEmail(profile.email ?? "");
+      // @ts-ignore - recovery_email exists but not in types
+      setRecoveryEmail(profile.recovery_email ?? "");
       // @ts-ignore - digest_style exists but not in generated types
       setDigestStyle(profile.digest_style ?? 'normal');
       // @ts-ignore
@@ -348,42 +376,40 @@ const Settings = () => {
       if (error) throw error;
 
       if (data && Array.isArray(data)) {
-        // Filter to only show active links
+        // Construct URLs from tokens returned by database
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
         const dbActiveLinks = data
           .filter((link: any) => link.is_active)
-          .map((link: any) => ({
-            id: link.id,
-            url: "", // Can't reconstruct URL from hash
-            token: "", // Can't get original token
-            expiresAt: link.expires_at,
-            linkType: link.link_type ?? "standard",
-            createdAt: link.created_at,
-            email: link.email,
-            isActive: link.is_active,
-            fromDatabase: true, // Flag to indicate we don't have the full URL
-          }));
+          .map((link: any) => {
+            // Construct URL from token if available
+            const loginUrl = link.token && origin
+              ? `${origin}/login-link?token=${link.token}`
+              : "";
+            
+            return {
+              id: link.id,
+              url: loginUrl,
+              token: link.token || "",
+              expiresAt: link.expires_at,
+              linkType: link.link_type ?? "standard",
+              createdAt: link.created_at,
+              email: link.email,
+              isActive: link.is_active,
+            };
+          });
 
-        // Merge with existing state links (prefer state links as they have full URLs)
-        // Also reconstruct URLs for database links using the origin
-        const origin = typeof window !== "undefined" ? window.location.origin : "";
-        setActiveLinks((prev) => {
-          const stateLinkIds = new Set(prev.map((l) => l.id));
-          const newDbLinks = dbActiveLinks
-            .filter((dbLink: any) => !stateLinkIds.has(dbLink.id))
-            .map((dbLink: any) => {
-              // Try to reconstruct URL if we have the link ID (though we can't get the token)
-              // For now, mark as URL not available but keep the link info
-              return {
-                ...dbLink,
-                url: "", // Can't reconstruct without token, but we'll show the link exists
-              };
-            });
-          return [...prev, ...newDbLinks];
-        });
+        // Sort by creation date (newest first)
+        dbActiveLinks.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        
+        setActiveLinks(dbActiveLinks);
+      } else {
+        setActiveLinks([]);
       }
     } catch (error) {
       logError("Failed to load active links", error);
-      // Don't show error toast, just fail silently
+      setActiveLinks([]);
     } finally {
       setIsLoadingActiveLinks(false);
     }
@@ -399,8 +425,8 @@ const Settings = () => {
       if (error) throw error;
 
       if (data) {
-        // Remove the link from active links
-        setActiveLinks((prev) => prev.filter((link) => link.id !== linkId));
+        // Reload active links from database after deactivation
+        await loadActiveLinks();
         toast({
           title: "Link deactivated",
           description: "The login link has been deactivated and can no longer be used.",
@@ -718,19 +744,9 @@ const Settings = () => {
         email: trimmedEmail.length > 0 ? trimmedEmail : null,
         isActive: true,
       };
-      setActiveLinks((prev) => {
-        // Check if a link with the same token already exists
-        const existingLink = prev.find((l) => l.token === result.token);
-        if (existingLink) {
-          // Update existing link instead of adding duplicate
-          return prev.map((l) => 
-            l.token === result.token 
-              ? { ...l, url: loginUrl, expiresAt: newLink.expiresAt, isActive: true }
-              : l
-          );
-        }
-        return [newLink, ...prev];
-      });
+      // Reload active links from database to get the full list with tokens
+      // The database now stores tokens, so we can get all links across devices
+      await loadActiveLinks();
 
       let copied = false;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -1653,18 +1669,8 @@ const Settings = () => {
                   size="icon" 
                   className="rounded-full flex-shrink-0"
                   onClick={() => {
-                    // Check if we came from a specific page (like profile)
-                    const state = location.state as { from?: string } | null;
-                    if (state?.from) {
-                      navigate(state.from);
-                    } else {
-                      // Try to go back, fallback to home
-                      if (window.history.length > 1) {
-                        navigate(-1);
-                      } else {
-                        navigate("/");
-                      }
-                    }
+                    // Always go to main menu (home page)
+                    navigate("/");
                   }}
                 >
                   <ArrowLeft className="h-5 w-5" />
@@ -1677,40 +1683,151 @@ const Settings = () => {
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+        {/* Mobile: Dropdown Select */}
+        <div className="lg:hidden sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3">
-            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-              <TabsList className="w-full h-auto p-1.5 bg-muted/50 rounded-2xl inline-flex min-w-max gap-1.5">
-                <TabsTrigger value="preferences" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Preferences
-                </TabsTrigger>
-                <TabsTrigger value="personalization" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Personalization
-                </TabsTrigger>
-                <TabsTrigger value="content" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Content
-                </TabsTrigger>
-                <TabsTrigger value="account" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Account
-                </TabsTrigger>
-                <TabsTrigger value="security" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Security
-                </TabsTrigger>
-                <TabsTrigger value="downloads" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Downloads
-                </TabsTrigger>
-                <TabsTrigger value="accessibility" className="rounded-xl text-xs sm:text-sm px-3 sm:px-4 py-2.5 whitespace-nowrap data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                  Accessibility
-                </TabsTrigger>
-              </TabsList>
-            </div>
+            <Select value={activeTab} onValueChange={handleTabChange}>
+              <SelectTrigger className="w-full rounded-2xl font-medium">
+                <SelectValue placeholder="Select a section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="playback">Playback</SelectItem>
+                <SelectItem value="notifications">Notifications</SelectItem>
+                <SelectItem value="privacy">Privacy</SelectItem>
+                <SelectItem value="profile">Profile</SelectItem>
+                <SelectItem value="account">Account</SelectItem>
+                <SelectItem value="security">Security</SelectItem>
+                <SelectItem value="downloads">Downloads</SelectItem>
+                <SelectItem value="accessibility">Accessibility</SelectItem>
+                <SelectItem value="voice">Voice</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
-        <TabsContent value="preferences" className="space-y-8 mt-6">
+        {/* Desktop: Sidebar Layout */}
+        <div className="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto px-4 py-6">
+          {/* Sidebar Navigation - Hidden on mobile */}
+          <aside className="hidden lg:block lg:w-64 lg:sticky lg:top-[89px] lg:h-[calc(100vh-89px)] lg:overflow-y-auto">
+            <nav className="space-y-1">
+              <button
+                onClick={() => handleTabChange("general")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "general"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <SettingsIcon className="h-4 w-4" />
+                <span>General</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("playback")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "playback"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Play className="h-4 w-4" />
+                <span>Playback</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("notifications")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "notifications"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Bell className="h-4 w-4" />
+                <span>Notifications</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("privacy")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "privacy"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Shield className="h-4 w-4" />
+                <span>Privacy</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("profile")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "profile"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <User className="h-4 w-4" />
+                <span>Profile</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("account")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "account"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                <span>Account</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("security")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "security"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Lock className="h-4 w-4" />
+                <span>Security</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("downloads")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "downloads"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Download className="h-4 w-4" />
+                <span>Downloads</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("accessibility")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "accessibility"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Headphones className="h-4 w-4" />
+                <span>Accessibility</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("voice")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "voice"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Volume2 className="h-4 w-4" />
+                <span>Voice</span>
+              </button>
+            </nav>
+          </aside>
+
+      <main className="flex-1 max-w-2xl lg:max-w-4xl">
+        <TabsContent value="general" className="space-y-8 mt-6">
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Preferences</h2>
+            <h2 className="text-lg font-semibold">General Settings</h2>
           <Card className="p-6 rounded-3xl space-y-6">
             <div className="flex items-center justify-between gap-6">
               <div>
@@ -1720,240 +1837,7 @@ const Settings = () => {
                 </p>
               </div>
               <ThemeToggle />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Captions by default</p>
-                <p className="text-sm text-muted-foreground">
-                  Automatically show captions when you open a clip.
-                </p>
               </div>
-              <Switch
-                checked={captionsEnabled}
-                onCheckedChange={handleCaptionsToggle}
-                disabled={isUpdating}
-                aria-label="Toggle captions visibility by default"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Autoplay next clip</p>
-                <p className="text-sm text-muted-foreground">
-                  Keep listening without tapping play—perfect for hands-free sessions.
-                </p>
-              </div>
-              <Switch
-                checked={autoplayNextEnabled}
-                onCheckedChange={handleAutoplayToggle}
-                disabled={isUpdating}
-                aria-label="Toggle autoplay for the next clip"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Tap to record</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose whether the mic starts with a tap or while holding it down.
-                </p>
-              </div>
-              <Switch
-                checked={tapToRecordEnabled}
-                onCheckedChange={handleTapToRecordToggle}
-                disabled={isUpdating}
-                aria-label="Toggle tap to record preference"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Topic alerts</p>
-                <p className="text-sm text-muted-foreground">
-                  Get a gentle nudge when the daily prompt is ready.
-                </p>
-              </div>
-              <Switch
-                checked={topicAlertsEnabled}
-                onCheckedChange={handleTopicAlertsToggle}
-                disabled={isUpdating}
-                aria-label="Toggle notifications for new topics"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Browser push notifications</p>
-                <p className="text-sm text-muted-foreground">
-                  {isPushSupported
-                    ? isPushEnabled
-                      ? "Receive notifications even when the app is closed."
-                      : "Enable to receive notifications for comments, replies, follows, and reactions."
-                    : "Not supported in your browser."}
-                </p>
-              </div>
-              {isPushSupported ? (
-                <Switch
-                  checked={isPushEnabled}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      requestPermission();
-                    }
-                  }}
-                  disabled={pushPermission === 'denied'}
-                  aria-label="Toggle browser push notifications"
-                />
-              ) : (
-                <Switch checked={false} disabled aria-label="Push notifications not supported" />
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {/* Email address section - always visible */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-              <div className="flex-1">
-                    <Label htmlFor="digest-email" className="text-sm font-medium">
-                        Email address
-                      </Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Used for email digests and magic login links
-                    </p>
-                  </div>
-                </div>
-                      <Input
-                        id="digest-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={digestEmail}
-                        onChange={(e) => handleDigestEmailChange(e.target.value)}
-                  className="rounded-2xl"
-                        disabled={isUpdating}
-                      />
-                <p className="text-xs text-muted-foreground">
-                  {digestEmail.trim() 
-                    ? "✓ Email saved. You can use it for digests and login links."
-                    : "Add your email to receive digests and use the 'Email Me' feature for login links."
-                  }
-                </p>
-                    </div>
-
-              {/* Digest settings section */}
-              <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <p className="font-medium">Email digest</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get a daily or weekly email with gentle highlights from topics you follow.
-                    </p>
-                  </div>
-                  {digestEnabled && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
-                          Frequency
-                        </Label>
-                        <Select
-                          value={digestFrequency}
-                          onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
-                          disabled={isUpdating}
-                        >
-                          <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="never">Never</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="digest-style" className="text-xs text-muted-foreground">
-                          Style
-                        </Label>
-                        <Select
-                          value={digestStyle}
-                          onValueChange={(value: 'quiet' | 'normal' | 'energizing') => handleDigestStyleChange(value)}
-                          disabled={isUpdating}
-                        >
-                          <SelectTrigger id="digest-style" className="mt-1 rounded-2xl">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="quiet">Quiet (very minimal)</SelectItem>
-                            <SelectItem value="normal">Normal</SelectItem>
-                            <SelectItem value="energizing">Energizing (more highlights)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              <Switch
-                checked={digestEnabled}
-                onCheckedChange={handleDigestToggle}
-                  disabled={isUpdating || !digestEmail.trim()}
-                aria-label="Toggle email digest"
-              />
-              </div>
-              {!digestEmail.trim() && (
-                <p className="text-xs text-muted-foreground italic">
-                  💡 Add an email address above to enable email digests
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Filter mature content</p>
-                <p className="text-sm text-muted-foreground">
-                  Hide clips flagged with sensitive or explicit themes from your feed.
-                </p>
-              </div>
-              <Switch
-                checked={matureFilterEnabled}
-                onCheckedChange={handleMatureFilterToggle}
-                disabled={isUpdating}
-                aria-label="Toggle mature content filter"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="font-medium">Show 18+ content</p>
-                <p className="text-sm text-muted-foreground">
-                  Enable to view and access NSFW content. When enabled, a dedicated 18+ section will appear in the header.
-                </p>
-              </div>
-              <Switch
-                checked={show18PlusContent}
-                onCheckedChange={async (checked) => {
-                  setShow18PlusContent(checked);
-                  try {
-                    await updateProfile({ show_18_plus_content: checked });
-                    await refetch();
-                    toast({
-                      title: checked ? "18+ content enabled" : "18+ content disabled",
-                      description: checked
-                        ? "You can now access NSFW content. A dedicated section will appear in the header."
-                        : "18+ content is now hidden from your feed and search results.",
-                    });
-                  } catch (error) {
-                    logError("Failed to update 18+ content preference", error);
-                    setShow18PlusContent(!checked);
-                    toast({
-                      title: "Couldn't update preference",
-                      description: "Please try again.",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                disabled={isUpdating}
-                aria-label="Toggle 18+ content visibility"
-              />
-            </div>
 
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
@@ -2028,249 +1912,289 @@ const Settings = () => {
               />
             </div>
           </Card>
+          </section>
+        </TabsContent>
 
-          <Card className="p-6 rounded-3xl space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Voice Cloning for Accessibility</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Create a voice model from your recordings to use for comments and clips. This helps users with speech disabilities communicate more easily.
-              </p>
-            </div>
-
-            {hasVoiceModel ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Voice model created successfully</span>
-                </div>
-                <div className="flex items-center justify-between gap-6">
-                  <div>
-                    <p className="font-medium">Use cloned voice</p>
-                    <p className="text-sm text-muted-foreground">
-                      Enable to use your cloned voice when creating clips and comments.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={voiceCloningEnabled}
-                    onCheckedChange={async (checked) => {
-                      setVoiceCloningEnabled(checked);
-                      try {
-                        await updateProfile({ voice_cloning_enabled: checked });
-                        await refetch();
-                        toast({
-                          title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
-                          description: checked
-                            ? "Your cloned voice will be used for new clips and comments."
-                            : "You'll use your natural voice for recordings.",
-                        });
-                      } catch (error) {
-                        logError("Failed to update voice cloning", error);
-                        setVoiceCloningEnabled(!checked);
-                      }
-                    }}
-                    disabled={isUpdating}
-                    aria-label="Toggle voice cloning"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
+        <TabsContent value="playback" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Playback Settings</h2>
+            <Card className="p-6 rounded-3xl space-y-6">
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Captions by default</p>
                 <p className="text-sm text-muted-foreground">
-                  To create a voice model, record a clip (at least 30 seconds) and then create your voice clone from the clip.
+                  Automatically show captions when you open a clip.
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    // This will be handled by a dialog that lets users select a clip
-                    toast({
-                      title: "Coming soon",
-                      description: "Select a clip from your recordings to create your voice model.",
-                    });
-                  }}
-                  disabled={isCreatingVoiceClone}
-                  className="rounded-2xl"
-                >
-                  {isCreatingVoiceClone ? "Creating voice model..." : "Create voice model"}
-                </Button>
               </div>
-            )}
-          </Card>
-
-          <Card className="p-6 rounded-3xl space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Voice Cloning Permissions</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Control whether others can clone your voice and how consent requests are handled.
-              </p>
+              <Switch
+                checked={captionsEnabled}
+                onCheckedChange={handleCaptionsToggle}
+                disabled={isUpdating}
+                aria-label="Toggle captions visibility by default"
+              />
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center justify-between gap-6">
-                <div>
-                  <p className="font-medium">Allow Voice Cloning</p>
-                  <p className="text-sm text-muted-foreground">
-                    Let other users request permission to clone your voice for ethical use cases.
-                  </p>
-                </div>
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Autoplay next clip</p>
+                <p className="text-sm text-muted-foreground">
+                  Keep listening without tapping play—perfect for hands-free sessions.
+                </p>
+              </div>
+              <Switch
+                checked={autoplayNextEnabled}
+                onCheckedChange={handleAutoplayToggle}
+                disabled={isUpdating}
+                aria-label="Toggle autoplay for the next clip"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Tap to record</p>
+                <p className="text-sm text-muted-foreground">
+                  Choose whether the mic starts with a tap or while holding it down.
+                </p>
+              </div>
+              <Switch
+                checked={tapToRecordEnabled}
+                onCheckedChange={handleTapToRecordToggle}
+                disabled={isUpdating}
+                aria-label="Toggle tap to record preference"
+              />
+            </div>
+            </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Notification Settings</h2>
+            <Card className="p-6 rounded-3xl space-y-6">
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Topic alerts</p>
+                <p className="text-sm text-muted-foreground">
+                  Get a gentle nudge when the daily prompt is ready.
+                </p>
+              </div>
+              <Switch
+                checked={topicAlertsEnabled}
+                onCheckedChange={handleTopicAlertsToggle}
+                disabled={isUpdating}
+                aria-label="Toggle notifications for new topics"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Browser push notifications</p>
+                <p className="text-sm text-muted-foreground">
+                  {isPushSupported
+                    ? isPushEnabled
+                      ? "Receive notifications even when the app is closed."
+                      : "Enable to receive notifications for comments, replies, follows, and reactions."
+                    : "Not supported in your browser."}
+                </p>
+              </div>
+              {isPushSupported ? (
                 <Switch
-                  checked={allowVoiceCloning}
-                  onCheckedChange={async (checked) => {
-                    setAllowVoiceCloning(checked);
-                    try {
-                      await updateProfile({ allow_voice_cloning: checked });
-                      await refetch();
-                      toast({
-                        title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
-                        description: checked
-                          ? "Users can now request to clone your voice."
-                          : "Voice cloning requests are now disabled.",
-                      });
-                    } catch (error) {
-                      logError("Failed to update voice cloning permissions", error);
-                      setAllowVoiceCloning(!checked);
+                  checked={isPushEnabled}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      requestPermission();
                     }
                   }}
-                  disabled={isUpdating}
-                  aria-label="Toggle allow voice cloning"
+                  disabled={pushPermission === 'denied'}
+                  aria-label="Toggle browser push notifications"
                 />
-              </div>
-
-              {allowVoiceCloning && (
-                <>
-                  <div className="flex items-center justify-between gap-6">
-                    <div>
-                      <p className="font-medium">Auto-Approve Requests</p>
-                      <p className="text-sm text-muted-foreground">
-                        Automatically approve all voice cloning requests without manual review.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={voiceCloningAutoApprove}
-                      onCheckedChange={async (checked) => {
-                        setVoiceCloningAutoApprove(checked);
-                        try {
-                          await updateProfile({ voice_cloning_auto_approve: checked });
-                          await refetch();
-                          toast({
-                            title: checked ? "Auto-approve enabled" : "Auto-approve disabled",
-                            description: checked
-                              ? "Voice cloning requests will be automatically approved."
-                              : "You'll need to manually approve each request.",
-                          });
-                        } catch (error) {
-                          logError("Failed to update auto-approve setting", error);
-                          setVoiceCloningAutoApprove(!checked);
-                        }
-                      }}
-                      disabled={isUpdating}
-                      aria-label="Toggle auto-approve"
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Revenue Share Percentage</p>
-                        <p className="text-sm text-muted-foreground">
-                          Percentage of revenue from cloned content that goes to you (default: 20%).
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold">{voiceCloningRevenueShare}%</p>
-                      </div>
-                    </div>
-                    <Slider
-                      value={[voiceCloningRevenueShare]}
-                      onValueChange={async (value) => {
-                        const newValue = value[0];
-                        setVoiceCloningRevenueShare(newValue);
-                        try {
-                          await updateProfile({ voice_cloning_revenue_share_percentage: newValue });
-                          await refetch();
-                        } catch (error) {
-                          logError("Failed to update revenue share", error);
-                        }
-                      }}
-                      min={0}
-                      max={100}
-                      step={1}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground px-1">
-                      <span>0%</span>
-                      <span>50%</span>
-                      <span>100%</span>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {allowVoiceCloning && !voiceCloningAutoApprove && (
-                <div className="pt-4 border-t">
-                  <VoiceCloningConsentManagement />
-                </div>
+              ) : (
+                <Switch checked={false} disabled aria-label="Push notifications not supported" />
               )}
             </div>
-          </Card>
 
-          <NotificationPreferences />
-          </section>
-        </TabsContent>
-
-        <TabsContent value="personalization" className="space-y-8 mt-6">
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Profile Customization</h2>
-            <ProfileBioEditor />
-            <ProfilePictureUpload />
-            <AvatarSelector />
-            <CoverImageUpload />
-            <ColorSchemePicker />
-          </section>
-          
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Personalization</h2>
-          <PersonalizationPreferences />
-          
-          <FeedCustomizationSettings />
-          
-          <MuteBlockSettings />
-          </section>
-        </TabsContent>
-
-        <TabsContent value="content" className="space-y-8 mt-6">
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Content</h2>
-          <Card className="p-6 rounded-3xl space-y-6">
-            <div className="flex items-start justify-between gap-6">
-              <div>
-                <p className="font-medium">City-level tagging</p>
-                <p className="text-sm text-muted-foreground">
-                  Let neighbors find your clips. We only store the city you provide.
+              <div className="space-y-4 pt-4 border-t border-border/40">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+              <div className="flex-1">
+                    <Label htmlFor="digest-email" className="text-sm font-medium">
+                        Email address
+                      </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for email digests and magic login links
+                    </p>
+                  </div>
+                </div>
+                      <Input
+                        id="digest-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={digestEmail}
+                        onChange={(e) => handleDigestEmailChange(e.target.value)}
+                  className="rounded-2xl"
+                        disabled={isUpdating}
+                      />
+                <p className="text-xs text-muted-foreground">
+                  {digestEmail.trim() 
+                    ? "✓ Email saved. You can use it for digests and login links."
+                    : "Add your email to receive digests and use the 'Email Me' feature for login links."
+                  }
                 </p>
-                {profile.consent_city && profile.city && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Current city: {profile.city}
+                    </div>
+
+              <div className="flex items-start justify-between gap-6 pt-2 border-t border-border/40">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <p className="font-medium">Email digest</p>
+                    <p className="text-sm text-muted-foreground">
+                      Get a daily or weekly email with gentle highlights from topics you follow.
+                    </p>
+                  </div>
+                  {digestEnabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="digest-frequency" className="text-xs text-muted-foreground">
+                          Frequency
+                        </Label>
+                        <Select
+                          value={digestFrequency}
+                          onValueChange={(value: 'never' | 'daily' | 'weekly') => handleDigestFrequencyChange(value)}
+                          disabled={isUpdating}
+                        >
+                          <SelectTrigger id="digest-frequency" className="mt-1 rounded-2xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="never">Never</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="digest-style" className="text-xs text-muted-foreground">
+                          Style
+                        </Label>
+                        <Select
+                          value={digestStyle}
+                          onValueChange={(value: 'quiet' | 'normal' | 'energizing') => handleDigestStyleChange(value)}
+                          disabled={isUpdating}
+                        >
+                          <SelectTrigger id="digest-style" className="mt-1 rounded-2xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="quiet">Quiet (very minimal)</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="energizing">Energizing (more highlights)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              <Switch
+                checked={digestEnabled}
+                onCheckedChange={handleDigestToggle}
+                  disabled={isUpdating || !digestEmail.trim()}
+                aria-label="Toggle email digest"
+              />
+              </div>
+              {!digestEmail.trim() && (
+                <p className="text-xs text-muted-foreground italic">
+                  💡 Add an email address above to enable email digests
+                </p>
+              )}
+            </div>
+            </Card>
+            <NotificationPreferences />
+          </section>
+        </TabsContent>
+
+        <TabsContent value="privacy" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Privacy & Content</h2>
+            <Card className="p-6 rounded-3xl space-y-6">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <p className="font-medium">City-level tagging</p>
+                  <p className="text-sm text-muted-foreground">
+                    Let neighbors find your clips. We only store the city you provide.
                   </p>
-                )}
+                  {profile.consent_city && profile.city && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Current city: {profile.city}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-3">
+                  <Switch
+                    checked={cityTagEnabled}
+                    onCheckedChange={handleCityToggle}
+                    disabled={isUpdating}
+                    aria-label="Toggle city-level tagging"
+                  />
+                  {profile.consent_city && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-2xl"
+                      onClick={() => setIsCityDialogOpen(true)}
+                    >
+                      Update city
+                    </Button>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col items-end gap-3">
-                <Switch
-                  checked={cityTagEnabled}
-                  onCheckedChange={handleCityToggle}
-                  disabled={isUpdating}
-                  aria-label="Toggle city-level tagging"
-                />
-                {profile.consent_city && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-2xl"
-                    onClick={() => setIsCityDialogOpen(true)}
-                  >
-                    Update city
-                  </Button>
-                )}
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Filter mature content</p>
+                <p className="text-sm text-muted-foreground">
+                  Hide clips flagged with sensitive or explicit themes from your feed.
+                </p>
               </div>
+              <Switch
+                checked={matureFilterEnabled}
+                onCheckedChange={handleMatureFilterToggle}
+                disabled={isUpdating}
+                aria-label="Toggle mature content filter"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-6">
+              <div>
+                <p className="font-medium">Show 18+ content</p>
+                <p className="text-sm text-muted-foreground">
+                  Enable to view and access NSFW content. When enabled, a dedicated 18+ section will appear in the header.
+                </p>
+              </div>
+              <Switch
+                checked={show18PlusContent}
+                onCheckedChange={async (checked) => {
+                  setShow18PlusContent(checked);
+                  try {
+                    await updateProfile({ show_18_plus_content: checked });
+                    await refetch();
+                    toast({
+                      title: checked ? "18+ content enabled" : "18+ content disabled",
+                      description: checked
+                        ? "You can now access NSFW content. A dedicated section will appear in the header."
+                        : "18+ content is now hidden from your feed and search results.",
+                    });
+                  } catch (error) {
+                    logError("Failed to update 18+ content preference", error);
+                    setShow18PlusContent(!checked);
+                    toast({
+                      title: "Couldn't update preference",
+                      description: "Please try again.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                disabled={isUpdating}
+                aria-label="Toggle 18+ content visibility"
+              />
             </div>
           </Card>
           </section>
@@ -2307,6 +2231,24 @@ const Settings = () => {
               )}
             </div>
           </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Profile Customization</h2>
+            <ProfileBioEditor />
+            <ProfilePictureUpload />
+            <AvatarSelector />
+            <CoverImageUpload />
+            <ColorSchemePicker />
+          </section>
+          
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Personalization</h2>
+            <PersonalizationPreferences />
+            <FeedCustomizationSettings />
+            <MuteBlockSettings />
           </section>
         </TabsContent>
 
@@ -2417,6 +2359,70 @@ const Settings = () => {
                       </>
                     )}
                   </div>
+                  
+                  {/* Request Magic Link via Email */}
+                  {recoveryEmail && (
+                    <div className="mt-4 p-4 rounded-2xl border border-border/60 bg-muted/40">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">Request Login Link via Email</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Send a login link to your recovery email: {recoveryEmail}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl"
+                          onClick={async () => {
+                            if (!profile?.handle) {
+                              toast({
+                                title: "Error",
+                                description: "Unable to find your account handle.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+
+                            try {
+                              const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+                              const response = await fetch(`${SUPABASE_URL}/functions/v1/send-magic-link-email`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  handle: profile.handle,
+                                  recovery_email: recoveryEmail,
+                                }),
+                              });
+
+                              const data = await response.json();
+
+                              if (!response.ok) {
+                                throw new Error(data.error || "Failed to send login link");
+                              }
+
+                              toast({
+                                title: "Login link sent!",
+                                description: `Check your email (${recoveryEmail}) for your login link.`,
+                              });
+                            } catch (error: any) {
+                              logError("Failed to send magic link email", error);
+                              toast({
+                                title: "Error",
+                                description: error.message || "Failed to send login link. Please try again.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          <Mail className="h-4 w-4 mr-2" />
+                          Send Link
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2798,8 +2804,7 @@ const Settings = () => {
                                   <div className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground mt-2 border border-border/40">
                                     <p className="font-medium mb-1">Link is active</p>
                                     <p className="text-xs opacity-80">
-                                      This link was generated on another device or in a previous session. 
-                                      Generate a new link to get the full URL and QR code.
+                                      The full URL isn't available on this device. Generate a new link to get the URL and QR code.
                                     </p>
                                   </div>
                                 )}
@@ -3156,6 +3161,42 @@ const Settings = () => {
         </AlertDialog>
 
         <TabsContent value="security" className="space-y-8 mt-6">
+          {/* Email Recovery Section */}
+          <section className="space-y-4" id="email-recovery">
+            <h2 className="text-lg font-semibold">Email Recovery</h2>
+            <Card className="p-6 rounded-3xl space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set up an email address for account recovery. If you forget your login PIN, we can send you a reset link to this email address.
+                  </p>
+                  
+                  <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm mb-1">Recovery Email</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {recoveryEmail || "Not set"}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl ml-4"
+                      onClick={() => {
+                        setPendingRecoveryEmail(recoveryEmail);
+                        setHasAcceptedRecoveryWarning(false);
+                        setIsRecoveryEmailDialogOpen(true);
+                      }}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {recoveryEmail ? "Change" : "Set Email"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </section>
+
           {/* Device Activity Section */}
           <section className="space-y-4" id="device-activity">
           <div className="flex items-center justify-between">
@@ -3279,10 +3320,7 @@ const Settings = () => {
                       className="rounded-xl"
                       onClick={() => {
                         // Switch to Account tab
-                        const accountTab = document.querySelector('[value="account"]') as HTMLElement;
-                        if (accountTab) {
-                          accountTab.click();
-                        }
+                        handleTabChange("account");
                       }}
                     >
                       <LinkIcon className="h-4 w-4 mr-2" />
@@ -4795,7 +4833,204 @@ const Settings = () => {
           </Card>
           </section>
         </TabsContent>
+
+        <TabsContent value="accessibility" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Accessibility Settings</h2>
+            <AccessibilitySettings />
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Voice Cloning for Accessibility</h2>
+            <Card className="p-6 rounded-3xl space-y-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create a voice model from your recordings to use for comments and clips. This helps users with speech disabilities communicate more easily.
+                </p>
+              </div>
+
+              {hasVoiceModel ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Voice model created successfully</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-6">
+                    <div>
+                      <p className="font-medium">Use cloned voice</p>
+                      <p className="text-sm text-muted-foreground">
+                        Enable to use your cloned voice when creating clips and comments.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={voiceCloningEnabled}
+                      onCheckedChange={async (checked) => {
+                        setVoiceCloningEnabled(checked);
+                        try {
+                          await updateProfile({ voice_cloning_enabled: checked });
+                          await refetch();
+                          toast({
+                            title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
+                            description: checked
+                              ? "Your cloned voice will be used for new clips and comments."
+                              : "You'll use your natural voice for recordings.",
+                          });
+                        } catch (error) {
+                          logError("Failed to update voice cloning", error);
+                          setVoiceCloningEnabled(!checked);
+                        }
+                      }}
+                      disabled={isUpdating}
+                      aria-label="Toggle voice cloning"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    To create a voice model, record a clip (at least 30 seconds) and then create your voice clone from the clip.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      toast({
+                        title: "Coming soon",
+                        description: "Select a clip from your recordings to create your voice model.",
+                      });
+                    }}
+                    disabled={isCreatingVoiceClone}
+                    className="rounded-2xl"
+                  >
+                    {isCreatingVoiceClone ? "Creating voice model..." : "Create voice model"}
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="voice" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Voice Cloning Permissions</h2>
+            <Card className="p-6 rounded-3xl space-y-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Control whether others can clone your voice and how consent requests are handled.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between gap-6">
+                  <div>
+                    <p className="font-medium">Allow Voice Cloning</p>
+                    <p className="text-sm text-muted-foreground">
+                      Let other users request permission to clone your voice for ethical use cases.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={allowVoiceCloning}
+                    onCheckedChange={async (checked) => {
+                      setAllowVoiceCloning(checked);
+                      try {
+                        await updateProfile({ allow_voice_cloning: checked });
+                        await refetch();
+                        toast({
+                          title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
+                          description: checked
+                            ? "Users can now request to clone your voice."
+                            : "Voice cloning requests are now disabled.",
+                        });
+                      } catch (error) {
+                        logError("Failed to update voice cloning permissions", error);
+                        setAllowVoiceCloning(!checked);
+                      }
+                    }}
+                    disabled={isUpdating}
+                    aria-label="Toggle allow voice cloning"
+                  />
+                </div>
+
+                {allowVoiceCloning && (
+                  <>
+                    <div className="flex items-center justify-between gap-6">
+                      <div>
+                        <p className="font-medium">Auto-Approve Requests</p>
+                        <p className="text-sm text-muted-foreground">
+                          Automatically approve all voice cloning requests without manual review.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={voiceCloningAutoApprove}
+                        onCheckedChange={async (checked) => {
+                          setVoiceCloningAutoApprove(checked);
+                          try {
+                            await updateProfile({ voice_cloning_auto_approve: checked });
+                            await refetch();
+                            toast({
+                              title: checked ? "Auto-approve enabled" : "Auto-approve disabled",
+                              description: checked
+                                ? "Voice cloning requests will be automatically approved."
+                                : "You'll need to manually approve each request.",
+                            });
+                          } catch (error) {
+                            logError("Failed to update auto-approve setting", error);
+                            setVoiceCloningAutoApprove(!checked);
+                          }
+                        }}
+                        disabled={isUpdating}
+                        aria-label="Toggle auto-approve"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Revenue Share Percentage</p>
+                          <p className="text-sm text-muted-foreground">
+                            Percentage of revenue from cloned content that goes to you (default: 20%).
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold">{voiceCloningRevenueShare}%</p>
+                        </div>
+                      </div>
+                      <Slider
+                        value={[voiceCloningRevenueShare]}
+                        onValueChange={async (value) => {
+                          const newValue = value[0];
+                          setVoiceCloningRevenueShare(newValue);
+                          try {
+                            await updateProfile({ voice_cloning_revenue_share_percentage: newValue });
+                            await refetch();
+                          } catch (error) {
+                            logError("Failed to update revenue share", error);
+                          }
+                        }}
+                        min={0}
+                        max={100}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground px-1">
+                        <span>0%</span>
+                        <span>50%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {allowVoiceCloning && !voiceCloningAutoApprove && (
+                  <div className="pt-4 border-t">
+                    <VoiceCloningConsentManagement />
+                  </div>
+                )}
+            </div>
+          </Card>
+          </section>
+        </TabsContent>
       </main>
+        </div>
       </Tabs>
 
       <Dialog open={isMagicLinkDialogOpen} onOpenChange={setIsMagicLinkDialogOpen}>
@@ -5028,6 +5263,138 @@ const Settings = () => {
               {isSavingHandle ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recovery Email Dialog */}
+      <Dialog open={isRecoveryEmailDialogOpen} onOpenChange={setIsRecoveryEmailDialogOpen}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Set Recovery Email</DialogTitle>
+            <DialogDescription>
+              Add an email address for account recovery. If you forget your login PIN, we'll send a reset link to this email.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {!hasAcceptedRecoveryWarning ? (
+            <div className="space-y-4 py-2">
+              <div className="p-4 rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <p className="font-semibold text-sm text-amber-900 dark:text-amber-100">
+                      Important Privacy Notice
+                    </p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      This email address is your personal information and will be stored in our system. While we take security seriously and use industry-standard practices to protect your data, please be aware that:
+                    </p>
+                    <ul className="text-xs text-amber-800 dark:text-amber-200 space-y-1 list-disc list-inside ml-2">
+                      <li>Your email will be used only for account recovery purposes</li>
+                      <li>We use secure, encrypted storage and transmission</li>
+                      <li>However, no system is 100% secure—data breaches can happen</li>
+                      <li>Only use this if you're comfortable storing your email with us</li>
+                    </ul>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                      By proceeding, you acknowledge that you understand these risks and consent to storing your email address for recovery purposes.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRecoveryEmailDialogOpen(false)}
+                  className="rounded-2xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => setHasAcceptedRecoveryWarning(true)}
+                  className="rounded-2xl"
+                >
+                  I Understand, Continue
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="recovery-email">Recovery Email Address</Label>
+                <Input
+                  id="recovery-email"
+                  type="email"
+                  value={pendingRecoveryEmail}
+                  onChange={(event) => setPendingRecoveryEmail(event.target.value)}
+                  placeholder="your.email@example.com"
+                  className="rounded-2xl"
+                />
+                <p className="text-xs text-muted-foreground">
+                  We'll only use this email to send you PIN reset links if you forget your login PIN.
+                </p>
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsRecoveryEmailDialogOpen(false);
+                    setHasAcceptedRecoveryWarning(false);
+                  }}
+                  className="rounded-2xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!pendingRecoveryEmail.trim()) {
+                      toast({
+                        title: "Email required",
+                        description: "Please enter a valid email address.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    // Basic email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(pendingRecoveryEmail.trim())) {
+                      toast({
+                        title: "Invalid email",
+                        description: "Please enter a valid email address.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    setIsSavingRecoveryEmail(true);
+                    try {
+                      // @ts-ignore - recovery_email exists but not in types
+                      await updateProfile({ recovery_email: pendingRecoveryEmail.trim() || null });
+                      setRecoveryEmail(pendingRecoveryEmail.trim());
+                      setIsRecoveryEmailDialogOpen(false);
+                      setHasAcceptedRecoveryWarning(false);
+                      toast({
+                        title: "Recovery email saved",
+                        description: "Your recovery email has been set successfully.",
+                      });
+                    } catch (error: any) {
+                      logError("Failed to save recovery email", error);
+                      toast({
+                        title: "Error",
+                        description: error.message || "Failed to save recovery email. Please try again.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsSavingRecoveryEmail(false);
+                    }
+                  }}
+                  disabled={isSavingRecoveryEmail}
+                  className="rounded-2xl"
+                >
+                  {isSavingRecoveryEmail ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

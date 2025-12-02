@@ -199,17 +199,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   } = useQuery({
     queryKey: ["profile", userId, profileId, deviceId],
     queryFn: async () => {
-      console.log('[AuthContext] Profile query running with:', { 
-        userId: userId ? 'exists' : 'null', 
-        profileId, 
-        deviceId: deviceId ? 'exists' : 'null',
-        isInitialized 
-      });
+      // Removed debug logging to reduce console noise
       
       // CRITICAL: Check by device_id FIRST if we have it, since that's more reliable
       // This ensures we find existing accounts even if auth_user_id lookup fails
       if (deviceId) {
-        console.log('[AuthContext] Checking for profile by device_id FIRST:', deviceId);
         try {
           const { data: deviceProfile, error: deviceError } = await Promise.race([
             supabase
@@ -230,12 +224,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 message: deviceError.message
               });
             } else if (deviceError.code === "PGRST116") {
-              console.log('[AuthContext] No profile found by device_id (PGRST116 - not found)');
+              // No profile found by device_id
             } else {
-              console.log('[AuthContext] Device profile lookup timed out, continuing...');
+              // Device profile lookup timed out
             }
           } else if (deviceProfile) {
-            console.log('[AuthContext] ✅ Found profile by device_id:', deviceProfile.id, deviceProfile.handle);
+            // Found profile by device_id
             const profileIdFromDevice = deviceProfile.id;
             localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDevice);
             setProfileId(profileIdFromDevice);
@@ -243,13 +237,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Link this profile to the auth user if not already linked
             const profileWithAuth = deviceProfile as any;
             if (!profileWithAuth.auth_user_id && userId) {
-              console.log('[AuthContext] Linking profile to auth user:', userId.substring(0, 8) + '...');
+              // Linking profile to auth user
               try {
                 await supabase
                   .from("profiles")
                   .update({ auth_user_id: userId } as any)
                   .eq("id", profileIdFromDevice);
-                console.log('[AuthContext] Successfully linked profile to auth user');
+                // Successfully linked profile to auth user
               } catch (linkError) {
                 console.error('[AuthContext] Failed to link profile to auth user:', linkError);
                 // Continue anyway - profile is still valid
@@ -266,7 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Fallback: Try by auth_user_id if we have userId
       if (userId) {
-        console.log('[AuthContext] Checking for profile by auth_user_id:', userId.substring(0, 8) + '...');
+        // Checking for profile by auth_user_id
         try {
           const { data: authProfile, error: authError } = await Promise.race([
             supabase
@@ -287,12 +281,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 message: authError.message
               });
             } else if (authError.code === "PGRST116") {
-              console.log('[AuthContext] No profile found by auth_user_id (PGRST116 - not found)');
+              // No profile found by auth_user_id
             } else {
-              console.log('[AuthContext] Auth profile lookup timed out');
+              // Auth profile lookup timed out
             }
           } else if (authProfile) {
-            console.log('[AuthContext] ✅ Found profile by auth_user_id:', authProfile.id, authProfile.handle);
+            // Found profile by auth_user_id
             const profileIdFromDb = authProfile.id;
             if (profileIdFromDb !== profileId) {
               localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromDb);
@@ -331,7 +325,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      console.log('[AuthContext] ⚠️ No profile found by any method, returning null');
+      // No profile found by any method
       return null;
     },
     // Enable query if we have userId OR deviceId (to find existing profiles by device)
@@ -345,13 +339,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Debug: Log when query enabled condition changes
   useEffect(() => {
     const queryEnabled = (!!userId || !!deviceId) && isInitialized;
-    console.log('[AuthContext] Query enabled condition:', {
-      queryEnabled,
-      hasUserId: !!userId,
-      hasDeviceId: !!deviceId,
-      isInitialized,
-      deviceId: deviceId ? deviceId.substring(0, 8) + '...' : 'null'
-    });
+    // Query enabled condition check (removed debug logging)
   }, [userId, deviceId, isInitialized]);
 
   // Update profileId when profile loads
@@ -373,7 +361,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logError("Failed to save profileId", error);
       }
     } else if (profile) {
-      console.log('[AuthContext] Profile already set:', profile.id, profile.handle);
+      // Profile already set
     }
   }, [profile, profileId]);
 

@@ -71,6 +71,8 @@ const Admin = retryLazyImport(() => import("./pages/Admin"));
 const Settings = retryLazyImport(() => import("./pages/Settings"));
 const LoginLink = retryLazyImport(() => import("./pages/LoginLink"));
 const LoginPin = retryLazyImport(() => import("./pages/LoginPin"));
+const ResetPin = retryLazyImport(() => import("./pages/ResetPin"));
+const RequestMagicLink = retryLazyImport(() => import("./pages/RequestMagicLink"));
 const LinkPin = retryLazyImport(() => import("./pages/LinkPin"));
 const MyRecordings = retryLazyImport(() => import("./pages/MyRecordings"));
 const Topic = retryLazyImport(() => import("./pages/Topic"));
@@ -153,83 +155,85 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider 
           attribute="class" 
-          defaultTheme="light" 
+          defaultTheme="dark" 
           enableSystem={false}
           storageKey="echo-garden-theme"
           enableColorScheme={false}
         >
-          <AuthProvider>
-            <GlobalColorScheme />
-            <UploadQueueProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <OfflineBanner />
-                <InstallPrompt />
-                {/* First Clip Guidance */}
-                <FirstClipGuidance
-                  onStartRecording={() => setIsRecordModalOpen(true)}
-                  onComplete={() => console.log("First clip guidance completed")}
-                />
-                {/* Feature Discovery */}
-                <FeatureDiscovery
-                  position="top-right"
-                  maxVisible={1}
-                />
-                <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: false }}>
-                <ErrorBoundary>
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      <Route path="/login-link" element={<LoginLink />} />
-                      <Route path="/login-pin" element={<LoginPin />} />
-                      <Route path="/link-pin" element={<LinkPin />} />
-                      <Route path="/embed/:clipId" element={<Embed />} />
-                      <Route element={<AuthenticatedLayout />}>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/profile/:handle" element={<Profile />} />
-                        <Route path="/topic/:topicId" element={<Topic />} />
-                        <Route path="/topics" element={<AllTopics />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="/diary" element={<Diary />} />
-                        <Route path="/my-recordings" element={<MyRecordingsRedirect />} />
-                        <Route path="/saved" element={<SavedClips />} />
-                        <Route path="/playlists" element={<Playlists />} />
-                        <Route path="/playlist/:playlistId" element={<PlaylistDetail />} />
-                        <Route path="/collections" element={<CollectionsDiscovery />} />
-                        <Route path="/following" element={<Following />} />
-                        <Route path="/activity" element={<Activity />} />
-                        <Route path="/challenges" element={<Challenges />} />
-                        <Route path="/tag/:tagName" element={<Hashtag />} />
-                        <Route path="/clip/:id" element={<ClipDetail />} />
-                        <Route path="/communities" element={<Communities />} />
-                        <Route path="/community/:slug" element={<CommunityDetail />} />
-                        <Route path="/live-rooms" element={<LiveRooms />} />
-                        <Route path="/live-room/:id" element={<LiveRoom />} />
-                        <Route path="/messages" element={<DirectMessages />} />
-                        <Route path="/messages/:userId" element={<DirectMessages />} />
-                        <Route path="/private-chats" element={<PrivateChats />} />
-                        <Route path="/private-chats/:chatId" element={<PrivateChats />} />
-                        <Route path="/analytics" element={<Analytics />} />
-                        <Route path="/leaderboards" element={<Leaderboards />} />
-                        <Route path="/series" element={<SeriesList />} />
-                        <Route path="/series/:seriesId" element={<SeriesDetail />} />
-                        <Route path="/remixes" element={<RemixFeed />} />
-                        <Route path="/remix-challenges" element={<RemixChallenges />} />
-                        <Route path="/voice-amas" element={<VoiceAMAs />} />
-                        <Route path="/discovery" element={<Discovery />} />
-                        <Route path="/admin" element={<Admin />} />
-                        <Route path="/ai-content" element={<AIContentCreation />} />
-                        <Route path="/18-plus" element={<EighteenPlus />} />
-                        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                        <Route path="*" element={<NotFound />} />
-                      </Route>
-                    </Routes>
-                  </Suspense>
-                </ErrorBoundary>
-              </BrowserRouter>
-            </TooltipProvider>
-            </UploadQueueProvider>
-          </AuthProvider>
+          <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: false }}>
+            <AuthProvider>
+              <GlobalColorScheme />
+              <UploadQueueProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <OfflineBanner />
+                  <InstallPrompt />
+                  {/* First Clip Guidance - only render if auth is available */}
+                  <FirstClipGuidance
+                    onStartRecording={() => setIsRecordModalOpen(true)}
+                    onComplete={() => console.log("First clip guidance completed")}
+                  />
+                  {/* Feature Discovery */}
+                  <FeatureDiscovery
+                    position="top-right"
+                    maxVisible={1}
+                  />
+                  <ErrorBoundary>
+                    <Suspense fallback={<PageLoader />}>
+                      <Routes>
+                        <Route path="/login-link" element={<LoginLink />} />
+                        <Route path="/login-pin" element={<LoginPin />} />
+                        <Route path="/reset-pin" element={<ResetPin />} />
+                        <Route path="/request-magic-link" element={<RequestMagicLink />} />
+                        <Route path="/link-pin" element={<LinkPin />} />
+                        <Route path="/embed/:clipId" element={<Embed />} />
+                        <Route element={<AuthenticatedLayout />}>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/profile/:handle" element={<Profile />} />
+                          <Route path="/topic/:topicId" element={<Topic />} />
+                          <Route path="/topics" element={<AllTopics />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="/diary" element={<Diary />} />
+                          <Route path="/my-recordings" element={<MyRecordingsRedirect />} />
+                          <Route path="/saved" element={<SavedClips />} />
+                          <Route path="/playlists" element={<Playlists />} />
+                          <Route path="/playlist/:playlistId" element={<PlaylistDetail />} />
+                          <Route path="/collections" element={<CollectionsDiscovery />} />
+                          <Route path="/following" element={<Following />} />
+                          <Route path="/activity" element={<Activity />} />
+                          <Route path="/challenges" element={<Challenges />} />
+                          <Route path="/tag/:tagName" element={<Hashtag />} />
+                          <Route path="/clip/:id" element={<ClipDetail />} />
+                          <Route path="/communities" element={<Communities />} />
+                          <Route path="/community/:slug" element={<CommunityDetail />} />
+                          <Route path="/live-rooms" element={<LiveRooms />} />
+                          <Route path="/live-room/:id" element={<LiveRoom />} />
+                          <Route path="/messages" element={<DirectMessages />} />
+                          <Route path="/messages/:userId" element={<DirectMessages />} />
+                          <Route path="/private-chats" element={<PrivateChats />} />
+                          <Route path="/private-chats/:chatId" element={<PrivateChats />} />
+                          <Route path="/analytics" element={<Analytics />} />
+                          <Route path="/leaderboards" element={<Leaderboards />} />
+                          <Route path="/series" element={<SeriesList />} />
+                          <Route path="/series/:seriesId" element={<SeriesDetail />} />
+                          <Route path="/remixes" element={<RemixFeed />} />
+                          <Route path="/remix-challenges" element={<RemixChallenges />} />
+                          <Route path="/voice-amas" element={<VoiceAMAs />} />
+                          <Route path="/discovery" element={<Discovery />} />
+                          <Route path="/admin" element={<Admin />} />
+                          <Route path="/ai-content" element={<AIContentCreation />} />
+                          <Route path="/18-plus" element={<EighteenPlus />} />
+                          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                          <Route path="*" element={<NotFound />} />
+                        </Route>
+                      </Routes>
+                    </Suspense>
+                  </ErrorBoundary>
+                </TooltipProvider>
+              </UploadQueueProvider>
+            </AuthProvider>
+          </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

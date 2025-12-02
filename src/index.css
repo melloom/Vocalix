@@ -10,42 +10,77 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 30 40% 97%;
-    --foreground: 20 15% 15%;
+    /* Default to light theme colors - will be overridden by theme classes */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
 
-    --card: 30 50% 99%;
-    --card-foreground: 20 15% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
 
-    --popover: 30 50% 99%;
-    --popover-foreground: 20 15% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
 
-    --primary: 15 85% 62%;
-    --primary-foreground: 30 50% 99%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 160 30% 88%;
-    --secondary-foreground: 20 15% 15%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
 
-    --muted: 30 25% 92%;
-    --muted-foreground: 20 10% 45%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
 
-    --accent: 25 95% 55%;
-    --accent-foreground: 30 50% 99%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 30 50% 99%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 30 20% 88%;
-    --input: 30 20% 88%;
-    --ring: 15 85% 62%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
 
     --radius: 1rem;
 
-    --record-pulse: 15 85% 62%;
-    --waveform: 15 75% 55%;
-    --emoji-glow: 45 100% 60%;
+    --record-pulse: 0 72% 51%;
+    --waveform: 0 65% 45%;
+    --emoji-glow: 0 100% 60%;
 
     --font-sans: "DM Sans", "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     --font-display: "DM Serif Display", "Georgia", serif;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+
+    --record-pulse: 0 72% 51%;
+    --waveform: 0 65% 45%;
+    --emoji-glow: 0 100% 60%;
   }
 
   .dark {
@@ -571,6 +606,73 @@ body.theme-ocean * {
     --emoji-glow: 330 100% 65% !important;
   }
 
+  /* Indigo Theme - Rich dark purple/indigo (Default) */
+  html.theme-indigo,
+  html.theme-indigo :root,
+  html.theme-indigo *,
+  :root.theme-indigo,
+  body.theme-indigo,
+  body.theme-indigo * {
+    --background: 260 55% 16% !important;
+    --foreground: 0 0% 98% !important;
+    --card: 260 50% 20% !important;
+    --card-foreground: 0 0% 98% !important;
+    --popover: 260 50% 20% !important;
+    --popover-foreground: 0 0% 98% !important;
+    --primary: 15 85% 62% !important;
+    --primary-foreground: 0 0% 98% !important;
+    --secondary: 260 45% 25% !important;
+    --secondary-foreground: 0 0% 98% !important;
+    --muted: 260 40% 22% !important;
+    --muted-foreground: 0 0% 75% !important;
+    --accent: 25 95% 55% !important;
+    --accent-foreground: 0 0% 98% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 98% !important;
+    --border: 260 40% 28% !important;
+    --input: 260 40% 28% !important;
+    --ring: 15 85% 62% !important;
+    --record-pulse: 15 85% 62% !important;
+    --waveform: 15 75% 55% !important;
+    --emoji-glow: 45 100% 60% !important;
+  }
+
+  html.theme-indigo.dark,
+  html.theme-indigo.dark :root,
+  html.theme-indigo.dark *,
+  :root.theme-indigo.dark,
+  body.theme-indigo.dark,
+  body.theme-indigo.dark *,
+  html.dark.theme-indigo,
+  html.dark.theme-indigo :root,
+  html.dark.theme-indigo *,
+  :root.dark.theme-indigo,
+  body.dark.theme-indigo,
+  body.dark.theme-indigo * {
+    --background: 260 55% 16% !important;
+    --foreground: 0 0% 98% !important;
+    --card: 260 50% 20% !important;
+    --card-foreground: 0 0% 98% !important;
+    --popover: 260 50% 20% !important;
+    --popover-foreground: 0 0% 98% !important;
+    --primary: 15 85% 62% !important;
+    --primary-foreground: 0 0% 98% !important;
+    --secondary: 260 45% 25% !important;
+    --secondary-foreground: 0 0% 98% !important;
+    --muted: 260 40% 22% !important;
+    --muted-foreground: 0 0% 75% !important;
+    --accent: 25 95% 55% !important;
+    --accent-foreground: 0 0% 98% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 98% !important;
+    --border: 260 40% 28% !important;
+    --input: 260 40% 28% !important;
+    --ring: 15 85% 62% !important;
+    --record-pulse: 15 85% 62% !important;
+    --waveform: 15 75% 55% !important;
+    --emoji-glow: 45 100% 60% !important;
+  }
+
 /* Force theme application with higher specificity - outside @layer for maximum priority */
 html.theme-ocean,
 html.theme-ocean *,
@@ -621,14 +723,74 @@ body.theme-midnight * {
   color-scheme: dark;
 }
 
+html.theme-indigo,
+html.theme-indigo *,
+body.theme-indigo,
+body.theme-indigo * {
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border selection:bg-primary/20 selection:text-primary-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fix bold text rendering - prevent blur and sticky letters */
+  strong,
+  b,
+  .font-bold,
+  .font-semibold,
+  [class*="font-bold"],
+  [class*="font-semibold"],
+  h3.font-semibold,
+  h4.font-semibold,
+  h5.font-semibold,
+  h6.font-semibold {
+    letter-spacing: 0.04em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 500 !important;
+    font-feature-settings: "kern" 0 !important;
+  }
+
+  /* Fix font-weight 700+ which can be too heavy and blurry */
+  [class*="font-extrabold"],
+  [class*="font-black"] {
+    letter-spacing: 0.05em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 600 !important;
+    font-feature-settings: "kern" 0 !important;
+  }
+
+  /* Specific fix for sidebar bold text - more aggressive */
+  aside .font-semibold,
+  aside h3.font-semibold,
+  aside h4.font-semibold,
+  aside h5.font-semibold,
+  aside h6.font-semibold,
+  [class*="sidebar"] .font-semibold,
+  [class*="Sidebar"] .font-semibold,
+  [class*="sidebar"] h3,
+  [class*="sidebar"] h4,
+  [class*="Sidebar"] h3,
+  [class*="Sidebar"] h4 {
+    letter-spacing: 0.05em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 500 !important;
+    font-feature-settings: "kern" 0 !important;
   }
 
   html {
     height: 100%;
-    background-color: hsl(30 40% 97%);
+    background-color: hsl(260 55% 16%);
     @apply bg-background;
     overflow-x: hidden;
     width: 100%;
@@ -638,8 +800,11 @@ body.theme-midnight * {
 
   body {
     font-family: var(--font-sans);
-    background-color: hsl(30 40% 97%);
-    @apply bg-background text-foreground antialiased;
+    background-color: hsl(260 55% 16%);
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     min-height: 100%;
     margin: 0;
     padding: 0;
@@ -656,7 +821,12 @@ body.theme-midnight * {
   h3,
   h4 {
     font-family: var(--font-display);
-    @apply tracking-tight text-foreground;
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
   }
 
   h1 {
@@ -672,7 +842,9 @@ body.theme-midnight * {
   }
 
   p {
-    @apply leading-relaxed text-base text-foreground/80;
+    @apply leading-relaxed text-base;
+    color: hsl(var(--foreground));
+    opacity: 0.95;
   }
 
   a,

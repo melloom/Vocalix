@@ -11,7 +11,9 @@ export function useGlobalColorScheme() {
     // Check if a custom theme is active - if so, don't override theme variables
     const root = document.documentElement;
     const body = document.body;
-    const hasCustomTheme = Array.from(root.classList).some(cls => cls.startsWith('theme-')) ||
+    const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
+    const hasCustomTheme = storedTheme && storedTheme !== "light" && storedTheme !== "dark" ||
+                           Array.from(root.classList).some(cls => cls.startsWith('theme-')) ||
                            Array.from(body.classList).some(cls => cls.startsWith('theme-'));
     
     // If a custom theme is active, only apply profile-specific variables, not theme overrides
