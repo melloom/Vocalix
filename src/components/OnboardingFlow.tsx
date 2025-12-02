@@ -1125,24 +1125,24 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-20 lg:items-center">
           {/* Left side - Speakeasy Reddit-themed welcome */}
-          <div className="space-y-8 text-center lg:text-left relative z-10 animate-in fade-in-0 slide-in-from-left-5 duration-700">
+          <div className="space-y-8 text-center lg:text-left relative z-10">
 
             <div className="space-y-6">
               <div className="relative">
-                <h1 className="text-5xl font-extrabold tracking-tight text-white dark:text-white sm:text-6xl lg:text-7xl leading-tight animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-150 drop-shadow-lg">
+                <h1 className="text-5xl font-extrabold tracking-tight text-white dark:text-white sm:text-6xl lg:text-7xl leading-tight drop-shadow-lg">
                   Join The
-                  <span className="block bg-gradient-to-r from-red-500 via-red-400 to-amber-500 dark:from-red-400 dark:via-red-300 dark:to-amber-400 bg-clip-text text-transparent animate-in fade-in-0 duration-1000 delay-300">
+                  <span className="block bg-gradient-to-r from-red-500 via-red-400 to-amber-500 dark:from-red-400 dark:via-red-300 dark:to-amber-400 bg-clip-text text-transparent">
                     Echo Chamber
                   </span>
                 </h1>
                 </div>
-              <p className="text-lg text-gray-200 dark:text-gray-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-semibold animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-300">
+              <p className="text-lg text-gray-200 dark:text-gray-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-semibold">
                 Create your identity. Speak your mind. Stay anonymous. Your voice, your rules.
               </p>
             </div>
 
             {/* Expanded content section */}
-            <div className="space-y-6 pt-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-450">
+            <div className="space-y-6 pt-4">
               <div className="prose dark:prose-invert max-w-none">
                 <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
                   <Mic className="h-5 w-5 text-red-400 dark:text-red-400" />
@@ -1169,7 +1169,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     "AI moderation keeps it real—trolls get filtered out",
                     "Stay anonymous—no personal info required, ever"
                   ].map((item, index) => (
-                    <li key={index} className="flex items-start gap-2 animate-in fade-in-0 slide-in-from-left-2 font-medium" style={{ animationDelay: `${index * 100}ms` }}>
+                    <li key={index} className="flex items-start gap-2 font-medium">
                       <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
                       <span>{item}</span>
                   </li>
@@ -1243,7 +1243,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Right side - Clean modern form */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-red-900/50 dark:border-red-800/40 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden animate-in fade-in-0 slide-in-from-right-5 duration-700 transition-all duration-300">
+          <Card className="w-full max-w-md mx-auto lg:mx-0 border-2 border-red-900/50 dark:border-red-800/40 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300">
             
             {/* Decorative corner accents - subtle */}
             <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-red-800/30 dark:border-red-700/30 rounded-tl-2xl"></div>
@@ -1264,17 +1264,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             </div>
 
             <CardHeader className="space-y-3 text-center pb-6 relative z-10 px-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-3 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 animate-in zoom-in-50 duration-500 hover:scale-105 transition-transform duration-300">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-3 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
                 <AvatarIcon 
                   type={selectedAvatar} 
                   className="w-14 h-14"
                   imageUrl={avatarImages.get(selectedAvatar)}
                 />
               </div>
-              <CardTitle className="text-3xl font-extrabold text-white dark:text-white animate-in fade-in-0 slide-in-from-bottom-2 duration-700">
+              <CardTitle className="text-3xl font-extrabold text-white dark:text-white">
                 Create Your Identity
               </CardTitle>
-              <p className="text-sm text-gray-300 dark:text-gray-300 font-semibold animate-in fade-in-0 slide-in-from-bottom-3 duration-700 delay-150">
+              <p className="text-sm text-gray-300 dark:text-gray-300 font-semibold">
                 Pick an avatar and choose your handle
               </p>
             </CardHeader>
@@ -1294,7 +1294,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-16 w-full items-center justify-center rounded-lg transition-all duration-300 animate-in fade-in-0 zoom-in-95 ${
+                        className={`flex h-16 w-full items-center justify-center rounded-lg transition-all duration-300 ${
                           isActive
                             ? "scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
                             : "hover:scale-105 active:scale-95"
@@ -1383,7 +1383,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <CardFooter className="flex flex-col gap-3 pt-6 px-6">
               {/* Ready indicator */}
               {handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading && (
-                <div className="flex items-center justify-center gap-2 text-xs text-amber-400 dark:text-amber-400 animate-in fade-in-0 zoom-in-95 duration-300 mb-1">
+                <div className="flex items-center justify-center gap-2 text-xs text-amber-400 dark:text-amber-400 mb-1">
                   <CheckCircle2 className="h-4 w-4" />
                   <span className="font-medium">Ready to create your identity</span>
                 </div>
