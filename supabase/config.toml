@@ -1,0 +1,22 @@
+project_id = "xgblxtopsapvacyaurcr"
+
+[functions]
+  [functions."daily-topic"]
+  verify_jwt = false
+  [functions."on-clip-uploaded"]
+  verify_jwt = false
+  [functions."daily-digest"]
+  verify_jwt = false
+  [functions."validate-account-creation"]
+  verify_jwt = false
+  [functions."update-engagement-velocity"]
+  verify_jwt = false
+  [functions."daily-spotlight-question"]
+  verify_jwt = false
+
+# Cron jobs are configured in Supabase Dashboard
+# [cron]
+#   [[cron.jobs]]
+#   name = "generate daily topic"
+#   schedule = "0 12 * * *"
+#   command = "functions invoke daily-topic"

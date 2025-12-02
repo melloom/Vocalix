@@ -1,0 +1,156 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+
+export interface Session {
+  id: string;
+  device_id: string | null;
+  user_agent: string | null;
+  ip_address: string | null;
+  created_at: string;
+  last_accessed_at: string;
+  expires_at: string;
+  is_current_session?: boolean; // True if this is the current session
+  revoked_at?: string | null; // When the session was revoked
+}
+
+export const useSessions = () => {
+  const { profileId } = useAuth();
+  const queryClient = useQueryClient();
+
+  const {
+    data: sessions,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["sessions", profileId],
+    queryFn: async () => {
+      if (!profileId) return [];
+
+      // @ts-ignore - get_active_sessions exists but not in types yet
+      const { data, error } = await supabase.rpc("get_active_sessions", {
+        p_profile_id: profileId,
+      });
+
+      if (error) {
+        // If function doesn't exist or returns 400 (bad request), return empty array (backward compatibility)
+        // 400 can mean function doesn't exist, wrong signature, or missing parameters
+        if (
+          error.message?.includes("does not exist") || 
+          error.message?.includes("not found") ||
+          error.code === "42883" || // function does not exist
+          error.code === "P0001" || // raise_exception
+          (error as any).status === 400 // Bad Request from HTTP
+        ) {
+          console.warn("⚠️ get_active_sessions not available, returning empty array:", error.message);
+          return [];
+        }
+        throw error;
+      }
+
+      return (data || []) as Session[];
+    },
+    enabled: !!profileId,
+    staleTime: 30 * 1000, // Refresh every 30 seconds
+  });
+
+  const revokeSession = useMutation({
+    mutationFn: async (sessionId: string) => {
+      // @ts-ignore - revoke_session_by_id exists but not in types yet
+      const { error } = await supabase.rpc("revoke_session_by_id", {
+        p_session_id: sessionId,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions", profileId] });
+    },
+  });
+
+  const revokeAllSessions = useMutation({
+    mutationFn: async () => {
+      if (!profileId) throw new Error("No profile ID");
+
+      // @ts-ignore - revoke_all_sessions exists but not in types yet
+      const { error } = await supabase.rpc("revoke_all_sessions", {
+        p_profile_id: profileId,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["revokedSessions", profileId] });
+    },
+  });
+
+  // Get revoked sessions
+  const {
+    data: revokedSessions,
+    isLoading: isLoadingRevoked,
+    refetch: refetchRevoked,
+  } = useQuery({
+    queryKey: ["revokedSessions", profileId],
+    queryFn: async () => {
+      if (!profileId) return [];
+
+      // @ts-ignore - get_revoked_sessions exists but not in types yet
+      const { data, error } = await supabase.rpc("get_revoked_sessions", {
+        p_profile_id: profileId,
+      });
+
+      if (error) {
+        if (
+          error.message?.includes("does not exist") || 
+          error.message?.includes("not found") ||
+          error.code === "42883" ||
+          error.code === "P0001" ||
+          (error as any).status === 400
+        ) {
+          console.warn("⚠️ get_revoked_sessions not available, returning empty array:", error.message);
+          return [];
+        }
+        throw error;
+      }
+
+      return (data || []) as Session[];
+    },
+    enabled: !!profileId,
+    staleTime: 30 * 1000,
+  });
+
+  // Unrevoke session
+  const unrevokeSession = useMutation({
+    mutationFn: async (sessionId: string) => {
+      // @ts-ignore - unrevoke_session exists but not in types yet
+      const { error } = await supabase.rpc("unrevoke_session", {
+        p_session_id: sessionId,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions", profileId] });
+      queryClient.invalidateQueries({ queryKey: ["revokedSessions", profileId] });
+    },
+  });
+
+  return {
+    sessions: sessions || [],
+    revokedSessions: revokedSessions || [],
+    isLoading,
+    isLoadingRevoked,
+    error,
+    refetch,
+    refetchRevoked,
+    revokeSession: revokeSession.mutateAsync,
+    isRevoking: revokeSession.isPending,
+    revokeAllSessions: revokeAllSessions.mutateAsync,
+    isRevokingAll: revokeAllSessions.isPending,
+    unrevokeSession: unrevokeSession.mutateAsync,
+    isUnrevoking: unrevokeSession.isPending,
+  };
+};
+
