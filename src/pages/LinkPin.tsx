@@ -75,6 +75,13 @@ const LinkPin = () => {
     if (pinCode.length !== 4) return;
     if (!isMountedRef.current) return;
 
+    // Ensure device ID is available before validating
+    if (!deviceId) {
+      setErrorMessage("Device identification failed. Please refresh the page and try again.");
+      setStatus("error");
+      return;
+    }
+
     setStatus("validating");
     setErrorMessage(null);
 
@@ -213,12 +220,15 @@ const LinkPin = () => {
   };
 
   useEffect(() => {
-    // Focus first input on mount
+    // Focus first input on mount (with delay for mobile to ensure keyboard appears)
     const timer = setTimeout(() => {
-      inputRefs.current[0]?.focus();
-    }, 100);
+      // On mobile, ensure device ID is ready before focusing
+      if (deviceId) {
+        inputRefs.current[0]?.focus();
+      }
+    }, 300); // Longer delay on mobile to ensure everything is ready
     return () => clearTimeout(timer);
-  }, []);
+  }, [deviceId]);
 
   // Track mounted state and clear timeouts on unmount
   useEffect(() => {
@@ -428,13 +438,15 @@ const LinkPin = () => {
                         <Input
                           key={index}
                           ref={(el) => (inputRefs.current[index] = el)}
-                          type="text"
+                          type="tel"
                           inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={1}
                           value={digit}
                           onChange={(e) => handlePinChange(index, e.target.value)}
                           onKeyDown={(e) => handleKeyDown(index, e)}
-                          className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl border-2 border-red-800/40 bg-red-950/30 text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                          className="w-16 h-16 text-center text-2xl font-mono font-bold rounded-2xl border-2 border-red-800/40 bg-red-950/30 text-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20 touch-manipulation"
+                          autoComplete="one-time-code"
                         />
                       ))}
                     </div>

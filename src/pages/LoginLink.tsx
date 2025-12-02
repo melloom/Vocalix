@@ -38,7 +38,19 @@ const LoginLink = () => {
 
   useEffect(() => {
     if (attemptRef.current) return;
-    if (!deviceId) return;
+    
+    // Wait for device ID to be available (important on mobile where it might load slower)
+    if (!deviceId) {
+      // Give it a moment to initialize, especially on mobile
+      const checkDeviceId = setTimeout(() => {
+        if (!deviceId) {
+          setStatus("error");
+          setErrorMessage("Device identification failed. Please refresh the page and try again.");
+        }
+      }, 2000);
+      return () => clearTimeout(checkDeviceId);
+    }
+    
     attemptRef.current = true;
 
     if (!token) {

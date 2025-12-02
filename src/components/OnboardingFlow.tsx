@@ -600,36 +600,90 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       let finalDeviceId = deviceId;
       if (!finalDeviceId) {
         try {
+          // Try localStorage first
           if (typeof window !== 'undefined' && window.localStorage) {
-            const stored = localStorage.getItem('deviceId');
-            if (stored) {
-              finalDeviceId = stored;
-            } else {
-              finalDeviceId = crypto.randomUUID();
-              // CRITICAL: Save to localStorage immediately so the x-device-id header is set
-              localStorage.setItem('deviceId', finalDeviceId);
+            try {
+              const stored = localStorage.getItem('deviceId');
+              if (stored) {
+                finalDeviceId = stored;
+              }
+            } catch (e) {
+              // localStorage might not be available (private browsing, quota exceeded)
             }
-          } else {
-            finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-            // Try to save even if localStorage might not work
+          }
+          
+          // Fallback to sessionStorage if localStorage failed
+          if (!finalDeviceId && typeof window !== 'undefined' && window.sessionStorage) {
+            try {
+              const stored = sessionStorage.getItem('deviceId');
+              if (stored) {
+                finalDeviceId = stored;
+                // Try to promote to localStorage
+                try {
+                  if (window.localStorage) {
+                    localStorage.setItem('deviceId', finalDeviceId);
+                  }
+                } catch (e) {
+                  // Keep using sessionStorage
+                }
+              }
+            } catch (e) {
+              // sessionStorage also not available
+            }
+          }
+          
+          // Generate new ID if still not found
+          if (!finalDeviceId) {
+            // Use crypto.randomUUID() if available, fallback for older browsers
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+              finalDeviceId = crypto.randomUUID();
+            } else {
+              // Fallback UUID generation
+              finalDeviceId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+              });
+            }
+            
+            // CRITICAL: Save to storage immediately so the x-device-id header is set
             try {
               if (typeof window !== 'undefined' && window.localStorage) {
                 localStorage.setItem('deviceId', finalDeviceId);
               }
             } catch (e) {
-              // Ignore - will use temp ID
+              // Try sessionStorage as fallback
+              try {
+                if (window.sessionStorage) {
+                  sessionStorage.setItem('deviceId', finalDeviceId);
+                }
+              } catch (e2) {
+                // Both failed, will use temp ID
+              }
             }
           }
         } catch (e) {
+          // Last resort: generate temp ID
           finalDeviceId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         }
       } else {
-        // Ensure deviceId is in localStorage even if we got it from useAuth
+        // Ensure deviceId is in storage even if we got it from useAuth
         try {
           if (typeof window !== 'undefined' && window.localStorage) {
-            const stored = localStorage.getItem('deviceId');
-            if (stored !== finalDeviceId) {
-              localStorage.setItem('deviceId', finalDeviceId);
+            try {
+              const stored = localStorage.getItem('deviceId');
+              if (stored !== finalDeviceId) {
+                localStorage.setItem('deviceId', finalDeviceId);
+              }
+            } catch (e) {
+              // Try sessionStorage as fallback
+              try {
+                if (window.sessionStorage) {
+                  sessionStorage.setItem('deviceId', finalDeviceId);
+                }
+              } catch (e2) {
+                // Both failed, continue with existing deviceId
+              }
             }
           }
         } catch (e) {

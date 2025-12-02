@@ -151,7 +151,23 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
       const headers = existingHeaders instanceof Headers 
         ? existingHeaders 
         : new Headers(existingHeaders as HeadersInit | undefined);
-      const deviceId = localStorage.getItem("deviceId");
+      
+      // Try multiple storage mechanisms for device ID (important for mobile)
+      let deviceId: string | null = null;
+      try {
+        deviceId = localStorage.getItem("deviceId");
+      } catch (e) {
+        // localStorage might not be available (private browsing, quota exceeded, etc.)
+      }
+      
+      // Fallback to sessionStorage if localStorage failed
+      if (!deviceId) {
+        try {
+          deviceId = sessionStorage.getItem("deviceId");
+        } catch (e) {
+          // sessionStorage also not available
+        }
+      }
 
       // Get URL string once for all checks
       const urlString = url.toString();

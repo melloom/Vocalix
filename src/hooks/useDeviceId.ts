@@ -94,14 +94,25 @@ export const useDeviceId = () => {
 
       // If no ID found in sync storage, generate a new one
       if (!id) {
-        id = crypto.randomUUID();
+        // Use crypto.randomUUID() if available (modern browsers), fallback for older browsers
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          id = crypto.randomUUID();
+        } else {
+          // Fallback UUID generation for older browsers/mobile
+          id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
         storeDeviceId(id);
       }
 
+      // Ensure device ID is set in headers immediately
       updateSupabaseDeviceHeader(id);
       setDeviceId(id);
       
-      // Try IndexedDB as async backup (doesn't block)
+      // Try IndexedDB as async backup (doesn't block) - only if we don't have an ID yet
       if ('indexedDB' in window && !id) {
         try {
           const request = indexedDB.open('echo_garden_device', 1);
