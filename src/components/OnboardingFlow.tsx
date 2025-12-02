@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass } from "lucide-react";
 
@@ -192,12 +192,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
   const [avatarsLoading, setAvatarsLoading] = useState(false);
   
-  // Detect if device is mobile
-  const isMobile = typeof window !== 'undefined' && (
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-    (window.innerWidth <= 768 && 'ontouchstart' in window) ||
-    navigator.maxTouchPoints > 0
-  );
+  // Detect if device is mobile (memoized to prevent re-renders)
+  const isMobile = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.innerWidth <= 768 && 'ontouchstart' in window) ||
+      navigator.maxTouchPoints > 0
+    );
+  }, []);
   
   // Note: Freepik API doesn't work from browser due to CORS restrictions
   // Using DiceBear which works perfectly and generates unique avatars
@@ -235,9 +238,16 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const hookDeviceId = useDeviceId();
   const [deviceId, setDeviceId] = useState<string | null>(hookDeviceId);
   
-  // Generate deviceId manually if hook failed or returned null
+  // Generate deviceId manually if hook failed or returned null (use ref to prevent multiple runs)
+  const deviceIdInitializedRef = useRef(false);
   useEffect(() => {
+    // Prevent multiple initializations
+    if (deviceIdInitializedRef.current && deviceId) {
+      return;
+    }
+    
     if (!deviceId) {
+      deviceIdInitializedRef.current = true;
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
           const stored = localStorage.getItem('deviceId');
@@ -280,15 +290,23 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setSelectedAvatar(generateAvatarFromHandle(handle));
   }, [handle]);
 
-  // Load reCAPTCHA v3 script
+  // Load reCAPTCHA v3 script (use ref to prevent multiple initializations)
+  const recaptchaInitializedRef = useRef(false);
   useEffect(() => {
+    // Prevent multiple initializations
+    if (recaptchaInitializedRef.current) {
+      return;
+    }
+    
     if (!RECAPTCHA_SITE_KEY) {
       console.log('[OnboardingFlow] No reCAPTCHA v3 site key configured');
       setRecaptchaLoading(false);
       setRecaptchaAvailable(false);
+      recaptchaInitializedRef.current = true;
       return;
     }
     
+    recaptchaInitializedRef.current = true;
     console.log('[OnboardingFlow] Starting reCAPTCHA v3 load...');
     console.log('[OnboardingFlow] Site key:', RECAPTCHA_SITE_KEY ? `${RECAPTCHA_SITE_KEY.substring(0, 10)}...` : 'missing');
 
@@ -481,8 +499,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         }
     }, 500);
 
-    return () => clearInterval(checkInterval);
-  }, [RECAPTCHA_SITE_KEY]);
+    return () => {
+      clearInterval(checkInterval);
+      recaptchaInitializedRef.current = false;
+    };
+  }, [RECAPTCHA_SITE_KEY, isMobile]);
 
   const handleSubmit = async () => {
     // Check if we're in development mode (used throughout the function)

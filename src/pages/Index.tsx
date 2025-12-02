@@ -279,18 +279,14 @@ const CreatorSearchResult = ({ profile, viewerProfileId }: { profile: SearchProf
 
 // Inner component that does the actual work
 const IndexInner = () => {
-  console.log('[Index] Component rendering...');
-  
   const navigate = useNavigate();
   const location = useLocation();
   
   // Use centralized auth context - MUST be called unconditionally (React rules)
   const { profileId, profile, isLoading: isAuthLoading, deviceId } = useAuth();
-  console.log('[Index] Auth loaded, profileId:', profileId, 'isLoading:', isAuthLoading);
   
   // Define handleOnboardingComplete early
   const handleOnboardingComplete = useCallback((newProfileId: string) => {
-    console.log('[Index] Onboarding complete, profileId:', newProfileId);
     // Force a reload to refresh the page with the new profile
     window.location.reload();
   }, []);
@@ -298,19 +294,13 @@ const IndexInner = () => {
   // CRITICAL: Early return for onboarding - do this BEFORE other hooks that might fail
   // Show onboarding immediately if no profileId - don't wait for auth to finish
   if (!profileId) {
-    console.log('[Index] No profileId, showing onboarding immediately (not waiting for auth)');
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
   
   // Only call these hooks if we have a profileId (after early return)
   const search = useSearch(profileId);
-  console.log('[Index] Search hook loaded');
-  
   const { blockedUsers } = useBlockedUsers();
-  console.log('[Index] BlockedUsers hook loaded');
-  
   const { isAdmin } = useAdminStatus();
-  console.log('[Index] AdminStatus hook loaded');
   
   const blockedUserIds = useMemo(() => {
     try {
