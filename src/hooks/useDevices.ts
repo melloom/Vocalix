@@ -51,6 +51,12 @@ export const useDevices = () => {
       // CRITICAL: Always return at least the current device if deviceId exists
       if (!deviceId) return [];
 
+      // In local development (localhost), avoid calling Supabase device endpoints directly
+      // to prevent noisy CORS / access-control errors and just use a synthetic device instead.
+      if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+        return createSyntheticDevice(deviceId, profileId);
+      }
+
 
       // Try RPC function first - this should work if database is set up correctly
       try {

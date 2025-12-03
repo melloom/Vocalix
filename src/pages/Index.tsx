@@ -4361,12 +4361,6 @@ const IndexInner = () => {
         onSave={handleSaveCity}
       />
 
-      {showTutorial && (
-        <InteractiveTutorial
-          onComplete={() => setShowTutorial(false)}
-        />
-      )}
-
       <BackToTop />
 
       <style>{`

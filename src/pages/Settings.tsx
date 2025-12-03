@@ -1715,7 +1715,9 @@ const Settings = () => {
                 <SelectItem value="notifications">Notifications</SelectItem>
                 <SelectItem value="privacy">Privacy</SelectItem>
                 <SelectItem value="profile">Profile</SelectItem>
-                <SelectItem value="account">Account</SelectItem>
+                <SelectItem value="account" data-tutorial="settings-account-tab">
+                  Account
+                </SelectItem>
                 <SelectItem value="security">Security</SelectItem>
                 <SelectItem value="downloads">Downloads</SelectItem>
                 <SelectItem value="accessibility">Accessibility</SelectItem>
@@ -1793,6 +1795,7 @@ const Settings = () => {
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
+                data-tutorial="settings-account-tab"
               >
                 <Users className="h-4 w-4" />
                 <span>Account</span>
@@ -2324,7 +2327,7 @@ const Settings = () => {
 
               {/* Device Linking Tab Content */}
               {deviceAccessTab === "linking" && (
-                <div className="space-y-4">
+                <div className="space-y-4" data-tutorial="settings-account-linking">
                   {/* PIN Linking Toggle */}
                   <div className="flex items-center justify-between p-4 rounded-2xl border border-border/60 bg-muted/40">
                     <div className="flex items-center gap-3">

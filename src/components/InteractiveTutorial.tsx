@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -69,6 +70,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="filters"]',
     position: "bottom",
     icon: <Filter className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "clip-interactions",
@@ -86,6 +88,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="search"]',
     position: "bottom",
     icon: <Search className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "follow",
@@ -94,6 +97,17 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <UserPlus className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "voice-amas",
+    title: "Voice AMAs",
+    description:
+      "Click the Voice AMAs icon in the header to explore Ask Me Anything sessions. Join live Q&As, listen to past sessions, and discover hosts answering community questions in real time.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <MessageCircle className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "communities",
@@ -102,6 +116,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Users className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "live-rooms",
@@ -110,6 +125,27 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Radio className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "leaderboards",
+    title: "Leaderboards",
+    description:
+      "Use the Leaderboards icon in the header to see top creators, listeners, and more. It’s the fastest way to find who’s trending and discover standout voices on the platform.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Trophy className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "discovery",
+    title: "Discovery Feed",
+    description:
+      "Click the Discovery icon in the header to open your personalized discovery feed. This surface mixes topics, clips, and creators the system thinks you'll love based on your listening.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Compass className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "saved-clips",
@@ -118,6 +154,17 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Bookmark className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "eighteen-plus",
+    title: "18+ Content",
+    description:
+      "If enabled, the 18+ icon in the header lets you access NSFW content. Use it to browse adult-only clips in a separate space, while keeping the rest of your experience safe by default.",
+    targetSelector: '[data-tutorial="navigation"]',
+    position: "bottom",
+    icon: <Sparkles className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "encrypted-diary",
@@ -126,14 +173,31 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="diary"]',
     position: "bottom",
     icon: <Lock className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "account-linking",
     title: "Link Your Account",
-    description: "Use the lock icon in the header to link this device to your account using a PIN! Go to Settings → Account to generate a 4-digit PIN, then enter it on another device to link them. PINs expire after 10 minutes for security.",
+    description:
+      "Step 1: Click the Settings icon in the header.\n" +
+      "Step 2: In Settings, open the Account section.\n" +
+      "Step 3: Generate a 4-digit PIN and leave this page open.\n" +
+      "Step 4: On another device, enter that PIN to link the device to your account.\n" +
+      "PINs expire after 10 minutes for security.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Lock className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "account-pin",
+    title: "Generate Your PIN",
+    description:
+      "Step 3: In the Account section, use the PIN Account Linking controls to generate a 4-digit PIN. Step 4: On another device, enter that PIN to link this device to your account. PINs expire after 10 minutes for security.",
+    targetSelector: '[data-tutorial="settings-account-linking"]',
+    position: "bottom",
+    icon: <Lock className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "notifications",
@@ -142,6 +206,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Bell className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "my-recordings",
@@ -150,14 +215,20 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Mic className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "settings",
     title: "Settings & Customization",
-    description: "Customize your Vocalix experience in Settings! Change your handle (with limits), update your avatar, set your city, adjust playback preferences, enable captions by default, and more. Make it yours!",
+    description:
+      "Step 1: Click the Settings icon in the header.\n" +
+      "Step 2: Explore profile options (handle, avatar, and city) to make your account feel like you.\n" +
+      "Step 3: Adjust playback preferences and captions so listening works the way you like.\n" +
+      "Step 4: When you’re done, come back here and hit Next to continue the tour.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Settings className="h-6 w-6" />,
+    highlight: true,
   },
   {
     id: "keyboard-shortcuts",
@@ -213,8 +284,16 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const positionUpdateRef = useRef<number | null>(null);
   const isNavigatingRef = useRef(false); // Guard against rapid clicks
   const step = TUTORIAL_STEPS[currentStep];
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // Check if tutorial should be shown
+  // Progress and completion state
+  const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100;
+
+  // Check if tutorial is completed - use direct localStorage check for immediate response
+  const isCompleted = typeof window !== "undefined" && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true";
+
+  // Check if tutorial should be shown at all (based on completion flag)
   const shouldShowTutorial = useCallback(() => {
     const completed = localStorage.getItem(TUTORIAL_STORAGE_KEY);
     return !completed;
@@ -226,50 +305,68 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     setIsTransitioning(false);
   }, [currentStep]);
 
-  // Disable body scroll when tutorial is active
+  // Track when a new route has settled before showing the overlay, to avoid janky first paint
+  const [isRouteReady, setIsRouteReady] = useState(true);
+  // Track when we're intentionally navigating (e.g. via "Go to Settings")
+  // so we can hide the overlay during the transition.
+  const [isManualRouteChange, setIsManualRouteChange] = useState(false);
+
   useEffect(() => {
-    const isShowing = shouldShowTutorial();
-    if (!isShowing) {
+    // Briefly hide overlay on route change, then re-enable it to avoid flicker
+    setIsRouteReady(false);
+    const timeout = setTimeout(() => {
+      setIsRouteReady(true);
+      setIsManualRouteChange(false);
+    }, 220);
+    return () => clearTimeout(timeout);
+  }, [location.pathname]);
+
+  // When on Settings for the Link Your Account step, advance the tutorial
+  // automatically to the next step when the user clicks the Account tab.
+  useEffect(() => {
+    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
       return;
     }
 
-    // Store original overflow style
-    const originalOverflow = document.body.style.overflow;
-    const originalPosition = document.body.style.position;
-    const originalTop = document.body.style.top;
-    const originalWidth = document.body.style.width;
+    const accountTab = document.querySelector(
+      '[data-tutorial="settings-account-tab"]'
+    ) as HTMLButtonElement | null;
+    if (!accountTab) {
+      return;
+    }
 
-    // Disable scrolling - prevent background from scrolling
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    // Save current scroll position
-    const scrollY = window.scrollY;
-    document.body.style.top = `-${scrollY}px`;
-
-    // Prevent scroll events on the document
-    const preventScroll = (e: WheelEvent | TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
+    const handleAccountClick = () => {
+      setCurrentStep((prev) =>
+        Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+      );
     };
 
-    // Prevent wheel and touch scroll events
-    document.addEventListener('wheel', preventScroll, { passive: false });
-    document.addEventListener('touchmove', preventScroll, { passive: false });
-
+    accountTab.addEventListener("click", handleAccountClick);
     return () => {
-      // Re-enable scrolling when tutorial is closed
-      document.body.style.overflow = originalOverflow;
-      document.body.style.position = originalPosition;
-      document.body.style.top = originalTop;
-      document.body.style.width = originalWidth;
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
-      // Remove event listeners
-      document.removeEventListener('wheel', preventScroll);
-      document.removeEventListener('touchmove', preventScroll);
+      accountTab.removeEventListener("click", handleAccountClick);
     };
-  }, [shouldShowTutorial]);
+  }, [step.id, location.pathname]);
+
+  // Route-aware gating:
+  // - Most steps are meant for the main feed ('/').
+  // - Account linking / settings steps also make sense on the Settings page.
+  const isOnMainFeed = location.pathname === "/";
+  const isOnSettingsPage = location.pathname.startsWith("/settings");
+  const settingsStepIds = new Set(["account-linking", "account-pin", "settings"]);
+
+  // Compute whether the tutorial overlay should actually be visible on this route/step
+  const isVisible =
+    shouldShowTutorial() &&
+    !isCompleted &&
+    isRouteReady &&
+    !isManualRouteChange &&
+    (isOnMainFeed || (isOnSettingsPage && settingsStepIds.has(step.id)));
+
+  // NOTE: We intentionally do NOT lock body scroll here anymore.
+  // Global scroll locking caused issues when navigating between pages
+  // (e.g. getting "stuck" on Settings without a visible modal).
+  // The overlay itself is non-interactive outside the highlighted cutout,
+  // so it's safe to let the page scroll normally underneath.
 
   // Mark tutorial as completed
   const markCompleted = useCallback(() => {
@@ -347,26 +444,223 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           }
         }
       } else if (step.id === "filters") {
-        // Find the mood filters container (the one with emoji buttons)
+        // Prefer highlighting the category filter row (with the dropdown),
+        // so the highlight clearly covers the category selector + its info.
         const allFilters = document.querySelectorAll('[data-tutorial="filters"]');
+        let preferred: HTMLElement | null = null;
+
         for (const filter of Array.from(allFilters)) {
-          // Check if this container has emoji buttons or "All moods" text
-          const buttons = filter.querySelectorAll('button');
-          let hasEmojiButtons = false;
-          for (const btn of Array.from(buttons)) {
-            if (btn.textContent?.includes("😊") || btn.textContent?.includes("All moods")) {
-              hasEmojiButtons = true;
-              break;
-            }
-          }
-          if (hasEmojiButtons || filter.textContent?.includes("All moods")) {
-            element = filter as HTMLElement;
+          const el = filter as HTMLElement;
+          // Heuristic: the category row contains the "Filter by category" select/label
+          const hasCategoryText = el.textContent?.includes("Filter by category");
+          const hasSelectTrigger = !!el.querySelector('[role="combobox"], [data-radix-select-trigger]');
+
+          if (hasCategoryText || hasSelectTrigger) {
+            preferred = el;
             break;
           }
         }
-        // If no mood filters found, use the first filters container
-        if (!element && allFilters.length > 0) {
+
+        if (preferred) {
+          element = preferred;
+        } else if (allFilters.length > 0) {
+          // Fallback: at least highlight the first filters container
           element = allFilters[0] as HTMLElement;
+        }
+      } else if (step.id === "follow") {
+        // For "Follow Creators", highlight the actual Following tab in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const followingLink = nav.querySelector('a[aria-label="Following"]') as HTMLElement | null;
+          if (followingLink) {
+            // Prefer the button wrapper if present so the whole icon button is highlighted
+            const buttonWrapper = followingLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || followingLink;
+          } else {
+            // Fallback to the whole navigation strip
+            element = nav;
+          }
+        }
+      } else if (step.id === "communities") {
+        // For "Communities", highlight the Communities tab/icon in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const communitiesLink = nav.querySelector('a[aria-label="Communities"]') as HTMLElement | null;
+          if (communitiesLink) {
+            const buttonWrapper = communitiesLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || communitiesLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "live-rooms") {
+        // For "Live Audio Rooms", highlight the Live Rooms tab/icon in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const liveRoomsLink = nav.querySelector('a[aria-label="Live Rooms"]') as HTMLElement | null;
+          if (liveRoomsLink) {
+            const buttonWrapper = liveRoomsLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || liveRoomsLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "voice-amas") {
+        // For "Voice AMAs", highlight the Voice AMAs icon in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const amasLink = nav.querySelector('a[aria-label="Voice AMAs"]') as HTMLElement | null;
+          if (amasLink) {
+            const buttonWrapper = amasLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || amasLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "saved-clips") {
+        // For "Saved Clips & Bookmarks", highlight the Saved Clips icon/tab.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const savedLink = nav.querySelector('a[aria-label="Saved Clips"]') as HTMLElement | null;
+          if (savedLink) {
+            const buttonWrapper = savedLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || savedLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "leaderboards") {
+        // For "Leaderboards", highlight the Leaderboards icon in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const leaderboardsLink = nav.querySelector('a[aria-label="Leaderboards"]') as HTMLElement | null;
+          if (leaderboardsLink) {
+            const buttonWrapper = leaderboardsLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || leaderboardsLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "discovery") {
+        // For "Discovery Feed", highlight the Discovery icon in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const discoveryLink = nav.querySelector('a[aria-label="Discovery"]') as HTMLElement | null;
+          if (discoveryLink) {
+            const buttonWrapper = discoveryLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || discoveryLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "eighteen-plus") {
+        // For 18+ Content, highlight the 18+ icon (if visible) in the header nav.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const eighteenPlusLink = nav.querySelector('a[aria-label="18+ Content"]') as HTMLElement | null;
+          if (eighteenPlusLink) {
+            const buttonWrapper = eighteenPlusLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || eighteenPlusLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "encrypted-diary") {
+        // For "Encrypted Diary", rely on [data-tutorial="diary"] but ensure we target the button if present.
+        const diaryLink = document.querySelector('[data-tutorial="diary"]') as HTMLElement | null;
+        if (diaryLink) {
+          const buttonWrapper = diaryLink.closest("button") as HTMLElement | null;
+          element = buttonWrapper || diaryLink;
+        }
+      } else if (step.id === "account-linking") {
+        // For "Link Your Account":
+        // - On main feed, highlight the Settings icon in the header nav (Step 1).
+        // - On Settings page, highlight the Account tab in the sidebar (Step 2).
+        if (location.pathname.startsWith("/settings")) {
+          const accountTab = document.querySelector(
+            '[data-tutorial="settings-account-tab"]'
+          ) as HTMLElement | null;
+          if (accountTab) {
+            element = accountTab;
+          } else {
+            // Fallback: if Account tab isn't yet rendered, highlight Settings icon
+            const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+            if (nav) {
+              const settingsLink = nav.querySelector('a[aria-label="Settings"]') as HTMLElement | null;
+              if (settingsLink) {
+                const buttonWrapper = settingsLink.closest("button") as HTMLElement | null;
+                element = buttonWrapper || settingsLink;
+              } else {
+                element = nav;
+              }
+            }
+          }
+        } else {
+          const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+          if (nav) {
+            const settingsLink = nav.querySelector('a[aria-label="Settings"]') as HTMLElement | null;
+            if (settingsLink) {
+              const buttonWrapper = settingsLink.closest("button") as HTMLElement | null;
+              element = buttonWrapper || settingsLink;
+            } else {
+              // Fallback to whole nav so at least something is highlighted
+              element = nav;
+            }
+          }
+        }
+      } else if (step.id === "account-pin") {
+        // For PIN step, highlight the Account Linking section in Account tab.
+        if (location.pathname.startsWith("/settings")) {
+          const linkingSection = document.querySelector(
+            '[data-tutorial="settings-account-linking"]'
+          ) as HTMLElement | null;
+          if (linkingSection) {
+            element = linkingSection;
+          }
+        }
+      } else if (step.id === "notifications") {
+        // For "Notifications", highlight the bell icon button from NotificationCenter.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        // NotificationCenter renders its own button with aria-label="Notifications"
+        const notifButton = document.querySelector('button[aria-label="Notifications"]') as HTMLElement | null;
+        if (notifButton) {
+          element = notifButton;
+        } else if (nav) {
+          element = nav;
+        }
+      } else if (step.id === "keyboard-shortcuts") {
+        // For "Keyboard Shortcuts", highlight the keyboard icon button in the header.
+        const shortcutsButton = document.querySelector(
+          'button[aria-label="Keyboard shortcuts"]'
+        ) as HTMLElement | null;
+        if (shortcutsButton) {
+          element = shortcutsButton;
+        }
+      } else if (step.id === "settings") {
+        // For "Settings & Customization", highlight the Settings icon in the header.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const settingsLink = nav.querySelector('a[aria-label="Settings"]') as HTMLElement | null;
+          if (settingsLink) {
+            const buttonWrapper = settingsLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || settingsLink;
+          } else {
+            element = nav;
+          }
+        }
+      } else if (step.id === "my-recordings") {
+        // For "My Recordings", prefer a dedicated header entry point if one exists.
+        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+        if (nav) {
+          const recordingsLink =
+            (nav.querySelector('a[href="/my-recordings"]') as HTMLElement | null) ||
+            (nav.querySelector('a[aria-label*="My Recordings" i]') as HTMLElement | null) ||
+            (nav.querySelector('button[aria-label*="My Recordings" i]') as HTMLElement | null);
+
+          if (recordingsLink) {
+            const buttonWrapper = recordingsLink.closest("button") as HTMLElement | null;
+            element = buttonWrapper || recordingsLink;
+          }
         }
       } else if (step.id === "today-topic") {
         // Find the today topic element
@@ -426,7 +720,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       // Compute base rect for positioning (this is the primary target element)
       const rect = element.getBoundingClientRect();
-
+      
       // For Feed Sorting step:
       // - Always highlight the feed-sorting bar.
       // - If Chamber is active, also include the Chamber card in the union.
@@ -485,6 +779,48 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           // Fallback: just use the main element’s rect
           setHighlightRect(rect);
         }
+      } else if (step.id === "filters") {
+        // For Filters & Discovery:
+        // - Highlight the filters row (category selector).
+        // - If the category dropdown is open, expand highlight to include the dropdown panel.
+        let top = rect.top;
+        let left = rect.left;
+        let right = rect.right;
+        let bottom = rect.bottom;
+
+        // Try to find an open Radix Select dropdown (used by the category filter)
+        const selectContent =
+          (document.querySelector('[data-radix-select-content]') as HTMLElement | null) ||
+          (document.querySelector('[role="listbox"]') as HTMLElement | null);
+
+        if (selectContent) {
+          const popRect = selectContent.getBoundingClientRect();
+          const popoverVisible =
+            (selectContent.getAttribute("data-state") === "open" || selectContent.getAttribute("data-state") === "visible" || !selectContent.getAttribute("data-state")) &&
+            popRect.width > 0 &&
+            popRect.height > 0 &&
+            getComputedStyle(selectContent).display !== "none" &&
+            selectContent.offsetParent !== null;
+
+          if (popoverVisible) {
+            top = Math.min(top, popRect.top);
+            left = Math.min(left, popRect.left);
+            right = Math.max(right, popRect.right);
+            bottom = Math.max(bottom, popRect.bottom);
+          }
+        }
+
+        const combinedRect = {
+          top,
+          left,
+          right,
+          bottom,
+          width: 0,
+          height: 0,
+        } as DOMRect;
+        (combinedRect as any).width = combinedRect.right - combinedRect.left;
+        (combinedRect as any).height = combinedRect.bottom - combinedRect.top;
+        setHighlightRect(combinedRect);
       } else {
         setHighlightRect(rect);
       }
@@ -615,11 +951,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         const extraSpacing = isMobile ? 10 : 14;
 
         if (feedSortingState === "chamber") {
-          // Anchor above the combined Chamber + bar area, shifted further to the right
+          // Anchor above the combined Chamber + bar area, shifted extremely far to the right
           preferredPosition = "top";
           const desiredTop = rect.top - tooltipHeight - effectiveSpacing - extraSpacing;
-          // Push more to the right so the card content remains fully visible
-          const desiredLeft = rect.left + rect.width / 2 - tooltipWidth / 2 + (isMobile ? 24 : 72);
+          // Push even further to the right; viewport clamping will keep it on-screen
+          const desiredLeft = rect.left + rect.width / 2 - tooltipWidth / 2 + (isMobile ? 140 : 320);
           top = Math.max(minTop, Math.min(desiredTop, maxTop));
           left = Math.max(minLeft, Math.min(desiredLeft, maxLeft));
         } else {
@@ -930,6 +1266,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
     
     if (currentStep < TUTORIAL_STEPS.length - 1) {
+      const nextStepConfig = TUTORIAL_STEPS[currentStep + 1];
+
+      // Skip Settings-only PIN step when we're not on Settings
+      if (nextStepConfig?.id === "account-pin" && !location.pathname.startsWith("/settings")) {
+        setCurrentStep(currentStep + 2);
+        return;
+      }
+
       isNavigatingRef.current = true;
       setIsTransitioning(true);
       // Shorter transition time to reduce flashing
@@ -957,12 +1301,30 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
     
     if (currentStep > 0) {
-      // Special behavior when going back from Feed Sorting (step 4) to Daily Topics (step 3)
       const currentStepConfig = TUTORIAL_STEPS[currentStep];
       const previousStepConfig = TUTORIAL_STEPS[currentStep - 1];
+
+      // If we're on Settings for the Link Your Account step and user presses Previous,
+      // navigate back to the main feed so the previous step has its proper context.
+      if (currentStepConfig?.id === "account-linking" && location.pathname.startsWith("/settings")) {
+        try {
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem("tutorial_navigated_to_settings");
+          }
+        } catch {
+          // ignore storage errors
+        }
+        navigate("/");
+        setCurrentStep(currentStep - 1);
+        return;
+      }
+
+      // Special behavior when going back from Feed Sorting (step 4) to Daily Topics (step 3)
       if (currentStepConfig?.id === "feed-sorting" && previousStepConfig?.id === "today-topic") {
         // If the Chamber (formerly Welcome Garden) topic is active, deselect it
-        const chamberButton = document.querySelector('[data-tutorial="welcome-garden"][data-active="true"]') as HTMLElement | null;
+        const chamberButton = document.querySelector(
+          '[data-tutorial="welcome-garden"][data-active="true"]'
+        ) as HTMLElement | null;
         if (chamberButton) {
           (chamberButton as HTMLButtonElement).click();
         }
@@ -994,11 +1356,6 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }, 300);
   };
 
-  const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100;
-
-  // Check if tutorial is completed - use direct localStorage check for immediate response
-  const isCompleted = typeof window !== 'undefined' && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true";
-  
   // Sync parent state if completed
   useEffect(() => {
     if (isCompleted) {
@@ -1072,10 +1429,24 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     };
   }, [step, feedSortingState, calculatePosition]);
 
-  // Don't show if already completed
-  if (isCompleted || !shouldShowTutorial()) {
-    return null;
-  }
+  // When on Filters & Discovery step, recalc position on any click so the
+  // highlight can expand when the dropdown opens and shrink back when it closes.
+  useEffect(() => {
+    if (step.id !== "filters") return;
+
+    const handleClick = (event: MouseEvent) => {
+      // Defer to let the UI (dropdown open/close) update first, then recalc
+      setTimeout(() => {
+        calculatePosition();
+      }, 0);
+    };
+
+    document.addEventListener("click", handleClick, true);
+
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+    };
+  }, [step, calculatePosition]);
 
   // Dynamic description for steps that depend on UI state (e.g. Feed Sorting)
   const effectiveDescription = useMemo(() => {
@@ -1106,8 +1477,29 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           return step.description;
       }
     }
+
+    if (step.id === "account-linking") {
+      // Show different copy depending on whether the user is still on the main feed
+      // or has already opened Settings.
+      const path = location.pathname;
+      if (path.startsWith("/settings")) {
+        // Settings view: focus this step only on getting to the Account tab,
+        // with brief extra info about what happens next.
+        return [
+          "Step 2: In Settings, click the Account tab in the left sidebar.",
+          "Once you're on the Account tab, you'll be able to generate a 4-digit PIN and use it on another device to link your account.",
+        ].join(" ");
+      }
+
+      // On the main feed / anywhere else: focus on step 1 (getting to Settings)
+      return [
+        "Step 1: Click the Settings icon in the header to open Settings.",
+        "After Settings opens, this step will guide you through generating a PIN and linking another device.",
+      ].join(" ");
+    }
+
     return step.description;
-  }, [step, feedSortingState]);
+  }, [step, feedSortingState, location.pathname]);
 
   // Calculate spotlight position for overlay with smooth transitions
   const spotlightStyle = useMemo(() => {
@@ -1178,48 +1570,128 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
   }, [targetElement, step.highlight]);
 
+  // For the Account PIN step, gently scroll the page so the highlighted
+  // section and the modal below it are comfortably in view.
+  useEffect(() => {
+    if (
+      step.id !== "account-pin" ||
+      !highlightRect ||
+      !location.pathname.startsWith("/settings")
+    ) {
+      return;
+    }
+
+    // Always nudge the page down a bit more from wherever we are so the
+    // Account section and PIN controls move further into view.
+    const currentTop = window.scrollY || 0;
+    const desiredTop = currentTop + 220;
+
+    window.scrollTo({
+      top: desiredTop,
+      behavior: "smooth",
+    });
+  }, [step.id, highlightRect, location.pathname]);
+
+  // When we land on Settings for the "Link Your Account" step, aggressively
+  // recalculate the highlight a few times so the Account tab is reliably
+  // found even if the layout is still mounting.
+  useEffect(() => {
+    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
+      return;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const interval = setInterval(() => {
+      attempts += 1;
+      calculatePosition();
+
+      const accountTab = document.querySelector(
+        '[data-tutorial="settings-account-tab"]'
+      ) as HTMLElement | null;
+      if (accountTab || attempts >= maxAttempts) {
+        clearInterval(interval);
+      }
+    }, 180);
+
+    return () => clearInterval(interval);
+  }, [step.id, location.pathname, calculatePosition]);
+
+  // Ensure the Account tab is active when entering the Link Your Account
+  // step on Settings, so the sidebar state matches the tutorial text and
+  // the highlight can lock onto the correct row.
+  useEffect(() => {
+    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
+      return;
+    }
+
+    const accountTab = document.querySelector(
+      '[data-tutorial="settings-account-tab"]'
+    ) as HTMLButtonElement | null;
+    if (accountTab) {
+      accountTab.click();
+    }
+  }, [step.id, location.pathname]);
+
+  // Ensure the Account tab is active when entering the Account PIN step
+  // so the PIN Account Linking section is visible.
+  useEffect(() => {
+    if (step.id !== "account-pin" || !location.pathname.startsWith("/settings")) {
+      return;
+    }
+
+    const accountTab = document.querySelector(
+      '[data-tutorial="settings-account-tab"]'
+    ) as HTMLButtonElement | null;
+    if (accountTab) {
+      accountTab.click();
+    }
+  }, [step.id, location.pathname]);
+
+  // Aggressively recalculate highlight position for the Account PIN step as well,
+  // so the linking section is properly highlighted even if the layout is still mounting.
+  useEffect(() => {
+    if (step.id !== "account-pin" || !location.pathname.startsWith("/settings")) {
+      return;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 6;
+    const interval = setInterval(() => {
+      attempts += 1;
+      calculatePosition();
+
+      const linkingSection = document.querySelector(
+        '[data-tutorial="settings-account-linking"]'
+      ) as HTMLElement | null;
+      if (linkingSection || attempts >= maxAttempts) {
+        clearInterval(interval);
+      }
+    }, 180);
+
+    return () => clearInterval(interval);
+  }, [step.id, location.pathname, calculatePosition]);
+
+  // If the tutorial isn't supposed to be visible for this route/step, render nothing
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 z-[100000] pointer-events-none">
-      {/* Blocking overlay - blocks all interactions except tutorial elements */}
+      {/* Visual dimming layer only; we no longer intercept scroll so the page can move freely */}
       <div
-        className="absolute inset-0 bg-transparent pointer-events-auto"
-        style={{
-          // Create a cutout for the highlighted element so it can be clicked
-          ...(highlightRect && step.highlight ? {
-            clipPath: `polygon(
-              0% 0%, 
-              0% 100%, 
-              ${Math.max(0, highlightRect.left - 12)}px 100%, 
-              ${Math.max(0, highlightRect.left - 12)}px ${Math.max(0, highlightRect.top - 12)}px, 
-              ${Math.min(window.innerWidth, highlightRect.right + 12)}px ${Math.max(0, highlightRect.top - 12)}px, 
-              ${Math.min(window.innerWidth, highlightRect.right + 12)}px ${Math.min(window.innerHeight, highlightRect.bottom + 12)}px, 
-              ${Math.max(0, highlightRect.left - 12)}px ${Math.min(window.innerHeight, highlightRect.bottom + 12)}px, 
-              ${Math.max(0, highlightRect.left - 12)}px 100%, 
-              100% 100%, 
-              100% 0%
-            )`,
-          } : {}),
-        }}
-        onClick={(e) => {
-          // Block all clicks outside tutorial elements
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
+        className="absolute inset-0 pointer-events-none"
+        style={spotlightStyle}
       />
       
-      {/* Visual overlay with spotlight effect */}
+      {/* Visual overlay with spotlight effect (kept lightweight to avoid lag on route changes) */}
       <div
         ref={overlayRef}
         className={cn(
-          "absolute inset-0 bg-black/70 backdrop-blur-md transition-all duration-300 ease-in-out pointer-events-none"
+          "absolute inset-0 transition-all duration-200 ease-in-out pointer-events-none",
+          // Slightly dim background on both main feed and Settings so the tutorial feels focused
+          location.pathname.startsWith("/settings") ? "bg-black/40" : "bg-black/50"
         )}
         style={spotlightStyle}
       />
@@ -1227,15 +1699,19 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       {/* Highlight ring around target element with smooth animation */}
       {highlightRect && step.highlight && highlightStyle && (
         <div
-          className="absolute pointer-events-none rounded-2xl z-[99998]"
+          className="absolute pointer-events-none z-[99998]"
           style={{
             ...highlightStyle,
-            position: 'fixed',
+            position: "fixed",
           }}
         >
-          <div className="absolute inset-0 border-4 border-primary rounded-2xl shadow-[0_0_30px_rgba(var(--primary),0.6)] animate-pulse" />
-          <div className="absolute inset-0 border-4 border-primary/50 rounded-2xl animate-ping" style={{ animationDuration: "2s" }} />
-          <div className="absolute -inset-1 bg-primary/20 rounded-2xl blur-xl" />
+          {/* Vivid double-ring highlight with soft glow */}
+          <div className="absolute inset-0 rounded-2xl border-4 border-primary shadow-[0_0_32px_rgba(var(--primary-rgb,59,130,246),0.9)] animate-pulse" />
+          <div
+            className="absolute inset-1 rounded-2xl border-2 border-primary/60 animate-ping"
+            style={{ animationDuration: "1.6s" }}
+          />
+          <div className="absolute -inset-2 bg-primary/25 rounded-3xl blur-2xl" />
         </div>
       )}
 
@@ -1247,8 +1723,46 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           "max-w-[calc(100vw-32px)]"
         )}
         style={
-          tooltipPosition
+          // Special positioning for Account PIN step: place modal just below the highlighted section
+          (step.id === "account-pin" && location.pathname.startsWith("/settings") && highlightRect)
             ? (() => {
+                const isMobile = window.innerWidth < 768;
+                const safePadding = 16;
+                const tooltipWidth = isMobile ? 340 : 400;
+                const tooltipHeight = isMobile ? 260 : 240;
+
+                const rawTop = highlightRect.bottom + 16;
+                const rawLeft = highlightRect.left + highlightRect.width / 2 - tooltipWidth / 2;
+
+                const maxTop = window.innerHeight - tooltipHeight - safePadding;
+                const maxLeft = window.innerWidth - tooltipWidth - safePadding;
+                const minTop = safePadding;
+                const minLeft = safePadding;
+
+                return {
+                  top: `${Math.max(minTop, Math.min(rawTop, maxTop))}px`,
+                  left: `${Math.max(minLeft, Math.min(rawLeft, maxLeft))}px`,
+                  width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
+                  maxWidth: isMobile ? "340px" : "400px",
+                  transform: "scale(1) translateY(0)",
+                  transition: "top 300ms ease-in-out, left 300ms ease-in-out, opacity 300ms ease-in-out, width 300ms ease-in-out",
+                  opacity: isTransitioning ? 0.9 : 1,
+                };
+              })()
+            : ((step.id === "account-linking" && location.pathname.startsWith("/settings")) || !tooltipPosition)
+            ? (() => {
+                const isMobile = window.innerWidth < 768;
+                return {
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%) scale(1)",
+                  width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
+                  maxWidth: isMobile ? "340px" : "400px",
+                  transition: "opacity 300ms ease-in-out",
+                  opacity: isTransitioning ? 0.9 : 1,
+                };
+              })()
+            : (() => {
                 const isMobile = window.innerWidth < 768;
                 const tooltipWidth = isMobile ? 340 : 400;
                 const tooltipHeight = isMobile ? 320 : 280;
@@ -1267,18 +1781,6 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   maxWidth: isMobile ? "340px" : "400px",
                   transform: "scale(1) translateY(0)",
                   transition: "top 300ms ease-in-out, left 300ms ease-in-out, opacity 300ms ease-in-out, width 300ms ease-in-out",
-                  opacity: isTransitioning ? 0.9 : 1,
-                };
-              })()
-            : (() => {
-                const isMobile = window.innerWidth < 768;
-                return {
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%) scale(1)",
-                  width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
-                  maxWidth: isMobile ? "340px" : "400px",
-                  transition: "opacity 300ms ease-in-out",
                   opacity: isTransitioning ? 0.9 : 1,
                 };
               })()
@@ -1317,6 +1819,335 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               {effectiveDescription}
             </CardDescription>
 
+            {/* Contextual helper actions for specific steps */}
+            {step.id === "account-linking" && !location.pathname.startsWith("/settings") && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    try {
+                      if (typeof window !== "undefined") {
+                        sessionStorage.setItem("tutorial_navigated_to_settings", "true");
+                      }
+                    } catch {
+                      // ignore storage errors
+                    }
+                    // Immediately hide overlay & highlight while we navigate so the transition feels smooth
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/settings");
+                  }}
+                >
+                  Go to Settings
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This will open the Settings page so you can follow Steps 2–4 to generate your PIN and link another
+                  device.
+                </p>
+              </div>
+            )}
+
+            {step.id === "account-linking" && location.pathname.startsWith("/settings") && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full rounded-xl font-medium"
+                  onClick={() => {
+                    setCurrentStep((prev) =>
+                      Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+                    );
+                  }}
+                >
+                  Go to Account
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  After you&apos;ve opened the Account tab, use the controls there to generate a 4-digit PIN and then
+                  enter it on another device to finish linking.
+                </p>
+              </div>
+            )}
+
+            {/* Header tab helper actions (navigate or trigger the highlighted item) */}
+            {step.id === "voice-amas" && location.pathname !== "/voice-amas" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/voice-amas");
+                  }}
+                >
+                  Open Voice AMAs
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This takes you straight to the Voice AMAs page the header icon is pointing to.
+                </p>
+              </div>
+            )}
+
+            {step.id === "live-rooms" && location.pathname !== "/live-rooms" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/live-rooms");
+                  }}
+                >
+                  Open Live Rooms
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Jump into the Live Rooms experience that the highlighted tab represents.
+                </p>
+              </div>
+            )}
+
+            {step.id === "communities" && location.pathname !== "/communities" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/communities");
+                  }}
+                >
+                  Open Communities
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Go directly to the Communities page shown in the header.
+                </p>
+              </div>
+            )}
+
+            {step.id === "leaderboards" && location.pathname !== "/leaderboards" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/leaderboards");
+                  }}
+                >
+                  Open Leaderboards
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  See the full leaderboards view that the header trophy icon links to.
+                </p>
+              </div>
+            )}
+
+            {step.id === "follow" && location.pathname !== "/following" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/following");
+                  }}
+                >
+                  Open Following feed
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Switch into the Following feed that matches the highlighted header tab.
+                </p>
+              </div>
+            )}
+
+            {step.id === "discovery" && location.pathname !== "/discovery" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/discovery");
+                  }}
+                >
+                  Open Discovery feed
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Open the Discovery feed that the compass icon in the header takes you to.
+                </p>
+              </div>
+            )}
+
+            {step.id === "encrypted-diary" && location.pathname !== "/diary" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/diary");
+                  }}
+                >
+                  Open Diary
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Go right into your encrypted diary from this tutorial step.
+                </p>
+              </div>
+            )}
+
+            {step.id === "eighteen-plus" && location.pathname !== "/18-plus" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/18-plus");
+                  }}
+                >
+                  Open 18+ section
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Navigate to the dedicated 18+ area linked from the header when it&apos;s enabled.
+                </p>
+              </div>
+            )}
+
+            {step.id === "saved-clips" && location.pathname !== "/saved" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/saved");
+                  }}
+                >
+                  Open Saved clips
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Jump straight to your Saved clips page from here.
+                </p>
+              </div>
+            )}
+
+            {step.id === "my-recordings" && location.pathname !== "/my-recordings" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/my-recordings");
+                  }}
+                >
+                  Open My Recordings
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Go directly to the My Recordings page that the mic header icon represents.
+                </p>
+              </div>
+            )}
+
+            {step.id === "settings" && !location.pathname.startsWith("/settings") && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    setHighlightRect(null);
+                    setTargetElement(null);
+                    setTooltipPosition(null);
+                    setIsManualRouteChange(true);
+                    navigate("/settings");
+                  }}
+                >
+                  Open Settings
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Follow the highlighted Settings icon to customize your profile and preferences.
+                </p>
+              </div>
+            )}
+
+            {step.id === "notifications" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    // Trigger the existing Notifications button so its own logic runs
+                    const notifButton = document.querySelector(
+                      'button[aria-label="Notifications"]'
+                    ) as HTMLButtonElement | null;
+                    if (notifButton) {
+                      notifButton.click();
+                    }
+                  }}
+                >
+                  Open Notifications
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This clicks the bell icon for you so you can see how notifications appear.
+                </p>
+              </div>
+            )}
+
+            {step.id === "keyboard-shortcuts" && (
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="default"
+                  className="w-full rounded-xl font-medium shadow-sm hover:shadow-md transition-all"
+                  onClick={() => {
+                    // Trigger the Keyboard Shortcuts button in the header
+                    const shortcutsButton = document.querySelector(
+                      'button[aria-label="Keyboard shortcuts"]'
+                    ) as HTMLButtonElement | null;
+                    if (shortcutsButton) {
+                      shortcutsButton.click();
+                    }
+                  }}
+                >
+                  Open keyboard shortcuts
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  This opens the Keyboard Shortcuts dialog so you can see all the keys in action.
+                </p>
+              </div>
+            )}
+
             {step.id === "feed-sorting" && feedSortingState === "for_you" && (
               <div className="mt-1 p-3 rounded-xl border border-primary/40 bg-primary/5 text-sm text-foreground/90">
                 <p className="font-medium mb-1">For You feed</p>
@@ -1345,16 +2176,20 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Previous
               </Button>
-              <Button
-                onClick={handleNext}
-                disabled={isTransitioning || isNavigatingRef.current}
-                className="flex-1 rounded-xl font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50"
-              >
-                {currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started" : "Next"}
-                {currentStep < TUTORIAL_STEPS.length - 1 && (
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                )}
-              </Button>
+              {/* On Link Your Account step inside Settings, hide the Next button
+                  so users use "Go to Account" + subsequent steps instead. */}
+              {!(step.id === "account-linking" && location.pathname.startsWith("/settings")) && (
+                <Button
+                  onClick={handleNext}
+                  disabled={isTransitioning || isNavigatingRef.current}
+                  className="flex-1 rounded-xl font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+                >
+                  {currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started" : "Next"}
+                  {currentStep < TUTORIAL_STEPS.length - 1 && (
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  )}
+                </Button>
+              )}
             </div>
             <Button
               variant="ghost"

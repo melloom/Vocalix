@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { useAuth } from "@/context/AuthContext";
 import { useCallback } from "react";
+import { InteractiveTutorial } from "./InteractiveTutorial";
 
 /**
  * Layout component that ensures auth is initialized before rendering child routes
@@ -63,6 +64,13 @@ export const AuthenticatedLayout = () => {
             </div>
             <PageFooter />
           </div>
+          {/* Global interactive tutorial overlay - persists across routes */}
+          {/* Global interactive tutorial overlay - persists across routes */}
+          <InteractiveTutorial
+            onComplete={() => {
+              // No-op for now; tutorial completion is tracked in localStorage
+            }}
+          />
           <MiniPlayer />
           <BottomNavigation />
         </AudioPlayerProvider>

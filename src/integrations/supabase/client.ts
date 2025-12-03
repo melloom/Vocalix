@@ -244,6 +244,31 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
         // Don't include credentials for Supabase API calls (causes CORS issues)
         // Supabase uses localStorage for auth, not cookies
         
+        // In local development, avoid noisy device/RPC calls that often hit CORS
+        // limits or require production-locked policies. Instead, short-circuit
+        // these specific endpoints with synthetic successful responses.
+        if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+          const isDevicesEndpoint = urlString.includes("/rest/v1/devices");
+          const isDeviceRpc =
+            urlString.includes("/rest/v1/rpc/update_current_device_user_agent") ||
+            urlString.includes("/rest/v1/rpc/get_user_devices") ||
+            urlString.includes("/rest/v1/rpc/record_failed_auth");
+
+          if (isDevicesEndpoint) {
+            return new Response(JSON.stringify([]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+
+          if (isDeviceRpc) {
+            return new Response(JSON.stringify([]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        }
+
         // Suppress 404 errors for create_session RPC calls (PostgREST cache issue)
         const isCreateSessionRpc = urlString.includes("/rest/v1/rpc/create_session");
         if (isCreateSessionRpc && missingRpcFunctions.has("create_session")) {
