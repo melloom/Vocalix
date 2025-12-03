@@ -1183,7 +1183,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Main Content Area - Sections */}
-          <div className="space-y-4 lg:space-y-3 text-center lg:text-left relative z-10 lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="relative z-10 lg:max-h-[calc(100vh-120px)]">
+            {/* Fade-out gradient overlay at bottom */}
+            <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-20" />
+            
+            {/* Scrollable content */}
+            <div className="space-y-4 lg:space-y-3 text-center lg:text-left lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth">
             {/* Mobile: Show all sections in order */}
             <div className="lg:hidden space-y-6">
               {/* Mobile Overview */}
@@ -2169,6 +2174,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* Right side - Clean modern form */}
@@ -2370,6 +2376,68 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           Cookie Policy
         </Link>
       </div>
+
+      {/* Desktop Footer - Small, Sleek */}
+      <footer className="hidden md:flex fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-b from-transparent via-slate-950/80 to-slate-950/95 backdrop-blur-sm border-t border-red-800/20">
+        <div className="max-w-7xl mx-auto w-full px-6 py-2.5">
+          <div className="flex items-center justify-between">
+            {/* Logo & Name */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-md bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                <MessageCircle className="h-3.5 w-3.5 text-red-400" />
+              </div>
+              <span className="text-xs font-semibold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">
+                Vocalix
+              </span>
+            </div>
+            
+            {/* Doc Links */}
+            <div className="flex items-center gap-2 text-[10px] text-gray-400/70">
+              <Link
+                to="/faq"
+                className="hover:text-red-400 transition-colors"
+              >
+                FAQ
+              </Link>
+              <span className="text-gray-500/40">•</span>
+              <Link
+                to="/privacy"
+                className="hover:text-red-400 transition-colors"
+              >
+                Privacy
+              </Link>
+              <span className="text-gray-500/40">•</span>
+              <Link
+                to="/terms"
+                className="hover:text-red-400 transition-colors"
+              >
+                Terms
+              </Link>
+              <span className="text-gray-500/40">•</span>
+              <Link
+                to="/cookies"
+                className="hover:text-red-400 transition-colors"
+              >
+                Cookies
+              </Link>
+              <span className="text-gray-500/40">•</span>
+              <Link
+                to="/content-policy"
+                className="hover:text-red-400 transition-colors"
+              >
+                Content
+              </Link>
+              <span className="text-gray-500/40">•</span>
+              <Link
+                to="/dmca"
+                className="hover:text-red-400 transition-colors"
+              >
+                DMCA
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
     );
   } catch (error: any) {

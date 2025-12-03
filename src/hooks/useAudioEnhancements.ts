@@ -36,6 +36,14 @@ export const useAudioEnhancements = (audioElementRef: React.RefObject<HTMLAudioE
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       audioContextRef.current = new AudioContextClass();
       
+      // Resume if suspended (after user interaction)
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch((err) => {
+          // Ignore resume errors - context will work when user interacts
+          console.debug('[useAudioEnhancements] AudioContext resume deferred:', err);
+        });
+      }
+      
       sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioElement);
       gainNodeRef.current = audioContextRef.current.createGain();
       analyserRef.current = audioContextRef.current.createAnalyser();

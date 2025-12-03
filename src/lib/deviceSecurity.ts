@@ -99,12 +99,26 @@ export function generateDeviceFingerprint(): string {
       }) || canvas.getContext("experimental-webgl");
       if (gl) {
         const webGLComponents: string[] = [];
-        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-        if (debugInfo) {
-          const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-          webGLComponents.push(vendor || "");
-          webGLComponents.push(renderer || "");
+        // Try modern approach first (Firefox recommended)
+        try {
+          // Use RENDERER directly if available (Firefox's recommended approach)
+          const renderer = gl.getParameter(gl.RENDERER);
+          const vendor = gl.getParameter(gl.VENDOR);
+          if (renderer) webGLComponents.push(String(renderer));
+          if (vendor) webGLComponents.push(String(vendor));
+        } catch {
+          // Fallback to extension for older browsers
+          try {
+            const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+            if (debugInfo) {
+              const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+              const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+              if (vendor) webGLComponents.push(String(vendor));
+              if (renderer) webGLComponents.push(String(renderer));
+            }
+          } catch {
+            // Ignore if extension not available
+          }
         }
         // Get WebGL parameters
         const params = [

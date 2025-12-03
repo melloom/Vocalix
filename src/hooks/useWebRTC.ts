@@ -52,9 +52,20 @@ export const useWebRTC = ({ roomId, profileId, isSpeaker, enabled = true }: UseW
 
       setLocalStream(stream);
 
-      // Create audio context for speaking detection
+      // Create audio context for speaking detection (in suspended state)
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       audioContextRef.current = new AudioContextClass();
+      
+      // Resume if suspended (after user interaction)
+      if (audioContextRef.current.state === 'suspended') {
+        try {
+          await audioContextRef.current.resume();
+        } catch (err) {
+          // Ignore resume errors - context will work when user interacts
+          console.debug('[useWebRTC] AudioContext resume deferred:', err);
+        }
+      }
+      
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;

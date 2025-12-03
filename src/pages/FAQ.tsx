@@ -616,15 +616,15 @@ export default function FAQ() {
           </div>
         </Card>
 
-        {/* Category Tabs - Compact */}
-        <div className="overflow-x-auto pb-2">
+        {/* Category Tabs - Scrollable */}
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-            <TabsList className="w-full justify-start h-auto p-1 bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/20 rounded-lg">
-              {categories.slice(0, 8).map((category) => (
+            <TabsList className="inline-flex justify-start h-auto p-1 bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/20 rounded-lg min-w-max">
+              {categories.map((category) => (
                 <TabsTrigger
                   key={category}
                   value={category}
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-amber-600/20 data-[state=active]:text-white rounded-md px-3 py-1.5 text-xs whitespace-nowrap text-gray-300 hover:text-white transition-all"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-amber-600/20 data-[state=active]:text-white rounded-md px-3 py-1.5 text-xs whitespace-nowrap text-gray-300 hover:text-white transition-all flex-shrink-0"
                 >
                   {category}
                   <Badge variant="outline" className="ml-1.5 text-[10px] border-red-700/30 text-gray-400 data-[state=active]:text-red-400 px-1 py-0">
@@ -782,7 +782,7 @@ export default function FAQ() {
           </Card>
         )}
 
-        {/* Help Section - Compact */}
+        {/* Help Section - All Docs */}
         <Card className="p-4 rounded-xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/30">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
@@ -791,7 +791,7 @@ export default function FAQ() {
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm mb-1 text-white">Still need help?</h3>
+              <h3 className="font-semibold text-sm mb-2 text-white">Still need help?</h3>
               <div className="flex flex-wrap gap-1.5">
                 <Button 
                   variant="outline" 
@@ -810,6 +810,42 @@ export default function FAQ() {
                 >
                   <Settings className="h-3 w-3 mr-1" />
                   Settings
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/privacy")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
+                >
+                  <Shield className="h-3 w-3 mr-1" />
+                  Privacy
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/terms")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Terms
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/cookies")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
+                >
+                  <Lock className="h-3 w-3 mr-1" />
+                  Cookies
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/content-policy")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
+                >
+                  <Scale className="h-3 w-3 mr-1" />
+                  Content
                 </Button>
                 <Button 
                   variant="outline" 
