@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
+import { memo } from "react";
 
 /**
  * Footer component with legal links
  * Shows at bottom of page content on mobile (not fixed)
  * Hidden on desktop (desktop has footer in BottomNavigation)
  */
-export const PageFooter = () => {
+export const PageFooter = memo(() => {
   return (
     <footer className="md:hidden py-6 px-4 border-t border-border mt-auto">
       <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
@@ -32,5 +33,7 @@ export const PageFooter = () => {
       </div>
     </footer>
   );
-};
+});
+
+PageFooter.displayName = "PageFooter";
 

@@ -507,6 +507,8 @@ export default function FAQ() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Check if we have a search query from navigation state or URL params
   useEffect(() => {
@@ -561,6 +563,17 @@ export default function FAQ() {
     });
     return counts;
   }, []);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredFAQs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFAQs = filteredFAQs.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search or category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black pb-24">

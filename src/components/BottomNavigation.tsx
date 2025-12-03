@@ -2,12 +2,13 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, Search, Mic, Bookmark, User, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
+import { memo } from "react";
 
 /**
  * Mobile-first bottom navigation bar
  * Only visible on mobile devices (hidden on desktop)
  */
-export const BottomNavigation = () => {
+export const BottomNavigation = memo(() => {
   const location = useLocation();
   const { profile } = useProfile();
 
@@ -123,7 +124,7 @@ export const BottomNavigation = () => {
       </nav>
 
       {/* Desktop Footer with Links - Visible on desktop only, positioned lower */}
-      <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border">
+      <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border pointer-events-auto">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex flex-col items-center gap-2">
             {/* FAQ Link */}
@@ -176,5 +177,7 @@ export const BottomNavigation = () => {
       </footer>
     </>
   );
-};
+});
+
+BottomNavigation.displayName = "BottomNavigation";
 
