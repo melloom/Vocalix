@@ -109,10 +109,10 @@ export function generateDeviceFingerprint(): string {
         } catch {
           // Fallback to extension for older browsers
           try {
-            const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-            if (debugInfo) {
-              const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-              const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+        if (debugInfo) {
+          const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
               if (vendor) webGLComponents.push(String(vendor));
               if (renderer) webGLComponents.push(String(renderer));
             }

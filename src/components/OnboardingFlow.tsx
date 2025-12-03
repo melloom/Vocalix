@@ -197,6 +197,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview"]));
   const scrollableContentRef = useRef<HTMLDivElement>(null);
+  const [selectedQuickQuestion, setSelectedQuickQuestion] = useState<string | null>(null);
   
   // Scroll to top when section changes
   useEffect(() => {
@@ -2123,28 +2124,40 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   {/* Quick Questions Grid */}
                   <div className="p-4">
                     <div className="grid grid-cols-2 gap-2.5 mb-3">
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
+                      <div 
+                        onClick={() => setSelectedQuickQuestion(selectedQuickQuestion === "anonymous" ? null : "anonymous")}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group"
+                      >
                         <Shield className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
                           <p className="text-[10px] font-semibold text-white">Anonymous?</p>
                           <p className="text-[9px] text-gray-400">No email needed</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
+                      <div 
+                        onClick={() => setSelectedQuickQuestion(selectedQuickQuestion === "clip-length" ? null : "clip-length")}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group"
+                      >
                         <Headphones className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
                           <p className="text-[10px] font-semibold text-white">Clip Length?</p>
                           <p className="text-[9px] text-gray-400">30s or 10min</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
+                      <div 
+                        onClick={() => setSelectedQuickQuestion(selectedQuickQuestion === "how-to-record" ? null : "how-to-record")}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group"
+                      >
                         <Mic className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
                           <p className="text-[10px] font-semibold text-white">How to Record?</p>
                           <p className="text-[9px] text-gray-400">Tap & hold mic</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
+                      <div 
+                        onClick={() => setSelectedQuickQuestion(selectedQuickQuestion === "live-rooms" ? null : "live-rooms")}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group"
+                      >
                         <Radio className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
                           <p className="text-[10px] font-semibold text-white">Live Rooms?</p>
@@ -2152,6 +2165,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Expanded Answer Popup */}
+                    {selectedQuickQuestion && (
+                      <div className="mb-3 p-3 rounded-lg bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-950/50 border border-red-700/30 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="text-xs font-bold text-white">
+                            {selectedQuickQuestion === "anonymous" && "Is Vocalix really anonymous?"}
+                            {selectedQuickQuestion === "clip-length" && "How long can my voice clips be?"}
+                            {selectedQuickQuestion === "how-to-record" && "How do I record a voice clip?"}
+                            {selectedQuickQuestion === "live-rooms" && "What are Live Rooms?"}
+                          </h4>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedQuickQuestion(null)}
+                            className="h-5 w-5 text-gray-400 hover:text-white"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-gray-300 leading-relaxed">
+                          {selectedQuickQuestion === "anonymous" && "Yes! We don't require any personal information. No email, no phone number, no real name. You create an account with just a handle and an avatar. Your device ID is used for authentication, but it's not linked to any personal data. You're as anonymous as you want to be."}
+                          {selectedQuickQuestion === "clip-length" && "Regular voice clips are limited to 30 seconds—perfect for quick thoughts, reactions, or brief stories. For longer content, you can use Podcast Mode which allows up to 10-minute segments. This keeps the feed dynamic while still allowing for deeper conversations when needed."}
+                          {selectedQuickQuestion === "how-to-record" && "Click the microphone button in the bottom navigation or use the 'Record' button on the home page. Grant microphone permissions when prompted, then tap and hold the record button to start recording. Release to stop. You can preview your clip, add a title, select a mood emoji, and add tags before publishing."}
+                          {selectedQuickQuestion === "live-rooms" && "Live Rooms are real-time audio discussion spaces where you can join conversations with other users. There are three roles: Hosts (room creators who manage the room), Speakers (who can talk), and Viewers (who can listen but not speak). Think of it like Clubhouse or Twitter Spaces, but built for Vocalix."}
+                        </p>
+                      </div>
+                    )}
                     
                     {/* Popular Questions */}
                     <div className="space-y-2 mb-3">
