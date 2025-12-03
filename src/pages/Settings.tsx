@@ -216,15 +216,16 @@ const Settings = () => {
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "general");
 
-  // Update tab when URL param changes
+  // Update tab when URL param changes - ensure "general" is default
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
-    } else if (!tabFromUrl && activeTab !== "general") {
-      // If no tab in URL but we have an active tab, update URL to preserve it
-      setSearchParams({ tab: activeTab });
+    } else if (!tabFromUrl) {
+      // If no tab in URL, default to "general" and update URL
+      setActiveTab("general");
+      setSearchParams({ tab: "general" }, { replace: true });
     }
-  }, [tabFromUrl, activeTab]);
+  }, [tabFromUrl]);
 
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -881,8 +882,8 @@ const Settings = () => {
     if (!magicLinkUrl || !canNativeShare) return;
     try {
       await (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share?.({
-        title: "Echo Garden login link",
-        text: "Tap this link to sign back in to Echo Garden.",
+        title: "Echo Chamber login link",
+        text: "Tap this link to sign back in to Echo Chamber.",
         url: magicLinkUrl,
       });
     } catch (error) {
@@ -902,10 +903,10 @@ const Settings = () => {
     if (!magicLinkUrl) return;
     const trimmedEmail = magicLinkEmail.trim();
     if (trimmedEmail.length === 0) return;
-    const subject = encodeURIComponent("Your Echo Garden login link");
+    const subject = encodeURIComponent("Your Echo Chamber login link");
     const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
     const body = encodeURIComponent(
-      `Use this link to sign back in to Echo Garden on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
+      `Use this link to sign back in to Echo Chamber on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
     );
     window.open(`mailto:${trimmedEmail}?subject=${subject}&body=${body}`, "_blank");
   };
@@ -963,10 +964,10 @@ const Settings = () => {
       });
       return;
     }
-    const subject = encodeURIComponent("Echo Garden Login Link - For Your Other Device");
+    const subject = encodeURIComponent("Echo Chamber Login Link - For Your Other Device");
     const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
     const body = encodeURIComponent(
-      `Hi,\n\nHere's your Echo Garden login link for signing in on another device:\n\n${magicLinkUrl}${expiryLine}\n\nOpen this link on your other device to sign in automatically.\n\nYou can also scan the QR code if you saved it.`,
+      `Hi,\n\nHere's your Echo Chamber login link for signing in on another device:\n\n${magicLinkUrl}${expiryLine}\n\nOpen this link on your other device to sign in automatically.\n\nYou can also scan the QR code if you saved it.`,
     );
     window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`, "_blank");
     toast({
@@ -1327,7 +1328,7 @@ const Settings = () => {
       };
 
       // Also create a text file version
-      let textContent = `Echo Garden Transcriptions Export\n`;
+      let textContent = `Echo Chamber Transcriptions Export\n`;
       textContent += `Exported: ${transcriptsData.exported_at}\n`;
       textContent += `Profile: ${profile.handle}\n`;
       textContent += `Total Transcripts: ${clips.length}\n`;
@@ -1582,18 +1583,34 @@ const Settings = () => {
       queryClient.removeQueries({ queryKey: ["profile"] });
       queryClient.clear(); // Clear all cached data
 
-      toast({
-        title: keepContentOnDelete ? "Account anonymized" : "Account deleted",
-        description: keepContentOnDelete
-          ? "Your account has been anonymized. Your content remains but is no longer associated with you."
-          : "Thanks for trying Echo Garden. You're welcome back anytime.",
-      });
+      // Show goodbye message before redirecting
+      const goodbyeMessage = keepContentOnDelete
+        ? "Your account has been anonymized. Your content remains but is no longer associated with you."
+        : "Your account has been deleted. Thanks for being part of Echo Chamber. You're welcome back anytime! 👋";
+      
+      // Show goodbye message in a dialog
+      alert(goodbyeMessage);
+
+      // Sign out from Supabase auth (force logout)
+      try {
+        await supabase.auth.signOut();
+      } catch (authError) {
+        console.warn("Error signing out from auth:", authError);
+      }
+
+      // Clear all auth-related localStorage
+      localStorage.clear();
+      
+      // Clear sessionStorage as well
+      try {
+        sessionStorage.clear();
+      } catch (e) {
+        // Ignore sessionStorage errors
+      }
 
       // Force a full page reload to completely reset the app state
       // This ensures all context, state, and cookies are properly cleared
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1000); // Small delay to show the toast message
+      window.location.href = "/";
     } catch (error) {
       logError("Failed to delete account", error);
       toast({
@@ -2914,7 +2931,7 @@ const Settings = () => {
               <div>
                 <p className="font-medium">Interactive Tutorial</p>
                 <p className="text-sm text-muted-foreground">
-                  Restart the interactive tutorial to learn how to use Echo Garden.
+                  Restart the interactive tutorial to learn how to use Echo Chamber.
                 </p>
               </div>
               <Button
@@ -3037,7 +3054,7 @@ const Settings = () => {
               <AlertDialogDescription asChild>
                 <div className="space-y-4 pt-1">
                   <p className="text-sm text-muted-foreground">
-                    This PIN lets you log in with your Echo Garden name on any device. It&apos;s
+                    This PIN lets you log in with your Echo Chamber name on any device. It&apos;s
                     separate from the one-time device linking PIN above.
                   </p>
                   <div className="space-y-3">

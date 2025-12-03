@@ -1,6 +1,6 @@
 {
-  "name": "Echo Garden - Voice Notes & Audio Clips",
-  "short_name": "Echo Garden",
+  "name": "Echo Chamber - Voice Notes & Audio Clips",
+  "short_name": "Echo Chamber",
   "description": "Capture and share meaningful voice notes. Listen to audio clips, join conversations, and discover new voices.",
   "start_url": "/",
   "scope": "/",

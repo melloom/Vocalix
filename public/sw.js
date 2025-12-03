@@ -441,7 +441,7 @@ self.addEventListener("message", (event) => {
 // Push notification event handler
 self.addEventListener("push", (event) => {
   let notificationData = {
-    title: "Echo Garden",
+    title: "Echo Chamber",
     body: "You have a new notification",
     icon: "/favicon.ico",
     badge: "/favicon.ico",

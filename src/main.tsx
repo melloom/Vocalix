@@ -428,13 +428,13 @@ const initApp = () => {
   console.log("[App] Root innerHTML length:", rootElement.innerHTML.length);
   
   // IMMEDIATELY clear the loading screen HTML - don't wait
-  // This prevents the "Loading Echo Garden" screen from staying visible
+  // This prevents the "Loading Echo Chamber" screen from staying visible
   const loadingScreenEl = rootElement.querySelector('#loading-screen');
   if (loadingScreenEl) {
     console.log("[App] Found loading-screen element, removing it...");
     loadingScreenEl.remove();
   }
-  if (rootElement.innerHTML.includes('Loading Echo Garden')) {
+  if (rootElement.innerHTML.includes('Loading Echo Chamber')) {
     console.log("[App] Clearing loading screen HTML immediately...");
     rootElement.innerHTML = '';
   }

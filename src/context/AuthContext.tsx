@@ -336,6 +336,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     refetchOnMount: false,
   });
 
+  // CRITICAL: If profile query completes and returns null, clear profileId and force redirect
+  useEffect(() => {
+    // Only check if query is enabled and has finished loading
+    const queryEnabled = (!!userId || !!deviceId) && isInitialized;
+    if (queryEnabled && !isProfileLoading && profile === null && profileId) {
+      console.warn('[AuthContext] Profile is null after loading - clearing profileId and redirecting to onboarding');
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+      setProfileId(null);
+      // Force redirect to home which will show onboarding
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
+  }, [profile, isProfileLoading, profileId, userId, deviceId, isInitialized]);
+
   // Debug: Log when query enabled condition changes
   useEffect(() => {
     const queryEnabled = (!!userId || !!deviceId) && isInitialized;

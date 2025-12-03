@@ -1140,7 +1140,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 </div>
                 
                 {[
-                  { id: "overview", label: "Overview", icon: Radio },
+                  { id: "overview", label: "Welcome", icon: Radio },
                   { id: "what-is", label: "What is Echo Chamber?", icon: Mic },
                   { id: "how-it-works", label: "How It Works", icon: Zap },
                   { id: "why", label: "Why Echo Chamber?", icon: HelpCircle },
@@ -1186,19 +1186,57 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             {/* Mobile: Show all sections in order */}
             <div className="lg:hidden space-y-6">
               {/* Mobile Overview */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white dark:text-white leading-tight drop-shadow-lg">
-                    Join The
-                    <span className="block bg-gradient-to-r from-red-500 via-red-400 to-amber-500 dark:from-red-400 dark:via-red-300 dark:to-amber-400 bg-clip-text text-transparent">
-                      Echo Chamber
-                    </span>
-                  </h1>
+              <div className="space-y-4">
+              <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-20 h-20 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <Radio className="h-5 w-5 text-red-400 animate-pulse" />
+                      </div>
+                      <Badge className="bg-gradient-to-r from-red-600/20 to-amber-600/20 border-red-500/30 text-red-300 font-bold px-3 py-1 text-xs">
+                        Audio-First
+                      </Badge>
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white dark:text-white leading-[1.1] mb-3">
+                      <span className="block">Your Voice,</span>
+                      <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent">
+                        Unfiltered & Free
+                  </span>
+                </h1>
+                    <p className="text-base text-gray-300 dark:text-gray-300 leading-relaxed font-bold">
+                      The underground platform where <span className="text-red-400">voice is everything</span>. Speak your mind, stay anonymous, build real connections.
+              </p>
+                  </div>
+            </div>
+
+                {/* Mobile Value Props */}
+                <div className="grid grid-cols-1 gap-3 pt-2">
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/40 to-red-900/30 dark:from-red-950/30 dark:to-red-900/20 p-4 border border-red-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 flex items-center justify-center">
+                        <Mic className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white mb-1">30-Second Clips</h3>
+                        <p className="text-xs text-gray-300 leading-relaxed">Quick thoughts, instant reactions. Record in seconds.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-gradient-to-br from-amber-950/40 to-amber-900/30 dark:from-amber-950/30 dark:to-amber-900/20 p-4 border border-amber-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 flex items-center justify-center">
+                        <Shield className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-white mb-1">100% Anonymous</h3>
+                        <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name required.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-base text-gray-200 dark:text-gray-200 max-w-2xl mx-auto leading-relaxed font-semibold">
-                  Create your identity. Speak your mind. Stay anonymous. Your voice, your rules.
-                </p>
-              </div>
+            </div>
 
               {/* Mobile: What is Echo Chamber */}
               <div className="prose dark:prose-invert max-w-none">
@@ -1231,7 +1269,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     <li key={index} className="flex items-start gap-2 font-medium">
                       <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
                       <span>{item}</span>
-                    </li>
+                  </li>
                   ))}
                 </ul>
               </div>
@@ -1241,34 +1279,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 <AccordionItem value="why-mobile" className="border-red-900/20 dark:border-red-800/10">
                   <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-2 text-lg">
                     <div className="flex items-center gap-2">
-                      <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
-                      Why Echo Chamber?
+                  <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
+                  Why Echo Chamber?
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4 pt-2">
                       {/* Include all the "Why" content here */}
-                      <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                        <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-red-400" />
-                          Privacy First
-                        </h4>
-                        <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                          <li className="flex items-start gap-2">
-                            <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                            <span><strong>No email required</strong> - Create an account with just a handle</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                            <span><strong>Fully anonymous</strong> - No real names, no personal info collected</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                            <span><strong>Device-based authentication</strong> - Your device is your key</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
+                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-red-400" />
+                      Privacy First
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>No email required</strong> - Create an account with just a handle</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Fully anonymous</strong> - No real names, no personal info collected</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
+                        <span><strong>Device-based authentication</strong> - Your device is your key</span>
+                      </li>
+                    </ul>
+                  </div>
+                  </div>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -1315,355 +1353,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
               {/* Mobile: Example Handles */}
               <div className="space-y-3">
-                <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  Get Inspired - Popular Handles
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { handle: "DeepVoice42", avatar: 'avatar1' as AvatarType },
-                    { handle: "SmoothEcho89", avatar: 'avatar2' as AvatarType },
-                    { handle: "RawTone23", avatar: 'avatar3' as AvatarType },
-                    { handle: "CoolWave56", avatar: 'avatar4' as AvatarType },
-                    { handle: "CrispSignal12", avatar: 'avatar5' as AvatarType },
-                    { handle: "WarmBeat78", avatar: 'avatar6' as AvatarType },
-                  ].map((example) => (
-                    <button
-                      key={example.handle}
-                      type="button"
-                      onClick={() => {
-                        setHandle(example.handle);
-                        setSelectedAvatar(example.avatar);
-                      }}
-                      className="group flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-4 transition-all duration-300 hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40"
-                    >
-                      <AvatarIcon 
-                        type={example.avatar}
-                        className="w-12 h-12 group-hover:scale-110 transition-transform duration-300"
-                      />
-                      <span className="text-xs font-semibold text-gray-200 dark:text-gray-200 group-hover:text-white transition-colors">
-                        @{example.handle}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Mobile: FAQ */}
-              <div className="space-y-3">
-                <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
-                  <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  Frequently Asked Questions
-                </h3>
-                <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 overflow-hidden">
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-4">
-                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                        Is it really anonymous?
-                      </AccordionTrigger>
-                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                        Yes! We don't require any personal information. No email, no phone number, no real name.
-                      </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-4">
-                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                        How long are clips?
-                      </AccordionTrigger>
-                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                        Regular voice clips are limited to 30 seconds. Podcast Mode allows up to 10-minute segments.
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
-              </div>
-            </div>
-
-            {/* Desktop: Section-based navigation */}
-            {/* Overview Section */}
-            {activeSection === "overview" && loadedSections.has("overview") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <div className="space-y-3">
-                  <div className="relative">
-                    <h1 className="text-4xl sm:text-5xl lg:text-5xl font-extrabold tracking-tight text-white dark:text-white leading-tight drop-shadow-lg">
-                      Join The
-                      <span className="block bg-gradient-to-r from-red-500 via-red-400 to-amber-500 dark:from-red-400 dark:via-red-300 dark:to-amber-400 bg-clip-text text-transparent">
-                        Echo Chamber
-                      </span>
-                    </h1>
-                  </div>
-                  <p className="text-base lg:text-sm text-gray-200 dark:text-gray-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-semibold">
-                    Create your identity. Speak your mind. Stay anonymous. Your voice, your rules.
-                  </p>
-                </div>
-
-                {/* Privacy & Security Badges */}
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 pt-2">
-                  <Badge 
-                    variant="outline" 
-                    className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
-                  >
-                    <MailX className="h-4 w-4 mr-2 text-red-400" />
-                    No Email Required
-                  </Badge>
-                  <Badge 
-                    variant="outline" 
-                    className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
-                  >
-                    <UserX className="h-4 w-4 mr-2 text-red-400" />
-                    Anonymous
-                  </Badge>
-                  <Badge 
-                    variant="outline" 
-                    className="border-red-800/30 dark:border-red-700/20 bg-red-950/30 dark:bg-red-950/25 text-gray-200 dark:text-gray-200 hover:bg-red-950/40 dark:hover:bg-red-950/35 px-4 py-2 text-sm font-semibold"
-                  >
-                    <Smartphone className="h-4 w-4 mr-2 text-red-400" />
-                    Device-Based Auth
-                  </Badge>
-                </div>
-              </div>
-            )}
-
-            {/* What is Echo Chamber Section */}
-            {activeSection === "what-is" && loadedSections.has("what-is") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <div className="prose dark:prose-invert max-w-none">
-                  <h3 className="text-2xl lg:text-3xl font-bold text-white dark:text-white mb-4 flex items-center gap-2">
-                    <Mic className="h-6 w-6 lg:h-7 lg:w-7 text-red-400 dark:text-red-400" />
-                    What is The Echo Chamber?
-                  </h3>
-                  <p className="text-base lg:text-sm text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                    The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your voice and handle show.
-                  </p>
-                  <p className="text-base lg:text-sm text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                    Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. No BS, no filters—just raw voice in an underground community built for authentic expression.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* How It Works Section */}
-            {activeSection === "how-it-works" && loadedSections.has("how-it-works") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20">
-                  <h4 className="font-bold text-white dark:text-white mb-4 flex items-center gap-2 text-xl">
-                    <Radio className="h-5 w-5 text-red-400 dark:text-red-400" />
-                    How It Works
-                  </h4>
-                  <ul className="space-y-3 text-sm text-gray-200 dark:text-gray-200">
-                    {[
-                      "Record 30-second clips or 10-minute podcast segments",
-                      "React with emojis or 3-5 second voice reactions",
-                      "Reply with voice, create remixes, or continue chains",
-                      "AI moderation keeps it real—trolls get filtered out",
-                      "Stay anonymous—no personal info required, ever"
-                    ].map((item, index) => (
-                      <li key={index} className="flex items-start gap-2 font-medium">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* Why Echo Chamber Section */}
-            {activeSection === "why" && loadedSections.has("why") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <div className="prose dark:prose-invert max-w-none">
-                  <h3 className="text-2xl lg:text-3xl font-bold text-white dark:text-white mb-4 flex items-center gap-2">
-                    <HelpCircle className="h-6 w-6 lg:h-7 lg:w-7 text-red-400 dark:text-red-400" />
-                    Why Echo Chamber?
-                  </h3>
-                  
-                  <div className="space-y-4">
-                  {/* Privacy Highlights */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-red-400" />
-                      Privacy First
-                    </h4>
-                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>No email required</strong> - Create an account with just a handle</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Fully anonymous</strong> - No real names, no personal info collected</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Device-based authentication</strong> - Your device is your key</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Voice-First Benefits */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                      <Mic className="h-4 w-4 text-red-400" />
-                      Voice-First Benefits
-                    </h4>
-                    <p className="text-sm text-gray-200 dark:text-gray-200 mb-3">
-                      Voice captures emotion, tone, and nuance that text can't. Express yourself authentically without the limitations of typing.
-                    </p>
-                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span>Express emotion and tone naturally</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span>Faster communication - speak faster than you type</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span>More authentic conversations and connections</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Community Values */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                      <Users className="h-4 w-4 text-red-400" />
-                      Community Values
-                    </h4>
-                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Raw and real</strong> - No filters, no polish required</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Respectful discourse</strong> - AI moderation keeps it civil</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Underground vibe</strong> - Like a speakeasy for voices</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  {/* Comparison with Text Platforms */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-red-400" />
-                      Why Not Just Use Text?
-                    </h4>
-                    <div className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                      <p className="mb-2 text-white dark:text-white">
-                        Text-based platforms miss the human connection. Voice adds:
-                      </p>
-                      <ul className="space-y-2">
-                        <li className="flex items-start gap-2">
-                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                          <span><strong>Tone & emotion</strong> - Hear the real meaning behind words</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                          <span><strong>Authenticity</strong> - Less editing, more genuine expression</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                          <span><strong>Speed</strong> - Speak faster than typing long posts</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                          <span><strong>Accessibility</strong> - Easier for those who struggle with typing</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Key Features Section */}
-            {activeSection === "features" && loadedSections.has("features") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <h3 className="text-2xl lg:text-3xl font-bold text-white dark:text-white mb-4 flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 lg:h-7 lg:w-7 text-red-400 dark:text-red-400" />
-                  Key Features
-                </h3>
-                
-                {/* Quick Feature Highlights */}
-                <div className="flex flex-wrap gap-2 pt-2 mb-6">
-                {[
-                  { icon: MessageCircle, title: "Voice Replies" },
-                  { icon: Repeat2, title: "Remixes" },
-                  { icon: Users, title: "Communities" },
-                  { icon: Radio, title: "Live Rooms" },
-                  { icon: Bookmark, title: "Collections" },
-                  { icon: TrendingUp, title: "Trending" },
-                ].map((feature) => (
-                  <div
-                    key={feature.title}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gradient-to-br from-red-950/20 to-amber-950/20 dark:from-red-950/15 dark:to-amber-950/15 text-xs text-gray-200 dark:text-gray-200"
-                  >
-                    <feature.icon className="h-3 w-3 text-red-400" />
-                    <span className="font-medium">{feature.title}</span>
-                  </div>
-                ))}
-              </div>
-
-                <div className="grid gap-4 sm:grid-cols-3 pt-2">
-                  {[
-                    { 
-                      icon: Mic, 
-                      title: "Anonymous & Raw",
-                      description: "Speak freely—your identity stays hidden, only your voice shows. No real names, no personal info—just your voice.",
-                      iconBg: "from-amber-900/50 to-amber-800/50 dark:from-amber-900/40 dark:to-amber-800/40",
-                      iconColor: "text-amber-400 dark:text-amber-400",
-                      delay: 0
-                    },
-                    { 
-                      icon: Headphones, 
-                      title: "30-Second Clips",
-                      description: "Quick hits. Record your thoughts in under 30 seconds. Podcast mode available for longer content.",
-                      iconBg: "from-red-900/50 to-red-800/50 dark:from-red-900/40 dark:to-red-800/40",
-                      iconColor: "text-red-400 dark:text-red-400",
-                      delay: 100
-                    },
-                    { 
-                      icon: Users, 
-                      title: "Real Community",
-                      description: "Communities, live rooms, series, collections. AI filters the noise. Real voices, real conversations, real connections.",
-                      iconBg: "from-amber-800/50 to-red-800/50 dark:from-amber-800/40 dark:to-red-800/40",
-                      iconColor: "text-amber-400 dark:text-amber-400",
-                      delay: 200
-                    },
-                  ].map(({ icon: Icon, title, description, iconBg, iconColor, delay }) => (
-                    <div
-                      key={title}
-                      className="group flex flex-col gap-3 rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-4 backdrop-blur-sm hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1"
-                    >
-                      <div className={`inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-white dark:text-white mb-1.5 text-base">{title}</p>
-                        <p className="text-xs text-gray-200 dark:text-gray-200 leading-relaxed font-medium">{description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Example Handles Section */}
-            {activeSection === "examples" && loadedSections.has("examples") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <h3 className="text-2xl lg:text-3xl font-bold text-white dark:text-white flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 lg:h-7 lg:w-7 text-red-400 dark:text-red-400" />
-                  Get Inspired - Popular Handles
-                </h3>
-                <p className="text-sm text-gray-300 dark:text-gray-300 mb-4">
-                  Click any handle to use it as a template for your own
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-red-400 dark:text-red-400" />
+                Get Inspired - Popular Handles
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
                   { handle: "DeepVoice42", avatar: 'avatar1' as AvatarType },
                   { handle: "SmoothEcho89", avatar: 'avatar2' as AvatarType },
@@ -1679,43 +1373,34 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       setHandle(example.handle);
                       setSelectedAvatar(example.avatar);
                     }}
-                    className="group flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-4 transition-all duration-300 hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40 dark:hover:from-red-950/35 dark:hover:to-amber-950/35 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1"
+                      className="group flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-4 transition-all duration-300 hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40"
                   >
-                    <div className="relative">
                       <AvatarIcon 
                         type={example.avatar}
                         className="w-12 h-12 group-hover:scale-110 transition-transform duration-300"
                       />
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <ArrowRight className="h-3 w-3 text-white" />
-                      </div>
-                    </div>
                     <span className="text-xs font-semibold text-gray-200 dark:text-gray-200 group-hover:text-white transition-colors">
                       @{example.handle}
                     </span>
                   </button>
                 ))}
-                </div>
               </div>
-            )}
+            </div>
 
-            {/* FAQ Section */}
-            {activeSection === "faq" && loadedSections.has("faq") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                <h3 className="text-2xl lg:text-3xl font-bold text-white dark:text-white flex items-center gap-2">
-                  <HelpCircle className="h-6 w-6 lg:h-7 lg:w-7 text-red-400 dark:text-red-400" />
-                  Frequently Asked Questions
-                </h3>
-                <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 overflow-hidden">
-                  <Accordion type="single" collapsible className="w-full">
+              {/* Mobile: FAQ */}
+              <div className="space-y-3">
+              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
+                Frequently Asked Questions
+              </h3>
+              <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 overflow-hidden">
+                <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-4">
                     <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
                       Is it really anonymous?
                     </AccordionTrigger>
                     <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
                       Yes! We don't require any personal information. No email, no phone number, no real name. 
-                      You create an account with just a handle and an avatar. Your device ID is used for authentication, 
-                      but it's not linked to any personal data. You're as anonymous as you want to be.
                     </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-4">
@@ -1723,32 +1408,813 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       How long are clips?
                     </AccordionTrigger>
                     <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                      Regular voice clips are limited to 30 seconds—perfect for quick thoughts, reactions, or brief stories. 
-                      For longer content, you can use Podcast Mode which allows up to 10-minute segments. This keeps the feed 
-                      dynamic while still allowing for deeper conversations when needed.
+                        Regular voice clips are limited to 30 seconds. Podcast Mode allows up to 10-minute segments.
                     </AccordionContent>
                   </AccordionItem>
-                  <AccordionItem value="item-3" className="border-red-900/20 dark:border-red-800/10 px-4">
-                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                      Can I delete my account?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                      Yes, absolutely. You have full control over your account and content. You can delete individual clips 
-                      at any time, or delete your entire account from the Settings page. When you delete your account, all 
-                      your clips, profile, and associated data are permanently removed from our servers.
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="item-4" className="border-red-900/20 dark:border-red-800/10 px-4">
-                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                      What happens if I lose my device?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                      Your account is tied to your device, but you can link multiple devices using the "Link Account" feature. 
-                      This allows you to access your account from different devices. If you lose your device and haven't linked 
-                      it, you'll need to create a new account, but you can always change your handle to match your previous one 
-                      if it's available.
-                    </AccordionContent>
-                  </AccordionItem>
+                </Accordion>
+              </div>
+            </div>
+            </div>
+
+            {/* Desktop: Section-based navigation */}
+            {/* Overview Section */}
+            {activeSection === "overview" && loadedSections.has("overview") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Section */}
+                <div className="space-y-4">
+                  <div className="relative">
+                    <div className="absolute -top-2 -left-2 w-20 h-20 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                    <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                          <Radio className="h-6 w-6 text-red-400 animate-pulse" />
+                        </div>
+                        <Badge className="bg-gradient-to-r from-red-600/20 to-amber-600/20 border-red-500/30 text-red-300 font-bold px-3 py-1">
+                          Audio-First Social Platform
+                        </Badge>
+                      </div>
+                      <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white dark:text-white leading-[1.1] mb-3">
+                        <span className="block">Join The</span>
+                        <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent">
+                          Echo Chamber
+                        </span>
+                      </h1>
+                      <p className="text-lg lg:text-xl text-gray-300 dark:text-gray-300 max-w-2xl leading-relaxed font-bold">
+                        The underground platform where <span className="text-red-400">voice is everything</span>. Speak your mind, stay anonymous, build real connections—no BS, no filters.
+                      </p>
+                    </div>
+                  </div>
+                  </div>
+
+                {/* Value Propositions */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 to-red-900/30 dark:from-red-950/30 dark:to-red-900/20 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Mic className="h-6 w-6 text-red-400" />
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-2">30-Second Clips</h3>
+                      <p className="text-xs text-gray-300 leading-relaxed">Quick thoughts, instant reactions. Record in seconds, share immediately.</p>
+                    </div>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/40 to-amber-900/30 dark:from-amber-950/30 dark:to-amber-900/20 p-5 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Shield className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-2">100% Anonymous</h3>
+                      <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name. Just your voice and handle.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-900/30 dark:from-red-950/30 dark:via-amber-950/30 dark:to-red-900/20 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Users className="h-6 w-6 text-red-400" />
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-2">Real Community</h3>
+                      <p className="text-xs text-gray-300 leading-relaxed">Live rooms, voice reactions, remixes, chains. AI keeps it civil.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Privacy & Security Highlights */}
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-6 border border-red-900/30">
+                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-red-400" />
+                    Privacy & Security First
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/20 to-red-500/10 flex items-center justify-center border border-red-500/20">
+                        <MailX className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">No Email Required</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">Create your account instantly with just a handle. No verification needed.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/20 to-amber-500/10 flex items-center justify-center border border-amber-500/20">
+                        <UserX className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">Fully Anonymous</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">No real names, no personal data collected. Your identity stays hidden.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/20 to-amber-600/10 flex items-center justify-center border border-red-500/20">
+                        <Smartphone className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">Device-Based Auth</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">Your device is your key. Link multiple devices for seamless access.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats / Highlights */}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-950/40 to-red-900/30 border border-red-800/30">
+                    <Zap className="h-4 w-4 text-red-400" />
+                    <span className="text-sm font-bold text-white">Instant Setup</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-950/40 to-amber-900/30 border border-amber-800/30">
+                    <Headphones className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm font-bold text-white">Voice-First</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-900/30 border border-red-800/30">
+                    <Sparkles className="h-4 w-4 text-red-400" />
+                    <span className="text-sm font-bold text-white">AI Moderation</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-950/40 to-red-950/40 border border-amber-800/30">
+                    <Globe className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm font-bold text-white">Offline Mode</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* What is Echo Chamber Section */}
+            {activeSection === "what-is" && loadedSections.has("what-is") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <Mic className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          What is <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">The Echo Chamber?</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">The audio-first revolution</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Description Card */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-950/40 via-amber-950/30 to-red-950/40 dark:from-red-950/30 dark:via-amber-950/25 dark:to-red-950/30 p-8 border border-red-800/30 shadow-xl">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -ml-32 -mb-32" />
+                  <div className="relative space-y-4">
+                    <p className="text-lg lg:text-base text-gray-200 dark:text-gray-200 leading-relaxed font-semibold">
+                      The <span className="text-red-400 font-bold">audio-first social platform</span> where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your voice and handle show.
+                    </p>
+                    <p className="text-lg lg:text-base text-gray-200 dark:text-gray-200 leading-relaxed font-semibold">
+                      Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. <span className="text-amber-400 font-bold">No BS, no filters</span>—just raw voice in an underground community built for authentic expression.
+                    </p>
+                    </div>
+                  </div>
+
+                {/* Key Differentiators */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 mb-3">
+                        <Radio className="h-5 w-5 text-red-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">Voice-Only Identity</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">No photos, no bios, no profiles. Just your voice and a handle. That's it.</p>
+                </div>
+              </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-5 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 mb-3">
+                        <Headphones className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">Audio-First Everything</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">Clips, reactions, replies, remixes—everything is voice. No typing required.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* How It Works Section */}
+            {activeSection === "how-it-works" && loadedSections.has("how-it-works") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <Zap className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          How It <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Works</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Simple, powerful, voice-first</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step-by-Step Process */}
+                <div className="space-y-4">
+                  {[
+                    {
+                      step: "1",
+                      icon: Mic,
+                      title: "Record Your Voice",
+                      description: "Hit record and speak your mind. 30-second clips for quick thoughts, or 10-minute podcast segments for deeper dives. No editing needed—just raw, authentic voice.",
+                      color: "red",
+                      gradient: "from-red-600/30 to-red-500/20",
+                      border: "border-red-800/30",
+                      hoverBorder: "hover:border-red-600/50",
+                      shadow: "hover:shadow-red-500/20"
+                    },
+                    {
+                      step: "2",
+                      icon: MessageCircle,
+                      title: "React & Engage",
+                      description: "React with emojis or 3-5 second voice reactions. Reply with your own voice clips. Create remixes. Continue conversation chains. Build on what others say.",
+                      color: "amber",
+                      gradient: "from-amber-600/30 to-amber-500/20",
+                      border: "border-amber-800/30",
+                      hoverBorder: "hover:border-amber-600/50",
+                      shadow: "hover:shadow-amber-500/20"
+                    },
+                    {
+                      step: "3",
+                      icon: Users,
+                      title: "Join Communities",
+                      description: "Find or create audio communities around topics you care about. Drop into live rooms for real-time conversations. Follow voices that resonate with you.",
+                      color: "red",
+                      gradient: "from-red-600/30 to-amber-600/20",
+                      border: "border-red-800/30",
+                      hoverBorder: "hover:border-red-600/50",
+                      shadow: "hover:shadow-red-500/20"
+                    },
+                    {
+                      step: "4",
+                      icon: Sparkles,
+                      title: "AI Keeps It Real",
+                      description: "Advanced AI moderation filters out trolls, spam, and toxic content automatically. Real voices, real conversations, real connections—without the noise.",
+                      color: "amber",
+                      gradient: "from-amber-600/30 to-red-600/20",
+                      border: "border-amber-800/30",
+                      hoverBorder: "hover:border-amber-600/50",
+                      shadow: "hover:shadow-amber-500/20"
+                    },
+                    {
+                      step: "5",
+                      icon: Shield,
+                      title: "Stay Anonymous",
+                      description: "No personal info required, ever. Your device is your key. Link multiple devices if you want. Your identity stays hidden—only your voice and handle show.",
+                      color: "red",
+                      gradient: "from-red-600/30 to-red-500/20",
+                      border: "border-red-800/30",
+                      hoverBorder: "hover:border-red-600/50",
+                      shadow: "hover:shadow-red-500/20"
+                    }
+                  ].map(({ step, icon: Icon, title, description, gradient, border, hoverBorder, shadow }, index) => (
+                    <div
+                      key={step}
+                      className={`group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 border ${border} ${hoverBorder} transition-all duration-300 hover:shadow-lg ${shadow} hover:-translate-y-1`}
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                      <div className="relative flex items-start gap-4">
+                        <div className="flex-shrink-0">
+                          <div className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${gradient} border border-red-500/20 group-hover:scale-110 transition-transform`}>
+                            <div className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-black text-red-400">
+                              {step}
+                            </div>
+                            <Icon className="h-6 w-6 text-red-400 relative z-10" />
+                          </div>
+                        </div>
+                        <div className="flex-1 pt-1">
+                          <h4 className="text-lg font-bold text-white mb-2">{title}</h4>
+                          <p className="text-sm text-gray-300 leading-relaxed">{description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Why Echo Chamber Section */}
+            {activeSection === "why" && loadedSections.has("why") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <HelpCircle className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          Why <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Echo Chamber?</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">The platform built for authentic voices</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-5">
+                  {/* Privacy First - Enhanced */}
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 to-red-900/30 dark:from-red-950/30 dark:to-red-900/20 p-6 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/20">
+                          <Shield className="h-6 w-6 text-red-400" />
+                        </div>
+                        <h4 className="text-xl font-bold text-white">Privacy First</h4>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-950/30 border border-red-800/20">
+                          <CheckCircle2 className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-white mb-1">No email required</p>
+                            <p className="text-xs text-gray-300">Create an account with just a handle. No verification, no spam.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-950/30 border border-red-800/20">
+                          <CheckCircle2 className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-white mb-1">Fully anonymous</p>
+                            <p className="text-xs text-gray-300">No real names, no personal info collected. Your identity stays hidden.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 rounded-lg bg-red-950/30 border border-red-800/20">
+                          <CheckCircle2 className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-white mb-1">Device-based authentication</p>
+                            <p className="text-xs text-gray-300">Your device is your key. Link multiple devices for seamless access.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Voice-First Benefits - Enhanced */}
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/40 to-amber-900/30 dark:from-amber-950/30 dark:to-amber-900/20 p-6 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/20">
+                          <Mic className="h-6 w-6 text-amber-400" />
+                        </div>
+                        <h4 className="text-xl font-bold text-white">Voice-First Benefits</h4>
+                      </div>
+                      <p className="text-sm text-gray-200 mb-4 leading-relaxed">
+                        Voice captures <span className="text-amber-400 font-bold">emotion, tone, and nuance</span> that text can't. Express yourself authentically without the limitations of typing.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          { title: "Natural Expression", desc: "Emotion and tone come through" },
+                          { title: "Faster Communication", desc: "Speak faster than typing" },
+                          { title: "Authentic Connections", desc: "More genuine conversations" }
+                        ].map((item, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/20">
+                            <p className="text-xs font-bold text-white mb-1">{item.title}</p>
+                            <p className="text-xs text-gray-300">{item.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Community Values - Enhanced */}
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-900/30 dark:from-red-950/30 dark:via-amber-950/30 dark:to-red-900/20 p-6 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/20">
+                          <Users className="h-6 w-6 text-red-400" />
+                        </div>
+                        <h4 className="text-xl font-bold text-white">Community Values</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {[
+                          { icon: "🎭", title: "Raw and Real", desc: "No filters, no polish required. Just authentic voice." },
+                          { icon: "🤝", title: "Respectful Discourse", desc: "AI moderation keeps it civil while preserving authenticity." },
+                          { icon: "🍸", title: "Underground Vibe", desc: "Like a speakeasy for voices—exclusive, authentic, real." }
+                        ].map((item, idx) => (
+                          <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-red-950/30 border border-red-800/20">
+                            <span className="text-2xl">{item.icon}</span>
+                            <div>
+                              <p className="text-sm font-bold text-white mb-1">{item.title}</p>
+                              <p className="text-xs text-gray-300">{item.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Why Not Text? - Enhanced */}
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/40 to-red-950/40 dark:from-amber-950/30 dark:to-red-950/30 p-6 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-red-600/20 border border-amber-500/20">
+                          <TrendingUp className="h-6 w-6 text-amber-400" />
+                        </div>
+                        <h4 className="text-xl font-bold text-white">Why Not Just Use Text?</h4>
+                      </div>
+                      <p className="text-sm text-gray-200 mb-4 leading-relaxed">
+                        Text-based platforms miss the <span className="text-amber-400 font-bold">human connection</span>. Voice adds what text can't:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[
+                          { title: "Tone & Emotion", desc: "Hear the real meaning behind words" },
+                          { title: "Authenticity", desc: "Less editing, more genuine expression" },
+                          { title: "Speed", desc: "Speak faster than typing long posts" },
+                          { title: "Accessibility", desc: "Easier for those who struggle with typing" }
+                        ].map((item) => (
+                          <div key={item.title} className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/20">
+                            <p className="text-xs font-bold text-white mb-1">{item.title}</p>
+                            <p className="text-xs text-gray-300">{item.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Key Features Section */}
+            {activeSection === "features" && loadedSections.has("features") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <Sparkles className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          Key <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Features</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Everything you need to express yourself</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Quick Feature Pills */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                {[
+                    { icon: MessageCircle, title: "Voice Replies", color: "red" },
+                    { icon: Repeat2, title: "Remixes", color: "amber" },
+                    { icon: Users, title: "Communities", color: "red" },
+                    { icon: Radio, title: "Live Rooms", color: "amber" },
+                    { icon: Bookmark, title: "Collections", color: "red" },
+                    { icon: TrendingUp, title: "Trending", color: "amber" },
+                    { icon: Search, title: "Voice Search", color: "red" },
+                    { icon: Globe, title: "Offline Mode", color: "amber" },
+                ].map((feature) => (
+                  <div
+                    key={feature.title}
+                      className={`group inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-br ${
+                        feature.color === "red" 
+                          ? "from-red-950/40 to-red-900/30 border-red-800/30 hover:border-red-600/50" 
+                          : "from-amber-950/40 to-amber-900/30 border-amber-800/30 hover:border-amber-600/50"
+                      } border transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 cursor-default`}
+                    >
+                      <feature.icon className={`h-4 w-4 ${
+                        feature.color === "red" ? "text-red-400" : "text-amber-400"
+                      } group-hover:scale-110 transition-transform`} />
+                      <span className="text-xs font-bold text-white">{feature.title}</span>
+                  </div>
+                ))}
+              </div>
+
+                {/* Main Feature Cards */}
+                <div className="grid gap-5 sm:grid-cols-3 pt-2">
+              {[
+                { 
+                  icon: Mic, 
+                  title: "Anonymous & Raw",
+                  description: "Speak freely—your identity stays hidden, only your voice shows. No real names, no personal info—just your voice.",
+                  iconBg: "from-amber-900/50 to-amber-800/50 dark:from-amber-900/40 dark:to-amber-800/40",
+                  iconColor: "text-amber-400 dark:text-amber-400",
+                      borderColor: "border-amber-800/30",
+                      hoverBorder: "hover:border-amber-600/50",
+                      shadow: "hover:shadow-amber-500/20",
+                      bgGradient: "from-amber-950/40 to-amber-900/30"
+                },
+                { 
+                  icon: Headphones, 
+                  title: "30-Second Clips",
+                      description: "Quick hits. Record your thoughts in under 30 seconds. Podcast mode available for longer content up to 10 minutes.",
+                  iconBg: "from-red-900/50 to-red-800/50 dark:from-red-900/40 dark:to-red-800/40",
+                  iconColor: "text-red-400 dark:text-red-400",
+                      borderColor: "border-red-800/30",
+                      hoverBorder: "hover:border-red-600/50",
+                      shadow: "hover:shadow-red-500/20",
+                      bgGradient: "from-red-950/40 to-red-900/30"
+                },
+                { 
+                  icon: Users, 
+                  title: "Real Community",
+                  description: "Communities, live rooms, series, collections. AI filters the noise. Real voices, real conversations, real connections.",
+                  iconBg: "from-amber-800/50 to-red-800/50 dark:from-amber-800/40 dark:to-red-800/40",
+                  iconColor: "text-amber-400 dark:text-amber-400",
+                      borderColor: "border-red-800/30",
+                      hoverBorder: "hover:border-red-600/50",
+                      shadow: "hover:shadow-red-500/20",
+                      bgGradient: "from-red-950/40 via-amber-950/40 to-red-900/30"
+                },
+                  ].map(({ icon: Icon, title, description, iconBg, iconColor, borderColor, hoverBorder, shadow, bgGradient }) => (
+                <div
+                  key={title}
+                      className={`group relative overflow-hidden flex flex-col gap-4 rounded-xl bg-gradient-to-br ${bgGradient} dark:from-red-950/30 dark:to-amber-950/30 p-5 border ${borderColor} ${hoverBorder} transition-all duration-300 hover:shadow-lg ${shadow} hover:-translate-y-1`}
+                >
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-red-500/10 transition-colors" />
+                      <div className="relative">
+                        <div className={`inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br ${iconBg} ${iconColor} shadow-lg mb-3 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                    <Icon className="h-7 w-7" />
+                        </div>
+                        <h4 className="font-black text-white dark:text-white mb-2 text-lg">{title}</h4>
+                        <p className="text-sm text-gray-300 dark:text-gray-300 leading-relaxed font-medium">{description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Additional Feature Highlights */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                  {[
+                    { icon: Radio, title: "Live Rooms", desc: "Real-time voice conversations" },
+                    { icon: Bookmark, title: "Collections", desc: "Save and organize clips" },
+                    { icon: Search, title: "Voice Search", desc: "Find by what people said" },
+                    { icon: Globe, title: "Offline Mode", desc: "Listen anywhere, anytime" },
+                  ].map((feature) => (
+                    <div
+                      key={feature.title}
+                      className="group p-4 rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 mb-2 group-hover:scale-110 transition-transform">
+                        <feature.icon className="h-5 w-5 text-red-400" />
+                      </div>
+                      <p className="text-xs font-bold text-white mb-1">{feature.title}</p>
+                      <p className="text-xs text-gray-300 leading-tight">{feature.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Example Handles Section */}
+            {activeSection === "examples" && loadedSections.has("examples") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <Users className="h-7 w-7 text-red-400" />
+                  </div>
+                  <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          Get <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Inspired</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Popular handles from the community</p>
+                  </div>
+                </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-4 border border-red-800/30">
+                  <p className="text-sm text-gray-200 leading-relaxed">
+                    <span className="text-red-400 font-bold">Click any handle</span> to use it as a template for your own. Mix and match adjectives and nouns to create something unique!
+                  </p>
+                </div>
+
+                {/* Handle Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[
+                    { handle: "DeepVoice42", avatar: 'avatar1' as AvatarType, tag: "Popular" },
+                    { handle: "SmoothEcho89", avatar: 'avatar2' as AvatarType, tag: "Trending" },
+                    { handle: "RawTone23", avatar: 'avatar3' as AvatarType, tag: "New" },
+                    { handle: "CoolWave56", avatar: 'avatar4' as AvatarType, tag: "Popular" },
+                    { handle: "CrispSignal12", avatar: 'avatar5' as AvatarType, tag: "Trending" },
+                    { handle: "WarmBeat78", avatar: 'avatar6' as AvatarType, tag: "New" },
+                  ].map((example) => (
+                    <button
+                      key={example.handle}
+                      type="button"
+                      onClick={() => {
+                        setHandle(example.handle);
+                        setSelectedAvatar(example.avatar);
+                      }}
+                      className="group relative overflow-hidden flex flex-col items-center gap-3 rounded-xl bg-gradient-to-br from-red-950/40 to-amber-950/40 dark:from-red-950/30 dark:to-amber-950/30 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-xl hover:shadow-red-500/30 hover:-translate-y-2"
+                    >
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-red-500/10 transition-colors" />
+                      <div className="absolute top-2 right-2">
+                        <Badge className={`text-[10px] px-2 py-0.5 ${
+                          example.tag === "Popular" 
+                            ? "bg-red-600/30 text-red-300 border-red-500/30" 
+                            : example.tag === "Trending"
+                            ? "bg-amber-600/30 text-amber-300 border-amber-500/30"
+                            : "bg-gray-600/30 text-gray-300 border-gray-500/30"
+                        } border font-bold`}>
+                          {example.tag}
+                        </Badge>
+                      </div>
+                      <div className="relative">
+                        <div className="relative">
+                          <AvatarIcon 
+                            type={example.avatar}
+                            className="w-16 h-16 group-hover:scale-110 transition-transform duration-300"
+                          />
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg">
+                            <ArrowRight className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <span className="text-sm font-black text-white group-hover:text-red-400 transition-colors">
+                          @{example.handle}
+                        </span>
+                        <p className="text-xs text-gray-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          Click to use
+                        </p>
+                      </div>
+                    </button>
+              ))}
+            </div>
+
+                {/* Tips */}
+                <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-red-950/30 dark:from-amber-950/25 dark:to-red-950/25 p-5 border border-amber-800/30">
+                  <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-400" />
+                    Pro Tips
+                  </h4>
+                  <ul className="space-y-2 text-xs text-gray-300">
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-1 font-bold">•</span>
+                      <span>Combine adjectives (Deep, Smooth, Raw) with nouns (Voice, Echo, Tone)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-1 font-bold">•</span>
+                      <span>Add numbers for uniqueness (42, 89, 23)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-amber-400 mt-1 font-bold">•</span>
+                      <span>Keep it under 20 characters and make it memorable</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* FAQ Section */}
+            {activeSection === "faq" && loadedSections.has("faq") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <MessageCircle className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          Frequently Asked <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Questions</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Everything you need to know</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-6">
+                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-5 text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/20 group-hover:scale-110 transition-transform">
+                            <Shield className="h-4 w-4 text-red-400" />
+                          </div>
+                          <span>Is it really anonymous?</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-5 pl-11">
+                        <div className="space-y-2">
+                          <p>
+                            <span className="text-red-400 font-bold">Yes!</span> We don't require any personal information. No email, no phone number, no real name.
+                          </p>
+                          <p>
+                            You create an account with just a handle and an avatar. Your device ID is used for authentication, 
+                            but it's not linked to any personal data. <span className="text-amber-400 font-semibold">You're as anonymous as you want to be.</span>
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-6">
+                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-5 text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/20 group-hover:scale-110 transition-transform">
+                            <Headphones className="h-4 w-4 text-amber-400" />
+                          </div>
+                          <span>How long are clips?</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-5 pl-11">
+                        <div className="space-y-2">
+                          <p>
+                            Regular voice clips are limited to <span className="text-red-400 font-bold">30 seconds</span>—perfect for quick thoughts, reactions, or brief stories.
+                          </p>
+                          <p>
+                            For longer content, you can use <span className="text-amber-400 font-semibold">Podcast Mode</span> which allows up to 10-minute segments. This keeps the feed 
+                            dynamic while still allowing for deeper conversations when needed.
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-3" className="border-red-900/20 dark:border-red-800/10 px-6">
+                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-5 text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/20 group-hover:scale-110 transition-transform">
+                            <Trash2 className="h-4 w-4 text-red-400" />
+                          </div>
+                          <span>Can I delete my account?</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-5 pl-11">
+                        <div className="space-y-2">
+                          <p>
+                            <span className="text-red-400 font-bold">Yes, absolutely.</span> You have full control over your account and content.
+                          </p>
+                          <p>
+                            You can delete individual clips at any time, or delete your entire account from the Settings page. When you delete your account, all 
+                            your clips, profile, and associated data are <span className="text-amber-400 font-semibold">permanently removed</span> from our servers.
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-4" className="border-red-900/20 dark:border-red-800/10 px-6">
+                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-5 text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600/30 to-red-600/20 border border-amber-500/20 group-hover:scale-110 transition-transform">
+                            <Smartphone className="h-4 w-4 text-amber-400" />
+                          </div>
+                          <span>What happens if I lose my device?</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-5 pl-11">
+                        <div className="space-y-2">
+                          <p>
+                            Your account is tied to your device, but you can <span className="text-red-400 font-bold">link multiple devices</span> using the "Link Account" feature.
+                          </p>
+                          <p>
+                            This allows you to access your account from different devices. If you lose your device and haven't linked 
+                            it, you'll need to create a new account, but you can always <span className="text-amber-400 font-semibold">change your handle to match your previous one</span> 
+                            if it's available.
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-5" className="border-red-900/20 dark:border-red-800/10 px-6">
+                      <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-5 text-left group">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/20 group-hover:scale-110 transition-transform">
+                            <Sparkles className="h-4 w-4 text-red-400" />
+                          </div>
+                          <span>How does AI moderation work?</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-5 pl-11">
+                        <div className="space-y-2">
+                          <p>
+                            Our <span className="text-red-400 font-bold">advanced AI moderation</span> automatically filters out trolls, spam, toxic content, and NSFW material.
+                          </p>
+                          <p>
+                            It analyzes voice content in real-time to keep conversations <span className="text-amber-400 font-semibold">civil and authentic</span> without requiring manual review. 
+                            Real voices, real conversations—without the noise.
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   </Accordion>
                 </div>
               </div>
@@ -1756,10 +2222,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Right side - Clean modern form */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-40px)] lg:overflow-y-auto shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300">
+          <Card className="w-full max-w-md mx-auto lg:mx-0 lg:sticky lg:top-4 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col lg:max-h-[calc(100vh-40px)]">
 
             {/* Progress Indicator */}
-            <div className="px-6 pt-6 pb-2">
+            <div className="px-4 lg:px-6 pt-4 lg:pt-6 pb-2 flex-shrink-0">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-300 dark:text-gray-300">Setup Progress</span>
                 <span className="text-xs font-bold text-red-400 dark:text-red-400">
@@ -1772,30 +2238,30 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               />
             </div>
 
-            <CardHeader className="space-y-3 text-center pb-6 relative z-10 px-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-3 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
+            <CardHeader className="space-y-2 text-center pb-3 lg:pb-4 relative z-10 px-4 lg:px-6 flex-shrink-0">
+              <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 rounded-xl lg:rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-2 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
                 <AvatarIcon 
                   type={selectedAvatar} 
-                  className="w-14 h-14"
+                  className="w-12 h-12 lg:w-14 lg:h-14"
                   imageUrl={avatarImages.get(selectedAvatar)}
                 />
               </div>
-              <CardTitle className="text-3xl font-extrabold text-white dark:text-white">
+              <CardTitle className="text-2xl lg:text-3xl font-extrabold text-white dark:text-white">
                 Create Your Identity
               </CardTitle>
-              <p className="text-sm text-gray-300 dark:text-gray-300 font-semibold">
+              <p className="text-xs lg:text-sm text-gray-300 dark:text-gray-300 font-semibold">
                 Pick an avatar and choose your handle
               </p>
             </CardHeader>
 
-            <CardContent className="space-y-6 relative z-10">
+            <CardContent className="space-y-4 lg:space-y-5 relative z-10 flex-1 overflow-y-auto min-h-0 px-4 lg:px-6">
               {/* Avatar Selection */}
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-white dark:text-white flex items-center gap-2">
-                  <Mic className="h-4 w-4 text-red-400 dark:text-red-400" />
+              <div className="space-y-2">
+                <label className="text-xs lg:text-sm font-bold text-white dark:text-white flex items-center gap-2">
+                  <Mic className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 p-3 rounded-xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-6 gap-2 p-2 rounded-lg lg:rounded-xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-48 lg:max-h-64 overflow-y-auto">
                   {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
@@ -1803,7 +2269,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-16 w-full items-center justify-center rounded-lg transition-all duration-300 ${
+                        className={`flex h-12 lg:h-14 w-full items-center justify-center rounded-md lg:rounded-lg transition-all duration-300 ${
                           isActive
                             ? "scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
                             : "hover:scale-105 active:scale-95"
@@ -1812,11 +2278,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         title={`Avatar ${index + 1}`}
                       >
                         {avatarsLoading && index < 8 ? (
-                          <div className="w-10 h-10 rounded-full bg-slate-700 animate-pulse" />
+                          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-slate-700 animate-pulse" />
                         ) : (
                           <AvatarIcon 
                             type={avatarType} 
-                            className={`w-10 h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
+                            className={`w-8 h-8 lg:w-10 lg:h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
                             imageUrl={avatarImages.get(avatarType)}
                           />
                         )}
@@ -1827,9 +2293,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
 
               {/* Handle Input */}
-              <div className="space-y-3">
-                <label className="text-sm font-bold text-white dark:text-white flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-red-400 dark:text-red-400" />
+              <div className="space-y-2">
+                <label className="text-xs lg:text-sm font-bold text-white dark:text-white flex items-center gap-2">
+                  <Radio className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
                   Your Handle
                 </label>
                 <div className="relative flex gap-2">
@@ -1838,7 +2304,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-12 text-center text-lg font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
+                    className="h-10 lg:h-12 text-center text-base lg:text-lg font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
                   />
                   <Button
                     type="button"
@@ -1847,17 +2313,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onClick={() => {
                       setHandle(generateHandle());
                     }}
-                    className="h-12 w-12 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
+                    className="h-10 w-10 lg:h-12 lg:w-12 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
                     title="Generate random handle"
                   >
-                    <Wand2 className="h-5 w-5 text-red-400 dark:text-red-400" />
+                    <Wand2 className="h-4 w-4 lg:h-5 lg:w-5 text-red-400 dark:text-red-400" />
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-300 dark:text-gray-300 font-semibold">
+                  <p className="text-[10px] lg:text-xs text-gray-300 dark:text-gray-300 font-semibold">
                     Keep it clean, 20 characters max
                   </p>
-                  <span className={`text-xs font-bold transition-colors duration-200 ${
+                  <span className={`text-[10px] lg:text-xs font-bold transition-colors duration-200 ${
                     handle.length > 18 
                       ? 'text-red-400 dark:text-red-400' 
                       : handle.length > 15 
@@ -1889,11 +2355,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               )}
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-3 pt-6 px-6">
+            <CardFooter className="flex flex-col gap-2 lg:gap-3 pt-3 lg:pt-4 px-4 lg:px-6 flex-shrink-0 border-t border-red-900/20 dark:border-red-800/10">
               {/* Ready indicator */}
               {handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading && (
-                <div className="flex items-center justify-center gap-2 text-xs text-amber-400 dark:text-amber-400 mb-1">
-                  <CheckCircle2 className="h-4 w-4" />
+                <div className="flex items-center justify-center gap-2 text-[10px] lg:text-xs text-amber-400 dark:text-amber-400 mb-0.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                   <span className="font-medium">Ready to create your identity</span>
                 </div>
               )}
@@ -1901,7 +2367,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading || !handle.trim() || !deviceId}
-                className={`w-full h-14 text-base font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
+                className={`w-full h-11 lg:h-14 text-sm lg:text-base font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
                   handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading 
                     ? 'ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
                     : ''
@@ -1911,20 +2377,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
                 {isLoading ? (
                   <span className="flex items-center gap-2 relative z-10">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Creating your identity...
+                    <Loader2 className="h-4 w-4 lg:h-5 lg:w-5 animate-spin" />
+                    <span className="text-xs lg:text-sm">Creating your identity...</span>
                   </span>
                 ) : (
                   <span className="flex items-center gap-2 relative z-10">
                     <span className="group-hover:translate-x-1 transition-transform duration-200">
-                    <CheckCircle2 className="h-5 w-5" />
+                    <CheckCircle2 className="h-4 w-4 lg:h-5 lg:w-5" />
                     </span>
-                    Enter The Chamber
-                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+                    <span className="text-xs lg:text-base">Enter The Chamber</span>
+                    <ArrowRight className="h-3.5 w-3.5 lg:h-4 lg:w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
                   </span>
                 )}
               </Button>
-              <p className="text-xs text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
+              <p className="text-[10px] lg:text-xs text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
                 By continuing, you agree to keep it real and respectful
               </p>
             </CardFooter>
@@ -1939,7 +2405,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6 text-center">
-          <h1 className="text-3xl font-bold text-amber-400 dark:text-amber-400">Welcome to Echo Garden</h1>
+          <h1 className="text-3xl font-bold text-amber-400 dark:text-amber-400">Welcome to Echo Chamber</h1>
           <p className="text-muted-foreground">Something went wrong loading the full onboarding. Please refresh the page.</p>
           <button
             onClick={() => window.location.reload()}
