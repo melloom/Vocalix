@@ -66,32 +66,6 @@ export const BottomNavigation = () => {
 
   return (
     <>
-      {/* Footer Links - Above bottom nav on mobile */}
-      <div className="fixed bottom-16 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border md:hidden pb-1 pt-1.5">
-        <div className="flex items-center justify-center gap-2 px-2">
-          <Link
-            to="/privacy"
-            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
-          >
-            Privacy
-          </Link>
-          <span className="text-[9px] text-muted-foreground/40">•</span>
-          <Link
-            to="/terms"
-            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
-          >
-            Terms
-          </Link>
-          <span className="text-[9px] text-muted-foreground/40">•</span>
-          <Link
-            to="/cookies"
-            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
-          >
-            Cookies
-          </Link>
-        </div>
-      </div>
-
       {/* Main Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border md:hidden pb-safe max-w-full overflow-hidden">
         <div className="flex items-center justify-between h-16 px-1 sm:px-2 max-w-full">
@@ -147,6 +121,34 @@ export const BottomNavigation = () => {
           })}
         </div>
       </nav>
+
+      {/* Desktop Footer with Links - Visible on desktop only */}
+      <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border py-2">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+            <Link
+              to="/privacy"
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link
+              to="/terms"
+              className="hover:text-foreground transition-colors"
+            >
+              Terms of Service
+            </Link>
+            <span>•</span>
+            <Link
+              to="/cookies"
+              className="hover:text-foreground transition-colors"
+            >
+              Cookie Policy
+            </Link>
+          </div>
+        </div>
+      </footer>
     </>
   );
 };

@@ -3,6 +3,7 @@ import { AuthGuard } from "./AuthGuard";
 import { AudioPlayerProvider } from "@/context/AudioPlayerContext";
 import { MiniPlayer } from "./MiniPlayer";
 import { BottomNavigation } from "./BottomNavigation";
+import { PageFooter } from "./PageFooter";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { useAuth } from "@/context/AuthContext";
@@ -56,8 +57,11 @@ export const AuthenticatedLayout = () => {
     >
       <AuthGuard>
         <AudioPlayerProvider>
-          <div className="pb-20 md:pb-4 w-full max-w-full overflow-x-hidden" key={location.pathname}>
-            <Outlet />
+          <div className="pb-20 md:pb-4 w-full max-w-full overflow-x-hidden flex flex-col min-h-screen" key={location.pathname}>
+            <div className="flex-1">
+              <Outlet />
+            </div>
+            <PageFooter />
           </div>
           <MiniPlayer />
           <BottomNavigation />
