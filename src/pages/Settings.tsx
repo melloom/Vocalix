@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users, HelpCircle, Scale, Cookie } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users, HelpCircle, Scale, Cookie, Copyright } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -5216,6 +5216,27 @@ const Settings = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => navigate("/cookies")}
+                        className="ml-4"
+                      >
+                        View Policy
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30">
+                  <Copyright className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">DMCA Copyright Policy</p>
+                        <p className="text-xs text-muted-foreground">
+                          Report copyright infringement and learn about our DMCA procedures
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate("/dmca")}
                         className="ml-4"
                       >
                         View Policy

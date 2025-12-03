@@ -65,60 +65,89 @@ export const BottomNavigation = () => {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border md:hidden pb-safe max-w-full overflow-hidden">
-      <div className="flex items-center justify-between h-16 px-1 sm:px-2 max-w-full">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item);
+    <>
+      {/* Footer Links - Above bottom nav on mobile */}
+      <div className="fixed bottom-16 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border md:hidden pb-1 pt-1.5">
+        <div className="flex items-center justify-center gap-2 px-2">
+          <Link
+            to="/privacy"
+            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Privacy
+          </Link>
+          <span className="text-[9px] text-muted-foreground/40">•</span>
+          <Link
+            to="/terms"
+            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Terms
+          </Link>
+          <span className="text-[9px] text-muted-foreground/40">•</span>
+          <Link
+            to="/cookies"
+            className="text-[9px] text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Cookies
+          </Link>
+        </div>
+      </div>
 
-          if (item.isButton) {
+      {/* Main Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border md:hidden pb-safe max-w-full overflow-hidden">
+        <div className="flex items-center justify-between h-16 px-1 sm:px-2 max-w-full">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item);
+
+            if (item.isButton) {
+              return (
+                <button
+                  key={item.path}
+                  onClick={item.onClick}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 h-full rounded-lg transition-colors",
+                    "hover:bg-muted active:bg-muted/80 touch-manipulation"
+                  )}
+                >
+                  <div className={cn(
+                    "h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center",
+                    "shadow-lg hover:shadow-xl transition-shadow flex-shrink-0"
+                  )}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground truncate max-w-full px-0.5">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            }
+
             return (
-              <button
+              <Link
                 key={item.path}
-                onClick={item.onClick}
+                to={item.path}
                 className={cn(
                   "flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 h-full rounded-lg transition-colors",
-                  "hover:bg-muted active:bg-muted/80 touch-manipulation"
+                  "hover:bg-muted active:bg-muted/80 touch-manipulation",
+                  active && "text-primary"
                 )}
               >
-                <div className={cn(
-                  "h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center",
-                  "shadow-lg hover:shadow-xl transition-shadow flex-shrink-0"
+                <Icon className={cn(
+                  "h-4 w-4 sm:h-5 sm:w-5 transition-colors flex-shrink-0",
+                  active ? "text-primary" : "text-muted-foreground"
+                )} />
+                <span className={cn(
+                  "text-[9px] sm:text-[10px] font-medium transition-colors truncate max-w-full px-0.5",
+                  active ? "text-primary" : "text-muted-foreground"
                 )}>
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
-                <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground truncate max-w-full px-0.5">
                   {item.label}
                 </span>
-              </button>
+              </Link>
             );
-          }
-
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 h-full rounded-lg transition-colors",
-                "hover:bg-muted active:bg-muted/80 touch-manipulation",
-                active && "text-primary"
-              )}
-            >
-              <Icon className={cn(
-                "h-4 w-4 sm:h-5 sm:w-5 transition-colors flex-shrink-0",
-                active ? "text-primary" : "text-muted-foreground"
-              )} />
-              <span className={cn(
-                "text-[9px] sm:text-[10px] font-medium transition-colors truncate max-w-full px-0.5",
-                active ? "text-primary" : "text-muted-foreground"
-              )}>
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </nav>
+          })}
+        </div>
+      </nav>
+    </>
   );
 };
 

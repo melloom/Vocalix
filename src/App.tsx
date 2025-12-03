@@ -107,8 +107,10 @@ const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreatio
 const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
 const Diary = retryLazyImport(() => import("./pages/Diary"));
 const PrivacyPolicy = retryLazyImport(() => import("./pages/PrivacyPolicy"));
+const ContentPolicy = retryLazyImport(() => import("./pages/ContentPolicy"));
 const CookiePolicy = retryLazyImport(() => import("./pages/CookiePolicy"));
 const TermsOfService = retryLazyImport(() => import("./pages/TermsOfService"));
+const DMCAPolicy = retryLazyImport(() => import("./pages/DMCAPolicy"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -198,6 +200,8 @@ const App = () => {
                         <Route path="/privacy" element={<PrivacyPolicy />} />
                         <Route path="/cookies" element={<CookiePolicy />} />
                         <Route path="/terms" element={<TermsOfService />} />
+                        <Route path="/content-policy" element={<ContentPolicy />} />
+                        <Route path="/dmca" element={<DMCAPolicy />} />
                         <Route element={<AuthenticatedLayout />}>
                           <Route path="/" element={<Index />} />
                           <Route path="/profile/:handle" element={<Profile />} />

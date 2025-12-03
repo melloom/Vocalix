@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, HelpCircle, X, Trash2 } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -2089,45 +2089,80 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* FAQ Section */}
             {activeSection === "faq" && loadedSections.has("faq") && (
-              <div className="hidden lg:block space-y-3 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                {/* Compact Header */}
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageCircle className="h-4 w-4 text-red-400" />
-                  <h3 className="text-sm font-semibold text-white">
-                    Quick Questions
-                  </h3>
+              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Enhanced Header */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                    <MessageCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      Frequently Asked Questions
+                    </h3>
+                    <p className="text-xs text-gray-400">Quick answers to common questions</p>
+                  </div>
                 </div>
 
-                <div className="rounded-lg bg-gradient-to-br from-red-950/20 via-amber-950/20 to-red-950/20 dark:from-red-950/15 dark:via-amber-950/15 dark:to-red-950/15 border border-red-800/20 overflow-hidden">
-                  {/* Compact Quick Questions */}
-                  <div className="p-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-red-900/20 border border-red-700/20">
-                        <Shield className="h-3 w-3 text-red-400 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-300">Anonymous</span>
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl">
+                  {/* Quick Questions Grid */}
+                  <div className="p-4">
+                    <div className="grid grid-cols-2 gap-2.5 mb-3">
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
+                        <Shield className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        <div>
+                          <p className="text-[10px] font-semibold text-white">Anonymous?</p>
+                          <p className="text-[9px] text-gray-400">No email needed</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-amber-900/20 border border-amber-700/20">
-                        <Headphones className="h-3 w-3 text-amber-400 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-300">30s clips</span>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
+                        <Headphones className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        <div>
+                          <p className="text-[10px] font-semibold text-white">Clip Length?</p>
+                          <p className="text-[9px] text-gray-400">30s or 10min</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-red-900/20 border border-red-700/20">
-                        <Mic className="h-3 w-3 text-red-400 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-300">Easy record</span>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
+                        <Mic className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        <div>
+                          <p className="text-[10px] font-semibold text-white">How to Record?</p>
+                          <p className="text-[9px] text-gray-400">Tap & hold mic</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-amber-900/20 border border-amber-700/20">
-                        <Radio className="h-3 w-3 text-amber-400 flex-shrink-0" />
-                        <span className="text-[9px] text-gray-300">Live rooms</span>
+                      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
+                        <Radio className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                        <div>
+                          <p className="text-[10px] font-semibold text-white">Live Rooms?</p>
+                          <p className="text-[9px] text-gray-400">Real-time audio</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-red-800/20">
+                    
+                    {/* Popular Questions */}
+                    <div className="space-y-2 mb-3">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Popular Questions</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/faq?q=account")}>
+                          <ChevronRight className="h-3 w-3 text-red-400 group-hover:translate-x-0.5 transition-transform" />
+                          <span className="text-[10px] text-gray-300 group-hover:text-white">Can I delete my account?</span>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-amber-900/20 border border-amber-700/20 hover:bg-amber-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/faq?q=privacy")}>
+                          <ChevronRight className="h-3 w-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+                          <span className="text-[10px] text-gray-300 group-hover:text-white">Is it really anonymous?</span>
+                        </div>
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/faq?q=clips")}>
+                          <ChevronRight className="h-3 w-3 text-red-400 group-hover:translate-x-0.5 transition-transform" />
+                          <span className="text-[10px] text-gray-300 group-hover:text-white">How long are clips?</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-red-800/30">
                       <Button
                         onClick={() => navigate("/faq")}
-                        variant="ghost"
-                        size="sm"
-                        className="w-full h-7 text-[10px] text-gray-400 hover:text-white"
+                        className="w-full h-8 text-xs bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-semibold"
                       >
-                        <MessageCircle className="h-3 w-3 mr-1" />
-                        More questions?
+                        <MessageCircle className="h-3.5 w-3.5 mr-1.5" />
+                        View All 50+ Questions
                       </Button>
                     </div>
                   </div>
@@ -2312,8 +2347,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </Card>
         </div>
       </div>
-      {/* Privacy Policy, Terms & Cookie Policy Links - Bottom Left Corner */}
-      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-3">
+      {/* Privacy Policy, Terms, Cookie Policy & Content Policy Links - Bottom Left Corner */}
+      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-3 flex-wrap">
         <Link
           to="/privacy"
           className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
@@ -2333,6 +2368,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
         >
           Cookie Policy
+        </Link>
+        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
+        <Link
+          to="/content-policy"
+          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+        >
+          Content Policy
+        </Link>
+        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
+        <Link
+          to="/dmca"
+          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+        >
+          DMCA
         </Link>
       </div>
     </div>

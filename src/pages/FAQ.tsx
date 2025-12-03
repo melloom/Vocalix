@@ -38,6 +38,7 @@ import {
   WifiOff,
   AlertCircle,
   Scale,
+  Copyright,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -504,6 +505,8 @@ export default function FAQ() {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Check if we have a search query from navigation state or URL params
   useEffect(() => {
@@ -539,6 +542,17 @@ export default function FAQ() {
 
     return filtered;
   }, [searchQuery, selectedCategory]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredFAQs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedFAQs = filteredFAQs.slice(startIndex, endIndex);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { All: faqData.length };
@@ -629,51 +643,114 @@ export default function FAQ() {
           </div>
         )}
 
-        {/* FAQ Accordion - Compact */}
+        {/* FAQ List - Paginated */}
         {filteredFAQs.length > 0 ? (
-          <Accordion type="single" collapsible className="w-full space-y-2">
-            {filteredFAQs.map((faq) => {
-              const Icon = faq.icon;
-              return (
-                <Card key={faq.id} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-md">
-                  <AccordionItem value={faq.id} className="border-0">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline group">
-                      <div className="flex items-center gap-3 flex-1 text-left">
-                        <div className="flex-shrink-0">
-                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <Icon className="h-4 w-4 text-red-400" />
+          <div className="space-y-3">
+            <Accordion type="single" collapsible className="w-full space-y-2">
+              {paginatedFAQs.map((faq) => {
+                const Icon = faq.icon;
+                return (
+                  <Card key={faq.id} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-md hover:border-red-700/50 transition-colors">
+                    <AccordionItem value={faq.id} className="border-0">
+                      <AccordionTrigger className="px-4 py-3.5 hover:no-underline group">
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <div className="flex-shrink-0">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center group-hover:scale-110 group-hover:border-red-400/50 transition-all">
+                              <Icon className="h-5 w-5 text-red-400" />
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors leading-tight">{faq.question}</h3>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-red-400 flex-shrink-0 transition-all duration-200 group-data-[state=open]:rotate-90" />
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-3">
-                      <div className="pl-12 space-y-2">
-                        <p className="text-gray-300 leading-relaxed text-xs">{faq.answer}</p>
-                        {faq.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {faq.tags.slice(0, 4).map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="outline"
-                                className="text-[10px] cursor-pointer hover:bg-red-900/20 border-red-700/30 text-gray-400 hover:text-red-400 transition-colors px-1.5 py-0"
-                                onClick={() => setSearchQuery(tag)}
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors leading-tight mb-0.5">{faq.question}</h3>
+                            <p className="text-[11px] text-gray-500 line-clamp-1">{faq.category}</p>
                           </div>
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Card>
-              );
-            })}
-          </Accordion>
+                          <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-red-400 flex-shrink-0 transition-all duration-200 group-data-[state=open]:rotate-90" />
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="pl-13 space-y-3">
+                          <p className="text-gray-300 leading-relaxed text-sm">{faq.answer}</p>
+                          {faq.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-red-800/20">
+                              {faq.tags.slice(0, 5).map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="outline"
+                                  className="text-[10px] cursor-pointer hover:bg-red-900/30 border-red-700/30 text-gray-400 hover:text-red-400 hover:border-red-500/50 transition-colors px-2 py-0.5"
+                                  onClick={() => setSearchQuery(tag)}
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Card>
+                );
+              })}
+            </Accordion>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Card className="p-4 bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-400">
+                    Showing <span className="text-red-400 font-semibold">{startIndex + 1}</span> to <span className="text-red-400 font-semibold">{Math.min(endIndex, filteredFAQs.length)}</span> of <span className="text-amber-400 font-semibold">{filteredFAQs.length}</span> questions
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 px-3 text-xs border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 disabled:opacity-50"
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`h-8 w-8 p-0 text-xs ${
+                              currentPage === pageNum
+                                ? "bg-gradient-to-r from-red-600 to-amber-600 text-white"
+                                : "border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400"
+                            }`}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 px-3 text-xs border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 disabled:opacity-50"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
         ) : (
           <Card className="p-8 text-center bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30">
             <HelpCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
@@ -722,6 +799,15 @@ export default function FAQ() {
                 >
                   <Settings className="h-3 w-3 mr-1" />
                   Settings
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/dmca")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
+                >
+                  <Copyright className="h-3 w-3 mr-1" />
+                  DMCA
                 </Button>
               </div>
             </div>
