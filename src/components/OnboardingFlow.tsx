@@ -196,6 +196,14 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [avatarsLoading, setAvatarsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview"]));
+  const scrollableContentRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to top when section changes
+  useEffect(() => {
+    if (scrollableContentRef.current) {
+      scrollableContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activeSection]);
   
   // Detect if device is mobile (memoized to prevent re-renders)
   const isMobile = useMemo(() => {
@@ -1191,7 +1199,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent pointer-events-none z-20" />
             
             {/* Scrollable content */}
-            <div className="space-y-4 lg:space-y-3 text-center lg:text-left lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] lg:pb-16 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth">
+            <div ref={scrollableContentRef} className="space-y-4 lg:space-y-3 text-center lg:text-left lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] lg:pb-16 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth">
             {/* Mobile: Show all sections in order */}
             <div className="lg:hidden space-y-6">
               {/* Mobile Overview */}
