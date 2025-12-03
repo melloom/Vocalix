@@ -189,6 +189,7 @@ const App = () => {
                         <Route path="/request-magic-link" element={<RequestMagicLink />} />
                         <Route path="/link-pin" element={<LinkPin />} />
                         <Route path="/embed/:clipId" element={<Embed />} />
+                        <Route path="/faq" element={<FAQ />} />
                         <Route element={<AuthenticatedLayout />}>
                           <Route path="/" element={<Index />} />
                           <Route path="/profile/:handle" element={<Profile />} />
@@ -222,7 +223,6 @@ const App = () => {
                           <Route path="/remix-challenges" element={<RemixChallenges />} />
                           <Route path="/voice-amas" element={<VoiceAMAs />} />
                           <Route path="/discovery" element={<Discovery />} />
-                          <Route path="/faq" element={<FAQ />} />
                           <Route path="/admin" element={<Admin />} />
                           <Route path="/ai-content" element={<AIContentCreation />} />
                           <Route path="/18-plus" element={<EighteenPlus />} />

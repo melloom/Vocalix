@@ -2108,21 +2108,90 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl p-8">
-                  <div className="space-y-6 text-center">
-                    <div className="space-y-3">
-                      <p className="text-gray-200 dark:text-gray-200 text-base leading-relaxed">
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl">
+                  {/* Preview Questions */}
+                  <div className="p-6 space-y-4">
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-4">
+                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/20 group-hover:scale-110 transition-transform">
+                              <Shield className="h-4 w-4 text-red-400" />
+                            </div>
+                            <span>Is it really anonymous?</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
+                          <div className="space-y-2">
+                            <p>
+                              <span className="text-red-400 font-bold">Yes!</span> We don't require any personal information. No email, no phone number, no real name.
+                            </p>
+                            <p>
+                              You create an account with just a handle and an avatar. Your device ID is used for authentication, 
+                              but it's not linked to any personal data. <span className="text-amber-400 font-semibold">You're as anonymous as you want to be.</span>
+                            </p>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-4">
+                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/20 group-hover:scale-110 transition-transform">
+                              <Headphones className="h-4 w-4 text-amber-400" />
+                            </div>
+                            <span>How long are clips?</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
+                          <div className="space-y-2">
+                            <p>
+                              Regular voice clips are limited to <span className="text-red-400 font-bold">30 seconds</span>—perfect for quick thoughts, reactions, or brief stories.
+                            </p>
+                            <p>
+                              For longer content, you can use <span className="text-amber-400 font-semibold">Podcast Mode</span> which allows up to 10-minute segments.
+                            </p>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="item-3" className="border-red-900/20 dark:border-red-800/10 px-4">
+                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/20 group-hover:scale-110 transition-transform">
+                              <Trash2 className="h-4 w-4 text-red-400" />
+                            </div>
+                            <span>Can I delete my account?</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
+                          <div className="space-y-2">
+                            <p>
+                              <span className="text-red-400 font-bold">Yes, absolutely.</span> You have full control over your account and content.
+                            </p>
+                            <p>
+                              You can delete individual clips at any time, or delete your entire account from the Settings page. When you delete your account, all 
+                              your clips, profile, and associated data are <span className="text-amber-400 font-semibold">permanently removed</span> from our servers.
+                            </p>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+
+                  {/* CTA Section */}
+                  <div className="border-t border-red-800/30 p-6 space-y-4 text-center bg-gradient-to-b from-transparent to-red-950/20">
+                    <div className="space-y-2">
+                      <p className="text-gray-200 dark:text-gray-200 text-sm">
                         We've compiled a comprehensive FAQ with <span className="text-red-400 font-bold">50+ questions</span> covering everything about Vocalix.
                       </p>
-                      <p className="text-gray-300 dark:text-gray-300 text-sm">
+                      <p className="text-gray-300 dark:text-gray-300 text-xs">
                         Search by keyword, browse by category, and find answers about recording, live rooms, communities, privacy, features, and more.
                       </p>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
                       <Button
-                        onClick={() => navigate("/faq")}
-                        className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                        onClick={() => window.open("/faq", "_blank")}
+                        className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-semibold px-6 py-5 text-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                         size="lg"
                       >
                         <MessageCircle className="h-5 w-5 mr-2" />
@@ -2130,21 +2199,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </Button>
                     </div>
 
-                    <div className="pt-6 border-t border-red-800/30">
-                      <p className="text-xs text-gray-400 dark:text-gray-400 mb-3">Quick links to popular questions:</p>
+                    <div className="pt-4 border-t border-red-800/20">
+                      <p className="text-xs text-gray-400 dark:text-gray-400 mb-3">Quick links to more questions:</p>
                       <div className="flex flex-wrap gap-2 justify-center">
                         {[
-                          "Is it really anonymous?",
-                          "How long are clips?",
-                          "Can I delete my account?",
                           "What happens if I lose my device?",
                           "How does AI moderation work?",
+                          "How do I record a voice clip?",
+                          "What are Live Rooms?",
                         ].map((question) => (
                           <Badge
                             key={question}
                             variant="outline"
-                            className="text-xs px-3 py-1 border-red-700/30 text-gray-300 hover:bg-red-900/20 cursor-pointer"
-                            onClick={() => navigate("/faq", { state: { searchQuery: question } })}
+                            className="text-xs px-3 py-1 border-red-700/30 text-gray-300 hover:bg-red-900/20 cursor-pointer transition-colors"
+                            onClick={() => window.open(`/faq?q=${encodeURIComponent(question)}`, "_blank")}
                           >
                             {question}
                           </Badge>

@@ -504,12 +504,18 @@ export default function FAQ() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // Check if we have a search query from navigation state
+  // Check if we have a search query from navigation state or URL params
   useEffect(() => {
     if (location.state?.searchQuery) {
       setSearchQuery(location.state.searchQuery);
     }
-  }, [location.state]);
+    // Also check URL search params
+    const urlParams = new URLSearchParams(location.search);
+    const qParam = urlParams.get("q");
+    if (qParam) {
+      setSearchQuery(qParam);
+    }
+  }, [location.state, location.search]);
 
   const filteredFAQs = useMemo(() => {
     let filtered = faqData;
