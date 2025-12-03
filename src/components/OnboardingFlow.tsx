@@ -1231,7 +1231,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </div>
                       <div>
                         <h3 className="text-sm font-bold text-white mb-1">100% Anonymous</h3>
-                        <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name required.</p>
+                        <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name, no photos. Just emoji avatar and voice.</p>
                       </div>
                     </div>
                   </div>
@@ -1245,7 +1245,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   What is The Echo Chamber?
                 </h3>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your voice and handle show.
+                  The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your emoji avatar, voice, and handle show—no photos, no faces.
                 </p>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
                   Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. No BS, no filters—just raw voice in an underground community built for authentic expression.
@@ -1298,7 +1298,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Fully anonymous</strong> - No real names, no personal info collected</span>
+                        <span><strong>Fully anonymous</strong> - No real names, no photos, no faces, no personal info collected. Just emoji avatars.</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
@@ -1467,7 +1467,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         <Shield className="h-6 w-6 text-amber-400" />
                       </div>
                       <h3 className="text-base font-bold text-white mb-2">100% Anonymous</h3>
-                      <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name. Just your voice and handle.</p>
+                      <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name, no photos. Just an emoji avatar, your voice, and handle.</p>
                     </div>
                   </div>
                   
@@ -1505,7 +1505,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </div>
                       <div>
                         <h4 className="text-sm font-bold text-white mb-1">Fully Anonymous</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">No real names, no personal data collected. Your identity stays hidden.</p>
+                        <p className="text-xs text-gray-300 leading-relaxed">No real names, no photos, no faces, no personal data collected. Just emoji avatars. Your identity stays hidden.</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1569,7 +1569,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -ml-32 -mb-32" />
                   <div className="relative space-y-4">
                     <p className="text-lg lg:text-base text-gray-200 dark:text-gray-200 leading-relaxed font-semibold">
-                      The <span className="text-red-400 font-bold">audio-first social platform</span> where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your voice and handle show.
+                      The <span className="text-red-400 font-bold">audio-first social platform</span> where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your emoji avatar, voice, and handle show—no photos, no faces.
                     </p>
                     <p className="text-lg lg:text-base text-gray-200 dark:text-gray-200 leading-relaxed font-semibold">
                       Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. <span className="text-amber-400 font-bold">No BS, no filters</span>—just raw voice in an underground community built for authentic expression.
@@ -1585,8 +1585,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 mb-3">
                         <Radio className="h-5 w-5 text-red-400" />
                       </div>
-                      <h4 className="text-base font-bold text-white mb-2">Voice-Only Identity</h4>
-                      <p className="text-xs text-gray-300 leading-relaxed">No photos, no bios, no profiles. Just your voice and a handle. That's it.</p>
+                      <h4 className="text-base font-bold text-white mb-2">Emoji Avatar Identity</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">No photos, no faces, no real pictures. Just an emoji avatar, your voice, and a handle. That's it.</p>
                 </div>
               </div>
 
@@ -1676,7 +1676,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       step: "5",
                       icon: Shield,
                       title: "Stay Anonymous",
-                      description: "No personal info required, ever. Your device is your key. Link multiple devices if you want. Your identity stays hidden—only your voice and handle show.",
+                      description: "No personal info required, ever. Your device is your key. Link multiple devices if you want. Your identity stays hidden—only your emoji avatar, voice, and handle show. No photos, no faces.",
                       color: "red",
                       gradient: "from-red-600/30 to-red-500/20",
                       border: "border-red-800/30",
@@ -1753,7 +1753,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                           <CheckCircle2 className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
                           <div>
                             <p className="text-sm font-bold text-white mb-1">Fully anonymous</p>
-                            <p className="text-xs text-gray-300">No real names, no personal info collected. Your identity stays hidden.</p>
+                            <p className="text-xs text-gray-300">No real names, no photos, no faces, no personal info collected. Just emoji avatars. Your identity stays hidden.</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3 p-3 rounded-lg bg-red-950/30 border border-red-800/20">
@@ -1910,7 +1910,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 { 
                   icon: Mic, 
                   title: "Anonymous & Raw",
-                  description: "Speak freely—your identity stays hidden, only your voice shows. No real names, no personal info—just your voice.",
+                  description: "Speak freely—your identity stays hidden. No photos, no faces, no real names, no personal info. Just an emoji avatar and your voice.",
                   iconBg: "from-amber-900/50 to-amber-800/50 dark:from-amber-900/40 dark:to-amber-800/40",
                   iconColor: "text-amber-400 dark:text-amber-400",
                       borderColor: "border-amber-800/30",
