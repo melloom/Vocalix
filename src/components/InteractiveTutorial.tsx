@@ -2668,7 +2668,12 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-full hover:bg-muted transition-colors"
-                    onClick={() => setIsCollapsed(true)}
+                    onClick={() => {
+                      setIsCollapsed(true);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem(TUTORIAL_COLLAPSED_KEY, "true");
+                      }
+                    }}
                     aria-label="Collapse tutorial"
                     title="Collapse tutorial"
                   >
