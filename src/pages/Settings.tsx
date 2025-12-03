@@ -51,6 +51,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
+import { ensureScrollEnabled } from "@/utils/scrollRestore";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
 import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon, Key, Clock, Lock, Activity, Bug, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
@@ -122,6 +123,88 @@ const Settings = () => {
   const { toast } = useToast();
   const { profile, isLoading, updateProfile, isUpdating, refetch } = useProfile();
   const { deviceId, profileId } = useAuth();
+
+  // Ensure scrolling is enabled on Settings page mount
+  // BUT: Don't override scroll lock if tutorial is active
+  useEffect(() => {
+    const isTutorialActive = () => {
+      // Check if tutorial overlay is present
+      return !!document.querySelector('[data-tutorial-active="true"]');
+    };
+
+    const enableScroll = () => {
+      // Don't enable scroll if tutorial is active
+      if (isTutorialActive()) {
+        return;
+      }
+
+      // Use the utility function
+      ensureScrollEnabled();
+      
+      // Additional aggressive fixes
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.position = '';
+      document.documentElement.style.height = '';
+      
+      // Force enable scrolling via CSS classes
+      document.body.classList.remove('overflow-hidden');
+      document.documentElement.classList.remove('overflow-hidden');
+      
+      // Ensure the main container can scroll
+      const mainContainer = document.querySelector('[class*="min-h-screen"]');
+      if (mainContainer) {
+        (mainContainer as HTMLElement).style.overflow = '';
+        (mainContainer as HTMLElement).style.position = '';
+      }
+    };
+    
+    // Enable scroll immediately (only if tutorial not active)
+    if (!isTutorialActive()) {
+      enableScroll();
+    }
+    
+    // Also enable scroll after delays to catch any delayed locks
+    const timeouts = [
+      setTimeout(enableScroll, 50),
+      setTimeout(enableScroll, 100),
+      setTimeout(enableScroll, 300),
+      setTimeout(enableScroll, 500),
+    ];
+    
+    // Periodically check and restore scroll (every 1.5 seconds)
+    // But skip if tutorial is active
+    const interval = setInterval(() => {
+      if (!isTutorialActive()) {
+        enableScroll();
+      }
+    }, 1500);
+    
+    return () => {
+      timeouts.forEach(clearTimeout);
+      clearInterval(interval);
+    };
+  }, []); // Run on mount only
+
+  // Listen for color scheme updates and trigger shake animation
+  useEffect(() => {
+    const handleColorSchemeUpdate = () => {
+      setShouldShake(true);
+      // Reset shake after animation completes
+      setTimeout(() => {
+        setShouldShake(false);
+      }, 500);
+    };
+    
+    window.addEventListener("colorSchemeUpdated", handleColorSchemeUpdate);
+    
+    return () => {
+      window.removeEventListener("colorSchemeUpdated", handleColorSchemeUpdate);
+    };
+  }, []);
   const { devices, isLoading: isLoadingDevices, revokeDevice, isRevoking, clearSuspiciousFlag, isClearingSuspicious, unrevokeDevice, isUnrevoking: isUnrevokingDevice, refetch: refetchDevices, error: devicesError } = useDevices();
   const { blockedUsers, isLoading: isLoadingBlockedUsers, refetch: refetchBlockedUsers } = useBlockedUsers();
   const { sessions, revokedSessions, isLoading: isLoadingSessions, isLoadingRevoked: isLoadingRevokedSessions, revokeSession, isRevoking: isRevokingSession, revokeAllSessions, isRevokingAll: isRevokingAllSessions, unrevokeSession, isUnrevoking: isUnrevokingSession, refetch: refetchSessions, refetchRevoked: refetchRevokedSessions } = useSessions();
@@ -179,6 +262,7 @@ const Settings = () => {
   const [showSiteQRCode, setShowSiteQRCode] = useState(false); // QR code for current site URL
   const [accountLinkPin, setAccountLinkPin] = useState<string | null>(null);
   const [pinExpiresAt, setPinExpiresAt] = useState<Date | null>(null);
+  const [shouldShake, setShouldShake] = useState(false);
   const [isGeneratingPin, setIsGeneratingPin] = useState(false);
   const [pinDurationMinutes, setPinDurationMinutes] = useState(10);
   const [pinLinkingEnabled, setPinLinkingEnabled] = useState(true); // Toggle for PIN linking
@@ -216,13 +300,59 @@ const Settings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState(tabFromUrl || "general");
+  
+  // Check if tutorial is active and on account-linking step
+  const [isAccountLinkingTutorialActive, setIsAccountLinkingTutorialActive] = useState(false);
+  
+  useEffect(() => {
+    const checkTutorialState = () => {
+      // Check if tutorial is active (not completed)
+      const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+      if (tutorialCompleted === "true") {
+        setIsAccountLinkingTutorialActive(false);
+        return;
+      }
+      
+      // Check if we're on Settings page and tutorial overlay exists
+      // Look for the Account tab with data-tutorial attribute being highlighted
+      const accountTab = document.querySelector('[data-tutorial="settings-account-tab"]');
+      const tutorialOverlay = document.querySelector('[class*="z-[100000]"]');
+      
+      // If tutorial overlay is visible and Account tab exists, we're likely on account-linking step
+      if (tutorialOverlay && accountTab) {
+        setIsAccountLinkingTutorialActive(true);
+      } else {
+        setIsAccountLinkingTutorialActive(false);
+      }
+    };
+    
+    // Check immediately
+    checkTutorialState();
+    
+    // Check periodically in case tutorial state changes
+    const interval = setInterval(checkTutorialState, 500);
+    
+    // Also listen for tutorial events
+    const handleTutorialChange = () => {
+      setTimeout(checkTutorialState, 100);
+    };
+    
+    window.addEventListener("storage", handleTutorialChange);
+    window.addEventListener("tutorial-completed", handleTutorialChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", handleTutorialChange);
+      window.removeEventListener("tutorial-completed", handleTutorialChange);
+    };
+  }, []);
 
   // Update tab when URL param changes - ensure "general" is default
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl);
     } else if (!tabFromUrl) {
-      // If no tab in URL, default to "general" and update URL
+      // Default to "general" and update URL
       setActiveTab("general");
       setSearchParams({ tab: "general" }, { replace: true });
     }
@@ -230,9 +360,28 @@ const Settings = () => {
 
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
+    // Prevent tab change if tutorial is active and trying to change away from account tab
+    if (isAccountLinkingTutorialActive && value !== "account") {
+      return;
+    }
+    
     setActiveTab(value);
     setSearchParams({ tab: value });
+    
+    // Enable scroll when tab changes
+    ensureScrollEnabled();
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.documentElement.style.overflow = '';
   };
+
+  // Ensure scrolling when tab changes
+  useEffect(() => {
+    ensureScrollEnabled();
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.documentElement.style.overflow = '';
+  }, [activeTab]);
 
   // Get tab label for mobile dropdown
   const getTabLabel = (tab: string) => {
@@ -316,6 +465,7 @@ const Settings = () => {
       setTapToRecordEnabled(profile.tap_to_record ?? false);
       setTopicAlertsEnabled(profile.notify_new_topics);
       setMatureFilterEnabled(profile.filter_mature_content);
+      // @ts-expect-error - show_18_plus_content exists but not in generated types
       setShow18PlusContent(profile.show_18_plus_content ?? false);
       // @ts-ignore - digest fields exist but not in generated types
       setDigestEnabled(profile.digest_enabled ?? false);
@@ -375,7 +525,8 @@ const Settings = () => {
   const loadActiveLinks = async () => {
     setIsLoadingActiveLinks(true);
     try {
-      const { data, error } = await supabase.rpc("get_active_magic_links");
+      // @ts-expect-error - RPC function exists but not in generated types
+      const { data, error } = await (supabase.rpc as any)("get_active_magic_links");
       if (error) throw error;
 
       if (data && Array.isArray(data)) {
@@ -421,7 +572,8 @@ const Settings = () => {
   // Deactivate a magic login link
   const handleDeactivateLink = async (linkId: string) => {
     try {
-      const { data, error } = await supabase.rpc("deactivate_magic_login_link", {
+      // @ts-expect-error - RPC function exists but not in generated types
+      const { data, error } = await (supabase.rpc as any)("deactivate_magic_login_link", {
         p_link_id: linkId,
       });
 
@@ -584,11 +736,11 @@ const Settings = () => {
 
     setDigestEnabled(checked);
     try {
-      // @ts-ignore - digest fields exist but not in generated types
+      // @ts-expect-error - digest fields exist but not in generated types
       await updateProfile({ 
         digest_enabled: checked,
         digest_frequency: checked ? digestFrequency : 'never'
-      });
+      } as any);
       await refetch();
       toast({
         title: checked ? "Daily digest enabled" : "Daily digest disabled",
@@ -610,11 +762,11 @@ const Settings = () => {
   const handleDigestFrequencyChange = async (frequency: 'never' | 'daily' | 'weekly') => {
     setDigestFrequency(frequency);
     try {
-      // @ts-ignore - digest fields exist but not in generated types
+      // @ts-expect-error - digest fields exist but not in generated types
       await updateProfile({ 
         digest_frequency: frequency,
         digest_enabled: frequency !== 'never'
-      });
+      } as any);
       await refetch();
       if (frequency !== 'never') {
         setDigestEnabled(true);
@@ -638,10 +790,10 @@ const Settings = () => {
   const handleDigestStyleChange = async (style: 'quiet' | 'normal' | 'energizing') => {
     setDigestStyle(style);
     try {
-      // @ts-ignore - digest_style exists but not in generated types
+      // @ts-expect-error - digest_style exists but not in generated types
       await updateProfile({
         digest_style: style,
-      });
+      } as any);
       await refetch();
       toast({
         title: "Digest style updated",
@@ -679,10 +831,11 @@ const Settings = () => {
         
         // If email was cleared and digest is enabled, disable digest
         if (!email.trim() && digestEnabled) {
+          // @ts-expect-error - digest fields exist but not in generated types
           await updateProfile({ 
             digest_enabled: false,
             digest_frequency: 'never'
-          });
+          } as any);
           await refetch();
           setDigestEnabled(false);
         toast({
@@ -711,12 +864,12 @@ const Settings = () => {
     setIsGeneratingMagicLink(true);
     try {
       const trimmedEmail = magicLinkEmail.trim();
-      // @ts-ignore - RPC accepts null for optional parameters
+      // @ts-expect-error - RPC accepts null for optional parameters
       const { data, error } = await supabase.rpc("create_magic_login_link", {
-        target_email: trimmedEmail.length > 0 ? trimmedEmail : null,
+        target_email: trimmedEmail.length > 0 ? trimmedEmail : undefined,
         p_link_type: magicLinkType,
-        p_duration_hours: null, // Use default for link type
-      });
+        p_duration_hours: undefined, // Use default for link type
+      } as any);
       if (error) throw error;
 
       const result = data?.[0];
@@ -742,9 +895,9 @@ const Settings = () => {
         url: loginUrl,
         token: result.token,
         expiresAt: result.expires_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        linkType: result.link_type ?? magicLinkType,
+        linkType: (result as any).link_type ?? magicLinkType,
         createdAt: new Date().toISOString(),
-        email: trimmedEmail.length > 0 ? trimmedEmail : null,
+        email: trimmedEmail.length > 0 ? trimmedEmail : undefined,
         isActive: true,
       };
       // Reload active links from database to get the full list with tokens
@@ -922,11 +1075,12 @@ const Settings = () => {
     if (isGeneratingPhoneQR) return;
     setIsGeneratingPhoneQR(true);
     try {
+      // @ts-expect-error - RPC accepts null for optional parameters
       const { data, error } = await supabase.rpc("create_magic_login_link", {
-        target_email: null,
+        target_email: undefined,
         p_link_type: "standard",
-        p_duration_hours: null,
-      });
+        p_duration_hours: undefined,
+      } as any);
       if (error) throw error;
 
       const result = data?.[0];
@@ -1093,7 +1247,7 @@ const Settings = () => {
       });
     } catch (error) {
       logError("Failed to save city preference", error);
-      setCityTagEnabled(profile.consent_city);
+      setCityTagEnabled(profile?.consent_city ?? false);
       toast({
         title: "Couldn't save city",
         description: "Please try again.",
@@ -1104,7 +1258,7 @@ const Settings = () => {
 
   const handleCityDialogOpenChange = (open: boolean) => {
     setIsCityDialogOpen(open);
-    if (!open && !profile.consent_city) {
+    if (!open && !profile?.consent_city) {
       setCityTagEnabled(false);
     }
   };
@@ -1705,24 +1859,28 @@ const Settings = () => {
         {/* Mobile: Dropdown Select */}
         <div className="lg:hidden sticky top-[73px] z-10 bg-background/80 backdrop-blur-lg border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3">
-            <Select value={activeTab} onValueChange={handleTabChange}>
-              <SelectTrigger className="w-full rounded-2xl font-medium">
+            <Select 
+              value={activeTab} 
+              onValueChange={handleTabChange}
+              disabled={isAccountLinkingTutorialActive && activeTab !== "account"}
+            >
+              <SelectTrigger className={`w-full rounded-2xl font-medium ${isAccountLinkingTutorialActive && activeTab !== "account" ? "opacity-50 cursor-not-allowed" : ""}`}>
                 <SelectValue placeholder="Select a section" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="playback">Playback</SelectItem>
-                <SelectItem value="notifications">Notifications</SelectItem>
-                <SelectItem value="privacy">Privacy</SelectItem>
-                <SelectItem value="profile">Profile</SelectItem>
+                <SelectItem value="general" disabled={isAccountLinkingTutorialActive}>General</SelectItem>
+                <SelectItem value="playback" disabled={isAccountLinkingTutorialActive}>Playback</SelectItem>
+                <SelectItem value="notifications" disabled={isAccountLinkingTutorialActive}>Notifications</SelectItem>
+                <SelectItem value="privacy" disabled={isAccountLinkingTutorialActive}>Privacy</SelectItem>
+                <SelectItem value="profile" disabled={isAccountLinkingTutorialActive}>Profile</SelectItem>
                 <SelectItem value="account" data-tutorial="settings-account-tab">
                   Account
                 </SelectItem>
-                <SelectItem value="security">Security</SelectItem>
-                <SelectItem value="downloads">Downloads</SelectItem>
-                <SelectItem value="accessibility">Accessibility</SelectItem>
-                <SelectItem value="voice">Voice</SelectItem>
-                <SelectItem value="help">Help & Support</SelectItem>
+                <SelectItem value="security" disabled={isAccountLinkingTutorialActive}>Security</SelectItem>
+                <SelectItem value="downloads" disabled={isAccountLinkingTutorialActive}>Downloads</SelectItem>
+                <SelectItem value="accessibility" disabled={isAccountLinkingTutorialActive}>Accessibility</SelectItem>
+                <SelectItem value="voice" disabled={isAccountLinkingTutorialActive}>Voice</SelectItem>
+                <SelectItem value="help" disabled={isAccountLinkingTutorialActive}>Help & Support</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1735,55 +1893,60 @@ const Settings = () => {
             <nav className="space-y-1">
               <button
                 onClick={() => handleTabChange("general")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "general"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <SettingsIcon className="h-4 w-4" />
                 <span>General</span>
               </button>
               <button
                 onClick={() => handleTabChange("playback")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "playback"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Play className="h-4 w-4" />
                 <span>Playback</span>
               </button>
               <button
                 onClick={() => handleTabChange("notifications")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "notifications"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Bell className="h-4 w-4" />
                 <span>Notifications</span>
               </button>
               <button
                 onClick={() => handleTabChange("privacy")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "privacy"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Shield className="h-4 w-4" />
                 <span>Privacy</span>
               </button>
               <button
                 onClick={() => handleTabChange("profile")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "profile"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <User className="h-4 w-4" />
                 <span>Profile</span>
@@ -1802,55 +1965,60 @@ const Settings = () => {
               </button>
               <button
                 onClick={() => handleTabChange("security")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "security"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Lock className="h-4 w-4" />
                 <span>Security</span>
               </button>
               <button
                 onClick={() => handleTabChange("downloads")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "downloads"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Download className="h-4 w-4" />
                 <span>Downloads</span>
               </button>
               <button
                 onClick={() => handleTabChange("accessibility")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "accessibility"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Headphones className="h-4 w-4" />
                 <span>Accessibility</span>
               </button>
               <button
                 onClick={() => handleTabChange("voice")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "voice"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <Volume2 className="h-4 w-4" />
                 <span>Voice</span>
               </button>
               <button
                 onClick={() => handleTabChange("help")}
+                disabled={isAccountLinkingTutorialActive}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   activeTab === "help"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
+                } ${isAccountLinkingTutorialActive ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <HelpCircle className="h-4 w-4" />
                 <span>Help & Support</span>
@@ -1885,7 +2053,8 @@ const Settings = () => {
                 onValueChange={async (value) => {
                   setPreferredLanguage(value);
                   try {
-                    await updateProfile({ preferred_language: value });
+                    // @ts-expect-error - preferred_language exists but not in generated types
+                    await updateProfile({ preferred_language: value } as any);
                     await refetch();
                     toast({
                       title: "Language updated",
@@ -1928,7 +2097,8 @@ const Settings = () => {
                 onCheckedChange={async (checked) => {
                   setAutoTranslateEnabled(checked);
                   try {
-                    await updateProfile({ auto_translate_enabled: checked });
+                    // @ts-expect-error - auto_translate_enabled exists but not in generated types
+                    await updateProfile({ auto_translate_enabled: checked } as any);
                     await refetch();
                     toast({
                       title: checked ? "Auto-translate on" : "Auto-translate off",
@@ -2208,7 +2378,8 @@ const Settings = () => {
                 onCheckedChange={async (checked) => {
                   setShow18PlusContent(checked);
                   try {
-                    await updateProfile({ show_18_plus_content: checked });
+                    // @ts-expect-error - show_18_plus_content exists but not in generated types
+                    await updateProfile({ show_18_plus_content: checked } as any);
                     await refetch();
                     toast({
                       title: checked ? "18+ content enabled" : "18+ content disabled",
@@ -2269,20 +2440,81 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="profile" className="space-y-8 mt-6">
+          {/* Profile overview card */}
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Profile Overview</h2>
+            <Card className="p-6 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center gap-6 bg-gradient-to-br from-background via-background/80 to-muted/70 border-border/70">
+              <div className="flex-shrink-0">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-violet-500 to-emerald-400 flex items-center justify-center text-2xl shadow-md">
+                  {profile?.emoji_avatar ?? "🎧"}
+                </div>
+              </div>
+              <div className="space-y-2 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Handle
+                  </p>
+                  {profile?.handle && (
+                    <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                      {profile.handle}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {profile?.bio
+                    ? (profile as any).bio
+                    : "Add a short bio and avatar to help people recognize your voice and style across Vocalix."}
+                </p>
+                <p className="text-xs text-muted-foreground/80">
+                  Changes you make below update how your profile appears on your clips and in communities.
+                </p>
+              </div>
+            </Card>
+          </section>
+
+          {/* Profile customization controls */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Profile Customization</h2>
-            <ProfileBioEditor />
-            <ProfilePictureUpload />
-            <AvatarSelector />
-            <CoverImageUpload />
-            <ColorSchemePicker />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card className="p-6 rounded-3xl space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Identity & bio</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tune your bio, profile picture, and emoji avatar so people know who they’re listening to.
+                  </p>
+                </div>
+                <ProfileBioEditor />
+                <ProfilePictureUpload />
+                <AvatarSelector />
+              </Card>
+
+              <Card className="p-6 rounded-3xl space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Visual style</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Choose a cover image and color theme to give your profile its own vibe.
+                  </p>
+                </div>
+                <CoverImageUpload />
+                <ColorSchemePicker />
+              </Card>
+            </div>
           </section>
           
+          {/* Personalization + feed controls */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">Personalization</h2>
-            <PersonalizationPreferences />
-            <FeedCustomizationSettings />
-            <MuteBlockSettings />
+            <Card className="p-6 rounded-3xl space-y-4">
+              <div>
+                <p className="text-sm font-medium">What you see & hear</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Adjust recommendations, feeds, and blocks so your experience feels tailored to you.
+                </p>
+              </div>
+              <PersonalizationPreferences />
+              <FeedCustomizationSettings />
+              <MuteBlockSettings />
+            </Card>
           </section>
         </TabsContent>
 
@@ -2393,70 +2625,6 @@ const Settings = () => {
                       </>
                     )}
                   </div>
-                  
-                  {/* Request Magic Link via Email */}
-                  {recoveryEmail && (
-                    <div className="mt-4 p-4 rounded-2xl border border-border/60 bg-muted/40">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-sm">Request Login Link via Email</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Send a login link to your recovery email: {recoveryEmail}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-xl"
-                          onClick={async () => {
-                            if (!profile?.handle) {
-                              toast({
-                                title: "Error",
-                                description: "Unable to find your account handle.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-
-                            try {
-                              const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-                              const response = await fetch(`${SUPABASE_URL}/functions/v1/send-magic-link-email`, {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                  handle: profile.handle,
-                                  recovery_email: recoveryEmail,
-                                }),
-                              });
-
-                              const data = await response.json();
-
-                              if (!response.ok) {
-                                throw new Error(data.error || "Failed to send login link");
-                              }
-
-                              toast({
-                                title: "Login link sent!",
-                                description: `Check your email (${recoveryEmail}) for your login link.`,
-                              });
-                            } catch (error: any) {
-                              logError("Failed to send magic link email", error);
-                              toast({
-                                title: "Error",
-                                description: error.message || "Failed to send login link. Please try again.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Link
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -3567,11 +3735,7 @@ const Settings = () => {
                   let browserVersion = "";
                   
                   if (!userAgent || userAgent.trim() === "") {
-                    console.warn("⚠️ Device has no user_agent stored:", {
-                      device_id: device.device_id.slice(0, 8) + "...",
-                      user_agent: device.user_agent,
-                      last_seen: device.last_seen_at,
-                    });
+                    // Device has no user_agent - use default values
                     browserName = "Unknown Browser";
                   } else {
                     const ua = userAgent.toLowerCase();
@@ -4901,7 +5065,8 @@ const Settings = () => {
                       onCheckedChange={async (checked) => {
                         setVoiceCloningEnabled(checked);
                         try {
-                          await updateProfile({ voice_cloning_enabled: checked });
+                          // @ts-expect-error - voice_cloning_enabled exists but not in generated types
+                          await updateProfile({ voice_cloning_enabled: checked } as any);
                           await refetch();
                           toast({
                             title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
@@ -4966,7 +5131,8 @@ const Settings = () => {
                     onCheckedChange={async (checked) => {
                       setAllowVoiceCloning(checked);
                       try {
-                        await updateProfile({ allow_voice_cloning: checked });
+                        // @ts-expect-error - allow_voice_cloning exists but not in generated types
+                        await updateProfile({ allow_voice_cloning: checked } as any);
                         await refetch();
                         toast({
                           title: checked ? "Voice cloning enabled" : "Voice cloning disabled",
@@ -4998,7 +5164,8 @@ const Settings = () => {
                         onCheckedChange={async (checked) => {
                           setVoiceCloningAutoApprove(checked);
                           try {
-                            await updateProfile({ voice_cloning_auto_approve: checked });
+                            // @ts-expect-error - voice_cloning_auto_approve exists but not in generated types
+                            await updateProfile({ voice_cloning_auto_approve: checked } as any);
                             await refetch();
                             toast({
                               title: checked ? "Auto-approve enabled" : "Auto-approve disabled",
@@ -5034,7 +5201,8 @@ const Settings = () => {
                           const newValue = value[0];
                           setVoiceCloningRevenueShare(newValue);
                           try {
-                            await updateProfile({ voice_cloning_revenue_share_percentage: newValue });
+                            // @ts-expect-error - voice_cloning_revenue_share_percentage exists but not in generated types
+                            await updateProfile({ voice_cloning_revenue_share_percentage: newValue } as any);
                             await refetch();
                           } catch (error) {
                             logError("Failed to update revenue share", error);
@@ -5394,7 +5562,7 @@ const Settings = () => {
                       Share
                     </Button>
                   )}
-                    {magicLinkEmail.trim().length > 0 && magicLinkEmail !== profile?.email && (
+                    {magicLinkEmail.trim().length > 0 && magicLinkEmail !== (profile as any)?.email && (
                     <Button
                       type="button"
                       size="sm"
@@ -5624,5 +5792,3 @@ const Settings = () => {
 };
 
 export default Settings;
-
-

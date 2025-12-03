@@ -53,7 +53,7 @@ export function isReservedHandle(handle: string): boolean {
 export const handleSchema = z
   .string()
   .min(3, "Handle must be at least 3 characters")
-  .max(30, "Handle must be 30 characters or less")
+  .max(20, "Handle must be 20 characters or less")
   .regex(/^[a-zA-Z0-9_-]+$/, "Handle can only contain letters, numbers, underscores, and hyphens")
   .refine(
     (val) => !isReservedHandle(val),

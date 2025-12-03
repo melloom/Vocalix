@@ -259,7 +259,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return deviceProfile as ProfileRow;
           }
         } catch (deviceLookupError: any) {
-          console.error('[AuthContext] Exception in device_id lookup:', deviceLookupError?.message || deviceLookupError);
+          // Only log non-timeout errors as errors; timeouts are expected fallback behavior
+          if (deviceLookupError?.message === 'Device profile lookup timeout') {
+            // Timeout is expected - silently continue to auth_user_id lookup
+          } else {
+            console.error('[AuthContext] Exception in device_id lookup:', deviceLookupError?.message || deviceLookupError);
+          }
           // Continue to check by auth_user_id
         }
       }

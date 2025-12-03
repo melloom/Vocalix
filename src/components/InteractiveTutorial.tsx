@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -266,6 +266,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [feedSortingState, setFeedSortingState] = useState<
     | "default"
     | "for_you"
@@ -283,7 +284,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const tooltipRef = useRef<HTMLDivElement>(null);
   const positionUpdateRef = useRef<number | null>(null);
   const isNavigatingRef = useRef(false); // Guard against rapid clicks
-  const step = TUTORIAL_STEPS[currentStep];
+  // Safely get step with bounds checking
+  const step = currentStep >= 0 && currentStep < TUTORIAL_STEPS.length 
+    ? TUTORIAL_STEPS[currentStep] 
+    : undefined;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -303,6 +307,17 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   useEffect(() => {
     isNavigatingRef.current = false;
     setIsTransitioning(false);
+    // Only reset collapsed state when step changes if we're not on the "follow" step
+    // This allows the collapsed state to persist when navigating on the Follow Creators step
+    const currentStepConfig = TUTORIAL_STEPS[currentStep];
+    if (currentStepConfig?.id !== "follow") {
+      setIsCollapsed(false);
+    }
+    // Track current step in localStorage for RecordModal to check
+    if (typeof window !== "undefined") {
+      localStorage.setItem("echo_garden_tutorial_current_step", String(currentStep));
+      window.dispatchEvent(new CustomEvent("tutorial-step-changed"));
+    }
   }, [currentStep]);
 
   // Track when a new route has settled before showing the overlay, to avoid janky first paint
@@ -314,45 +329,160 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   useEffect(() => {
     // Briefly hide overlay on route change, then re-enable it to avoid flicker
     setIsRouteReady(false);
+    // For Settings page, give it a bit more time to render the sidebar
+    const delay = location.pathname.startsWith("/settings") ? 350 : 220;
     const timeout = setTimeout(() => {
       setIsRouteReady(true);
       setIsManualRouteChange(false);
-    }, 220);
+      // Trigger immediate position recalculation when route is ready for Settings
+      if (location.pathname.startsWith("/settings") && step?.id === "account-linking") {
+        // Try multiple times to catch the Account tab as it renders
+        // Start immediately, don't wait
+        calculatePosition();
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 100);
+        setTimeout(() => calculatePosition(), 150);
+        setTimeout(() => calculatePosition(), 250);
+        setTimeout(() => calculatePosition(), 400);
+        setTimeout(() => calculatePosition(), 600);
+        setTimeout(() => calculatePosition(), 800);
+      }
+    }, delay);
+    
+    // Also try calculating immediately if we're navigating to Settings for account-linking
+    if (location.pathname.startsWith("/settings") && step?.id === "account-linking") {
+      // Try immediately, even before route is "ready"
+      setTimeout(() => calculatePosition(), 50);
+      setTimeout(() => calculatePosition(), 150);
+    }
+    
     return () => clearTimeout(timeout);
-  }, [location.pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, step?.id]);
 
   // When on Settings for the Link Your Account step, advance the tutorial
-  // automatically to the next step when the user clicks the Account tab.
+  // automatically to the next step when the user clicks the Account tab OR when account tab is active
   useEffect(() => {
-    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
+    if (!step || step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
       return;
     }
 
     const accountTab = document.querySelector(
       '[data-tutorial="settings-account-tab"]'
     ) as HTMLButtonElement | null;
-    if (!accountTab) {
+    
+    // Check if account tab is already active via URL
+    const checkAccountTabActive = () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const activeTab = searchParams.get("tab");
+      return activeTab === "account";
+    };
+    
+    // If account tab is already active, advance immediately
+    if (checkAccountTabActive()) {
+      setTimeout(() => {
+        setCurrentStep((prev) =>
+          Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+        );
+        setTimeout(() => calculatePosition(), 100);
+        setTimeout(() => calculatePosition(), 300);
+        setTimeout(() => calculatePosition(), 600);
+      }, 300);
       return;
     }
 
+    // Watch for URL changes to detect when account tab becomes active
+    const handleUrlChange = () => {
+      if (checkAccountTabActive()) {
+        setTimeout(() => {
+          setCurrentStep((prev) =>
+            Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+          );
+          setTimeout(() => calculatePosition(), 100);
+          setTimeout(() => calculatePosition(), 300);
+          setTimeout(() => calculatePosition(), 600);
+        }, 200);
+      }
+    };
+
+    // Listen for popstate (back/forward) and hashchange
+    window.addEventListener('popstate', handleUrlChange);
+    
+    // Also check periodically in case URL changes via other means
+    const urlCheckInterval = setInterval(() => {
+      if (checkAccountTabActive() && step.id === "account-linking") {
+        handleUrlChange();
+        clearInterval(urlCheckInterval);
+      }
+    }, 200);
+
+    if (!accountTab) {
+      return () => {
+        window.removeEventListener('popstate', handleUrlChange);
+        clearInterval(urlCheckInterval);
+      };
+    }
+
     const handleAccountClick = () => {
-      setCurrentStep((prev) =>
-        Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
-      );
+      // Wait for tab to actually switch
+      setTimeout(() => {
+        if (checkAccountTabActive()) {
+          setCurrentStep((prev) =>
+            Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+          );
+          setTimeout(() => calculatePosition(), 100);
+          setTimeout(() => calculatePosition(), 300);
+          setTimeout(() => calculatePosition(), 600);
+        }
+      }, 300);
     };
 
     accountTab.addEventListener("click", handleAccountClick);
     return () => {
       accountTab.removeEventListener("click", handleAccountClick);
+      window.removeEventListener('popstate', handleUrlChange);
+      clearInterval(urlCheckInterval);
     };
-  }, [step.id, location.pathname]);
+  }, [step?.id, location.pathname, location.search]);
 
   // Route-aware gating:
   // - Most steps are meant for the main feed ('/').
   // - Account linking / settings steps also make sense on the Settings page.
+  // - Follow step should show on the Following page.
+  // - Voice AMAs step should show on the Voice AMAs page.
   const isOnMainFeed = location.pathname === "/";
   const isOnSettingsPage = location.pathname.startsWith("/settings");
+  const isOnFollowingPage = location.pathname === "/following";
+  const isOnVoiceAmasPage = location.pathname === "/voice-amas";
   const settingsStepIds = new Set(["account-linking", "account-pin", "settings"]);
+
+  // Check if record modal is open during tutorial (should hide overlay)
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  
+  useEffect(() => {
+    const checkRecordModalState = () => {
+      const recordModalOpen = localStorage.getItem("echo_garden_record_modal_tutorial_open");
+      setIsRecordModalOpen(recordModalOpen === "true");
+    };
+    
+    // Check immediately
+    checkRecordModalState();
+    
+    // Listen for changes
+    const handleRecordModalStateChange = () => {
+      checkRecordModalState();
+    };
+    
+    window.addEventListener("record-modal-tutorial-state-changed", handleRecordModalStateChange);
+    
+    // Also check periodically in case localStorage changes from another tab/window
+    const interval = setInterval(checkRecordModalState, 100);
+    
+    return () => {
+      window.removeEventListener("record-modal-tutorial-state-changed", handleRecordModalStateChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Compute whether the tutorial overlay should actually be visible on this route/step
   const isVisible =
@@ -360,7 +490,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     !isCompleted &&
     isRouteReady &&
     !isManualRouteChange &&
-    (isOnMainFeed || (isOnSettingsPage && settingsStepIds.has(step.id)));
+    !isRecordModalOpen && // Hide overlay when record modal is open during tutorial
+    (isOnMainFeed || (isOnSettingsPage && settingsStepIds.has(step.id)) || (isOnFollowingPage && step.id === "follow") || (isOnVoiceAmasPage && step.id === "voice-amas"));
 
   // NOTE: We intentionally do NOT lock body scroll here anymore.
   // Global scroll locking caused issues when navigating between pages
@@ -383,7 +514,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
 
     positionUpdateRef.current = requestAnimationFrame(() => {
-      if (!step.targetSelector) {
+      // Safety check: ensure step exists
+      if (!step || !step.targetSelector) {
         setTargetElement(null);
         setTooltipPosition(null);
         setHighlightRect(null);
@@ -391,7 +523,16 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       }
 
       // Use a more specific query to avoid matching wrong elements
-      let element = document.querySelector(step.targetSelector) as HTMLElement;
+      let element: HTMLElement | null = null;
+      try {
+        element = document.querySelector(step.targetSelector) as HTMLElement;
+      } catch (error) {
+        console.warn("Error querying element for tutorial:", error);
+        setTargetElement(null);
+        setTooltipPosition(null);
+        setHighlightRect(null);
+        return;
+      }
       
       // Special handling for specific steps to ensure correct targeting
       if (step.id === "record-button") {
@@ -468,17 +609,41 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           element = allFilters[0] as HTMLElement;
         }
       } else if (step.id === "follow") {
-        // For "Follow Creators", highlight the actual Following tab in the header nav.
-        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
-        if (nav) {
-          const followingLink = nav.querySelector('a[aria-label="Following"]') as HTMLElement | null;
-          if (followingLink) {
-            // Prefer the button wrapper if present so the whole icon button is highlighted
-            const buttonWrapper = followingLink.closest("button") as HTMLElement | null;
-            element = buttonWrapper || followingLink;
+        // For "Follow Creators", when on Following page, highlight all mock creator cards
+        // Otherwise, highlight the Following tab in the header nav.
+        if (location.pathname === "/following") {
+          // On Following page, find all mock creator cards to highlight them all
+          const allCreatorCards = document.querySelectorAll('[data-tutorial="mock-creator-card"]') as NodeListOf<HTMLElement>;
+          
+          if (allCreatorCards.length > 0) {
+            // Use the first card as the base element for positioning
+            element = allCreatorCards[0];
           } else {
-            // Fallback to the whole navigation strip
-            element = nav;
+            // Fallback: try to find any creator-related element
+            const creatorGrid = document.querySelector('[data-tutorial="creator-profile"]')?.closest('[data-tutorial="mock-creator-card"]') as HTMLElement | null;
+            const followButton = document.querySelector('[data-tutorial="follow-button"]') as HTMLElement | null;
+            
+            if (creatorGrid) {
+              element = creatorGrid;
+            } else if (followButton) {
+              element = followButton;
+            } else {
+              // Last resort: show center tooltip
+              element = null;
+            }
+          }
+        } else {
+          const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+          if (nav) {
+            const followingLink = nav.querySelector('a[aria-label="Following"]') as HTMLElement | null;
+            if (followingLink) {
+              // Prefer the button wrapper if present so the whole icon button is highlighted
+              const buttonWrapper = followingLink.closest("button") as HTMLElement | null;
+              element = buttonWrapper || followingLink;
+            } else {
+              // Fallback to the whole navigation strip
+              element = nav;
+            }
           }
         }
       } else if (step.id === "communities") {
@@ -506,15 +671,21 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           }
         }
       } else if (step.id === "voice-amas") {
-        // For "Voice AMAs", highlight the Voice AMAs icon in the header nav.
-        const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
-        if (nav) {
-          const amasLink = nav.querySelector('a[aria-label="Voice AMAs"]') as HTMLElement | null;
-          if (amasLink) {
-            const buttonWrapper = amasLink.closest("button") as HTMLElement | null;
-            element = buttonWrapper || amasLink;
-          } else {
-            element = nav;
+        // For "Voice AMAs", when on Voice AMAs page, show center tooltip
+        // Otherwise, highlight the Voice AMAs icon in the header nav.
+        if (location.pathname === "/voice-amas") {
+          // On Voice AMAs page, don't highlight a specific element - show center tooltip
+          element = null;
+        } else {
+          const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
+          if (nav) {
+            const amasLink = nav.querySelector('a[aria-label="Voice AMAs"]') as HTMLElement | null;
+            if (amasLink) {
+              const buttonWrapper = amasLink.closest("button") as HTMLElement | null;
+              element = buttonWrapper || amasLink;
+            } else {
+              element = nav;
+            }
           }
         }
       } else if (step.id === "saved-clips") {
@@ -611,11 +782,32 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       } else if (step.id === "account-pin") {
         // For PIN step, highlight the Account Linking section in Account tab.
         if (location.pathname.startsWith("/settings")) {
+          // First, ensure we're on the account tab by checking URL
+          const searchParams = new URLSearchParams(window.location.search);
+          const activeTab = searchParams.get("tab");
+          
+          // Try to find the linking section
           const linkingSection = document.querySelector(
             '[data-tutorial="settings-account-linking"]'
           ) as HTMLElement | null;
+          
           if (linkingSection) {
             element = linkingSection;
+          } else if (activeTab === "account") {
+            // If on account tab but section not found, try broader search
+            const accountContent = document.querySelector('[role="tabpanel"]') as HTMLElement | null;
+            if (accountContent) {
+              // Look for any element with "PIN" or "linking" in it
+              const pinSection = Array.from(accountContent.querySelectorAll('*')).find(el => {
+                const text = el.textContent?.toLowerCase() || '';
+                return text.includes('pin') || text.includes('linking') || el.hasAttribute('data-tutorial');
+              }) as HTMLElement | null;
+              if (pinSection) {
+                element = pinSection;
+              } else {
+                element = accountContent;
+              }
+            }
           }
         }
       } else if (step.id === "notifications") {
@@ -776,7 +968,43 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           (combinedRect as any).height = combinedRect.bottom - combinedRect.top;
           setHighlightRect(combinedRect);
         } else {
-          // Fallback: just use the main element’s rect
+          // Fallback: just use the main element's rect
+          setHighlightRect(rect);
+        }
+      } else if (step.id === "follow" && location.pathname === "/following") {
+        // For "Follow Creators" on Following page: highlight all creator cards
+        const allCreatorCards = document.querySelectorAll('[data-tutorial="mock-creator-card"]') as NodeListOf<HTMLElement>;
+        
+        if (allCreatorCards.length > 0) {
+          // Start with the first card's rect
+          const firstRect = allCreatorCards[0].getBoundingClientRect();
+          let top = firstRect.top;
+          let left = firstRect.left;
+          let right = firstRect.right;
+          let bottom = firstRect.bottom;
+          
+          // Expand to include all other cards
+          allCreatorCards.forEach((card) => {
+            const cardRect = card.getBoundingClientRect();
+            top = Math.min(top, cardRect.top);
+            left = Math.min(left, cardRect.left);
+            right = Math.max(right, cardRect.right);
+            bottom = Math.max(bottom, cardRect.bottom);
+          });
+          
+          const combinedRect = {
+            top,
+            left,
+            right,
+            bottom,
+            width: 0,
+            height: 0,
+          } as DOMRect;
+          (combinedRect as any).width = combinedRect.right - combinedRect.left;
+          (combinedRect as any).height = combinedRect.bottom - combinedRect.top;
+          setHighlightRect(combinedRect);
+        } else {
+          // Fallback: just use the main element's rect
           setHighlightRect(rect);
         }
       } else if (step.id === "filters") {
@@ -973,6 +1201,45 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           top = Math.max(minTop, Math.min(desiredTop, maxTop));
           left = Math.max(minLeft, Math.min(desiredLeft, maxLeft));
         }
+      } else if (step.id === "follow") {
+        // Special handling for "Follow Creators" step
+        if (location.pathname === "/following") {
+          // On Following page: position tooltip to the right of all cards, not overlapping
+          preferredPosition = "right";
+          // Position it to the right of the cards with more spacing to avoid overlap
+          const rightSpacing = 400; // More space between cards and tooltip to prevent overlap
+          top = rect.top + rect.height / 2 - tooltipHeight / 2;
+          left = rect.right + rightSpacing; // Position to the right of the cards
+          
+          // Auto-scroll to show the creator cards when this step is active
+          if (element) {
+            setTimeout(() => {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            }, 100);
+          }
+        } else {
+          // On other pages: move tooltip to the right of the navigation
+          preferredPosition = step.position || "bottom";
+          const extraRightOffset = 40; // Move it to the right by 40px
+          
+          if (preferredPosition === "bottom") {
+            top = rect.bottom + effectiveSpacing;
+            left = rect.left + rect.width / 2 - tooltipWidth / 2 + extraRightOffset;
+          } else if (preferredPosition === "top") {
+            top = rect.top - tooltipHeight - effectiveSpacing;
+            left = rect.left + rect.width / 2 - tooltipWidth / 2 + extraRightOffset;
+          } else if (preferredPosition === "right") {
+            top = rect.top + rect.height / 2 - tooltipHeight / 2;
+            left = rect.right + effectiveSpacing + extraRightOffset;
+          } else {
+            top = rect.top + rect.height / 2 - tooltipHeight / 2;
+            left = rect.left - tooltipWidth - effectiveSpacing - extraRightOffset;
+          }
+        }
+        
+        // Ensure it stays within viewport bounds
+        left = Math.max(minLeft, Math.min(left, maxLeft));
+        top = Math.max(minTop, Math.min(top, maxTop));
       } else {
         // Calculate position based on preferred position
         switch (preferredPosition) {
@@ -1149,6 +1416,32 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       // Smooth scroll to element if needed with better visibility check
       let element = document.querySelector(step.targetSelector) as HTMLElement;
       
+      // Special handling for account-linking step on Settings page
+      if (step.id === "account-linking" && location.pathname.startsWith("/settings")) {
+        // Try to find Account tab immediately
+        const accountTab = document.querySelector('[data-tutorial="settings-account-tab"]') as HTMLElement | null;
+        if (accountTab) {
+          element = accountTab;
+        }
+        // Also set up a MutationObserver to watch for Account tab appearing
+        const observer = new MutationObserver(() => {
+          const accountTab = document.querySelector('[data-tutorial="settings-account-tab"]') as HTMLElement | null;
+          if (accountTab) {
+            calculatePosition();
+            observer.disconnect();
+          }
+        });
+        const settingsContainer = document.querySelector('[data-tutorial="navigation"]')?.closest('div') || 
+                                  document.querySelector('main') || 
+                                  document.body;
+        observer.observe(settingsContainer, {
+          childList: true,
+          subtree: true,
+        });
+        // Disconnect after 5 seconds to avoid memory leaks
+        setTimeout(() => observer.disconnect(), 5000);
+      }
+      
       // Special handling for record button to ensure we get the right container
       if (step.id === "record-button") {
         const recordContainer = document.querySelector('[data-tutorial="record-button"]') as HTMLElement;
@@ -1208,12 +1501,124 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   // Prevent body scroll and interactions during tutorial
   useEffect(() => {
-    // Lock body scroll
-    const originalOverflow = document.body.style.overflow;
-    const originalPosition = document.body.style.position;
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
+    if (!isVisible) {
+      return;
+    }
+
+    // Lock body scroll aggressively
+    const originalOverflow = document.body.style.overflow || '';
+    const originalPosition = document.body.style.position || '';
+    const originalWidth = document.body.style.width || '';
+    const originalHeight = document.body.style.height || '';
+    const originalTop = document.body.style.top || '';
+    
+    // For account-linking step on Settings page, allow scrolling within Settings content
+    const isAccountLinkingOnSettings = step?.id === "account-linking" && location.pathname.startsWith("/settings");
+    
+    const lockScroll = () => {
+      // Get current scroll position before locking
+      const scrollY = window.scrollY || window.pageYOffset;
+      
+      // Lock body/html scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      
+      // Also lock html element
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.position = 'fixed';
+      document.documentElement.style.height = '100%';
+      
+      // For account-linking on Settings, ensure Settings content can scroll
+      if (isAccountLinkingOnSettings) {
+        // Find Settings content containers and ensure they can scroll
+        const settingsContainer = document.querySelector('[class*="max-w-7xl"]');
+        const sidebar = document.querySelector('aside[class*="lg:overflow-y-auto"]');
+        const tabsContent = document.querySelector('[role="tabpanel"]');
+        
+        // Ensure Settings main content area can scroll
+        if (settingsContainer) {
+          const container = settingsContainer as HTMLElement;
+          container.style.overflowY = 'auto';
+          container.style.maxHeight = `${window.innerHeight - 200}px`; // Leave space for header
+        }
+        
+        // Ensure sidebar can scroll (it already has overflow-y-auto, but ensure it works)
+        if (sidebar) {
+          (sidebar as HTMLElement).style.overflowY = 'auto';
+        }
+        
+        // Ensure tab content can scroll
+        if (tabsContent) {
+          const tabContent = tabsContent as HTMLElement;
+          tabContent.style.overflowY = 'auto';
+          tabContent.style.maxHeight = `${window.innerHeight - 250}px`;
+        }
+      }
+    };
+    
+    // Lock immediately
+    lockScroll();
+    
+    // Continuously enforce scroll lock (Settings page tries to re-enable it)
+    const lockInterval = setInterval(lockScroll, 100);
+    
+    // Prevent scroll events
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+    
+    // Prevent scroll via wheel, touch, and keyboard
+    const preventWheel = (e: WheelEvent) => {
+      // Allow scrolling within Settings page content during account-linking step
+      if (isAccountLinkingOnSettings) {
+        const target = e.target as HTMLElement;
+        // Check if the scroll is happening within Settings page content area
+        const settingsContent = target.closest('main') || 
+                                target.closest('[class*="max-w-7xl"]') ||
+                                target.closest('aside') ||
+                                target.closest('[class*="TabsContent"]');
+        
+        // If scrolling within Settings content, allow it
+        if (settingsContent) {
+          return true; // Allow the scroll
+        }
+      }
+      
+      // Otherwise, prevent scroll
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+    
+    const preventTouchMove = (e: TouchEvent) => {
+      // Allow scrolling within Settings page content during account-linking step
+      if (isAccountLinkingOnSettings) {
+        const target = e.target as HTMLElement;
+        const settingsContent = target.closest('main') || 
+                                target.closest('[class*="max-w-7xl"]') ||
+                                target.closest('aside') ||
+                                target.closest('[class*="TabsContent"]');
+        
+        if (settingsContent) {
+          return true; // Allow the scroll
+        }
+      }
+      
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+    
+    // Add event listeners with capture phase to catch all scroll attempts
+    window.addEventListener('scroll', preventScroll, { passive: false, capture: true });
+    window.addEventListener('wheel', preventWheel, { passive: false, capture: true });
+    window.addEventListener('touchmove', preventTouchMove, { passive: false, capture: true });
+    document.addEventListener('scroll', preventScroll, { passive: false, capture: true });
     
     // Prevent keyboard shortcuts that might interfere
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1230,13 +1635,37 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     document.addEventListener('keydown', handleKeyDown, true);
     
     return () => {
+      // Clear the lock interval
+      clearInterval(lockInterval);
+      
+      // Restore scroll position
+      const scrollY = document.body.style.top ? parseInt(document.body.style.top) * -1 : 0;
+      
       // Restore body scroll
-      document.body.style.overflow = originalOverflow;
-      document.body.style.position = originalPosition;
-      document.body.style.width = '';
+      document.body.style.overflow = originalOverflow || 'auto';
+      document.body.style.position = originalPosition || 'relative';
+      document.body.style.width = originalWidth || '';
+      document.body.style.height = originalHeight || '';
+      document.body.style.top = originalTop || '';
+      
+      // Restore html element
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.position = '';
+      document.documentElement.style.height = '';
+      
+      // Restore scroll position
+      if (scrollY) {
+        window.scrollTo(0, scrollY);
+      }
+      
+      // Remove event listeners
+      window.removeEventListener('scroll', preventScroll, true);
+      window.removeEventListener('wheel', preventWheel, true);
+      window.removeEventListener('touchmove', preventTouchMove, true);
+      document.removeEventListener('scroll', preventScroll, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [markCompleted]);
+  }, [isVisible, markCompleted]);
 
   // Add data attributes to elements for targeting
   useEffect(() => {
@@ -1266,7 +1695,25 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
     
     if (currentStep < TUTORIAL_STEPS.length - 1) {
+      const currentStepConfig = TUTORIAL_STEPS[currentStep];
       const nextStepConfig = TUTORIAL_STEPS[currentStep + 1];
+
+      // If we're on the "Follow Creators" step (follow) and on the Following page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        // Wait for navigation to complete before advancing step
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
 
       // Skip Settings-only PIN step when we're not on Settings
       if (nextStepConfig?.id === "account-pin" && !location.pathname.startsWith("/settings")) {
@@ -1365,7 +1812,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   // Track feed sorting state (which option user clicked) to adjust text on step 4
   useEffect(() => {
-    if (step.id !== "feed-sorting") {
+    if (!step || step.id !== "feed-sorting") {
       if (feedSortingState !== "default") {
         setFeedSortingState("default");
       }
@@ -1432,7 +1879,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   // When on Filters & Discovery step, recalc position on any click so the
   // highlight can expand when the dropdown opens and shrink back when it closes.
   useEffect(() => {
-    if (step.id !== "filters") return;
+    if (!step || step.id !== "filters") return;
 
     const handleClick = (event: MouseEvent) => {
       // Defer to let the UI (dropdown open/close) update first, then recalc
@@ -1450,6 +1897,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   // Dynamic description for steps that depend on UI state (e.g. Feed Sorting)
   const effectiveDescription = useMemo(() => {
+    if (!step) return "";
     if (step.id === "feed-sorting") {
       switch (feedSortingState) {
         case "for_you":
@@ -1498,12 +1946,26 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       ].join(" ");
     }
 
+    if (step.id === "follow") {
+      // Show different copy when on the Following page
+      if (location.pathname === "/following") {
+        return [
+          "Click on any creator's handle or avatar to visit their profile.",
+          "Click 'Follow' to see their clips in your Following feed!",
+          "You can access your Following feed from the header anytime.",
+          "Build your personalized feed by following voices you love.",
+        ].join(" ");
+      }
+      // Default description when not on Following page
+      return step.description;
+    }
+
     return step.description;
   }, [step, feedSortingState, location.pathname]);
 
   // Calculate spotlight position for overlay with smooth transitions
   const spotlightStyle = useMemo(() => {
-    if (!highlightRect || !step.highlight) {
+    if (!highlightRect || !step || !step.highlight) {
       return {};
     }
 
@@ -1534,10 +1996,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       )`,
       transition: "clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     };
-  }, [highlightRect, step.highlight]);
+  }, [highlightRect, step]);
 
   const highlightStyle = useMemo(() => {
-    if (!highlightRect || !step.highlight) return null;
+    if (!highlightRect || !step || !step.highlight) return null;
 
     const padding = 12;
     const top = Math.max(0, highlightRect.top - padding);
@@ -1552,28 +2014,112 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       height: `${height}px`,
       transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     };
-  }, [highlightRect, step.highlight]);
+  }, [highlightRect, step]);
 
-  // Ensure target element is above blocking overlay
+  // Disable all buttons except the target element during tutorial
   useEffect(() => {
-    if (targetElement && step.highlight) {
+    if (!isVisible || !step || !step.highlight) {
+      return;
+    }
+
+    // Find all buttons, links, and interactive elements on the page
+    const allButtons = Array.from(document.querySelectorAll('button, a, [role="button"], [tabindex="0"]')) as HTMLElement[];
+    const allInputs = Array.from(document.querySelectorAll('input, select, textarea')) as HTMLElement[];
+    const allInteractive = [...allButtons, ...allInputs];
+
+    // Store original states
+    const originalStates = new Map<HTMLElement, {
+      pointerEvents: string;
+      opacity: string;
+      cursor: string;
+      disabled?: boolean;
+      tabIndex?: number;
+    }>();
+
+    // Disable all interactive elements except the target element and its children
+    allInteractive.forEach((element) => {
+      // Skip if this is the target element or a child of the target element
+      if (targetElement && (element === targetElement || targetElement.contains(element))) {
+        return;
+      }
+
+      // Skip if this is part of the tutorial tooltip
+      if (tooltipRef.current && (element === tooltipRef.current || tooltipRef.current.contains(element))) {
+        return;
+      }
+
+      // Store original state
+      const computedStyle = window.getComputedStyle(element);
+      originalStates.set(element, {
+        pointerEvents: element.style.pointerEvents || computedStyle.pointerEvents,
+        opacity: element.style.opacity || computedStyle.opacity,
+        cursor: element.style.cursor || computedStyle.cursor,
+        disabled: (element as HTMLButtonElement | HTMLInputElement).disabled,
+        tabIndex: element.tabIndex,
+      });
+
+      // Disable the element
+      element.style.pointerEvents = 'none';
+      element.style.opacity = '0.5';
+      element.style.cursor = 'not-allowed';
+      
+      // Disable form elements
+      if (element instanceof HTMLButtonElement || element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+        (element as HTMLButtonElement | HTMLInputElement).disabled = true;
+      }
+      
+      // Remove from tab order
+      if (element.tabIndex >= 0) {
+        element.tabIndex = -1;
+      }
+    });
+
+    // Cleanup: restore original states
+    return () => {
+      originalStates.forEach((original, element) => {
+        element.style.pointerEvents = original.pointerEvents;
+        element.style.opacity = original.opacity;
+        element.style.cursor = original.cursor;
+        
+        if (element instanceof HTMLButtonElement || element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement) {
+          (element as HTMLButtonElement | HTMLInputElement).disabled = original.disabled ?? false;
+        }
+        
+        if (original.tabIndex !== undefined) {
+          element.tabIndex = original.tabIndex;
+        }
+      });
+    };
+  }, [isVisible, step, targetElement]);
+
+  // Ensure target element is above blocking overlay and can receive clicks
+  useEffect(() => {
+    if (targetElement && step && step.highlight) {
       // Make sure the target element can receive pointer events
       const originalStyle = targetElement.style.pointerEvents;
       const originalZIndex = targetElement.style.zIndex;
+      const originalOpacity = targetElement.style.opacity;
+      const originalCursor = targetElement.style.cursor;
+      
       targetElement.style.pointerEvents = 'auto';
-      targetElement.style.zIndex = '100000'; // Above blocking overlay
+      targetElement.style.zIndex = '100001'; // Above blocking overlay
+      targetElement.style.opacity = '1';
+      targetElement.style.cursor = 'pointer';
       
       return () => {
         targetElement.style.pointerEvents = originalStyle;
         targetElement.style.zIndex = originalZIndex;
+        targetElement.style.opacity = originalOpacity;
+        targetElement.style.cursor = originalCursor;
       };
     }
-  }, [targetElement, step.highlight]);
+  }, [targetElement, step]);
 
   // For the Account PIN step, gently scroll the page so the highlighted
   // section and the modal below it are comfortably in view.
   useEffect(() => {
     if (
+      !step ||
       step.id !== "account-pin" ||
       !highlightRect ||
       !location.pathname.startsWith("/settings")
@@ -1590,95 +2136,382 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       top: desiredTop,
       behavior: "smooth",
     });
-  }, [step.id, highlightRect, location.pathname]);
+  }, [step?.id, highlightRect, location.pathname]);
 
   // When we land on Settings for the "Link Your Account" step, aggressively
   // recalculate the highlight a few times so the Account tab is reliably
   // found even if the layout is still mounting.
   useEffect(() => {
-    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
+    if (!step || step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
       return;
+    }
+
+    // Calculate position immediately, even if route isn't ready yet
+    calculatePosition();
+    
+    // Also try immediately after a tiny delay
+    setTimeout(() => calculatePosition(), 10);
+    setTimeout(() => calculatePosition(), 30);
+
+    // Wait for route to be ready before starting aggressive search
+    if (!isRouteReady) {
+      // Set up a check for when route becomes ready
+      const checkRouteReady = setInterval(() => {
+        if (isRouteReady) {
+          clearInterval(checkRouteReady);
+          calculatePosition();
+          setTimeout(() => calculatePosition(), 50);
+          setTimeout(() => calculatePosition(), 150);
+        }
+      }, 50);
+      return () => clearInterval(checkRouteReady);
     }
 
     let attempts = 0;
-    const maxAttempts = 6;
-    const interval = setInterval(() => {
-      attempts += 1;
-      calculatePosition();
+    const maxAttempts = 60; // Increased to 60 attempts (9 seconds total)
+    let foundAccountTab = false;
+    let interval: NodeJS.Timeout | null = null;
 
+    // Use MutationObserver to watch for Account tab appearing
+    const observer = new MutationObserver(() => {
       const accountTab = document.querySelector(
         '[data-tutorial="settings-account-tab"]'
       ) as HTMLElement | null;
-      if (accountTab || attempts >= maxAttempts) {
-        clearInterval(interval);
+      
+      if (accountTab && !foundAccountTab) {
+        foundAccountTab = true;
+        // Found it! Calculate position immediately
+        calculatePosition();
+        // Give it a few more calculations to ensure it's properly positioned
+        setTimeout(() => calculatePosition(), 10);
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 150);
+        setTimeout(() => calculatePosition(), 300);
+        observer.disconnect();
+        if (interval) clearInterval(interval);
       }
-    }, 180);
+    });
 
-    return () => clearInterval(interval);
-  }, [step.id, location.pathname, calculatePosition]);
-
-  // Ensure the Account tab is active when entering the Link Your Account
-  // step on Settings, so the sidebar state matches the tutorial text and
-  // the highlight can lock onto the correct row.
-  useEffect(() => {
-    if (step.id !== "account-linking" || !location.pathname.startsWith("/settings")) {
-      return;
+    // Start observing the Settings page container - use multiple targets
+    const settingsContainer = document.querySelector('[data-tutorial="navigation"]')?.closest('div') || 
+                              document.querySelector('main') || 
+                              document.querySelector('aside') ||
+                              document.body;
+    
+    if (settingsContainer) {
+      observer.observe(settingsContainer, {
+        childList: true,
+        subtree: true,
+        attributes: true, // Also watch for attribute changes
+        attributeFilter: ['class', 'data-tutorial'], // Watch for class and data-tutorial changes
+      });
     }
 
-    const accountTab = document.querySelector(
-      '[data-tutorial="settings-account-tab"]'
-    ) as HTMLButtonElement | null;
-    if (accountTab) {
-      accountTab.click();
-    }
-  }, [step.id, location.pathname]);
+    interval = setInterval(() => {
+      attempts += 1;
+      
+      // Check if Account tab exists
+      const accountTab = document.querySelector(
+        '[data-tutorial="settings-account-tab"]'
+      ) as HTMLElement | null;
+      
+      if (accountTab && !foundAccountTab) {
+        foundAccountTab = true;
+        // Found it! Calculate position to highlight it
+        calculatePosition();
+        // Give it multiple calculations to ensure it's visible
+        setTimeout(() => calculatePosition(), 10);
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 150);
+        setTimeout(() => calculatePosition(), 300);
+        observer.disconnect();
+        if (interval) clearInterval(interval);
+      } else if (!accountTab) {
+        // Not found yet, keep trying and recalculate
+        calculatePosition();
+        if (attempts >= maxAttempts) {
+          // Last attempt - try one more time after a longer delay
+          setTimeout(() => {
+            calculatePosition();
+          }, 500);
+          observer.disconnect();
+          if (interval) clearInterval(interval);
+        }
+      }
+    }, 150); // Check every 150ms
 
-  // Ensure the Account tab is active when entering the Account PIN step
-  // so the PIN Account Linking section is visible.
-  useEffect(() => {
-    if (step.id !== "account-pin" || !location.pathname.startsWith("/settings")) {
-      return;
-    }
+    return () => {
+      observer.disconnect();
+      if (interval) clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step?.id, location.pathname, isRouteReady]);
 
-    const accountTab = document.querySelector(
-      '[data-tutorial="settings-account-tab"]'
-    ) as HTMLButtonElement | null;
-    if (accountTab) {
-      accountTab.click();
-    }
-  }, [step.id, location.pathname]);
+  // NOTE: We no longer auto-click the Account tab here.
+  // The tutorial will highlight the Account tab, and the user
+  // must click it themselves to proceed.
 
   // Aggressively recalculate highlight position for the Account PIN step as well,
   // so the linking section is properly highlighted even if the layout is still mounting.
   useEffect(() => {
-    if (step.id !== "account-pin" || !location.pathname.startsWith("/settings")) {
+    if (!step || step.id !== "account-pin" || !location.pathname.startsWith("/settings")) {
       return;
     }
 
+    // Ensure we're on the account tab first
+    const searchParams = new URLSearchParams(window.location.search);
+    const activeTab = searchParams.get("tab");
+    if (activeTab !== "account") {
+      // Navigate to account tab if not already there
+      navigate("/settings?tab=account", { replace: true });
+    }
+
+    // Calculate immediately and repeatedly
+    const calculateMultiple = () => {
+      calculatePosition();
+      setTimeout(() => calculatePosition(), 10);
+      setTimeout(() => calculatePosition(), 50);
+      setTimeout(() => calculatePosition(), 100);
+      setTimeout(() => calculatePosition(), 200);
+      setTimeout(() => calculatePosition(), 400);
+    };
+
+    calculateMultiple();
+
     let attempts = 0;
-    const maxAttempts = 6;
-    const interval = setInterval(() => {
+    const maxAttempts = 50; // Increased to 50 attempts (7.5 seconds)
+    let foundSection = false;
+    let interval: NodeJS.Timeout | null = null;
+
+    // Use MutationObserver to watch for the linking section
+    const observer = new MutationObserver(() => {
+      const linkingSection = document.querySelector(
+        '[data-tutorial="settings-account-linking"]'
+      ) as HTMLElement | null;
+      
+      if (linkingSection && !foundSection) {
+        foundSection = true;
+        calculateMultiple();
+        observer.disconnect();
+        if (interval) clearInterval(interval);
+      }
+    });
+
+    // Observe multiple containers to catch the section wherever it appears
+    const containers = [
+      document.querySelector('main'),
+      document.querySelector('[class*="max-w-7xl"]'),
+      document.querySelector('[role="tabpanel"]'),
+      document.querySelector('[data-tutorial="settings-account-linking"]')?.parentElement,
+      document.body
+    ].filter(Boolean) as HTMLElement[];
+    
+    containers.forEach(container => {
+      if (container) {
+        observer.observe(container, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['class', 'data-tutorial', 'style'],
+        });
+      }
+    });
+
+    interval = setInterval(() => {
       attempts += 1;
       calculatePosition();
 
       const linkingSection = document.querySelector(
         '[data-tutorial="settings-account-linking"]'
       ) as HTMLElement | null;
-      if (linkingSection || attempts >= maxAttempts) {
-        clearInterval(interval);
+      
+      if (linkingSection && !foundSection) {
+        foundSection = true;
+        calculateMultiple();
+        observer.disconnect();
+        if (interval) clearInterval(interval);
+      } else if (attempts >= maxAttempts) {
+        // Even if not found, keep trying periodically
+        if (attempts % 10 === 0) {
+          calculatePosition();
+        }
+        if (attempts >= maxAttempts * 2) {
+          observer.disconnect();
+          if (interval) clearInterval(interval);
+        }
       }
-    }, 180);
+    }, 150);
 
-    return () => clearInterval(interval);
-  }, [step.id, location.pathname, calculatePosition]);
+    return () => {
+      observer.disconnect();
+      if (interval) clearInterval(interval);
+    };
+  }, [step?.id, location.pathname, location.search, calculatePosition, navigate]);
+
+  // Intercept clicks on background elements during tutorial
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    
+    // Allow clicks on the tooltip
+    if (tooltipRef.current && tooltipRef.current.contains(target)) {
+      return;
+    }
+
+    // Allow clicks on the target element and its children
+    if (targetElement && (targetElement.contains(target) || targetElement === target)) {
+      return;
+    }
+
+    // Block all other clicks
+    e.preventDefault();
+    e.stopPropagation();
+  }, [targetElement]);
+
+  // Create click-blocking overlay that covers everything except the target
+  const clickBlockingStyle = useMemo(() => {
+    if (!highlightRect || !step || !step.highlight) {
+      return { display: 'none' };
+    }
+
+    const padding = 12;
+    const left = Math.max(0, highlightRect.left - padding);
+    const top = Math.max(0, highlightRect.top - padding);
+    const right = Math.min(window.innerWidth, highlightRect.right + padding);
+    const bottom = Math.min(window.innerHeight, highlightRect.bottom + padding);
+
+    // Create clip-path that covers the viewport except the target area
+    return {
+      clipPath: `polygon(
+        0% 0%, 
+        0% 100%, 
+        ${left}px 100%, 
+        ${left}px ${top}px, 
+        ${right}px ${top}px, 
+        ${right}px ${bottom}px, 
+        ${left}px ${bottom}px, 
+        ${left}px 100%, 
+        100% 100%, 
+        100% 0%
+      )`,
+    };
+  }, [highlightRect, step]);
+
+  // Check if collapsed FIRST - this takes priority over visibility checks
+  // When collapsed on Follow Creators step, show only floating button (no overlays)
+  const currentStepConfig = step || TUTORIAL_STEPS[currentStep];
+  if (isCollapsed && currentStepConfig?.id === "follow") {
+    return (
+      <>
+        {/* Floating button to reopen tutorial - always visible and clickable */}
+        <div 
+          className="fixed bottom-6 right-6 z-[999999] pointer-events-auto" 
+          data-tutorial-active="true"
+          style={{ isolation: 'isolate' }}
+        >
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCollapsed(false);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              size="lg"
+              className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer"
+              aria-label="Expand tutorial"
+              title="Click to expand tutorial"
+              type="button"
+            >
+              <ChevronUp className="h-7 w-7" />
+            </Button>
+            <div className="bg-primary/90 text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm border border-primary/50 whitespace-nowrap pointer-events-none">
+              Tutorial
+            </div>
+          </div>
+        </div>
+        {/* Show step info badge when collapsed - more prominent */}
+        <div 
+          className="fixed top-6 right-6 z-[999999] pointer-events-none" 
+          data-tutorial-active="true"
+        >
+          <Badge variant="secondary" className="text-sm font-medium px-4 py-2 shadow-lg bg-background/95 backdrop-blur-sm border-2 border-primary/30">
+            {currentStep + 1} of {TUTORIAL_STEPS.length} - {currentStepConfig?.title || "Follow Creators"}
+          </Badge>
+        </div>
+      </>
+    );
+  }
+
+  // If the tutorial isn't supposed to be visible for this route/step, but we're collapsed, still show button
+  if ((!isVisible || !step) && isCollapsed) {
+    const currentStepConfig = TUTORIAL_STEPS[currentStep];
+    if (currentStepConfig?.id === "follow") {
+      return (
+        <>
+          {/* Floating button to reopen tutorial - always visible and clickable */}
+          <div 
+            className="fixed bottom-6 right-6 z-[999999] pointer-events-auto" 
+            data-tutorial-active="true"
+            style={{ isolation: 'isolate' }}
+          >
+            <div className="flex flex-col items-end gap-2">
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsCollapsed(false);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                size="lg"
+                className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer"
+                aria-label="Expand tutorial"
+                title="Click to expand tutorial"
+                type="button"
+              >
+                <ChevronUp className="h-7 w-7" />
+              </Button>
+              <div className="bg-primary/90 text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm border border-primary/50 whitespace-nowrap pointer-events-none">
+                Tutorial
+              </div>
+            </div>
+          </div>
+          {/* Show step info badge when collapsed */}
+          <div 
+            className="fixed top-6 right-6 z-[999999] pointer-events-none" 
+            data-tutorial-active="true"
+          >
+            <Badge variant="secondary" className="text-sm font-medium px-4 py-2 shadow-lg bg-background/95 backdrop-blur-sm border-2 border-primary/30">
+              {currentStep + 1} of {TUTORIAL_STEPS.length} - {currentStepConfig?.title || "Follow Creators"}
+            </Badge>
+          </div>
+        </>
+      );
+    }
+    return null;
+  }
 
   // If the tutorial isn't supposed to be visible for this route/step, render nothing
-  if (!isVisible) {
+  if (!isVisible || !step) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-[100000] pointer-events-none">
+    <div className="fixed inset-0 z-[100000] pointer-events-none" data-tutorial-active="true">
+      {/* Click-blocking overlay - covers everything except the target element */}
+      {step && step.highlight && (
+        <div
+          className="absolute inset-0 pointer-events-auto z-[99999]"
+          style={clickBlockingStyle}
+          onClick={handleOverlayClick}
+        />
+      )}
+      
       {/* Visual dimming layer only; we no longer intercept scroll so the page can move freely */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -1802,15 +2635,30 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   </div>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-                onClick={handleSkip}
-                aria-label="Skip tutorial"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Only show collapse button on "Follow Creators" step */}
+                {step.id === "follow" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full hover:bg-muted transition-colors"
+                    onClick={() => setIsCollapsed(true)}
+                    aria-label="Collapse tutorial"
+                    title="Collapse tutorial"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  onClick={handleSkip}
+                  aria-label="Skip tutorial"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <Progress value={progress} className="h-2 bg-muted" />
           </CardHeader>
@@ -1838,7 +2686,17 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                     setTargetElement(null);
                     setTooltipPosition(null);
                     setIsManualRouteChange(true);
-                    navigate("/settings");
+                    navigate("/settings?tab=general");
+                    // Force immediate recalculation after a brief delay to catch the Account tab
+                    setTimeout(() => {
+                      calculatePosition();
+                    }, 100);
+                    setTimeout(() => {
+                      calculatePosition();
+                    }, 300);
+                    setTimeout(() => {
+                      calculatePosition();
+                    }, 600);
                   }}
                 >
                   Go to Settings
@@ -1856,16 +2714,27 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   variant="outline"
                   className="w-full rounded-xl font-medium"
                   onClick={() => {
-                    setCurrentStep((prev) =>
-                      Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
-                    );
+                    // Navigate to Account tab
+                    navigate("/settings?tab=account");
+                    // Wait a moment for tab to switch, then advance to PIN step
+                    setTimeout(() => {
+                      setCurrentStep((prev) =>
+                        Math.min(prev + 1, TUTORIAL_STEPS.length - 1)
+                      );
+                      // Force position calculation after advancing
+                      setTimeout(() => {
+                        calculatePosition();
+                      }, 100);
+                      setTimeout(() => {
+                        calculatePosition();
+                      }, 300);
+                    }, 200);
                   }}
                 >
                   Go to Account
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  After you&apos;ve opened the Account tab, use the controls there to generate a 4-digit PIN and then
-                  enter it on another device to finish linking.
+                  This will switch to the Account tab and show you the PIN generation controls.
                 </p>
               </div>
             )}
@@ -2091,7 +2960,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                     setTargetElement(null);
                     setTooltipPosition(null);
                     setIsManualRouteChange(true);
-                    navigate("/settings");
+                    navigate("/settings?tab=general");
                   }}
                 >
                   Open Settings

@@ -312,17 +312,32 @@ const IndexInner = () => {
   }, [blockedUsers]);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   
+  // Helper function to handle opening record modal with tutorial awareness
+  const handleOpenRecordModal = useCallback(() => {
+    // Check if we're on tutorial step 2 (record-button step)
+    const currentTutorialStep = localStorage.getItem("echo_garden_tutorial_current_step");
+    const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+    
+    // If on step 2 (index 1) and tutorial not completed, hide the tutorial overlay
+    if (currentTutorialStep === "1" && tutorialCompleted !== "true") {
+      localStorage.setItem("echo_garden_record_modal_tutorial_open", "true");
+      window.dispatchEvent(new CustomEvent("record-modal-tutorial-state-changed"));
+    }
+    
+    setIsRecordModalOpen(true);
+  }, []);
+
   // Listen for record modal trigger from BottomNavigation
   useEffect(() => {
-    const handleOpenRecordModal = () => {
-      setIsRecordModalOpen(true);
+    const handleOpenRecordModalEvent = () => {
+      handleOpenRecordModal();
     };
     
-    window.addEventListener("openRecordModal", handleOpenRecordModal);
+    window.addEventListener("openRecordModal", handleOpenRecordModalEvent);
     return () => {
-      window.removeEventListener("openRecordModal", handleOpenRecordModal);
+      window.removeEventListener("openRecordModal", handleOpenRecordModalEvent);
     };
-  }, []);
+  }, [handleOpenRecordModal]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
@@ -2570,7 +2585,7 @@ const IndexInner = () => {
         handle: clip.profiles?.handle || "Anonymous",
         summary: clip.summary || null,
       });
-      setIsRecordModalOpen(true);
+      handleOpenRecordModal();
     }
   }, [clips]);
 
@@ -2622,11 +2637,16 @@ const IndexInner = () => {
       id: chainId,
       title: clip.title || null,
     });
-    setIsRecordModalOpen(true);
-  }, [clips, toast]);
+    handleOpenRecordModal();
+  }, [clips, toast, handleOpenRecordModal]);
 
   const handleRecordModalClose = useCallback(() => {
     setIsRecordModalOpen(false);
+    
+    // Clear the tutorial flag when modal closes
+    localStorage.removeItem("echo_garden_record_modal_tutorial_open");
+    window.dispatchEvent(new CustomEvent("record-modal-tutorial-state-changed"));
+    
     setReplyingToClipId(null);
     setReplyingToClip(null);
     setRemixingFromClipId(null);
@@ -2866,7 +2886,7 @@ const IndexInner = () => {
       searchInputRef.current?.focus();
     },
     onNewRecording: () => {
-      setIsRecordModalOpen(true);
+      handleOpenRecordModal();
     },
     onToggleTheme: () => {
       startTransition(() => {
@@ -4284,7 +4304,7 @@ const IndexInner = () => {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              onClick={() => setIsRecordModalOpen(true)}
+              onClick={handleOpenRecordModal}
               size="lg"
               className="h-16 w-16 rounded-full shadow-lg animate-pulse-glow"
             >

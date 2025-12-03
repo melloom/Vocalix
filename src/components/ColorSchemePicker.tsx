@@ -35,6 +35,7 @@ export function ColorSchemePicker({ onSuccess }: ColorSchemePickerProps = {}) {
     accent: null,
     background: null,
   });
+  const [shouldShake, setShouldShake] = useState(false);
 
   useEffect(() => {
     if (profile?.color_scheme) {
@@ -55,6 +56,11 @@ export function ColorSchemePicker({ onSuccess }: ColorSchemePickerProps = {}) {
     try {
       await updateProfile({ color_scheme: colorScheme });
       toast.success("Color scheme updated!");
+      // Trigger shake animation
+      setShouldShake(true);
+      setTimeout(() => {
+        setShouldShake(false);
+      }, 500);
       // Trigger a re-render to apply colors globally
       window.dispatchEvent(new CustomEvent("colorSchemeUpdated"));
       onSuccess?.();
@@ -74,13 +80,20 @@ export function ColorSchemePicker({ onSuccess }: ColorSchemePickerProps = {}) {
     try {
       await updateProfile({ color_scheme: reset });
       toast.success("Color scheme reset to default");
+      // Trigger shake animation
+      setShouldShake(true);
+      setTimeout(() => {
+        setShouldShake(false);
+      }, 500);
+      // Trigger a re-render to apply colors globally
+      window.dispatchEvent(new CustomEvent("colorSchemeUpdated"));
     } catch (error: any) {
       toast.error(error.message || "Failed to reset color scheme");
     }
   };
 
   return (
-    <Card className="p-6 rounded-3xl space-y-6">
+    <Card className={`p-6 rounded-3xl space-y-6 ${shouldShake ? 'animate-shake' : ''}`}>
       <div className="flex items-center gap-2">
         <Palette className="h-5 w-5 text-primary" />
         <h3 className="text-lg font-semibold">Color Scheme</h3>

@@ -828,6 +828,15 @@ const runInit = () => {
   }
 };
 
+// Initialize scroll restoration early to prevent scroll lock
+if (typeof window !== 'undefined') {
+  import("@/utils/scrollRestore").then(({ initializeScrollRestore }) => {
+    initializeScrollRestore();
+  }).catch(() => {
+    // Silently fail - scroll restore is not critical
+  });
+}
+
 if (document.readyState === 'loading') {
   console.log("[App] DOM still loading, waiting for DOMContentLoaded...");
   document.addEventListener('DOMContentLoaded', () => {
@@ -844,6 +853,14 @@ if (document.readyState === 'loading') {
 // Also try on window load as backup
 window.addEventListener('load', () => {
   console.log("[App] Window load event fired");
+  
+  // Initialize scroll restoration to ensure scrolling is never blocked
+  import("@/utils/scrollRestore").then(({ initializeScrollRestore }) => {
+    initializeScrollRestore();
+  }).catch(() => {
+    // Silently fail - scroll restore is not critical
+  });
+  
   if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
     console.log("[App] App not rendered yet, trying initApp again...");
     setTimeout(runInit, 100);

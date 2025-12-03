@@ -35,6 +35,7 @@ import { FlairSelector } from "@/components/FlairSelector";
 import { AIContentOptimization } from "@/components/AIContentOptimization";
 import { useAIContentCreation } from "@/hooks/useAIContentCreation";
 import { Wand2 } from "lucide-react";
+import { RecordModalTutorial } from "@/components/RecordModalTutorial";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -131,10 +132,50 @@ export const RecordModal = ({
   const [isEnhancingAudio, setIsEnhancingAudio] = useState(false);
   const [autoEnhanceEnabled, setAutoEnhanceEnabled] = useState(true);
   const [showAudioEditor, setShowAudioEditor] = useState(false);
+  const [showRecordModalTutorial, setShowRecordModalTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dynamic max duration based on podcast mode
   const MAX_DURATION = isPodcastMode ? MAX_DURATION_PODCAST : MAX_DURATION_SHORT;
+
+  // Check if we're in tutorial mode and on the record-button step
+  useEffect(() => {
+    if (isOpen) {
+      const checkTutorialState = () => {
+        const tutorialCompleted = localStorage.getItem("echo_garden_tutorial_completed");
+        if (tutorialCompleted === "true") {
+          setShowRecordModalTutorial(false);
+          return;
+        }
+        
+        // Check if we're on step 2 (record-button step) - index 1 (0-indexed)
+        const currentTutorialStep = localStorage.getItem("echo_garden_tutorial_current_step");
+        // Step 2 is index 1, which corresponds to the "record-button" step
+        if (currentTutorialStep === "1") {
+          setShowRecordModalTutorial(true);
+        } else {
+          setShowRecordModalTutorial(false);
+        }
+      };
+      
+      // Small delay to ensure DOM is ready
+      const timeoutId = setTimeout(checkTutorialState, 100);
+      
+      // Listen for tutorial step changes
+      const handleTutorialStepChange = () => {
+        checkTutorialState();
+      };
+      
+      window.addEventListener("tutorial-step-changed", handleTutorialStepChange);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        window.removeEventListener("tutorial-step-changed", handleTutorialStepChange);
+      };
+    } else {
+      setShowRecordModalTutorial(false);
+    }
+  }, [isOpen]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -1272,6 +1313,7 @@ export const RecordModal = ({
                     variant="outline"
                     className="w-full rounded-xl py-6 flex items-center justify-center gap-2"
                     onClick={() => fileInputRef.current?.click()}
+                    data-tutorial="record-modal-upload"
                   >
                     <FileAudio className="h-5 w-5" />
                     <span className="font-medium">Upload Audio File</span>
@@ -1284,7 +1326,7 @@ export const RecordModal = ({
               
               {/* Podcast Mode Toggle - only show for new recordings (not replies/remixes) */}
               {!replyingTo && !remixingFrom && !continuingChain && (
-                <div className="bg-muted/60 rounded-xl p-3">
+                <div className="bg-muted/60 rounded-xl p-3" data-tutorial="record-modal-podcast-mode">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-medium">Podcast Mode</p>
@@ -1371,6 +1413,7 @@ export const RecordModal = ({
                       className={`absolute inset-3 h-full w-full rounded-full border-none p-0 text-primary ${
                         isRecording ? "animate-pulse-glow" : ""
                       }`}
+                      data-tutorial="record-modal-mic-button"
                       onClick={
                         tapToRecordPreferred
                           ? (event) => {
@@ -1558,7 +1601,7 @@ export const RecordModal = ({
               </div>
 
               {/* Audio Editing Tools - Quick Access */}
-              <div className="rounded-xl bg-muted/60 p-4 space-y-3">
+              <div className="rounded-xl bg-muted/60 p-4 space-y-3" data-tutorial="record-modal-audio-editing">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-muted-foreground" />
@@ -1836,12 +1879,14 @@ export const RecordModal = ({
                     Templates
                   </Button>
                 </div>
-                <EmojiPicker
-                  value={selectedMood}
-                  onChange={(emoji) => setSelectedMood(emoji)}
-                  placeholder="😊"
-                  className="w-full"
-                />
+                <div data-tutorial="record-modal-mood">
+                  <EmojiPicker
+                    value={selectedMood}
+                    onChange={(emoji) => setSelectedMood(emoji)}
+                    placeholder="😊"
+                    className="w-full"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -1893,6 +1938,7 @@ export const RecordModal = ({
                     placeholder="Give your voice note a title"
                     maxLength={80}
                     className="rounded-xl h-9"
+                    data-tutorial="record-modal-title"
                   />
                 </div>
 
@@ -1911,6 +1957,7 @@ export const RecordModal = ({
                     maxLength={500}
                     className="rounded-xl min-h-[80px] resize-none"
                     rows={3}
+                    data-tutorial="record-modal-caption"
                   />
                   {caption && (
                     <p className="text-xs text-muted-foreground">
@@ -2020,6 +2067,7 @@ export const RecordModal = ({
                       onBlur={() => setTimeout(() => setShowTagSuggestions(false), 200)}
                       placeholder="#gratitude #mood"
                       className="rounded-xl h-9"
+                      data-tutorial="record-modal-tags"
                     />
                     {showTagSuggestions && tagSuggestions.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -2206,7 +2254,7 @@ export const RecordModal = ({
               </div>
 
               {/* Privacy Controls */}
-              <div className="bg-muted/60 rounded-xl p-3 space-y-2">
+              <div className="bg-muted/60 rounded-xl p-3 space-y-2" data-tutorial="record-modal-privacy">
                 <label className="text-xs font-medium">Privacy</label>
                 <Select value={visibility} onValueChange={(value: "public" | "followers" | "private") => setVisibility(value)}>
                   <SelectTrigger className="rounded-xl h-9">
@@ -2327,6 +2375,7 @@ export const RecordModal = ({
                   onClick={handlePost}
                   disabled={!selectedMood || isUploading || isProcessing}
                   className="flex-1 h-10 rounded-xl text-sm"
+                  data-tutorial="record-modal-post-button"
                 >
                   {isUploading ? "Posting..." : isProcessing ? "Uploading..." : "Post"}
                 </Button>
@@ -2354,6 +2403,19 @@ export const RecordModal = ({
           });
         }}
         originalDuration={duration}
+      />
+
+      {/* Record Modal Tutorial */}
+      <RecordModalTutorial
+        isActive={showRecordModalTutorial}
+        onComplete={() => {
+          setShowRecordModalTutorial(false);
+          // Don't advance the main tutorial automatically - let user close modal and continue
+          // The main tutorial will continue when they're ready
+        }}
+        onSkip={() => {
+          setShowRecordModalTutorial(false);
+        }}
       />
     </Dialog>
     </>

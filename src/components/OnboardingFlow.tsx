@@ -198,13 +198,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview"]));
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
-  // Scroll to top when section changes
-  useEffect(() => {
-    if (scrollableContentRef.current) {
-      scrollableContentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [activeSection]);
-  
   // Detect if device is mobile (memoized to prevent re-renders)
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -1115,29 +1108,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        {/* Top header with welcome and link account button */}
-        <div className="flex items-center justify-between mb-4 lg:mb-6 relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-4 py-2 text-xs lg:text-sm font-bold text-white dark:text-white shadow-lg backdrop-blur-md">
-            <Radio className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="hidden sm:inline">Welcome to Vocalix</span>
-            <span className="sm:hidden">Vocalix</span>
-          </div>
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-full border border-red-900/30 dark:border-red-800/20 hover:border-red-500 dark:hover:border-red-500 hover:bg-red-950/20 dark:hover:bg-red-950/20 text-foreground transition-all duration-300 group"
-            size="sm"
-          >
-            <Link to="/link-pin" className="flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2">
-              <Lock className="h-3 w-3 lg:h-4 lg:w-4 group-hover:scale-110 transition-transform duration-200" />
-              <span className="text-xs lg:text-sm font-semibold">Link Account</span>
-            </Link>
-          </Button>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[240px,1fr,400px] lg:gap-6 lg:items-start lg:max-h-[calc(100vh-120px)]">
-          {/* Sticky Sidebar Navigation - Desktop Only */}
-          <div className="hidden lg:block sticky top-4 h-[calc(100vh-120px)] z-20">
+        <div className="flex justify-center items-center w-full">
+          {/* Onboarding Form */}
+          <Card className="w-full max-w-md mx-auto shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col">
             <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 backdrop-blur-xl border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <div className="space-y-2">
                 <div className="mb-4 pb-4 border-b border-red-900/30 dark:border-red-800/20">
@@ -1165,7 +1138,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       key={section.id}
                       onClick={() => {
                         setActiveSection(section.id);
-                        setLoadedSections(prev => new Set([...prev, section.id]));
+                        setLoadedSections((prev: Set<string>) => new Set([...prev, section.id]));
                       }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left group ${
                         isActive
@@ -1189,7 +1162,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 })}
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Main Content Area - Sections */}
           <div className="relative z-10 lg:max-h-[calc(100vh-120px)]">
