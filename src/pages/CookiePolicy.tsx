@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cookie, Shield, Settings, Database, Globe, AlertCircle, Info, X } from "lucide-react";
+import { Cookie, Shield, Settings, Database, Globe, AlertCircle, Info, X, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,14 @@ export const CookiePolicy = () => {
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.history.back()}
+              className="rounded-full hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <Cookie className="h-8 w-8 text-primary" />
             <h1 className="text-3xl md:text-4xl font-bold">Cookie Policy</h1>
           </div>
@@ -17,8 +25,8 @@ export const CookiePolicy = () => {
           </p>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="space-y-6" style={{ willChange: 'contents', transform: 'translateZ(0)' }}>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Info className="h-5 w-5" />
@@ -35,7 +43,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Cookie className="h-5 w-5" />
@@ -55,7 +63,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5" />
@@ -190,7 +198,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="h-5 w-5" />
@@ -212,7 +220,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -249,7 +257,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="h-5 w-5" />
@@ -303,7 +311,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
@@ -339,7 +347,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -356,7 +364,7 @@ export const CookiePolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Info className="h-5 w-5" />

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, Shield, Users, AlertTriangle, Music, MessageCircle, Heart, Ban, Eye, FileText, Mail, Radio, Volume2 } from "lucide-react";
+import { Mic, Shield, Users, AlertTriangle, Music, MessageCircle, Heart, Ban, Eye, FileText, Mail, Radio, Volume2, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const ContentPolicy = () => {
   return (
@@ -7,6 +8,14 @@ export const ContentPolicy = () => {
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.history.back()}
+              className="rounded-full hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <Shield className="h-8 w-8 text-primary" />
             <h1 className="text-3xl md:text-4xl font-bold">Content Policy & Community Guidelines</h1>
           </div>
@@ -15,8 +24,8 @@ export const ContentPolicy = () => {
           </p>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="space-y-6" style={{ willChange: 'contents', transform: 'translateZ(0)' }}>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -33,7 +42,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Heart className="h-5 w-5" />
@@ -52,7 +61,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Ban className="h-5 w-5" />
@@ -162,7 +171,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mic className="h-5 w-5" />
@@ -202,7 +211,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
@@ -243,7 +252,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5" />
@@ -277,7 +286,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
@@ -300,7 +309,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -323,7 +332,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -345,7 +354,7 @@ export const ContentPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />

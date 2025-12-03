@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Scale, Shield, Users, Mic, AlertTriangle, Ban, Gavel, Globe, Mail, Lock, Eye, Heart, Radio, MessageCircle, Music, Sparkles, DollarSign, AlertCircle } from "lucide-react";
+import { FileText, Scale, Shield, Users, Mic, AlertTriangle, Ban, Gavel, Globe, Mail, Lock, Eye, Heart, Radio, MessageCircle, Music, Sparkles, DollarSign, AlertCircle, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const TermsOfService = () => {
   return (
@@ -7,6 +8,14 @@ export const TermsOfService = () => {
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.history.back()}
+              className="rounded-full hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <Scale className="h-8 w-8 text-primary" />
             <h1 className="text-3xl md:text-4xl font-bold">Terms of Service</h1>
           </div>
@@ -15,8 +24,8 @@ export const TermsOfService = () => {
           </p>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="space-y-6" style={{ willChange: 'contents', transform: 'translateZ(0)' }}>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -36,7 +45,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
@@ -71,7 +80,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mic className="h-5 w-5" />
@@ -121,7 +130,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Radio className="h-5 w-5" />
@@ -192,7 +201,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5" />
@@ -227,7 +236,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -262,7 +271,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5" />
@@ -279,7 +288,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Ban className="h-5 w-5" />
@@ -306,7 +315,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
@@ -341,7 +350,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Gavel className="h-5 w-5" />
@@ -355,7 +364,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -384,7 +393,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
@@ -413,7 +422,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -454,7 +463,7 @@ export const TermsOfService = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />

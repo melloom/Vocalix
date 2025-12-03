@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Lock, Eye, User, Server, Globe, FileText, Mail } from "lucide-react";
+import { Shield, Lock, Eye, User, Server, Globe, FileText, Mail, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const PrivacyPolicy = () => {
   return (
@@ -7,6 +8,14 @@ export const PrivacyPolicy = () => {
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => window.history.back()}
+              className="rounded-full hover:bg-muted"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <Shield className="h-8 w-8 text-primary" />
             <h1 className="text-3xl md:text-4xl font-bold">Privacy Policy</h1>
           </div>
@@ -15,8 +24,8 @@ export const PrivacyPolicy = () => {
           </p>
         </div>
 
-        <div className="space-y-6">
-          <Card>
+        <div className="space-y-6" style={{ willChange: 'contents', transform: 'translateZ(0)' }}>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -33,7 +42,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -62,7 +71,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5" />
@@ -85,7 +94,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Server className="h-5 w-5" />
@@ -105,7 +114,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -124,7 +133,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5" />
@@ -147,7 +156,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -161,7 +170,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
@@ -175,7 +184,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -189,7 +198,7 @@ export const PrivacyPolicy = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card style={{ willChange: 'auto', contain: 'layout style paint' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />

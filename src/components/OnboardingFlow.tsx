@@ -2381,7 +2381,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       </div>
 
       {/* Desktop Footer - Small, Sleek */}
-      <footer className="hidden md:flex fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-b from-transparent via-slate-950/80 to-slate-950/95 backdrop-blur-sm border-t border-red-800/20">
+      <footer className="hidden md:flex fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-b from-transparent via-slate-950/80 to-slate-950/95 backdrop-blur-sm border-t border-red-800/20">
         <div className="max-w-7xl mx-auto w-full px-6 py-2.5">
           <div className="flex items-center justify-between">
             {/* Logo & Name */}
