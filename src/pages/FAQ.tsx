@@ -556,7 +556,7 @@ export default function FAQ() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/")}
+              onClick={() => window.history.back()}
               className="rounded-full text-white hover:bg-red-900/20 hover:text-red-400"
             >
               <ArrowLeft className="h-5 w-5" />

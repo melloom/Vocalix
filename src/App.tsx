@@ -105,6 +105,7 @@ const FAQ = retryLazyImport(() => import("./pages/FAQ"));
 const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreation"));
 const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
 const Diary = retryLazyImport(() => import("./pages/Diary"));
+const PrivacyPolicy = retryLazyImport(() => import("./pages/PrivacyPolicy"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -190,6 +191,7 @@ const App = () => {
                         <Route path="/link-pin" element={<LinkPin />} />
                         <Route path="/embed/:clipId" element={<Embed />} />
                         <Route path="/faq" element={<FAQ />} />
+                        <Route path="/privacy" element={<PrivacyPolicy />} />
                         <Route element={<AuthenticatedLayout />}>
                           <Route path="/" element={<Index />} />
                           <Route path="/profile/:handle" element={<Profile />} />
