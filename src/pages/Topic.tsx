@@ -1209,9 +1209,9 @@ const Topic = () => {
                         <span className="text-3xl">🌱</span>
                       </div>
                       <div>
-                        <h1 className="text-2xl font-bold mb-1">Welcome Garden</h1>
+                        <h1 className="text-2xl font-bold mb-1">FIRST VOICES</h1>
                         <p className="text-sm text-muted-foreground">
-                          The front door of Echo Garden. Introduce yourself and connect with the community.
+                          The front door of FIRST VOICES. Introduce yourself and connect with the community.
                         </p>
                       </div>
                     </div>

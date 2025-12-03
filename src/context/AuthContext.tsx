@@ -414,6 +414,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (error.code === "42883" || error.message?.includes("does not exist")) {
             return;
           }
+          // Silently handle network errors (connection lost, CORS, etc.)
+          if (error.message?.includes("Load failed") || 
+              error.message?.includes("network") ||
+              error.message?.includes("Failed to fetch") ||
+              error.message?.includes("connection")) {
+            return; // Silently fail on network errors
+          }
           console.error("Error checking cross-browser sessions:", error);
           return;
         }
@@ -423,7 +430,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setCrossBrowserProfileId(profile.id);
           setShowCrossBrowserDialog(true);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Silently handle network errors
+        if (error?.message?.includes("Load failed") || 
+            error?.message?.includes("network") ||
+            error?.message?.includes("Failed to fetch") ||
+            error?.message?.includes("connection")) {
+          return; // Silently fail on network errors
+        }
         console.error("Error checking cross-browser sessions:", error);
       }
     };

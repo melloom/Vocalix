@@ -2557,9 +2557,6 @@ const IndexInner = () => {
     (topicId: string | null) => {
       setSelectedTopicId((current) => (current === topicId ? null : topicId));
       setAdvancedFilters(prev => ({ ...prev, topicId }));
-      if (topicId) {
-        setSortMode("hot");
-      }
     },
     [],
   );
@@ -3466,8 +3463,11 @@ const IndexInner = () => {
                 timePeriod={feedTimePeriod}
                 onFilterChange={(filter) => {
                   setFeedFilter(filter);
-                  // Also update sortMode for backward compatibility
+                  // If user switches back to For You, clear any focused topic like Chamber
+                  // so the feed returns to the global For You behavior.
                   if (filter === "for_you") {
+                    setSelectedTopicId(null);
+                    setAdvancedFilters((prev) => ({ ...prev, topicId: null }));
                     setSortMode("for_you");
                   } else if (filter === "best") {
                     setSortMode("top");
@@ -3481,27 +3481,38 @@ const IndexInner = () => {
                 }}
                 onTimePeriodChange={(period) => setFeedTimePeriod(period)}
                 showTimePeriod={feedFilter === "best"}
+                // Keep For You dropdown open while the tutorial is running
+                forceStayOpen={showTutorial}
               />
               {welcomeGardenTopicId && (
                 <Button
                   size="sm"
                   className="rounded-md px-3 text-[11px] h-7"
                   variant={selectedTopicId === welcomeGardenTopicId ? "default" : "outline"}
+                  data-tutorial="welcome-garden"
+                  data-active={selectedTopicId === welcomeGardenTopicId ? "true" : "false"}
                   onClick={() => handleTopicToggle(welcomeGardenTopicId)}
                 >
-                  Welcome Garden
+                  Chamber
                 </Button>
               )}
               {/* Legacy sort mode buttons for backward compatibility */}
-              {sortMode && sortMode !== "for_you" && (
-                <div className="flex bg-muted/50 rounded-md p-0.5 mt-2 overflow-x-auto whitespace-nowrap w-full md:w-auto">
+              {(sortMode && sortMode !== "for_you") || showTutorial ? (
+                <div
+                  className="flex bg-muted/50 rounded-md p-0.5 mt-2 overflow-x-auto whitespace-nowrap w-full md:w-auto"
+                  data-tutorial="feed-sort-modes"
+                >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         size="sm"
                         className="rounded-md px-3 text-xs h-7"
                         variant={sortMode === "hot" ? "default" : "ghost"}
-                        onClick={() => setSortMode(sortMode === "hot" ? null : "hot")}
+                        onClick={() => {
+                          // In tutorial, don't allow deselecting the current mode by clicking it again
+                          if (showTutorial && sortMode === "hot") return;
+                          setSortMode(sortMode === "hot" ? null : "hot");
+                        }}
                       >
                         Hot
                       </Button>
@@ -3516,7 +3527,10 @@ const IndexInner = () => {
                         size="sm"
                         className="rounded-md px-3 text-xs h-7"
                         variant={sortMode === "top" ? "default" : "ghost"}
-                        onClick={() => setSortMode(sortMode === "top" ? null : "top")}
+                        onClick={() => {
+                          if (showTutorial && sortMode === "top") return;
+                          setSortMode(sortMode === "top" ? null : "top");
+                        }}
                       >
                         Top
                       </Button>
@@ -3531,7 +3545,10 @@ const IndexInner = () => {
                         size="sm"
                         className="rounded-md px-3 text-xs h-7"
                         variant={sortMode === "trending" ? "default" : "ghost"}
-                        onClick={() => setSortMode(sortMode === "trending" ? null : "trending")}
+                        onClick={() => {
+                          if (showTutorial && sortMode === "trending") return;
+                          setSortMode(sortMode === "trending" ? null : "trending");
+                        }}
                       >
                         Trending
                       </Button>
@@ -3541,7 +3558,7 @@ const IndexInner = () => {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-              )}
+              ) : null}
               {profile?.id && sortMode === "for_you" && feedFilter !== "for_you" && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -3550,6 +3567,8 @@ const IndexInner = () => {
                       className="rounded-md px-3 text-xs h-7"
                       variant={sortMode === "for_you" ? "default" : "ghost"}
                       onClick={() => {
+                        // In tutorial, don't let this button toggle off For You once active
+                        if (showTutorial && sortMode === "for_you" && feedFilter === "for_you") return;
                         setSortMode(null);
                         setFeedFilter("for_you");
                       }}
@@ -3795,7 +3814,10 @@ const IndexInner = () => {
           </Card>
         )}
 
-        {!isSearching && !sortMode && (spotlightQuestion || todayTopic) && (
+        {/* Show Daily Topics / Garden Spotlight even when a feed sort is active (e.g. For You),
+            but hide it when the Welcome Garden / Chamber topic is focused so the Chamber
+            card visually replaces this area instead of appearing below it. */}
+        {!isSearching && (spotlightQuestion || todayTopic) && selectedTopicId !== welcomeGardenTopicId && (
           <div className="space-y-4">
             <div className="bg-card border border-black/20 rounded-lg p-6 text-center space-y-3 shadow-sm" data-tutorial="today-topic">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -3958,7 +3980,10 @@ const IndexInner = () => {
 
         {/* Welcome Garden highlight card - only when Welcome Garden is focused */}
         {!isSearching && welcomeGardenTopicId && selectedTopicId === welcomeGardenTopicId && (
-          <Card className="relative overflow-hidden border border-black/20 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm">
+          <Card
+            className="relative overflow-hidden border border-black/20 bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/70 dark:via-amber-950/60 dark:to-red-900/50 rounded-3xl p-5 md:p-6 space-y-4 shadow-sm"
+            data-tutorial="chamber-card"
+          >
             <div className="pointer-events-none absolute -right-10 -bottom-10 h-40 w-40 rounded-full bg-red-400/10 blur-3xl" />
             <div className="flex items-center justify-between gap-4 flex-wrap relative">
               <div className="flex items-center gap-3">
@@ -3975,7 +4000,7 @@ const IndexInner = () => {
                     </span>
                   </div>
                   <h3 className="text-sm font-semibold tracking-wide text-white dark:text-white">
-                    Welcome Garden
+                    FIRST VOICES
                   </h3>
                   <p className="text-xs text-gray-200 dark:text-gray-200 mt-1 max-w-md">
                     Your first post. Introduce yourself with a 30-second voice clip. Stay anonymous. 
@@ -4030,7 +4055,7 @@ const IndexInner = () => {
                     navigate(`/topic/${welcomeGardenTopicId}`);
                   }}
                 >
-                  Enter Welcome Garden
+                  Enter FIRST VOICES
                 </Button>
               </div>
             </div>

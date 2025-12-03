@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -31,6 +31,8 @@ interface FeedFilterSelectorProps {
   onTimePeriodChange?: (period: TimePeriod) => void;
   showTimePeriod?: boolean;
   className?: string;
+  /** When true (tutorial step 4), keep the For You dropdown open while interacting. */
+  forceStayOpen?: boolean;
 }
 
 const forYouSubOptions: Array<{
@@ -100,9 +102,11 @@ export function FeedFilterSelector({
   onTimePeriodChange,
   showTimePeriod = false,
   className,
+  forceStayOpen = false,
 }: FeedFilterSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showForYouOptions, setShowForYouOptions] = useState(false);
+  const allowCloseRef = useRef(false);
 
   const getCurrentLabel = () => {
     if (currentFilter === "for_you") return "For You";
@@ -124,21 +128,44 @@ export function FeedFilterSelector({
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <Popover open={isOpen} onOpenChange={(open) => {
-        setIsOpen(open);
-        if (!open) setShowForYouOptions(false);
-      }}>
+      <Popover
+        open={isOpen}
+        onOpenChange={(open) => {
+          // In tutorial mode, block implicit closes (item selection, outside click),
+          // but allow an explicit close when the user clicks the trigger again.
+          if (forceStayOpen && !open && !allowCloseRef.current) {
+            return;
+          }
+          setIsOpen(open);
+          if (!open) {
+            setShowForYouOptions(false);
+            allowCloseRef.current = false;
+          }
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             size="sm"
             className="gap-2"
+            data-tutorial="feed-sorting-trigger"
+            onClick={() => {
+              // If the dropdown is open in tutorial mode and user clicks trigger,
+              // treat this as an explicit request to close it.
+              if (forceStayOpen && isOpen) {
+                allowCloseRef.current = true;
+              }
+            }}
           >
             {getCurrentIcon()}
             <span>{getCurrentLabel()}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-2" align="start">
+        <PopoverContent
+          className="w-80 p-2"
+          align="start"
+          data-tutorial="feed-sorting-popover"
+        >
           <div className="space-y-1">
             {/* For You Section - Prominent at top */}
             <div className="border-b border-border pb-2 mb-2">
@@ -147,7 +174,7 @@ export function FeedFilterSelector({
                   if (showForYouOptions) {
                     // If sub-options are showing, select main "For You"
                     onFilterChange("for_you");
-                    setIsOpen(false);
+                    if (!forceStayOpen) setIsOpen(false);
                   } else {
                     // Toggle sub-options
                     setShowForYouOptions(true);
@@ -190,7 +217,7 @@ export function FeedFilterSelector({
                       key={option.value}
                       onClick={() => {
                         onFilterChange(option.value);
-                        setIsOpen(false);
+                        if (!forceStayOpen) setIsOpen(false);
                       }}
                       className={cn(
                         "w-full text-left p-2.5 rounded-md transition-colors",

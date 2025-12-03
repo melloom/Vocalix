@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2 } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1155,6 +1155,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   { id: "why", label: "Why Vocalix?", icon: HelpCircle },
                   { id: "features", label: "Key Features", icon: Sparkles },
                   { id: "examples", label: "Example Handles", icon: Users },
+                  { id: "about", label: "About Us", icon: BookOpen },
                   { id: "faq", label: "FAQ", icon: MessageCircle },
                 ].map((section) => {
                   const Icon = section.icon;
@@ -1403,6 +1404,151 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 ))}
               </div>
             </div>
+
+              {/* Mobile: About Us */}
+              <div className="space-y-4">
+                <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-red-400 dark:text-red-400" />
+                  About Vocalix
+                </h3>
+                
+                {/* About the Creator */}
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-5 border border-red-800/30">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/30 to-amber-600/30 border-2 border-red-500/40 flex-shrink-0">
+                      <Users className="h-6 w-6 text-red-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-black text-white mb-1 bg-gradient-to-r from-red-300 to-amber-300 bg-clip-text text-transparent">
+                        👋 Hey, I'm Melvin
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        <Badge className="bg-red-900/40 border-red-700/50 text-red-200 text-[10px] px-1.5 py-0.5">Full-Stack</Badge>
+                        <Badge className="bg-amber-900/40 border-amber-700/50 text-amber-200 text-[10px] px-1.5 py-0.5">AI Integrator</Badge>
+                      </div>
+                      <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed">
+                        I'm a solo developer who codes with <span className="text-red-400 font-bold">vision, vibes, and velocity</span>. I build fast, break limits, and learn even faster. Vocalix was built with AI as my co-pilot — it's not just coding, it's orchestration.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mission */}
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-5 border border-red-800/30">
+                  <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-red-400" />
+                    Our Mission
+                  </h4>
+                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium">
+                    Vocalix was born from a simple belief: <span className="text-red-400 font-bold">voice is the most authentic form of expression</span>. In a world saturated with filtered images and curated feeds, we're building a space where raw, unfiltered voice takes center stage.
+                  </p>
+                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium mt-3">
+                    We're creating an underground platform where anonymity empowers authenticity. No photos, no faces, no judgment—just your voice, your thoughts, and real connections built on what you say, not how you look.
+                  </p>
+                </div>
+
+                {/* Values Grid */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 flex items-center justify-center">
+                        <Shield className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">Privacy First</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">We believe privacy is a fundamental right. No email required, no personal data collected, no tracking. Your voice, your choice, your anonymity.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-4 border border-amber-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 flex items-center justify-center">
+                        <Mic className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">Voice-First</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">Audio is everything. We're building tools and features that celebrate voice—from 30-second clips to 10-minute podcasts, voice reactions to live rooms.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-900/20 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 flex items-center justify-center">
+                        <Users className="h-5 w-5 text-red-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">Community Driven</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">This platform belongs to the community. We listen, we adapt, we build features that matter to you. Your voice shapes Vocalix.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-red-950/30 dark:from-amber-950/25 dark:to-red-950/25 p-4 border border-amber-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-red-600/20 flex items-center justify-center">
+                        <Sparkles className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white mb-1">No BS, No Filters</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed">Authenticity over algorithms. Real conversations over engagement metrics. We use AI to keep it civil, not to manipulate what you see.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vision */}
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-5 border border-red-800/30">
+                  <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-red-400" />
+                    Our Vision
+                  </h4>
+                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium">
+                    We envision a future where voice-first platforms become the norm for authentic online expression. Where people connect through what they say, not what they look like. Where anonymity enables honesty, and where communities form around shared ideas, not curated images.
+                  </p>
+                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium mt-3">
+                    Vocalix is more than a platform—it's a movement toward <span className="text-amber-400 font-bold">authentic, voice-driven communication</span> in a world that's forgotten how to listen.
+                  </p>
+                </div>
+
+                {/* Tech Stack & Connect */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Zap className="h-4 w-4 text-red-400" />
+                      <h4 className="text-sm font-bold text-white">Built With</h4>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['React', 'Vite', 'Supabase', 'TypeScript', 'Tailwind', 'Node.js'].map((tech) => (
+                        <Badge key={tech} className="bg-red-900/40 border-red-700/50 text-red-200 text-[10px] px-1.5 py-0.5">
+                          {tech}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-4 border border-amber-800/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Link2 className="h-4 w-4 text-amber-400" />
+                      <h4 className="text-sm font-bold text-white">Let's Connect</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <a href="https://melvinworks.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-300 hover:text-amber-200 transition-colors">
+                        <Globe className="h-3 w-3" />
+                        <span className="underline">Portfolio</span>
+                      </a>
+                      <a href="https://melhub.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-300 hover:text-amber-200 transition-colors">
+                        <Link2 className="h-3 w-3" />
+                        <span className="underline">Socials Hub</span>
+                      </a>
+                      <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-amber-800/30">
+                        Always open to collabs, freelancing, or just a good dev chat.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Mobile: FAQ */}
               <div className="space-y-3">
@@ -2099,6 +2245,205 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       <span>Keep it under 20 characters and make it memorable</span>
                     </li>
                   </ul>
+                </div>
+              </div>
+            )}
+
+            {/* About Us Section */}
+            {activeSection === "about" && loadedSections.has("about") && (
+              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <BookOpen className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          About <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Vocalix</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Our mission and vision</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* About the Creator */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-950/40 via-amber-950/30 to-red-950/40 dark:from-red-950/30 dark:via-amber-950/25 dark:to-red-950/30 p-8 border border-red-800/30 shadow-xl hover:shadow-2xl hover:shadow-red-500/10 transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32 animate-pulse" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -ml-32 -mb-32 animate-pulse" style={{ animationDelay: '1s' }} />
+                  <div className="relative space-y-5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-600/30 to-amber-600/30 border-2 border-red-500/40 shadow-lg shadow-red-500/20">
+                        <Users className="h-8 w-8 text-red-300" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-2xl font-black text-white mb-2 bg-gradient-to-r from-red-300 to-amber-300 bg-clip-text text-transparent">
+                          👋 Hey, I'm Melvin
+                        </h4>
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <Badge className="bg-red-900/40 border-red-700/50 text-red-200 text-xs px-2 py-0.5">Full-Stack Developer</Badge>
+                          <Badge className="bg-amber-900/40 border-amber-700/50 text-amber-200 text-xs px-2 py-0.5">AI Integrator</Badge>
+                          <Badge className="bg-red-900/40 border-red-700/50 text-red-200 text-xs px-2 py-0.5">Builder</Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3 pl-20">
+                      <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed">
+                        I'm a solo developer who codes with <span className="text-red-400 font-bold">vision, vibes, and velocity</span>. Whether it's shipping SaaS tools, crafting AI-powered apps, or building platforms like Vocalix — I build fast, break limits, and learn even faster.
+                      </p>
+                      <div className="rounded-lg bg-gradient-to-r from-red-950/50 to-amber-950/50 p-4 border border-red-800/30">
+                        <p className="text-sm text-gray-200 leading-relaxed">
+                          <span className="text-amber-400 font-bold">🧠 Vibe Coding</span> — I architect apps using AI as my co-pilot. It's not just coding — it's orchestration. Vocalix embodies this philosophy: <span className="text-red-300 font-semibold">voice is the most authentic form of expression</span>, and anonymity empowers authenticity.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mission Statement */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-950/40 via-amber-950/30 to-red-950/40 dark:from-red-950/30 dark:via-amber-950/25 dark:to-red-950/30 p-8 border border-red-800/30 shadow-xl hover:shadow-2xl hover:shadow-red-500/10 transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -ml-32 -mb-32" />
+                  <div className="relative space-y-5">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/40">
+                        <Radio className="h-6 w-6 text-red-400" />
+                      </div>
+                      <h4 className="text-2xl font-black text-white">Our Mission</h4>
+                    </div>
+                    <div className="space-y-4 pl-16">
+                      <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed">
+                        Vocalix was born from a simple belief: <span className="text-red-400 font-bold text-lg">voice is the most authentic form of expression</span>. In a world saturated with filtered images and curated feeds, we're building a space where raw, unfiltered voice takes center stage.
+                      </p>
+                      <div className="rounded-lg bg-gradient-to-r from-amber-950/40 to-red-950/40 p-4 border border-amber-800/30">
+                        <p className="text-sm text-gray-200 leading-relaxed">
+                          We're creating an underground platform where <span className="text-amber-400 font-semibold">anonymity empowers authenticity</span>. No photos, no faces, no judgment—just your voice, your thoughts, and real connections built on what you say, not how you look.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Values */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Shield className="h-6 w-6 text-red-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">Privacy First</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">We believe privacy is a fundamental right. No email required, no personal data collected, no tracking. Your voice, your choice, your anonymity.</p>
+                    </div>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-5 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Mic className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">Voice-First</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">Audio is everything. We're building tools and features that celebrate voice—from 30-second clips to 10-minute podcasts, voice reactions to live rooms.</p>
+                    </div>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-900/20 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-900/15 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Users className="h-6 w-6 text-red-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">Community Driven</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">This platform belongs to the community. We listen, we adapt, we build features that matter to you. Your voice shapes Vocalix.</p>
+                    </div>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/30 to-red-950/30 dark:from-amber-950/25 dark:to-red-950/25 p-5 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-red-600/20 mb-3 group-hover:scale-110 transition-transform">
+                        <Sparkles className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-white mb-2">No BS, No Filters</h4>
+                      <p className="text-xs text-gray-300 leading-relaxed">Authenticity over algorithms. Real conversations over engagement metrics. We use AI to keep it civil, not to manipulate what you see.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vision */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-8 border border-red-800/30 shadow-xl hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl -mr-24 -mt-24" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/40">
+                        <Globe className="h-6 w-6 text-amber-400" />
+                      </div>
+                      <h4 className="text-2xl font-black text-white">Our Vision</h4>
+                    </div>
+                    <div className="space-y-4 pl-16">
+                      <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed">
+                        We envision a future where <span className="text-amber-400 font-bold">voice-first platforms become the norm</span> for authentic online expression. Where people connect through what they say, not what they look like. Where anonymity enables honesty, and where communities form around shared ideas, not curated images.
+                      </p>
+                      <div className="rounded-lg bg-gradient-to-r from-red-950/50 to-amber-950/50 p-4 border border-red-800/30">
+                        <p className="text-sm text-gray-200 leading-relaxed font-medium">
+                          Vocalix is more than a platform—it's a movement toward <span className="text-red-300 font-bold">authentic, voice-driven communication</span> in a world that's forgotten how to listen.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tech Stack & Connect */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-6 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/40">
+                          <Zap className="h-5 w-5 text-red-400" />
+                        </div>
+                        <h4 className="text-lg font-bold text-white">Built With</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {['React', 'Vite', 'Supabase', 'TypeScript', 'Tailwind', 'Node.js', 'Firebase', 'AI'].map((tech) => (
+                          <Badge key={tech} className="bg-red-900/40 border-red-700/50 text-red-200 text-xs px-2 py-1">
+                            {tech}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-6 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/40">
+                          <Link2 className="h-5 w-5 text-amber-400" />
+                        </div>
+                        <h4 className="text-lg font-bold text-white">Let's Connect</h4>
+                      </div>
+                      <div className="space-y-3">
+                        <a href="https://melvinworks.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 transition-colors group/link">
+                          <Globe className="h-4 w-4" />
+                          <span className="underline group-hover/link:no-underline">Portfolio</span>
+                          <ArrowRight className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                        </a>
+                        <a href="https://melhub.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 transition-colors group/link">
+                          <Link2 className="h-4 w-4" />
+                          <span className="underline group-hover/link:no-underline">Socials Hub</span>
+                          <ArrowRight className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                        </a>
+                        <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-amber-800/30">
+                          Always open to collabs, freelancing, or just a good dev chat.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -52,12 +52,20 @@ export const CrossBrowserDetectionDialog = ({
         );
 
         if (error) {
-          console.error("Error checking cross-browser sessions:", error);
           // If function doesn't exist yet, just dismiss
           if (error.code === "42883" || error.message?.includes("does not exist")) {
             onDismiss();
             return;
           }
+          // Silently handle network errors (connection lost, CORS, etc.)
+          if (error.message?.includes("Load failed") || 
+              error.message?.includes("network") ||
+              error.message?.includes("Failed to fetch") ||
+              error.message?.includes("connection")) {
+            onDismiss(); // Dismiss on network errors
+            return;
+          }
+          console.error("Error checking cross-browser sessions:", error);
         }
 
         if (data && Array.isArray(data) && data.length > 0) {
@@ -66,7 +74,15 @@ export const CrossBrowserDetectionDialog = ({
           // No cross-browser sessions found, dismiss dialog
           onDismiss();
         }
-      } catch (error) {
+      } catch (error: any) {
+        // Silently handle network errors
+        if (error?.message?.includes("Load failed") || 
+            error?.message?.includes("network") ||
+            error?.message?.includes("Failed to fetch") ||
+            error?.message?.includes("connection")) {
+          onDismiss(); // Dismiss on network errors
+          return;
+        }
         console.error("Error checking cross-browser sessions:", error);
         onDismiss();
       } finally {
