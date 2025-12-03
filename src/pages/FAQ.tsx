@@ -507,8 +507,6 @@ export default function FAQ() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   // Check if we have a search query from navigation state or URL params
   useEffect(() => {
