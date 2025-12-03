@@ -434,7 +434,7 @@ const initApp = () => {
     console.log("[App] Found loading-screen element, removing it...");
     loadingScreenEl.remove();
   }
-  if (rootElement.innerHTML.includes('Loading vocalix')) {
+  if (rootElement.innerHTML.includes('Loading Vocalix')) {
     console.log("[App] Clearing loading screen HTML immediately...");
     rootElement.innerHTML = '';
   }

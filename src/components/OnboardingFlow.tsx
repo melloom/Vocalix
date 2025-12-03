@@ -1066,7 +1066,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       }));
       
       toast({
-        title: "Welcome to vocalix!",
+        title: "Welcome to Vocalix!",
         description: "Your identity has been created. Start speaking your mind.",
       });
       
@@ -1110,8 +1110,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         <div className="flex items-center justify-between mb-4 lg:mb-6 relative z-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-red-950/60 to-amber-950/60 dark:from-red-900/50 dark:to-amber-900/50 px-4 py-2 text-xs lg:text-sm font-bold text-white dark:text-white shadow-lg backdrop-blur-md">
             <Radio className="h-3 w-3 lg:h-4 lg:w-4" />
-            <span className="hidden sm:inline">Welcome to vocalix</span>
-            <span className="sm:hidden">vocalix</span>
+            <span className="hidden sm:inline">Welcome to Vocalix</span>
+            <span className="sm:hidden">Vocalix</span>
           </div>
           <Button
             asChild
@@ -1141,9 +1141,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 
                 {[
                   { id: "overview", label: "Welcome", icon: Radio },
-                  { id: "what-is", label: "What is vocalix?", icon: Mic },
+                  { id: "what-is", label: "What is Vocalix?", icon: Mic },
                   { id: "how-it-works", label: "How It Works", icon: Zap },
-                  { id: "why", label: "Why vocalix?", icon: HelpCircle },
+                  { id: "why", label: "Why Vocalix?", icon: HelpCircle },
                   { id: "features", label: "Key Features", icon: Sparkles },
                   { id: "examples", label: "Example Handles", icon: Users },
                   { id: "faq", label: "FAQ", icon: MessageCircle },
@@ -1242,7 +1242,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               <div className="prose dark:prose-invert max-w-none">
                 <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
                   <Mic className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  What is vocalix?
+                  What is Vocalix?
                 </h3>
                 <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
                   The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your emoji avatar, voice, and handle show—no photos, no faces.
@@ -1280,7 +1280,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-2 text-lg">
                     <div className="flex items-center gap-2">
                   <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  Why vocalix?
+                  Why Vocalix?
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -1437,7 +1437,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white dark:text-white leading-[1.1] mb-3">
                         <span className="block">Join The</span>
                         <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent">
-                          vocalix
+                          Vocalix
                         </span>
                       </h1>
                       <p className="text-lg lg:text-xl text-gray-300 dark:text-gray-300 max-w-2xl leading-relaxed font-bold">
@@ -1555,7 +1555,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </div>
                       <div>
                         <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
-                          What is <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">vocalix?</span>
+                          What is <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Vocalix?</span>
                         </h3>
                         <p className="text-sm text-gray-400 mt-1">The audio-first revolution</p>
                       </div>
@@ -1722,7 +1722,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       </div>
                       <div>
                         <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
-                          Why <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">vocalix?</span>
+                          Why <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Vocalix?</span>
                         </h3>
                         <p className="text-sm text-gray-400 mt-1">The platform built for authentic voices</p>
                       </div>
@@ -2405,7 +2405,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full space-y-6 text-center">
-          <h1 className="text-3xl font-bold text-amber-400 dark:text-amber-400">Welcome to vocalix</h1>
+          <h1 className="text-3xl font-bold text-amber-400 dark:text-amber-400">Welcome to Vocalix</h1>
           <p className="text-muted-foreground">Something went wrong loading the full onboarding. Please refresh the page.</p>
           <button
             onClick={() => window.location.reload()}

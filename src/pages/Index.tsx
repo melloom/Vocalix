@@ -3067,7 +3067,7 @@ const IndexInner = () => {
           <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-2 flex-1 min-w-0 md:flex-none">
               <MobileMenu profile={profile} savedClipsCount={savedClipsCount} />
-              <h1 className="text-base sm:text-lg md:text-2xl font-bold truncate min-w-0 text-foreground">vocalix</h1>
+              <h1 className="text-base sm:text-lg md:text-2xl font-bold truncate min-w-0 text-foreground">Vocalix</h1>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0" data-tutorial="navigation" style={{ position: 'relative', zIndex: 10000 }}>
               <ThemeToggle />
@@ -3956,7 +3956,7 @@ const IndexInner = () => {
                   </h3>
                   <p className="text-xs text-gray-200 dark:text-gray-200 mt-1 max-w-md">
                     Your first post. Introduce yourself with a 30-second voice clip. Stay anonymous. 
-                    Share your vibe, your handle, or what brought you to vocalix.
+                    Share your vibe, your handle, or what brought you to Vocalix.
                   </p>
                 </div>
               </div>
@@ -3995,7 +3995,7 @@ const IndexInner = () => {
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[11px] md:text-xs text-muted-foreground max-w-md">
-                Think of it as the front porch of vocalix: low‑stakes, welcoming, and
+                Think of it as the front porch of Vocalix: low‑stakes, welcoming, and
                 designed for first steps instead of viral hits.
               </p>
               <div className="flex gap-2">

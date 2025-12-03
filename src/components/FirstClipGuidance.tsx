@@ -26,7 +26,7 @@ const GUIDANCE_STEPS: GuidanceStep[] = [
   {
     id: "welcome",
     title: "Ready to Create Your First Voice?",
-    description: "You've explored vocalix. Now drop your first 30-second voice clip. Speak your mind. Stay anonymous. Keep it real.",
+    description: "You've explored Vocalix. Now drop your first 30-second voice clip. Speak your mind. Stay anonymous. Keep it real.",
     actionLabel: "Let's Go",
   },
   {

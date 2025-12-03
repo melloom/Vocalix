@@ -20,7 +20,7 @@ interface TutorialStep {
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
-    title: "Welcome to vocalix",
+    title: "Welcome to Vocalix",
     description: "The audio-first social platform where voice is everything. Let's take a quick tour to show you how to speak your mind, stay anonymous, and engage with the community. Search by voice, join communities, drop into live rooms, and build your audio world. No BS, just raw voice.",
     position: "center",
     icon: <Sparkles className="h-6 w-6" />,

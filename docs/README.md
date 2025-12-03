@@ -2,7 +2,7 @@
 
 <div align="center">
 
-## 🌐 [**Visit vocalix → vocalix.netlify.app**](https://vocalix.netlify.app/)
+## 🌐 [**Visit Vocalix → Vocalix.netlify.app**](https://Vocalix.netlify.app/)
 
 **An audio-first social platform where voice is the primary medium of expression**
 
@@ -384,7 +384,7 @@ See [ROADMAP.md](./ROADMAP.md) for detailed roadmap and future plans.
 
 ## 🌐 Links
 
-- **🌐 Live Website**: [https://vocalix.netlify.app/](https://vocalix.netlify.app/)
+- **🌐 Live Website**: [https://Vocalix.netlify.app/](https://Vocalix.netlify.app/)
 - **GitHub Repository**: [https://github.com/melloom/Echo-Garden](https://github.com/melloom/Echo-Garden)
 - **Documentation**: See [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for all docs
 - **Issues**: [GitHub Issues](https://github.com/melloom/Echo-Garden/issues)
