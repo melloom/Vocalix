@@ -645,13 +645,13 @@ export default function FAQ() {
 
         {/* FAQ List - Paginated */}
         {filteredFAQs.length > 0 ? (
-          <div className="space-y-3">
-            <Accordion type="single" collapsible className="w-full space-y-2" key={`accordion-${currentPage}-${selectedCategory}`}>
+          <div className="space-y-3" key={`faq-list-${currentPage}-${selectedCategory}`}>
+            <Accordion type="single" collapsible className="w-full space-y-2">
               {paginatedFAQs.map((faq) => {
                 const Icon = faq.icon;
                 return (
-                  <Card key={faq.id} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-md hover:border-red-700/50 transition-colors">
-                    <AccordionItem value={faq.id} className="border-0">
+                  <Card key={`faq-${faq.id}-${currentPage}`} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-md hover:border-red-700/50 transition-colors">
+                    <AccordionItem value={`faq-item-${faq.id}`} className="border-0">
                       <AccordionTrigger className="px-4 py-3.5 hover:no-underline group">
                         <div className="flex items-center gap-3 flex-1 text-left">
                           <div className="flex-shrink-0">
