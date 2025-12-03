@@ -1129,7 +1129,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         <div className="grid gap-6 lg:grid-cols-[240px,1fr,400px] lg:gap-6 lg:items-start lg:max-h-[calc(100vh-120px)]">
           {/* Sticky Sidebar Navigation - Desktop Only */}
           <div className="hidden lg:block sticky top-4 h-[calc(100vh-120px)] z-20">
-            <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 backdrop-blur-xl border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto">
+            <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 backdrop-blur-xl border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <div className="space-y-2">
                 <div className="mb-4 pb-4 border-b border-red-900/30 dark:border-red-800/20">
                   <h3 className="text-sm font-bold text-white dark:text-white mb-1 flex items-center gap-2">
@@ -1182,7 +1182,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
 
           {/* Main Content Area - Sections */}
-          <div className="space-y-4 lg:space-y-3 text-center lg:text-left relative z-10 lg:overflow-y-auto lg:pr-2 lg:max-h-full">
+          <div className="space-y-4 lg:space-y-3 text-center lg:text-left relative z-10 lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {/* Mobile: Show all sections in order */}
             <div className="lg:hidden space-y-6">
               {/* Mobile Overview */}
@@ -2225,43 +2225,43 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           <Card className="w-full max-w-md mx-auto lg:mx-0 lg:sticky lg:top-4 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col lg:max-h-[calc(100vh-40px)]">
 
             {/* Progress Indicator */}
-            <div className="px-4 lg:px-6 pt-4 lg:pt-6 pb-2 flex-shrink-0">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-300 dark:text-gray-300">Setup Progress</span>
-                <span className="text-xs font-bold text-red-400 dark:text-red-400">
+            <div className="px-3 lg:px-4 pt-3 lg:pt-4 pb-1.5 flex-shrink-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] lg:text-xs font-semibold text-gray-300 dark:text-gray-300">Setup Progress</span>
+                <span className="text-[10px] lg:text-xs font-bold text-red-400 dark:text-red-400">
                   {Math.round((((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3) * 100)}%
                 </span>
             </div>
               <Progress 
                 value={((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3 * 100} 
-                className="h-2 bg-red-950/40 dark:bg-red-950/30"
+                className="h-1.5 bg-red-950/40 dark:bg-red-950/30"
               />
             </div>
 
-            <CardHeader className="space-y-2 text-center pb-3 lg:pb-4 relative z-10 px-4 lg:px-6 flex-shrink-0">
-              <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 rounded-xl lg:rounded-2xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-2 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
+            <CardHeader className="space-y-1.5 text-center pb-2 lg:pb-3 relative z-10 px-3 lg:px-4 flex-shrink-0">
+              <div className="inline-flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 rounded-lg lg:rounded-xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-1.5 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
                 <AvatarIcon 
                   type={selectedAvatar} 
-                  className="w-12 h-12 lg:w-14 lg:h-14"
+                  className="w-10 h-10 lg:w-12 lg:h-12"
                   imageUrl={avatarImages.get(selectedAvatar)}
                 />
               </div>
-              <CardTitle className="text-2xl lg:text-3xl font-extrabold text-white dark:text-white">
+              <CardTitle className="text-xl lg:text-2xl font-extrabold text-white dark:text-white">
                 Create Your Identity
               </CardTitle>
-              <p className="text-xs lg:text-sm text-gray-300 dark:text-gray-300 font-semibold">
+              <p className="text-[10px] lg:text-xs text-gray-300 dark:text-gray-300 font-semibold">
                 Pick an avatar and choose your handle
               </p>
             </CardHeader>
 
-            <CardContent className="space-y-4 lg:space-y-5 relative z-10 flex-1 overflow-y-auto min-h-0 px-4 lg:px-6">
+            <CardContent className="space-y-3 lg:space-y-3 relative z-10 flex-1 overflow-y-auto min-h-0 px-3 lg:px-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {/* Avatar Selection */}
-              <div className="space-y-2">
-                <label className="text-xs lg:text-sm font-bold text-white dark:text-white flex items-center gap-2">
-                  <Mic className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] lg:text-xs font-bold text-white dark:text-white flex items-center gap-1.5">
+                  <Mic className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-red-400 dark:text-red-400" />
                   Choose Your Avatar
                 </label>
-                <div className="grid grid-cols-6 gap-2 p-2 rounded-lg lg:rounded-xl bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-48 lg:max-h-64 overflow-y-auto">
+                <div className="grid grid-cols-6 gap-1.5 p-1.5 rounded-lg bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-36 lg:max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
@@ -2269,7 +2269,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-12 lg:h-14 w-full items-center justify-center rounded-md lg:rounded-lg transition-all duration-300 ${
+                        className={`flex h-9 lg:h-10 w-full items-center justify-center rounded-md transition-all duration-300 ${
                           isActive
                             ? "scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
                             : "hover:scale-105 active:scale-95"
@@ -2278,11 +2278,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         title={`Avatar ${index + 1}`}
                       >
                         {avatarsLoading && index < 8 ? (
-                          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-slate-700 animate-pulse" />
+                          <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-slate-700 animate-pulse" />
                         ) : (
                           <AvatarIcon 
                             type={avatarType} 
-                            className={`w-8 h-8 lg:w-10 lg:h-10 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
+                            className={`w-7 h-7 lg:w-8 lg:h-8 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
                             imageUrl={avatarImages.get(avatarType)}
                           />
                         )}
@@ -2293,18 +2293,18 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
 
               {/* Handle Input */}
-              <div className="space-y-2">
-                <label className="text-xs lg:text-sm font-bold text-white dark:text-white flex items-center gap-2">
-                  <Radio className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] lg:text-xs font-bold text-white dark:text-white flex items-center gap-1.5">
+                  <Radio className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-red-400 dark:text-red-400" />
                   Your Handle
                 </label>
-                <div className="relative flex gap-2">
+                <div className="relative flex gap-1.5">
                   <Input
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-10 lg:h-12 text-center text-base lg:text-lg font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
+                    className="h-9 lg:h-10 text-center text-sm lg:text-base font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
                   />
                   <Button
                     type="button"
@@ -2313,17 +2313,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onClick={() => {
                       setHandle(generateHandle());
                     }}
-                    className="h-10 w-10 lg:h-12 lg:w-12 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
+                    className="h-9 w-9 lg:h-10 lg:w-10 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
                     title="Generate random handle"
                   >
-                    <Wand2 className="h-4 w-4 lg:h-5 lg:w-5 text-red-400 dark:text-red-400" />
+                    <Wand2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] lg:text-xs text-gray-300 dark:text-gray-300 font-semibold">
+                  <p className="text-[9px] lg:text-[10px] text-gray-300 dark:text-gray-300 font-semibold">
                     Keep it clean, 20 characters max
                   </p>
-                  <span className={`text-[10px] lg:text-xs font-bold transition-colors duration-200 ${
+                  <span className={`text-[9px] lg:text-[10px] font-bold transition-colors duration-200 ${
                     handle.length > 18 
                       ? 'text-red-400 dark:text-red-400' 
                       : handle.length > 15 
@@ -2355,11 +2355,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               )}
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-2 lg:gap-3 pt-3 lg:pt-4 px-4 lg:px-6 flex-shrink-0 border-t border-red-900/20 dark:border-red-800/10">
+            <CardFooter className="flex flex-col gap-1.5 lg:gap-2 pt-2 lg:pt-3 px-3 lg:px-4 flex-shrink-0 border-t border-red-900/20 dark:border-red-800/10">
               {/* Ready indicator */}
               {handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading && (
-                <div className="flex items-center justify-center gap-2 text-[10px] lg:text-xs text-amber-400 dark:text-amber-400 mb-0.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                <div className="flex items-center justify-center gap-1.5 text-[9px] lg:text-[10px] text-amber-400 dark:text-amber-400 mb-0.5">
+                  <CheckCircle2 className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
                   <span className="font-medium">Ready to create your identity</span>
                 </div>
               )}
@@ -2367,7 +2367,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading || !handle.trim() || !deviceId}
-                className={`w-full h-11 lg:h-14 text-sm lg:text-base font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
+                className={`w-full h-9 lg:h-10 text-xs lg:text-sm font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
                   handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading 
                     ? 'ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
                     : ''
@@ -2376,21 +2376,21 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               >
                 <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
                 {isLoading ? (
-                  <span className="flex items-center gap-2 relative z-10">
-                    <Loader2 className="h-4 w-4 lg:h-5 lg:w-5 animate-spin" />
-                    <span className="text-xs lg:text-sm">Creating your identity...</span>
+                  <span className="flex items-center gap-1.5 relative z-10">
+                    <Loader2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 animate-spin" />
+                    <span className="text-[10px] lg:text-xs">Creating your identity...</span>
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2 relative z-10">
+                  <span className="flex items-center gap-1.5 relative z-10">
                     <span className="group-hover:translate-x-1 transition-transform duration-200">
-                    <CheckCircle2 className="h-4 w-4 lg:h-5 lg:w-5" />
+                    <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
                     </span>
-                    <span className="text-xs lg:text-base">Enter The Chamber</span>
-                    <ArrowRight className="h-3.5 w-3.5 lg:h-4 lg:w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+                    <span className="text-[10px] lg:text-xs">Enter The Chamber</span>
+                    <ArrowRight className="h-3 w-3 lg:h-3.5 lg:w-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
                   </span>
                 )}
               </Button>
-              <p className="text-[10px] lg:text-xs text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
+              <p className="text-[9px] lg:text-[10px] text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
                 By continuing, you agree to keep it real and respectful
               </p>
             </CardFooter>
