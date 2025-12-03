@@ -667,7 +667,7 @@ export default function FAQ() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">
-                        <div className="pl-13 space-y-3">
+                        <div className="pl-12 space-y-3">
                           <p className="text-gray-300 leading-relaxed text-sm">{faq.answer}</p>
                           {faq.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 pt-2 border-t border-red-800/20">
