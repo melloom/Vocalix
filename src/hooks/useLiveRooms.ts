@@ -18,6 +18,7 @@ export interface LiveRoom {
   participant_count: number;
   speaker_count: number;
   listener_count: number;
+  viewer_count: number;
   recording_enabled: boolean;
   transcription_enabled: boolean;
   webrtc_room_id: string | null;
@@ -33,7 +34,7 @@ export interface RoomParticipant {
   id: string;
   room_id: string;
   profile_id: string;
-  role: 'host' | 'speaker' | 'listener' | 'moderator';
+  role: 'host' | 'speaker' | 'listener' | 'viewer' | 'moderator';
   is_muted: boolean;
   is_speaking: boolean;
   joined_at: string;
@@ -323,7 +324,7 @@ export const useRoomParticipation = (roomId: string | null) => {
   });
 
   const joinMutation = useMutation({
-    mutationFn: async (role: 'speaker' | 'listener' = 'listener') => {
+    mutationFn: async (role: 'speaker' | 'listener' | 'viewer' = 'viewer') => {
       if (!roomId || !profile?.id) {
         throw new Error('Missing room or profile');
       }
@@ -412,7 +413,7 @@ export const useRoomParticipation = (roomId: string | null) => {
     participation,
     isParticipating: !!participation,
     isLoadingParticipation,
-    join: async (role?: 'speaker' | 'listener') => {
+    join: async (role?: 'speaker' | 'listener' | 'viewer') => {
       return joinMutation.mutateAsync(role);
     },
     leave: async () => {
@@ -474,6 +475,116 @@ export const useClearLiveRoomSuccessor = (roomId: string | null) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
       queryClient.invalidateQueries({ queryKey: ['community-live-rooms'] });
+    },
+  });
+};
+
+// Hook to promote viewer to speaker (host only)
+export const usePromoteViewerToSpeaker = (roomId: string | null) => {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (viewerProfileId: string) => {
+      if (!roomId || !profile?.id) {
+        throw new Error('Missing room or profile');
+      }
+
+      const { data, error } = await supabase
+        .rpc('promote_viewer_to_speaker', {
+          p_room_id: roomId,
+          p_profile_id: viewerProfileId,
+          p_host_profile_id: profile.id,
+        });
+
+      if (error) throw error;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Failed to promote viewer');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-participants', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
+    },
+  });
+};
+
+// Hook to invite viewer to speak (host only)
+export const useInviteViewerToSpeak = (roomId: string | null) => {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (viewerProfileId: string) => {
+      if (!roomId || !profile?.id) {
+        throw new Error('Missing room or profile');
+      }
+
+      const { data, error } = await supabase
+        .rpc('invite_viewer_to_speak', {
+          p_room_id: roomId,
+          p_profile_id: viewerProfileId,
+          p_host_profile_id: profile.id,
+        });
+
+      if (error) throw error;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Failed to invite viewer');
+      }
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-participants', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
+    },
+  });
+};
+
+// Hook to request to speak (viewers/listeners can request)
+export const useRequestToSpeak = (roomId: string | null) => {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!roomId || !profile?.id) {
+        throw new Error('Missing room or profile');
+      }
+
+      // Check current participation
+      const { data: participation } = await supabase
+        .from('room_participants')
+        .select('role')
+        .eq('room_id', roomId)
+        .eq('profile_id', profile.id)
+        .is('left_at', null)
+        .maybeSingle();
+
+      if (!participation) {
+        throw new Error('You must be a viewer or listener to request to speak');
+      }
+
+      if (participation.role === 'host' || participation.role === 'speaker' || participation.role === 'moderator') {
+        throw new Error('You are already a speaker');
+      }
+
+      // For now, we'll just update the role to speaker
+      // In a more advanced implementation, you might want a "request" status
+      // that requires host approval
+      const { error } = await supabase
+        .from('room_participants')
+        .update({ role: 'speaker' })
+        .eq('room_id', roomId)
+        .eq('profile_id', profile.id)
+        .is('left_at', null);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['room-participants', roomId] });
+      queryClient.invalidateQueries({ queryKey: ['room-participation', roomId, profile?.id] });
+      queryClient.invalidateQueries({ queryKey: ['live-room', roomId] });
     },
   });
 };

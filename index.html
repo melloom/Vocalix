@@ -6,7 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Echo Chamber" />
+    <meta name="apple-mobile-web-app-title" content="vocalix" />
     <meta name="theme-color" content="#2a1f3d" />
     <meta name="msapplication-TileColor" content="#2a1f3d" />
     <meta name="msapplication-navbutton-color" content="#2a1f3d" />
@@ -170,17 +170,17 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <title>Echo Chamber</title>
+    <title>vocalix</title>
     <meta
       name="description"
-      content="Echo Chamber helps you capture and share meaningful voice notes."
+      content="vocalix helps you capture and share meaningful voice notes."
     />
-    <meta name="author" content="Echo Chamber" />
+    <meta name="author" content="vocalix" />
 
-    <meta property="og:title" content="Echo Chamber" />
+    <meta property="og:title" content="vocalix" />
     <meta
       property="og:description"
-      content="Echo Chamber helps you capture and share meaningful voice notes."
+      content="vocalix helps you capture and share meaningful voice notes."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/placeholder.svg" />
@@ -197,7 +197,7 @@
       <div id="loading-screen" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; -webkit-font-smoothing: antialiased;">
         <div style="text-align: center; padding: 20px;">
           <div id="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
-          <p id="loading-text" style="color: #666; font-size: 16px;">Loading Echo Chamber...</p>
+          <p id="loading-text" style="color: #666; font-size: 16px;">Loading vocalix...</p>
         </div>
       </div>
       <script>
@@ -269,7 +269,7 @@
               root.querySelector('[data-reactroot]') ||
               root.querySelector('._react') ||
               (root.children.length > 0 && 
-               !root.innerHTML.includes('Loading Echo Chamber') && 
+               !root.innerHTML.includes('Loading vocalix') && 
                !root.innerHTML.includes('App Loading') &&
                !root.innerHTML.includes('Rendering Error'))
             );
@@ -371,7 +371,7 @@
             console.error('[HTML] EMERGENCY: main.tsx module did not execute!');
             window.__MODULE_IMPORT_ERROR__ = true;
             var root = document.getElementById('root');
-            if (root && (root.innerHTML.includes('Loading Echo Chamber') || root.children.length === 0)) {
+            if (root && (root.innerHTML.includes('Loading vocalix') || root.children.length === 0)) {
               root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Module Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main application module did not execute. This usually means there is a JavaScript error preventing the code from running.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">Please check the browser console for errors and try clearing your cache.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
             }
           }
@@ -772,8 +772,8 @@
         var root = document.getElementById('root');
         // Check if still showing loading screen OR if root is empty (app didn't render)
         var stillLoading = root && (
-          (root.children.length === 1 && root.querySelector('div[style*="Loading Echo Chamber"]')) ||
-          (root.children.length === 0 && root.innerHTML.includes('Loading Echo Chamber'))
+          (root.children.length === 1 && root.querySelector('div[style*="Loading vocalix"]')) ||
+          (root.children.length === 0 && root.innerHTML.includes('Loading vocalix'))
         );
         if (stillLoading) {
           console.error('[App] Timeout: App did not load within 15 seconds');

@@ -43,6 +43,7 @@ export const CreateRoomModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAMA, setIsAMA] = useState(false);
   const [amaQuestionDeadline, setAmaQuestionDeadline] = useState("");
+  const [initialSpeakers, setInitialSpeakers] = useState<string>(""); // Comma-separated handles
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +133,36 @@ export const CreateRoomModal = ({
         role: "host",
       });
 
+      // Add initial speakers if provided
+      if (initialSpeakers.trim()) {
+        const handles = initialSpeakers
+          .split(",")
+          .map((h) => h.trim())
+          .filter((h) => h.length > 0);
+
+        if (handles.length > 0) {
+          // Look up profiles by handle
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id")
+            .in("handle", handles);
+
+          if (!profilesError && profiles) {
+            // Add each profile as a speaker (excluding the host)
+            const speakerProfiles = profiles.filter((p) => p.id !== profile.id);
+            if (speakerProfiles.length > 0) {
+              await supabase.from("room_participants").insert(
+                speakerProfiles.map((p) => ({
+                  room_id: data.id,
+                  profile_id: p.id,
+                  role: "speaker",
+                }))
+              );
+            }
+          }
+        }
+      }
+
       toast({
         title: "Room created!",
         description: isScheduled ? "Your room is scheduled" : "Starting your room...",
@@ -147,6 +178,7 @@ export const CreateRoomModal = ({
       setMaxListeners(100);
       setIsScheduled(false);
       setScheduledTime("");
+      setInitialSpeakers("");
 
       onSuccess?.();
       onClose();
@@ -269,6 +301,19 @@ export const CreateRoomModal = ({
                 onChange={(e) => setMaxListeners(parseInt(e.target.value) || 100)}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="initialSpeakers">Initial Speakers (Optional)</Label>
+            <Input
+              id="initialSpeakers"
+              value={initialSpeakers}
+              onChange={(e) => setInitialSpeakers(e.target.value)}
+              placeholder="Enter handles separated by commas (e.g., user1, user2)"
+            />
+            <p className="text-xs text-muted-foreground">
+              Add users who will start as speakers. Enter their handles separated by commas.
+            </p>
           </div>
 
           <div className="space-y-3">

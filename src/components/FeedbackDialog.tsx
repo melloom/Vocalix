@@ -162,7 +162,7 @@ export const FeedbackDialog = ({ trigger, defaultType = "general_feedback" }: Fe
             Submit Feedback
           </DialogTitle>
           <DialogDescription>
-            Help us improve Echo Chamber by sharing your feedback, reporting bugs, or suggesting features.
+            Help us improve vocalix by sharing your feedback, reporting bugs, or suggesting features.
           </DialogDescription>
         </DialogHeader>
 

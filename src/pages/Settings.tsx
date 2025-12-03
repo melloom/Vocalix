@@ -884,8 +884,8 @@ const Settings = () => {
     if (!magicLinkUrl || !canNativeShare) return;
     try {
       await (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share?.({
-        title: "Echo Chamber login link",
-        text: "Tap this link to sign back in to Echo Chamber.",
+        title: "vocalix login link",
+        text: "Tap this link to sign back in to vocalix.",
         url: magicLinkUrl,
       });
     } catch (error) {
@@ -905,10 +905,10 @@ const Settings = () => {
     if (!magicLinkUrl) return;
     const trimmedEmail = magicLinkEmail.trim();
     if (trimmedEmail.length === 0) return;
-    const subject = encodeURIComponent("Your Echo Chamber login link");
+    const subject = encodeURIComponent("Your vocalix login link");
     const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
     const body = encodeURIComponent(
-      `Use this link to sign back in to Echo Chamber on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
+      `Use this link to sign back in to vocalix on another device:\n${magicLinkUrl}${expiryLine}\n\nIf you didn't request this, you can ignore the link.`,
     );
     window.open(`mailto:${trimmedEmail}?subject=${subject}&body=${body}`, "_blank");
   };
@@ -966,10 +966,10 @@ const Settings = () => {
       });
       return;
     }
-    const subject = encodeURIComponent("Echo Chamber Login Link - For Your Other Device");
+    const subject = encodeURIComponent("vocalix Login Link - For Your Other Device");
     const expiryLine = magicLinkExpiresDisplay ? `\n\nThis link expires ${magicLinkExpiresDisplay}.` : "";
     const body = encodeURIComponent(
-      `Hi,\n\nHere's your Echo Chamber login link for signing in on another device:\n\n${magicLinkUrl}${expiryLine}\n\nOpen this link on your other device to sign in automatically.\n\nYou can also scan the QR code if you saved it.`,
+      `Hi,\n\nHere's your vocalix login link for signing in on another device:\n\n${magicLinkUrl}${expiryLine}\n\nOpen this link on your other device to sign in automatically.\n\nYou can also scan the QR code if you saved it.`,
     );
     window.open(`mailto:${userEmail}?subject=${subject}&body=${body}`, "_blank");
     toast({
@@ -1330,7 +1330,7 @@ const Settings = () => {
       };
 
       // Also create a text file version
-      let textContent = `Echo Chamber Transcriptions Export\n`;
+      let textContent = `vocalix Transcriptions Export\n`;
       textContent += `Exported: ${transcriptsData.exported_at}\n`;
       textContent += `Profile: ${profile.handle}\n`;
       textContent += `Total Transcripts: ${clips.length}\n`;
@@ -1588,7 +1588,7 @@ const Settings = () => {
       // Show goodbye message before redirecting
       const goodbyeMessage = keepContentOnDelete
         ? "Your account has been anonymized. Your content remains but is no longer associated with you."
-        : "Your account has been deleted. Thanks for being part of Echo Chamber. You're welcome back anytime! 👋";
+        : "Your account has been deleted. Thanks for being part of vocalix. You're welcome back anytime! 👋";
       
       // Show goodbye message in a dialog
       alert(goodbyeMessage);
@@ -2945,7 +2945,7 @@ const Settings = () => {
               <div>
                 <p className="font-medium">Interactive Tutorial</p>
                 <p className="text-sm text-muted-foreground">
-                  Restart the interactive tutorial to learn how to use Echo Chamber.
+                  Restart the interactive tutorial to learn how to use vocalix.
                 </p>
               </div>
               <Button
@@ -3068,7 +3068,7 @@ const Settings = () => {
               <AlertDialogDescription asChild>
                 <div className="space-y-4 pt-1">
                   <p className="text-sm text-muted-foreground">
-                    This PIN lets you log in with your Echo Chamber name on any device. It&apos;s
+                    This PIN lets you log in with your vocalix name on any device. It&apos;s
                     separate from the one-time device linking PIN above.
                   </p>
                   <div className="space-y-3">
