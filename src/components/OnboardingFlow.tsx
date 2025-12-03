@@ -2398,6 +2398,15 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </Card>
         </div>
       </div>
+      {/* Privacy Policy Link - Bottom Right Corner */}
+      <div className="fixed bottom-4 right-4 z-10">
+        <Link
+          to="/privacy"
+          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+        >
+          Privacy Policy
+        </Link>
+      </div>
     </div>
     );
   } catch (error: any) {
