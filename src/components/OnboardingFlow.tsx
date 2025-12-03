@@ -1038,7 +1038,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               variant: "destructive",
             });
           }
-        } else if (error.code === "42501" || error.code === "PGRST301" || error.message?.includes("permission denied") || error.message?.includes("403") || error.code === 403) {
+        } else if (error.code === "42501" || error.code === "PGRST301" || error.message?.includes("permission denied") || error.message?.includes("403") || error.code === "403") {
           // RLS policy violation - provide helpful error message
           console.error('[OnboardingFlow] RLS policy violation. Check:');
           console.error('  1. Device ID in localStorage:', localStorage.getItem('deviceId'));
