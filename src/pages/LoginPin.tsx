@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertCircle, CheckCircle2, Loader2, Lock, User, ArrowLeft } from "lucide-react";
 
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase, setSessionCookie } from "@/integrations/supabase/client";
 import { useDeviceId } from "@/hooks/useDeviceId";
+import { CrossBrowserDetectionDialog } from "@/components/CrossBrowserDetectionDialog";
 
 type LoginStatus = "entering" | "submitting" | "success" | "error";
 
@@ -18,6 +19,8 @@ const LoginPin = () => {
   const [pin, setPin] = useState(["", "", "", ""]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [profileHandle, setProfileHandle] = useState<string | null>(null);
+  const [showCrossBrowserDialog, setShowCrossBrowserDialog] = useState(false);
+  const [loggedInProfileId, setLoggedInProfileId] = useState<string | null>(null);
 
   const pinInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -102,6 +105,7 @@ const LoginPin = () => {
       // Store profileId locally for the existing profile lookup logic
       localStorage.setItem("profileId", result.profile_id);
       setProfileHandle(result.handle ?? normalizedHandle);
+      setLoggedInProfileId(result.profile_id);
 
       // Create cookie session if we received a session token
       const sessionToken: string | undefined = result.session_token;
@@ -113,11 +117,36 @@ const LoginPin = () => {
         }
       }
 
-      setStatus("success");
+      // Check for cross-browser sessions before redirecting
+      try {
+        // @ts-ignore - RPC function exists but not in types
+        const { data: crossBrowserData, error: crossBrowserError } = await (supabase.rpc as any)(
+          "check_cross_browser_sessions",
+          {
+            p_profile_id: result.profile_id,
+            p_current_user_agent: userAgent,
+            p_current_device_id: deviceId,
+          }
+        );
 
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1500);
+        if (!crossBrowserError && crossBrowserData && Array.isArray(crossBrowserData) && crossBrowserData.length > 0) {
+          // Found cross-browser sessions - show dialog
+          setShowCrossBrowserDialog(true);
+        } else {
+          // No cross-browser sessions - proceed normally
+          setStatus("success");
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 1500);
+        }
+      } catch (checkError) {
+        // If check fails, proceed normally
+        console.error("Error checking cross-browser sessions:", checkError);
+        setStatus("success");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1500);
+      }
     } catch (err: any) {
       console.error("Handle+PIN login failed", err);
       const message =
@@ -281,6 +310,31 @@ const LoginPin = () => {
           </div>
         )}
       </div>
+
+      {/* Cross-Browser Detection Dialog */}
+      {showCrossBrowserDialog && loggedInProfileId && (
+        <CrossBrowserDetectionDialog
+          profileId={loggedInProfileId}
+          deviceId={deviceId}
+          userAgent={typeof navigator !== "undefined" ? navigator.userAgent : null}
+          onConfirm={() => {
+            // User confirmed - proceed with redirect
+            setShowCrossBrowserDialog(false);
+            setStatus("success");
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 500);
+          }}
+          onDismiss={() => {
+            // User dismissed - still proceed with redirect
+            setShowCrossBrowserDialog(false);
+            setStatus("success");
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 500);
+          }}
+        />
+      )}
     </div>
   );
 };

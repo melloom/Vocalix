@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { logError, logWarn } from "@/lib/logger";
+import { CrossBrowserDetectionDialog } from "@/components/CrossBrowserDetectionDialog";
 
 const PROFILE_STORAGE_KEY = "profileId";
 
@@ -34,6 +35,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const queryClient = useQueryClient();
+  
+  // Cross-browser detection state
+  const [showCrossBrowserDialog, setShowCrossBrowserDialog] = useState(false);
+  const [crossBrowserProfileId, setCrossBrowserProfileId] = useState<string | null>(null);
+  const crossBrowserCheckDoneRef = useRef(false);
   
   // Prevent multiple simultaneous sign-in attempts
   const signInAttemptRef = useRef(false);
@@ -380,6 +386,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [profile, profileId]);
 
+  // Check for cross-browser sessions when profile loads
+  useEffect(() => {
+    if (!profile?.id || !deviceId || crossBrowserCheckDoneRef.current) {
+      return;
+    }
+
+    // Only check once per profile load
+    crossBrowserCheckDoneRef.current = true;
+
+    const checkCrossBrowser = async () => {
+      try {
+        const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+        
+        // @ts-ignore - RPC function exists but not in types
+        const { data, error } = await (supabase.rpc as any)(
+          "check_cross_browser_sessions",
+          {
+            p_profile_id: profile.id,
+            p_current_user_agent: userAgent,
+            p_current_device_id: deviceId,
+          }
+        );
+
+        if (error) {
+          // If function doesn't exist yet, silently fail
+          if (error.code === "42883" || error.message?.includes("does not exist")) {
+            return;
+          }
+          console.error("Error checking cross-browser sessions:", error);
+          return;
+        }
+
+        // If we found cross-browser sessions, show the dialog
+        if (data && Array.isArray(data) && data.length > 0) {
+          setCrossBrowserProfileId(profile.id);
+          setShowCrossBrowserDialog(true);
+        }
+      } catch (error) {
+        console.error("Error checking cross-browser sessions:", error);
+      }
+    };
+
+    // Small delay to ensure profile is fully loaded
+    const timeoutId = setTimeout(checkCrossBrowser, 500);
+    return () => clearTimeout(timeoutId);
+  }, [profile?.id, deviceId]);
+
+  // Reset cross-browser check when profile changes
+  useEffect(() => {
+    crossBrowserCheckDoneRef.current = false;
+  }, [profile?.id]);
+
   // Listen for profileId changes in localStorage (from other tabs/windows)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -412,7 +470,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [userId, profileId, profile, isInitialized, isProfileLoading, deviceId, queryClient, refetchProfile]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const getUserAgent = () => {
+    if (typeof navigator === "undefined") return null;
+    return navigator.userAgent;
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {showCrossBrowserDialog && crossBrowserProfileId && (
+        <CrossBrowserDetectionDialog
+          profileId={crossBrowserProfileId}
+          deviceId={deviceId}
+          userAgent={getUserAgent()}
+          onConfirm={() => {
+            // User confirmed - they want to sign in
+            // The profile is already loaded, so we just dismiss the dialog
+            setShowCrossBrowserDialog(false);
+            setCrossBrowserProfileId(null);
+            crossBrowserCheckDoneRef.current = true;
+          }}
+          onDismiss={() => {
+            // User dismissed - they want to continue as guest or skip
+            setShowCrossBrowserDialog(false);
+            setCrossBrowserProfileId(null);
+            crossBrowserCheckDoneRef.current = true;
+          }}
+        />
+      )}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
