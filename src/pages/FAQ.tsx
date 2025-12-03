@@ -551,9 +551,9 @@ export default function FAQ() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-gradient-to-b from-black/90 via-gray-900/90 to-transparent backdrop-blur-xl border-b border-red-800/20">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-10 bg-gradient-to-b from-black/95 via-gray-900/95 to-transparent backdrop-blur-xl border-b border-red-800/20">
+        <div className="max-w-4xl mx-auto px-4 py-5">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
@@ -562,58 +562,58 @@ export default function FAQ() {
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div className="flex items-center gap-4 flex-1">
-              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
-                <MessageCircle className="h-6 w-6 text-red-400" />
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                <MessageCircle className="h-5 w-5 text-red-400" />
               </div>
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl font-black text-white">
-                  Frequently Asked <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Questions</span>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-black text-white">
+                  Frequently Asked Questions
                 </h1>
-                <p className="text-sm text-gray-400 mt-1">Everything you need to know about Vocalix</p>
+                <p className="text-xs text-gray-400">Everything you need to know about Vocalix</p>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         {/* Search Bar */}
-        <Card className="p-5 rounded-2xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 shadow-xl">
+        <Card className="p-4 rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-lg">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-red-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-red-400" />
             <Input
               type="text"
-              placeholder="Search FAQs... (e.g., 'how to record', 'live rooms', 'privacy')"
+              placeholder="Search FAQs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-14 text-base bg-gray-900/50 border-red-800/30 text-white placeholder:text-gray-500 focus:border-red-500/50 focus:ring-red-500/20"
+              className="pl-10 h-11 text-sm bg-gray-900/50 border-red-800/30 text-white placeholder:text-gray-500 focus:border-red-500/50 focus:ring-red-500/20"
             />
             {searchQuery && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 text-gray-400 hover:text-white hover:bg-red-900/20"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-gray-400 hover:text-white hover:bg-red-900/20"
               >
-                <span className="text-sm">✕</span>
+                <span className="text-xs">✕</span>
               </Button>
             )}
           </div>
         </Card>
 
-        {/* Category Tabs */}
-        <div className="overflow-x-auto">
+        {/* Category Tabs - Compact */}
+        <div className="overflow-x-auto pb-2">
           <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-            <TabsList className="w-full justify-start h-auto p-1.5 bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/20 rounded-xl">
-              {categories.map((category) => (
+            <TabsList className="w-full justify-start h-auto p-1 bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/20 rounded-lg">
+              {categories.slice(0, 8).map((category) => (
                 <TabsTrigger
                   key={category}
                   value={category}
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-amber-600/20 data-[state=active]:text-white data-[state=active]:border-red-500/30 rounded-lg px-4 py-2.5 text-sm whitespace-nowrap text-gray-300 hover:text-white transition-all border border-transparent data-[state=active]:border-red-500/30"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-600/20 data-[state=active]:to-amber-600/20 data-[state=active]:text-white rounded-md px-3 py-1.5 text-xs whitespace-nowrap text-gray-300 hover:text-white transition-all"
                 >
                   {category}
-                  <Badge variant="outline" className="ml-2 text-xs border-red-700/30 text-gray-400 data-[state=active]:text-red-400 data-[state=active]:border-red-500/50">
+                  <Badge variant="outline" className="ml-1.5 text-[10px] border-red-700/30 text-gray-400 data-[state=active]:text-red-400 px-1 py-0">
                     {categoryCounts[category] || 0}
                   </Badge>
                 </TabsTrigger>
@@ -624,47 +624,42 @@ export default function FAQ() {
 
         {/* Results Count */}
         {searchQuery && (
-          <div className="text-sm text-gray-400 px-2">
-            Found <span className="text-red-400 font-semibold">{filteredFAQs.length}</span> {filteredFAQs.length === 1 ? "result" : "results"} for <span className="text-amber-400">"{searchQuery}"</span>
+          <div className="text-xs text-gray-400 px-2">
+            <span className="text-red-400 font-semibold">{filteredFAQs.length}</span> {filteredFAQs.length === 1 ? "result" : "results"} for <span className="text-amber-400">"{searchQuery}"</span>
           </div>
         )}
 
-        {/* FAQ Accordion */}
+        {/* FAQ Accordion - Compact */}
         {filteredFAQs.length > 0 ? (
-          <Accordion type="single" collapsible className="w-full space-y-3">
+          <Accordion type="single" collapsible className="w-full space-y-2">
             {filteredFAQs.map((faq) => {
               const Icon = faq.icon;
               return (
-                <Card key={faq.id} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 shadow-lg">
+                <Card key={faq.id} className="overflow-hidden bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30 shadow-md">
                   <AccordionItem value={faq.id} className="border-0">
-                    <AccordionTrigger className="px-6 py-5 hover:no-underline group">
-                      <div className="flex items-center gap-4 flex-1 text-left">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline group">
+                      <div className="flex items-center gap-3 flex-1 text-left">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Icon className="h-5 w-5 text-red-400" />
+                          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <Icon className="h-4 w-4 text-red-400" />
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-base sm:text-lg text-white group-hover:text-red-400 transition-colors">{faq.question}</h3>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <Badge variant="outline" className="text-xs border-red-700/30 text-gray-400">
-                              {faq.category}
-                            </Badge>
-                          </div>
+                          <h3 className="font-semibold text-sm text-white group-hover:text-red-400 transition-colors leading-tight">{faq.question}</h3>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-red-400 flex-shrink-0 transition-all duration-200 group-data-[state=open]:rotate-90" />
+                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-red-400 flex-shrink-0 transition-all duration-200 group-data-[state=open]:rotate-90" />
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-5">
-                      <div className="pl-16 space-y-4">
-                        <p className="text-gray-200 leading-relaxed text-sm">{faq.answer}</p>
+                    <AccordionContent className="px-4 pb-3">
+                      <div className="pl-12 space-y-2">
+                        <p className="text-gray-300 leading-relaxed text-xs">{faq.answer}</p>
                         {faq.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2 pt-2">
-                            {faq.tags.slice(0, 5).map((tag) => (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {faq.tags.slice(0, 4).map((tag) => (
                               <Badge
                                 key={tag}
                                 variant="outline"
-                                className="text-xs cursor-pointer hover:bg-red-900/20 border-red-700/30 text-gray-300 hover:text-red-400 transition-colors"
+                                className="text-[10px] cursor-pointer hover:bg-red-900/20 border-red-700/30 text-gray-400 hover:text-red-400 transition-colors px-1.5 py-0"
                                 onClick={() => setSearchQuery(tag)}
                               >
                                 {tag}
@@ -680,73 +675,53 @@ export default function FAQ() {
             })}
           </Accordion>
         ) : (
-          <Card className="p-12 text-center bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30">
-            <HelpCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2 text-white">No results found</h3>
-            <p className="text-gray-400 mb-4">
-              Try a different search term or browse by category
+          <Card className="p-8 text-center bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 border border-red-800/30">
+            <HelpCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+            <h3 className="text-base font-semibold mb-2 text-white">No results found</h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Try a different search term
             </p>
             <Button 
               onClick={() => {
                 setSearchQuery("");
                 setSelectedCategory("All");
               }}
-              className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white"
+              className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white text-sm"
+              size="sm"
             >
               Clear Search
             </Button>
           </Card>
         )}
 
-        {/* Help Section */}
-        <Card className="p-6 rounded-2xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/30 shadow-xl">
-          <div className="flex items-start gap-4">
+        {/* Help Section - Compact */}
+        <Card className="p-4 rounded-xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-950/40 border border-red-800/30">
+          <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center">
-                <HelpCircle className="h-6 w-6 text-red-400" />
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/30 flex items-center justify-center">
+                <HelpCircle className="h-5 w-5 text-red-400" />
               </div>
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg mb-2 text-white">Still need help?</h3>
-              <p className="text-gray-300 mb-4 text-sm">
-                Can't find what you're looking for? Check out our other resources or contact support.
-              </p>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="font-semibold text-sm mb-1 text-white">Still need help?</h3>
+              <div className="flex flex-wrap gap-1.5">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => navigate("/")}
-                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
                 >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  User Tutorial
+                  <BookOpen className="h-3 w-3 mr-1" />
+                  Tutorial
                 </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => navigate("/settings")}
-                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50 text-xs h-7 px-2"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
+                  <Settings className="h-3 w-3 mr-1" />
                   Settings
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => navigate("/privacy")}
-                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Privacy Policy
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => navigate("/terms")}
-                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
-                >
-                  <Scale className="h-4 w-4 mr-2" />
-                  Terms of Service
                 </Button>
               </div>
             </div>

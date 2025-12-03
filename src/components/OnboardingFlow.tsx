@@ -2108,122 +2108,36 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl">
-                  {/* Quick Questions - Simple Pop */}
-                  <div className="p-6 border-b border-red-800/30">
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      <div className="p-3 rounded-lg bg-gradient-to-br from-red-900/40 to-red-800/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Shield className="h-4 w-4 text-red-400 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-semibold text-white">Anonymous?</span>
-                        </div>
-                        <p className="text-[10px] text-gray-300">Yes! No email, no phone, no real name needed.</p>
+                <div className="rounded-lg bg-gradient-to-br from-red-950/20 via-amber-950/20 to-red-950/20 dark:from-red-950/15 dark:via-amber-950/15 dark:to-red-950/15 border border-red-800/20 overflow-hidden">
+                  {/* Compact Quick Questions */}
+                  <div className="p-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-red-900/20 border border-red-700/20">
+                        <Shield className="h-3 w-3 text-red-400 flex-shrink-0" />
+                        <span className="text-[9px] text-gray-300">Anonymous</span>
                       </div>
-                      <div className="p-3 rounded-lg bg-gradient-to-br from-amber-900/40 to-amber-800/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Headphones className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-semibold text-white">Clip Length?</span>
-                        </div>
-                        <p className="text-[10px] text-gray-300">30 seconds regular, 10 min podcast mode.</p>
+                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-amber-900/20 border border-amber-700/20">
+                        <Headphones className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                        <span className="text-[9px] text-gray-300">30s clips</span>
                       </div>
-                      <div className="p-3 rounded-lg bg-gradient-to-br from-red-900/40 to-red-800/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Mic className="h-4 w-4 text-red-400 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-semibold text-white">How to Record?</span>
-                        </div>
-                        <p className="text-[10px] text-gray-300">Tap mic button, hold to record, release to stop.</p>
+                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-red-900/20 border border-red-700/20">
+                        <Mic className="h-3 w-3 text-red-400 flex-shrink-0" />
+                        <span className="text-[9px] text-gray-300">Easy record</span>
                       </div>
-                      <div className="p-3 rounded-lg bg-gradient-to-br from-amber-900/40 to-amber-800/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Radio className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-semibold text-white">Live Rooms?</span>
-                        </div>
-                        <p className="text-[10px] text-gray-300">Join real-time audio discussions with others.</p>
+                      <div className="flex items-center gap-1.5 p-2 rounded-md bg-amber-900/20 border border-amber-700/20">
+                        <Radio className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                        <span className="text-[9px] text-gray-300">Live rooms</span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Detailed Questions Accordion */}
-                  <div className="p-6">
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10">
-                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 border border-red-500/20 group-hover:scale-110 transition-transform">
-                              <Shield className="h-4 w-4 text-red-400" />
-                            </div>
-                            <span>Is it really anonymous?</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
-                          <div className="space-y-2">
-                            <p>
-                              <span className="text-red-400 font-bold">Yes!</span> We don't require any personal information. No email, no phone number, no real name.
-                            </p>
-                            <p>
-                              You create an account with just a handle and an avatar. Your device ID is used for authentication, 
-                              but it's not linked to any personal data. <span className="text-amber-400 font-semibold">You're as anonymous as you want to be.</span>
-                            </p>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10">
-                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 border border-amber-500/20 group-hover:scale-110 transition-transform">
-                              <Headphones className="h-4 w-4 text-amber-400" />
-                            </div>
-                            <span>How long are clips?</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
-                          <div className="space-y-2">
-                            <p>
-                              Regular voice clips are limited to <span className="text-red-400 font-bold">30 seconds</span>—perfect for quick thoughts, reactions, or brief stories.
-                            </p>
-                            <p>
-                              For longer content, you can use <span className="text-amber-400 font-semibold">Podcast Mode</span> which allows up to 10-minute segments. This keeps the feed 
-                              dynamic while still allowing for deeper conversations when needed.
-                            </p>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="item-3" className="border-red-900/20 dark:border-red-800/10">
-                        <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-bold py-4 text-left group">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 border border-red-500/20 group-hover:scale-110 transition-transform">
-                              <Trash2 className="h-4 w-4 text-red-400" />
-                            </div>
-                            <span>Can I delete my account?</span>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4 pl-11">
-                          <div className="space-y-2">
-                            <p>
-                              <span className="text-red-400 font-bold">Yes, absolutely.</span> You have full control over your account and content.
-                            </p>
-                            <p>
-                              You can delete individual clips at any time, or delete your entire account from the Settings page. When you delete your account, all 
-                              your clips, profile, and associated data are <span className="text-amber-400 font-semibold">permanently removed</span> from our servers.
-                            </p>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </div>
-
-                  {/* Full FAQ Link */}
-                  <div className="border-t border-red-800/30 p-6 bg-gradient-to-b from-transparent to-red-950/20">
-                    <div className="text-center space-y-3">
-                      <p className="text-xs text-gray-300">
-                        Need more answers? We have <span className="text-red-400 font-bold">50+ questions</span> covering everything.
-                      </p>
+                    <div className="mt-2 pt-2 border-t border-red-800/20">
                       <Button
                         onClick={() => navigate("/faq")}
-                        className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-semibold px-6 py-2.5 text-sm rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full h-7 text-[10px] text-gray-400 hover:text-white"
                       >
-                        <MessageCircle className="h-4 w-4 mr-2" />
-                        View Full FAQ
+                        <MessageCircle className="h-3 w-3 mr-1" />
+                        More questions?
                       </Button>
                     </div>
                   </div>
