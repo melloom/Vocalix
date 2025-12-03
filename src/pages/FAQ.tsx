@@ -543,16 +543,16 @@ export default function FAQ() {
     return filtered;
   }, [searchQuery, selectedCategory]);
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
-
   // Pagination calculations
   const totalPages = Math.ceil(filteredFAQs.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedFAQs = filteredFAQs.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { All: faqData.length };
@@ -561,11 +561,6 @@ export default function FAQ() {
     });
     return counts;
   }, []);
-
-  // Reset to page 1 when search or category changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black pb-24">

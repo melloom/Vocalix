@@ -58,7 +58,7 @@ export const AuthenticatedLayout = () => {
       <AuthGuard>
         <AudioPlayerProvider>
           <div className="pb-20 md:pb-4 w-full max-w-full overflow-x-hidden flex flex-col min-h-screen">
-            <div className="flex-1" key={location.pathname}>
+            <div className="flex-1">
               <Outlet />
             </div>
             <PageFooter />
