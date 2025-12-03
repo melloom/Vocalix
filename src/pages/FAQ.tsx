@@ -564,12 +564,6 @@ export default function FAQ() {
     return counts;
   }, []);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredFAQs.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedFAQs = filteredFAQs.slice(startIndex, endIndex);
-
   // Reset to page 1 when search or category changes
   useEffect(() => {
     setCurrentPage(1);
