@@ -2089,23 +2089,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* FAQ Section */}
             {activeSection === "faq" && loadedSections.has("faq") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                {/* Hero Header */}
-                <div className="relative">
-                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
-                        <MessageCircle className="h-7 w-7 text-red-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
-                          Frequently Asked <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Questions</span>
-                        </h3>
-                        <p className="text-sm text-gray-400 mt-1">Everything you need to know</p>
-                      </div>
-                    </div>
-                  </div>
+              <div className="hidden lg:block space-y-3 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Compact Header */}
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageCircle className="h-4 w-4 text-red-400" />
+                  <h3 className="text-sm font-semibold text-white">
+                    Quick Questions
+                  </h3>
                 </div>
 
                 <div className="rounded-lg bg-gradient-to-br from-red-950/20 via-amber-950/20 to-red-950/20 dark:from-red-950/15 dark:via-amber-950/15 dark:to-red-950/15 border border-red-800/20 overflow-hidden">
