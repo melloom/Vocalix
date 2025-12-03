@@ -11,6 +11,7 @@ import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { CookieBanner } from "@/components/CookieBanner";
 import { UploadQueueProvider } from "@/context/UploadQueueContext";
 import { PageHeaderSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,6 +107,8 @@ const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreatio
 const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
 const Diary = retryLazyImport(() => import("./pages/Diary"));
 const PrivacyPolicy = retryLazyImport(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = retryLazyImport(() => import("./pages/CookiePolicy"));
+const TermsOfService = retryLazyImport(() => import("./pages/TermsOfService"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -171,6 +174,7 @@ const App = () => {
                   <Sonner />
                   <OfflineBanner />
                   <InstallPrompt />
+                  <CookieBanner />
                   {/* First Clip Guidance - only render if auth is available */}
                   <FirstClipGuidance
                     onStartRecording={() => setIsRecordModalOpen(true)}
@@ -192,6 +196,8 @@ const App = () => {
                         <Route path="/embed/:clipId" element={<Embed />} />
                         <Route path="/faq" element={<FAQ />} />
                         <Route path="/privacy" element={<PrivacyPolicy />} />
+                        <Route path="/cookies" element={<CookiePolicy />} />
+                        <Route path="/terms" element={<TermsOfService />} />
                         <Route element={<AuthenticatedLayout />}>
                           <Route path="/" element={<Index />} />
                           <Route path="/profile/:handle" element={<Profile />} />

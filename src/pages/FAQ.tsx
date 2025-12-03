@@ -37,6 +37,7 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
+  Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -728,6 +729,24 @@ export default function FAQ() {
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/privacy")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
+                >
+                  <Shield className="h-4 w-4 mr-2" />
+                  Privacy Policy
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate("/terms")}
+                  className="border-red-700/30 text-gray-300 hover:bg-red-900/20 hover:text-red-400 hover:border-red-500/50"
+                >
+                  <Scale className="h-4 w-4 mr-2" />
+                  Terms of Service
                 </Button>
               </div>
             </div>
