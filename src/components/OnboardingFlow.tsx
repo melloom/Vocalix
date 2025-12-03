@@ -1185,7 +1185,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           {/* Main Content Area - Sections */}
           <div className="relative z-10 lg:max-h-[calc(100vh-120px)]">
             {/* Fade-out gradient overlay at top - when scrolling down */}
-            <div className="hidden lg:block absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-slate-950 via-slate-950/30 to-transparent pointer-events-none z-20" />
+            <div className="hidden lg:block absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-slate-950/60 via-slate-950/20 to-transparent pointer-events-none z-20" />
             
             {/* Fade-out gradient overlay at bottom - when scrolling up */}
             <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent pointer-events-none z-20" />
