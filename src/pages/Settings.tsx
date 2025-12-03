@@ -5142,10 +5142,22 @@ const Settings = () => {
                 <div className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30">
                   <HelpCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm">FAQ</p>
-                    <p className="text-xs text-muted-foreground">
-                      Check out our frequently asked questions in the onboarding flow.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">FAQ</p>
+                        <p className="text-xs text-muted-foreground">
+                          Everything you need to know about Vocalix
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate("/faq")}
+                        className="ml-4"
+                      >
+                        View FAQ
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30">

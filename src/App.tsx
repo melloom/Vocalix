@@ -101,6 +101,7 @@ const AllTopics = retryLazyImport(() => import("./pages/AllTopics"));
 const RemixFeed = retryLazyImport(() => import("./pages/RemixFeed"));
 const VoiceAMAs = retryLazyImport(() => import("./pages/VoiceAMAs"));
 const Discovery = retryLazyImport(() => import("./pages/Discovery"));
+const FAQ = retryLazyImport(() => import("./pages/FAQ"));
 const AIContentCreation = retryLazyImport(() => import("./pages/AIContentCreation"));
 const EighteenPlus = retryLazyImport(() => import("./pages/18Plus"));
 const Diary = retryLazyImport(() => import("./pages/Diary"));
@@ -221,6 +222,7 @@ const App = () => {
                           <Route path="/remix-challenges" element={<RemixChallenges />} />
                           <Route path="/voice-amas" element={<VoiceAMAs />} />
                           <Route path="/discovery" element={<Discovery />} />
+                          <Route path="/faq" element={<FAQ />} />
                           <Route path="/admin" element={<Admin />} />
                           <Route path="/ai-content" element={<AIContentCreation />} />
                           <Route path="/18-plus" element={<EighteenPlus />} />
