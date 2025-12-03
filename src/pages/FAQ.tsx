@@ -646,7 +646,7 @@ export default function FAQ() {
         {/* FAQ List - Paginated */}
         {filteredFAQs.length > 0 ? (
           <div className="space-y-3">
-            <Accordion type="single" collapsible className="w-full space-y-2">
+            <Accordion type="single" collapsible className="w-full space-y-2" key={`accordion-${currentPage}-${selectedCategory}`}>
               {paginatedFAQs.map((faq) => {
                 const Icon = faq.icon;
                 return (
@@ -709,20 +709,31 @@ export default function FAQ() {
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum;
+                      {(() => {
+                        const pageNumbers: number[] = [];
+                        const maxButtons = Math.min(5, totalPages);
+                        
                         if (totalPages <= 5) {
-                          pageNum = i + 1;
+                          for (let i = 1; i <= totalPages; i++) {
+                            pageNumbers.push(i);
+                          }
                         } else if (currentPage <= 3) {
-                          pageNum = i + 1;
+                          for (let i = 1; i <= maxButtons; i++) {
+                            pageNumbers.push(i);
+                          }
                         } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
+                          for (let i = totalPages - 4; i <= totalPages; i++) {
+                            pageNumbers.push(i);
+                          }
                         } else {
-                          pageNum = currentPage - 2 + i;
+                          for (let i = currentPage - 2; i <= currentPage + 2; i++) {
+                            pageNumbers.push(i);
+                          }
                         }
-                        return (
+                        
+                        return pageNumbers.map((pageNum) => (
                           <Button
-                            key={pageNum}
+                            key={`page-${pageNum}`}
                             variant={currentPage === pageNum ? "default" : "outline"}
                             size="sm"
                             onClick={() => setCurrentPage(pageNum)}
@@ -734,8 +745,8 @@ export default function FAQ() {
                           >
                             {pageNum}
                           </Button>
-                        );
-                      })}
+                        ));
+                      })()}
                     </div>
                     <Button
                       variant="outline"

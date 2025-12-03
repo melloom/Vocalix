@@ -412,9 +412,19 @@ if ("serviceWorker" in navigator) {
   }
 }
 
+// Store the React root to prevent multiple initializations
+let reactRoot: ReturnType<typeof createRoot> | null = null;
+
 // Ensure DOM is ready before rendering (critical for mobile browsers)
 const initApp = () => {
   console.log("[App] ===== INIT APP CALLED =====");
+  
+  // Guard against multiple initializations
+  if (window.__APP_RENDERED__ || window.__REACT_RENDERING__ || reactRoot !== null) {
+    console.log("[App] App already initialized or rendering, skipping...");
+    return;
+  }
+  
   const rootElement = document.getElementById("root");
   
   if (!rootElement) {
@@ -427,14 +437,24 @@ const initApp = () => {
   console.log("[App] Root element found:", rootElement);
   console.log("[App] Root innerHTML length:", rootElement.innerHTML.length);
   
+  // Set flag immediately to prevent concurrent initializations
+  window.__REACT_RENDERING__ = true;
+  
   // IMMEDIATELY clear the loading screen HTML - don't wait
   // This prevents the "Loading Echo Chamber" screen from staying visible
+  // Only do this once, before React takes over
   const loadingScreenEl = rootElement.querySelector('#loading-screen');
-  if (loadingScreenEl) {
+  if (loadingScreenEl && loadingScreenEl.parentNode) {
     console.log("[App] Found loading-screen element, removing it...");
-    loadingScreenEl.remove();
+    try {
+      loadingScreenEl.parentNode.removeChild(loadingScreenEl);
+    } catch (e) {
+      // If already removed, ignore the error
+      console.log("[App] Loading screen already removed");
+    }
   }
-  if (rootElement.innerHTML.includes('Loading Vocalix')) {
+  // Only clear innerHTML if it still contains loading text and React hasn't rendered yet
+  if (rootElement.innerHTML.includes('Loading Vocalix') && !reactRoot) {
     console.log("[App] Clearing loading screen HTML immediately...");
     rootElement.innerHTML = '';
   }
@@ -473,11 +493,15 @@ const initApp = () => {
     
     console.log("[App] React verified, creating root...");
     
-    const root = createRoot(rootElement);
-    console.log("[App] React root created, rendering components...");
+    // Only create root if it doesn't exist
+    if (!reactRoot) {
+      reactRoot = createRoot(rootElement);
+      console.log("[App] React root created, rendering components...");
+    } else {
+      console.log("[App] React root already exists, reusing...");
+    }
     
-    // Set flag that we're attempting to render
-    window.__REACT_RENDERING__ = true;
+    const root = reactRoot;
     
     // Verify App component is available
     console.log("[App] Checking App component:", {
@@ -640,6 +664,8 @@ const initApp = () => {
           console.log("[App] ✅ App successfully rendered with content!");
           window.__APP_RENDERED__ = true;
           window.__REACT_RENDERING__ = false;
+          // Clear the initialization flag to allow future re-renders if needed
+          window.__INIT_ATTEMPTED__ = true;
         } else {
           console.warn("[App] ⚠️ root.render() completed but no content detected yet, will check again...");
           // Check again after a short delay
@@ -669,24 +695,31 @@ const initApp = () => {
               console.log("[App] ✅ Content appeared after delay!");
               window.__APP_RENDERED__ = true;
               window.__REACT_RENDERING__ = false;
+              window.__INIT_ATTEMPTED__ = true;
             }
           }, 500);
         }
       });
     } catch (renderError) {
       window.__REACT_RENDERING__ = false;
+      reactRoot = null; // Reset root on error to allow retry
       console.error("[App] Error during root.render():", renderError);
       throw renderError; // Re-throw to be caught by outer catch
     }
     } catch (innerError: any) {
       // Catch errors from the inner try block (line 380)
       window.__REACT_RENDERING__ = false;
+      reactRoot = null; // Reset root on error to allow retry
       console.error("[App] Error in inner render block:", innerError);
       throw innerError; // Re-throw to be caught by outer catch
     }
   } catch (error: any) {
     // If rendering fails, show a fallback error message
     console.error("[App] Failed to render app:", error);
+    
+    // Reset flags on error to allow retry
+    window.__REACT_RENDERING__ = false;
+    reactRoot = null;
     
     // Safely extract error details without circular references
     try {
@@ -751,6 +784,12 @@ console.log("[App] About to initialize app...");
 
 // Multiple ways to ensure initApp runs
 const runInit = () => {
+  // Guard against multiple concurrent calls
+  if (window.__REACT_RENDERING__ || (window.__APP_RENDERED__ && reactRoot !== null)) {
+    console.log("[App] runInit() skipped - app already initializing or rendered");
+    return;
+  }
+  
   console.log("[App] runInit() called, calling initApp()...");
   try {
     initApp();
@@ -783,6 +822,9 @@ const runInit = () => {
         </div>
       `;
     }
+    // Reset flags on error to allow retry
+    window.__REACT_RENDERING__ = false;
+    reactRoot = null;
   }
 };
 
