@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles, Play, Settings } from "lucide-react";
+import { Trash2, Edit, User, Users, FileText, Film, BarChart3, Ban, Eye, Shield, ShieldOff, Home, Scan, Download, AlertTriangle, Activity, Lock, Unlock, Globe, Clock, TrendingUp, AlertCircle, Sparkles, Play, Settings, MessageSquare, Bug, CheckCircle2, XCircle, Mail } from "lucide-react";
 import { NSFWMonitoringDashboard } from "@/components/NSFWMonitoringDashboard";
 import {
   AlertDialog,
@@ -342,6 +343,13 @@ const Admin = () => {
   const [systemStats, setSystemStats] = useState<any | null>(null);
   const [useAiDailyTopics, setUseAiDailyTopics] = useState<boolean>(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<any[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackStatusFilter, setFeedbackStatusFilter] = useState<string>("all");
+  const [feedbackTypeFilter, setFeedbackTypeFilter] = useState<string>("all");
+  const [editingFeedback, setEditingFeedback] = useState<any | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState<string>("open");
   const [reports, setReports] = useState<any[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsPage, setReportsPage] = useState(0);
@@ -1921,6 +1929,93 @@ const Admin = () => {
     }
   }, [toast, clipsPage, clipsStatus, clipsSearch, loadClips]);
 
+  const loadFeedback = useCallback(async (status = "all", type = "all") => {
+    setFeedbackLoading(true);
+    try {
+      let query = supabase
+        .from("user_feedback")
+        .select(`
+          *,
+          profiles:profile_id (
+            id,
+            handle,
+            emoji_avatar
+          ),
+          resolved_by_profile:resolved_by (
+            id,
+            handle,
+            emoji_avatar
+          )
+        `, { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (status !== "all") {
+        query = query.eq("status", status);
+      }
+      if (type !== "all") {
+        query = query.eq("feedback_type", type);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      setFeedback(data || []);
+    } catch (error: any) {
+      console.error("Error loading feedback:", error);
+      toast({
+        title: "Failed to load feedback",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, [toast]);
+
+  const updateFeedbackStatus = useCallback(async (feedbackId: string, newStatus: string, notes?: string) => {
+    try {
+      const profileId = localStorage.getItem("profileId");
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (notes) {
+        updateData.admin_notes = notes;
+      }
+
+      if (newStatus === "resolved" || newStatus === "closed") {
+        updateData.resolved_at = new Date().toISOString();
+        updateData.resolved_by = profileId;
+      }
+
+      const { error } = await supabase
+        .from("user_feedback")
+        .update(updateData)
+        .eq("id", feedbackId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Feedback updated",
+        description: `Status changed to ${newStatus}.`,
+      });
+
+      await loadFeedback(feedbackStatusFilter, feedbackTypeFilter);
+      setEditingFeedback(null);
+      setFeedbackNotes("");
+    } catch (error: any) {
+      console.error("Error updating feedback:", error);
+      toast({
+        title: "Failed to update feedback",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, feedbackStatusFilter, feedbackTypeFilter, loadFeedback]);
+
   useEffect(() => {
     if (activeTab === "users" && users.length === 0) {
       loadUsers(0, usersSearch);
@@ -1938,7 +2033,10 @@ const Admin = () => {
     if (activeTab === "security" && securityDevices.length === 0) {
       loadSecurityDevices(securityFilter);
     }
-  }, [activeTab, loadUsers, loadReports, loadClips, loadSystemStats, loadIPBans, loadSecurityDevices, users.length, usersSearch, reports.length, reportsStatus, clips.length, clipsStatus, clipsSearch, securityDevices.length, securityFilter]);
+    if (activeTab === "feedback") {
+      loadFeedback(feedbackStatusFilter, feedbackTypeFilter);
+    }
+  }, [activeTab, loadUsers, loadReports, loadClips, loadSystemStats, loadIPBans, loadSecurityDevices, loadFeedback, users.length, usersSearch, reports.length, reportsStatus, clips.length, clipsStatus, clipsSearch, securityDevices.length, securityFilter, feedbackStatusFilter, feedbackTypeFilter]);
 
   const flaggedCount = useMemo(() => flaggedClips.length, [flaggedClips]);
   const reportsCount = useMemo(() => openReports.length, [openReports]);
@@ -1987,6 +2085,7 @@ const Admin = () => {
               {activeTab === "clips" && `${clipsTotal} total clips`}
               {activeTab === "security" && `${securityDevices.length} ${securityFilter === "all" ? "security issues" : securityFilter === "suspicious" ? "suspicious devices" : "revoked devices"}`}
               {activeTab === "stats" && "System overview & analytics"}
+              {activeTab === "feedback" && `${feedback.filter(f => f.status === "open").length} open • ${feedback.length} total`}
             </p>
             </div>
           </div>
@@ -2055,9 +2154,11 @@ const Admin = () => {
             loadSecurityDevices(securityFilter);
           } else if (value === "cron") {
             loadCronJobs();
+          } else if (value === "feedback") {
+            loadFeedback(feedbackStatusFilter, feedbackTypeFilter);
           }
         }} className="w-full">
-          <TabsList className="grid w-full grid-cols-9 rounded-2xl">
+          <TabsList className="grid w-full grid-cols-10 rounded-2xl">
             <TabsTrigger value="moderation" className="rounded-2xl">
               <FileText className="w-4 h-4 mr-2" />
               Moderation
@@ -2093,6 +2194,10 @@ const Admin = () => {
             <TabsTrigger value="cron" className="rounded-2xl">
               <Settings className="w-4 h-4 mr-2" />
               Cron Jobs
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="rounded-2xl">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Feedback
             </TabsTrigger>
           </TabsList>
 
@@ -5042,6 +5147,568 @@ const Admin = () => {
                 </div>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="feedback" className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">User Feedback & Issues</h2>
+                <p className="text-sm text-muted-foreground">
+                  View and manage user feedback, bug reports, and feature requests
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => loadFeedback(feedbackStatusFilter, feedbackTypeFilter)}
+                disabled={feedbackLoading}
+                className="rounded-2xl"
+              >
+                {feedbackLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Status:</label>
+                <Select value={feedbackStatusFilter} onValueChange={(value) => {
+                  setFeedbackStatusFilter(value);
+                  loadFeedback(value, feedbackTypeFilter);
+                }}>
+                  <SelectTrigger className="w-[140px] rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="reviewing">Reviewing</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                    <SelectItem value="duplicate">Duplicate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Type:</label>
+                <Select value={feedbackTypeFilter} onValueChange={(value) => {
+                  setFeedbackTypeFilter(value);
+                  loadFeedback(feedbackStatusFilter, value);
+                }}>
+                  <SelectTrigger className="w-[160px] rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="bug">Bugs</SelectItem>
+                    <SelectItem value="feature_request">Feature Requests</SelectItem>
+                    <SelectItem value="issue">Issues</SelectItem>
+                    <SelectItem value="general_feedback">General Feedback</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Feedback List */}
+            {feedbackLoading ? (
+              <Card className="p-6 rounded-2xl text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <span>Loading feedback...</span>
+                </div>
+              </Card>
+            ) : feedback.length === 0 ? (
+              <Card className="p-6 rounded-2xl text-center text-muted-foreground">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-medium mb-1">No feedback found</p>
+                <p className="text-sm">No feedback matches your current filters.</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {feedback.map((item) => {
+                  const profile = item.profiles;
+                  const resolvedBy = item.resolved_by_profile;
+                  const typeConfig = {
+                    bug: { icon: Bug, color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/20" },
+                    feature_request: { icon: Sparkles, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/20" },
+                    issue: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/20" },
+                    general_feedback: { icon: MessageSquare, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950/20" },
+                    other: { icon: MessageSquare, color: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/20" },
+                  }[item.feedback_type] || { icon: MessageSquare, color: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/20" };
+                  
+                  const TypeIcon = typeConfig.icon;
+                  const statusColors: Record<string, string> = {
+                    open: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                    reviewing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+                    in_progress: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+                    resolved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                    closed: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
+                    duplicate: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+                  };
+
+                  return (
+                    <Card key={item.id} className="p-6 rounded-2xl border-2 hover:border-primary/50 transition-all">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`p-2 rounded-lg ${typeConfig.bg}`}>
+                            <TypeIcon className={`h-5 w-5 ${typeConfig.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="font-semibold text-lg">{item.title}</h3>
+                              <Badge className={`${statusColors[item.status] || statusColors.open} rounded-full`}>
+                                {item.status}
+                              </Badge>
+                              {item.priority === "urgent" && (
+                                <Badge variant="destructive" className="rounded-full">Urgent</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                              <span className="flex items-center gap-1">
+                                <TypeIcon className="h-3 w-3" />
+                                {item.feedback_type.replace("_", " ")}
+                              </span>
+                              {item.category && (
+                                <span className="capitalize">{item.category}</span>
+                              )}
+                              {profile && (
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  @{profile.handle}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(item.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingFeedback(item);
+                            setFeedbackStatus(item.status);
+                            setFeedbackNotes(item.admin_notes || "");
+                          }}
+                          className="rounded-2xl"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Manage
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Description:</p>
+                          <p className="text-sm whitespace-pre-wrap">{item.description}</p>
+                        </div>
+
+                        {item.metadata && Object.keys(item.metadata).length > 0 && (
+                          <div className="rounded-lg bg-muted/50 p-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Metadata:</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                              {item.metadata.user_agent && (
+                                <div>
+                                  <span className="text-muted-foreground">Browser: </span>
+                                  <span className="font-mono">{item.metadata.user_agent.substring(0, 50)}...</span>
+                                </div>
+                              )}
+                              {item.metadata.url && (
+                                <div>
+                                  <span className="text-muted-foreground">URL: </span>
+                                  <span className="font-mono break-all">{item.metadata.url}</span>
+                                </div>
+                              )}
+                              {item.metadata.screen && (
+                                <div>
+                                  <span className="text-muted-foreground">Screen: </span>
+                                  <span>{item.metadata.screen.width}x{item.metadata.screen.height}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {item.admin_notes && (
+                          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3">
+                            <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mb-1">Admin Notes:</p>
+                            <p className="text-sm text-amber-800 dark:text-amber-300 whitespace-pre-wrap">{item.admin_notes}</p>
+                          </div>
+                        )}
+
+                        {resolvedBy && item.resolved_at && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            <span>Resolved by @{resolvedBy.handle} on {new Date(item.resolved_at).toLocaleDateString()}</span>
+                          </div>
+                        )}
+
+                        {item.contact_email && item.allow_contact && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            <span>Contact: {item.contact_email}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Edit Feedback Dialog */}
+            <Dialog open={!!editingFeedback} onOpenChange={(open) => !open && setEditingFeedback(null)}>
+              <DialogContent className="sm:max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Manage Feedback</DialogTitle>
+                  <DialogDescription>
+                    Update status and add admin notes for this feedback item.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {editingFeedback && (
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label>Status</Label>
+                      <Select value={feedbackStatus} onValueChange={setFeedbackStatus}>
+                        <SelectTrigger className="rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="reviewing">Reviewing</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                          <SelectItem value="duplicate">Duplicate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Admin Notes</Label>
+                      <Textarea
+                        value={feedbackNotes}
+                        onChange={(e) => setFeedbackNotes(e.target.value)}
+                        placeholder="Add internal notes about this feedback..."
+                        rows={4}
+                        className="rounded-2xl"
+                      />
+                    </div>
+
+                    <div className="rounded-lg border p-3 bg-muted/30">
+                      <p className="text-xs font-medium mb-2">Feedback Details:</p>
+                      <p className="text-sm font-semibold mb-1">{editingFeedback.title}</p>
+                      <p className="text-sm text-muted-foreground">{editingFeedback.description}</p>
+                    </div>
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingFeedback(null);
+                      setFeedbackNotes("");
+                    }}
+                    className="rounded-2xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => updateFeedbackStatus(editingFeedback.id, feedbackStatus, feedbackNotes)}
+                    className="rounded-2xl"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Update Status
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+
+          <TabsContent value="feedback" className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">User Feedback & Issues</h2>
+                <p className="text-sm text-muted-foreground">
+                  View and manage user feedback, bug reports, and feature requests
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => loadFeedback(feedbackStatusFilter, feedbackTypeFilter)}
+                disabled={feedbackLoading}
+                className="rounded-2xl"
+              >
+                {feedbackLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Status:</label>
+                <Select value={feedbackStatusFilter} onValueChange={(value) => {
+                  setFeedbackStatusFilter(value);
+                  loadFeedback(value, feedbackTypeFilter);
+                }}>
+                  <SelectTrigger className="w-[140px] rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="reviewing">Reviewing</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                    <SelectItem value="duplicate">Duplicate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium">Type:</label>
+                <Select value={feedbackTypeFilter} onValueChange={(value) => {
+                  setFeedbackTypeFilter(value);
+                  loadFeedback(feedbackStatusFilter, value);
+                }}>
+                  <SelectTrigger className="w-[160px] rounded-2xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="bug">Bugs</SelectItem>
+                    <SelectItem value="feature_request">Feature Requests</SelectItem>
+                    <SelectItem value="issue">Issues</SelectItem>
+                    <SelectItem value="general_feedback">General Feedback</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Feedback List */}
+            {feedbackLoading ? (
+              <Card className="p-6 rounded-2xl text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  <span>Loading feedback...</span>
+                </div>
+              </Card>
+            ) : feedback.length === 0 ? (
+              <Card className="p-6 rounded-2xl text-center text-muted-foreground">
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="font-medium mb-1">No feedback found</p>
+                <p className="text-sm">No feedback matches your current filters.</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {feedback.map((item) => {
+                  const profile = item.profiles;
+                  const resolvedBy = item.resolved_by_profile;
+                  const typeConfig = {
+                    bug: { icon: Bug, color: "text-red-500", bg: "bg-red-50 dark:bg-red-950/20" },
+                    feature_request: { icon: Sparkles, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/20" },
+                    issue: { icon: AlertCircle, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-950/20" },
+                    general_feedback: { icon: MessageSquare, color: "text-green-500", bg: "bg-green-50 dark:bg-green-950/20" },
+                    other: { icon: MessageSquare, color: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/20" },
+                  }[item.feedback_type] || { icon: MessageSquare, color: "text-gray-500", bg: "bg-gray-50 dark:bg-gray-950/20" };
+                  
+                  const TypeIcon = typeConfig.icon;
+                  const statusColors: Record<string, string> = {
+                    open: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                    reviewing: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+                    in_progress: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+                    resolved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+                    closed: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
+                    duplicate: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+                  };
+
+                  return (
+                    <Card key={item.id} className="p-6 rounded-2xl border-2 hover:border-primary/50 transition-all">
+                      <div className="flex items-start justify-between gap-4 mb-4">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`p-2 rounded-lg ${typeConfig.bg}`}>
+                            <TypeIcon className={`h-5 w-5 ${typeConfig.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="font-semibold text-lg">{item.title}</h3>
+                              <Badge className={`${statusColors[item.status] || statusColors.open} rounded-full`}>
+                                {item.status}
+                              </Badge>
+                              {item.priority === "urgent" && (
+                                <Badge variant="destructive" className="rounded-full">Urgent</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                              <span className="flex items-center gap-1">
+                                <TypeIcon className="h-3 w-3" />
+                                {item.feedback_type.replace("_", " ")}
+                              </span>
+                              {item.category && (
+                                <span className="capitalize">{item.category}</span>
+                              )}
+                              {profile && (
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  @{profile.handle}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(item.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingFeedback(item);
+                            setFeedbackStatus(item.status);
+                            setFeedbackNotes(item.admin_notes || "");
+                          }}
+                          className="rounded-2xl"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Manage
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Description:</p>
+                          <p className="text-sm whitespace-pre-wrap">{item.description}</p>
+                        </div>
+
+                        {item.metadata && Object.keys(item.metadata).length > 0 && (
+                          <div className="rounded-lg bg-muted/50 p-3">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Metadata:</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                              {item.metadata.user_agent && (
+                                <div>
+                                  <span className="text-muted-foreground">Browser: </span>
+                                  <span className="font-mono">{item.metadata.user_agent.substring(0, 50)}...</span>
+                                </div>
+                              )}
+                              {item.metadata.url && (
+                                <div>
+                                  <span className="text-muted-foreground">URL: </span>
+                                  <span className="font-mono break-all">{item.metadata.url}</span>
+                                </div>
+                              )}
+                              {item.metadata.screen && (
+                                <div>
+                                  <span className="text-muted-foreground">Screen: </span>
+                                  <span>{item.metadata.screen.width}x{item.metadata.screen.height}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {item.admin_notes && (
+                          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3">
+                            <p className="text-xs font-medium text-amber-900 dark:text-amber-200 mb-1">Admin Notes:</p>
+                            <p className="text-sm text-amber-800 dark:text-amber-300 whitespace-pre-wrap">{item.admin_notes}</p>
+                          </div>
+                        )}
+
+                        {resolvedBy && item.resolved_at && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            <span>Resolved by @{resolvedBy.handle} on {new Date(item.resolved_at).toLocaleDateString()}</span>
+                          </div>
+                        )}
+
+                        {item.contact_email && item.allow_contact && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            <span>Contact: {item.contact_email}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Edit Feedback Dialog */}
+            <Dialog open={!!editingFeedback} onOpenChange={(open) => !open && setEditingFeedback(null)}>
+              <DialogContent className="sm:max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Manage Feedback</DialogTitle>
+                  <DialogDescription>
+                    Update status and add admin notes for this feedback item.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {editingFeedback && (
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label>Status</Label>
+                      <Select value={feedbackStatus} onValueChange={setFeedbackStatus}>
+                        <SelectTrigger className="rounded-2xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="reviewing">Reviewing</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                          <SelectItem value="duplicate">Duplicate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Admin Notes</Label>
+                      <Textarea
+                        value={feedbackNotes}
+                        onChange={(e) => setFeedbackNotes(e.target.value)}
+                        placeholder="Add internal notes about this feedback..."
+                        rows={4}
+                        className="rounded-2xl"
+                      />
+                    </div>
+
+                    <div className="rounded-lg border p-3 bg-muted/30">
+                      <p className="text-xs font-medium mb-2">Feedback Details:</p>
+                      <p className="text-sm font-semibold mb-1">{editingFeedback.title}</p>
+                      <p className="text-sm text-muted-foreground">{editingFeedback.description}</p>
+                    </div>
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingFeedback(null);
+                      setFeedbackNotes("");
+                    }}
+                    className="rounded-2xl"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => updateFeedbackStatus(editingFeedback.id, feedbackStatus, feedbackNotes)}
+                    className="rounded-2xl"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Update Status
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
       </main>
