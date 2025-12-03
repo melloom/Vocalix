@@ -255,6 +255,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
 ];
 
 const TUTORIAL_STORAGE_KEY = "echo_garden_tutorial_completed";
+const TUTORIAL_COLLAPSED_KEY = "echo_garden_tutorial_collapsed";
 
 interface InteractiveTutorialProps {
   onComplete: () => void;
@@ -266,7 +267,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Initialize collapsed state from localStorage
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(TUTORIAL_COLLAPSED_KEY);
+      return saved === "true";
+    }
+    return false;
+  });
   const [feedSortingState, setFeedSortingState] = useState<
     | "default"
     | "for_you"
@@ -303,6 +311,17 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     return !completed;
   }, []);
 
+  // Persist collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (isCollapsed) {
+        localStorage.setItem(TUTORIAL_COLLAPSED_KEY, "true");
+      } else {
+        localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
+      }
+    }
+  }, [isCollapsed]);
+
   // Safety: whenever the step changes, always clear any stale navigation locks
   useEffect(() => {
     isNavigatingRef.current = false;
@@ -312,6 +331,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     const currentStepConfig = TUTORIAL_STEPS[currentStep];
     if (currentStepConfig?.id !== "follow") {
       setIsCollapsed(false);
+      // Clear collapsed state from localStorage when moving away from follow step
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
+      }
     }
     // Track current step in localStorage for RecordModal to check
     if (typeof window !== "undefined") {
@@ -2414,6 +2437,9 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                 e.preventDefault();
                 e.stopPropagation();
                 setIsCollapsed(false);
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
+                }
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
