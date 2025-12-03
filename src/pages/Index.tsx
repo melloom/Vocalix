@@ -23,6 +23,7 @@ import {
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { InteractiveTutorial } from "@/components/InteractiveTutorial";
+import { FAQAnswerDialog } from "@/components/FAQAnswerDialog";
 import { ClipCard } from "@/components/ClipCard";
 import { PostCard } from "@/components/PostCard";
 import { RecordModal } from "@/components/RecordModal";
@@ -325,6 +326,28 @@ const IndexInner = () => {
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [isRemixModalOpen, setIsRemixModalOpen] = useState(false);
+  
+  // FAQ dialog state from URL parameter
+  const [faqId, setFaqId] = useState<string | null>(null);
+  
+  // Check for FAQ parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const faqParam = urlParams.get("faq");
+    if (faqParam) {
+      setFaqId(faqParam);
+    }
+  }, [location.search]);
+  
+  // Handle FAQ dialog close
+  const handleFAQClose = () => {
+    setFaqId(null);
+    // Remove FAQ parameter from URL
+    const urlParams = new URLSearchParams(location.search);
+    urlParams.delete("faq");
+    const newSearch = urlParams.toString();
+    navigate({ search: newSearch ? `?${newSearch}` : "" }, { replace: true });
+  };
   const [todayTopic, setTodayTopic] = useState<Topic | null>(null);
   const [recentTopics, setRecentTopics] = useState<Topic[]>([]);
   const [spotlightQuestion, setSpotlightQuestion] = useState<SpotlightQuestion | null>(null);
@@ -4298,6 +4321,11 @@ const IndexInner = () => {
         onSuccess={loadData}
         profileCity={profile?.city ?? null}
         profileConsentCity={profile?.consent_city ?? false}
+      />
+
+      <FAQAnswerDialog
+        faqId={faqId}
+        onClose={handleFAQClose}
       />
 
       <CityOptInDialog
