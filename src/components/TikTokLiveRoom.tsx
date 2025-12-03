@@ -660,7 +660,7 @@ export const TikTokLiveRoom = () => {
             </div>
           </div>
         )}
-      </div>
+        </div>
 
         {/* Bottom Controls - Role-specific TikTok-style fixed bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 space-y-3">
@@ -776,7 +776,6 @@ export const TikTokLiveRoom = () => {
             </>
           )}
         </div>
-      </div>
 
       {/* Host Controls Modal */}
       {showHostControls && isHost && (
