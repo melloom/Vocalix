@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -74,6 +74,7 @@ import { ProfileBioEditor } from "@/components/ProfileBioEditor";
 import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileMenu } from "@/components/MobileMenu";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -246,6 +247,7 @@ const Settings = () => {
       downloads: "Downloads",
       accessibility: "Accessibility",
       voice: "Voice",
+      help: "Help & Support",
     };
     return labels[tab] || tab;
   };
@@ -1718,6 +1720,7 @@ const Settings = () => {
                 <SelectItem value="downloads">Downloads</SelectItem>
                 <SelectItem value="accessibility">Accessibility</SelectItem>
                 <SelectItem value="voice">Voice</SelectItem>
+                <SelectItem value="help">Help & Support</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1837,6 +1840,17 @@ const Settings = () => {
               >
                 <Volume2 className="h-4 w-4" />
                 <span>Voice</span>
+              </button>
+              <button
+                onClick={() => handleTabChange("help")}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === "help"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Help & Support</span>
               </button>
             </nav>
           </aside>
@@ -5044,6 +5058,107 @@ const Settings = () => {
                 )}
             </div>
           </Card>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="help" className="space-y-8 mt-6">
+          <section className="space-y-4">
+            <h2 className="text-lg font-semibold">Help & Support</h2>
+            
+            <Card className="p-6 rounded-3xl space-y-6">
+              <div>
+                <h3 className="text-base font-semibold mb-2">Get Help</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Need help? Report a bug, suggest a feature, or share your feedback. We're here to help!
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FeedbackDialog
+                  defaultType="bug"
+                  trigger={
+                    <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 w-full">
+                        <Bug className="h-5 w-5" />
+                        <span className="font-semibold">Report a Bug</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground text-left">
+                        Something isn't working? Let us know!
+                      </span>
+                    </Button>
+                  }
+                />
+                
+                <FeedbackDialog
+                  defaultType="feature_request"
+                  trigger={
+                    <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 w-full">
+                        <Sparkles className="h-5 w-5" />
+                        <span className="font-semibold">Suggest a Feature</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground text-left">
+                        Have an idea? We'd love to hear it!
+                      </span>
+                    </Button>
+                  }
+                />
+                
+                <FeedbackDialog
+                  defaultType="issue"
+                  trigger={
+                    <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 w-full">
+                        <AlertCircle className="h-5 w-5" />
+                        <span className="font-semibold">Report an Issue</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground text-left">
+                        Technical or usability problems
+                      </span>
+                    </Button>
+                  }
+                />
+                
+                <FeedbackDialog
+                  defaultType="general_feedback"
+                  trigger={
+                    <Button variant="outline" className="h-auto py-4 flex flex-col items-start gap-2">
+                      <div className="flex items-center gap-2 w-full">
+                        <MessageSquare className="h-5 w-5" />
+                        <span className="font-semibold">General Feedback</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground text-left">
+                        Share your thoughts and suggestions
+                      </span>
+                    </Button>
+                  }
+                />
+              </div>
+            </Card>
+
+            <Card className="p-6 rounded-3xl space-y-4">
+              <h3 className="text-base font-semibold">Resources</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30">
+                  <HelpCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">FAQ</p>
+                    <p className="text-xs text-muted-foreground">
+                      Check out our frequently asked questions in the onboarding flow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl border bg-muted/30">
+                  <Shield className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Privacy & Security</p>
+                    <p className="text-xs text-muted-foreground">
+                      Your feedback is private and secure. We never share your information.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </section>
         </TabsContent>
       </main>
