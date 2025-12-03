@@ -2347,8 +2347,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </Card>
         </div>
       </div>
-      {/* Privacy Policy, Terms, Cookie Policy & Content Policy Links - Bottom Left Corner */}
-      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-3 flex-wrap">
+      {/* Privacy Policy, Terms & Cookie Policy Links - Bottom Left Corner (Mobile only) */}
+      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-3 flex-wrap md:hidden">
         <Link
           to="/privacy"
           className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
@@ -2368,20 +2368,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
         >
           Cookie Policy
-        </Link>
-        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
-        <Link
-          to="/content-policy"
-          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
-        >
-          Content Policy
-        </Link>
-        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
-        <Link
-          to="/dmca"
-          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
-        >
-          DMCA
         </Link>
       </div>
     </div>

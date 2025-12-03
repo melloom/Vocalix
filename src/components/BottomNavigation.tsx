@@ -122,30 +122,55 @@ export const BottomNavigation = () => {
         </div>
       </nav>
 
-      {/* Desktop Footer with Links - Visible on desktop only */}
-      <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border py-2">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+      {/* Desktop Footer with Links - Visible on desktop only, positioned lower */}
+      <footer className="hidden md:block fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-col items-center gap-2">
+            {/* FAQ Link */}
             <Link
-              to="/privacy"
-              className="hover:text-foreground transition-colors"
+              to="/faq"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Privacy Policy
+              FAQ
             </Link>
-            <span>•</span>
-            <Link
-              to="/terms"
-              className="hover:text-foreground transition-colors"
-            >
-              Terms of Service
-            </Link>
-            <span>•</span>
-            <Link
-              to="/cookies"
-              className="hover:text-foreground transition-colors"
-            >
-              Cookie Policy
-            </Link>
+            
+            {/* Legal Links */}
+            <div className="flex items-center justify-center gap-2.5 text-[11px] text-muted-foreground/80">
+              <Link
+                to="/privacy"
+                className="hover:text-foreground transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <span>•</span>
+              <Link
+                to="/terms"
+                className="hover:text-foreground transition-colors"
+              >
+                Terms of Service
+              </Link>
+              <span>•</span>
+              <Link
+                to="/cookies"
+                className="hover:text-foreground transition-colors"
+              >
+                Cookie Policy
+              </Link>
+              <span>•</span>
+              <Link
+                to="/content-policy"
+                className="hover:text-foreground transition-colors"
+              >
+                Content Policy
+              </Link>
+              <span>•</span>
+              <Link
+                to="/dmca"
+                className="hover:text-foreground transition-colors"
+              >
+                DMCA
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
