@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Search,
   MessageCircle,
@@ -500,8 +500,16 @@ const categories = [
 
 export default function FAQ() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  // Check if we have a search query from navigation state
+  useEffect(() => {
+    if (location.state?.searchQuery) {
+      setSearchQuery(location.state.searchQuery);
+    }
+  }, [location.state]);
 
   const filteredFAQs = useMemo(() => {
     let filtered = faqData;
