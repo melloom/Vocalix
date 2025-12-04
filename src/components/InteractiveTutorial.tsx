@@ -93,7 +93,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "follow",
     title: "Follow Creators",
-    description: "Click on any creator's handle or avatar to visit their profile. Click 'Follow' to see their clips in your Following feed! You can access your Following feed from the header. Build your personalized feed by following voices you love.",
+    description: "Click on any creator's handle or avatar to visit their profile. Click 'Follow' to subscribe and see their clips in your Following feed! You can access your Following feed from the header anytime. Build your personalized feed by following voices you love.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <UserPlus className="h-6 w-6" />,
@@ -275,6 +275,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
     return false;
   });
+  // Track if follow task is completed (allows free roaming)
+  const [followTaskCompleted, setFollowTaskCompleted] = useState(false);
   const [feedSortingState, setFeedSortingState] = useState<
     | "default"
     | "for_you"
@@ -292,6 +294,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const tooltipRef = useRef<HTMLDivElement>(null);
   const positionUpdateRef = useRef<number | null>(null);
   const isNavigatingRef = useRef(false); // Guard against rapid clicks
+  const calculatePositionRef = useRef<(() => void) | null>(null);
   // Safely get step with bounds checking
   const step = currentStep >= 0 && currentStep < TUTORIAL_STEPS.length 
     ? TUTORIAL_STEPS[currentStep] 
@@ -331,6 +334,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     const currentStepConfig = TUTORIAL_STEPS[currentStep];
     if (currentStepConfig?.id !== "follow") {
       setIsCollapsed(false);
+      setFollowTaskCompleted(false);
       // Clear collapsed state from localStorage when moving away from follow step
       if (typeof window !== "undefined") {
         localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
@@ -341,7 +345,66 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       localStorage.setItem("echo_garden_tutorial_current_step", String(currentStep));
       window.dispatchEvent(new CustomEvent("tutorial-step-changed"));
     }
-  }, [currentStep]);
+    
+    // CRITICAL: Immediately recalculate position when step changes to ensure highlight aligns
+    // Clear any existing highlights first
+    setHighlightRect(null);
+    setTargetElement(null);
+    setTooltipPosition(null);
+    
+    // For follow step on Following page: ensure highlight stays cleared
+    // Reuse currentStepConfig from above
+    if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+      // Keep highlight cleared for follow step on Following page
+      setHighlightRect(null);
+      setTargetElement(null);
+    }
+    
+    // Calculate position multiple times to catch elements that might not be ready yet
+    // Use ref to avoid dependency on calculatePosition (which is defined later)
+    if (calculatePositionRef.current) {
+      calculatePositionRef.current();
+      const timeout1 = setTimeout(() => {
+        // Re-check and clear highlight for follow step on Following page
+        if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+          setHighlightRect(null);
+        }
+        calculatePositionRef.current?.();
+      }, 0);
+      const timeout2 = setTimeout(() => {
+        if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+          setHighlightRect(null);
+        }
+        calculatePositionRef.current?.();
+      }, 50);
+      const timeout3 = setTimeout(() => {
+        if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+          setHighlightRect(null);
+        }
+        calculatePositionRef.current?.();
+      }, 100);
+      const timeout4 = setTimeout(() => {
+        if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+          setHighlightRect(null);
+        }
+        calculatePositionRef.current?.();
+      }, 200);
+      const timeout5 = setTimeout(() => {
+        if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
+          setHighlightRect(null);
+        }
+        calculatePositionRef.current?.();
+      }, 400);
+      
+      return () => {
+        clearTimeout(timeout1);
+        clearTimeout(timeout2);
+        clearTimeout(timeout3);
+        clearTimeout(timeout4);
+        clearTimeout(timeout5);
+      };
+    }
+  }, [currentStep, location.pathname]);
 
   // Track when a new route has settled before showing the overlay, to avoid janky first paint
   const [isRouteReady, setIsRouteReady] = useState(true);
@@ -353,7 +416,9 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     // Briefly hide overlay on route change, then re-enable it to avoid flicker
     setIsRouteReady(false);
     // For Settings page, give it a bit more time to render the sidebar
-    const delay = location.pathname.startsWith("/settings") ? 350 : 220;
+    // For Following page, also give it time to render creator cards
+    const delay = location.pathname.startsWith("/settings") ? 350 : 
+                  location.pathname === "/following" ? 300 : 220;
     const timeout = setTimeout(() => {
       setIsRouteReady(true);
       setIsManualRouteChange(false);
@@ -369,6 +434,16 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         setTimeout(() => calculatePosition(), 400);
         setTimeout(() => calculatePosition(), 600);
         setTimeout(() => calculatePosition(), 800);
+      }
+      // For Following page, recalculate position to catch creator cards
+      if (location.pathname === "/following" && step?.id === "follow") {
+        if (calculatePositionRef.current) {
+          calculatePositionRef.current();
+          setTimeout(() => calculatePositionRef.current?.(), 50);
+          setTimeout(() => calculatePositionRef.current?.(), 100);
+          setTimeout(() => calculatePositionRef.current?.(), 200);
+          setTimeout(() => calculatePositionRef.current?.(), 400);
+        }
       }
     }, delay);
     
@@ -544,6 +619,19 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         setHighlightRect(null);
         return;
       }
+      
+      // If follow task is completed on Following page, don't calculate position
+      if (step.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+        setTargetElement(null);
+        setTooltipPosition(null);
+        setHighlightRect(null);
+        return;
+      }
+      
+      // On Following page for follow step: don't set highlight, just show tooltip
+      if (step.id === "follow" && location.pathname === "/following") {
+        setHighlightRect(null);
+      }
 
       // Use a more specific query to avoid matching wrong elements
       let element: HTMLElement | null = null;
@@ -641,6 +729,12 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           if (allCreatorCards.length > 0) {
             // Use the first card as the base element for positioning
             element = allCreatorCards[0];
+            // Auto-scroll to show the cards when this step is active (only if not completed)
+            if (!followTaskCompleted) {
+              setTimeout(() => {
+                allCreatorCards[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+              }, 100);
+            }
           } else {
             // Fallback: try to find any creator-related element
             const creatorGrid = document.querySelector('[data-tutorial="creator-profile"]')?.closest('[data-tutorial="mock-creator-card"]') as HTMLElement | null;
@@ -934,7 +1028,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       setTargetElement(element);
 
       // Compute base rect for positioning (this is the primary target element)
-      const rect = element.getBoundingClientRect();
+      let rect = element.getBoundingClientRect();
       
       // For Feed Sorting step:
       // - Always highlight the feed-sorting bar.
@@ -995,41 +1089,85 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           setHighlightRect(rect);
         }
       } else if (step.id === "follow" && location.pathname === "/following") {
-        // For "Follow Creators" on Following page: highlight all creator cards
-        const allCreatorCards = document.querySelectorAll('[data-tutorial="mock-creator-card"]') as NodeListOf<HTMLElement>;
+        // Don't set highlight if follow task is already completed
+        if (followTaskCompleted) {
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          return;
+        }
         
+        // On Following page: highlight all mock creator cards so they're visible in the spotlight
+        const allCreatorCards = document.querySelectorAll('[data-tutorial="mock-creator-card"]') as NodeListOf<HTMLElement>;
         if (allCreatorCards.length > 0) {
-          // Start with the first card's rect
-          const firstRect = allCreatorCards[0].getBoundingClientRect();
-          let top = firstRect.top;
-          let left = firstRect.left;
-          let right = firstRect.right;
-          let bottom = firstRect.bottom;
+          // Try to find the parent container (Discover Creators section)
+          const firstCard = allCreatorCards[0];
+          const parentContainer = firstCard.closest('.rounded-xl, .rounded-2xl, [class*="space-y"]') as HTMLElement | null;
           
-          // Expand to include all other cards
-          allCreatorCards.forEach((card) => {
-            const cardRect = card.getBoundingClientRect();
-            top = Math.min(top, cardRect.top);
-            left = Math.min(left, cardRect.left);
-            right = Math.max(right, cardRect.right);
-            bottom = Math.max(bottom, cardRect.bottom);
-          });
+          let combinedRect: DOMRect;
           
-          const combinedRect = {
-            top,
-            left,
-            right,
-            bottom,
+          if (parentContainer) {
+            // Use the parent container's rect to include the entire Discover Creators section
+            const containerRect = parentContainer.getBoundingClientRect();
+            combinedRect = {
+              top: containerRect.top,
+              left: containerRect.left,
+              right: containerRect.right,
+              bottom: containerRect.bottom,
+              width: containerRect.width,
+              height: containerRect.height,
+            } as DOMRect;
+            element = parentContainer;
+          } else {
+            // Fallback: Calculate combined rect for all creator cards with extra padding
+            let minTop = Infinity;
+            let minLeft = Infinity;
+            let maxRight = -Infinity;
+            let maxBottom = -Infinity;
+            
+            allCreatorCards.forEach((card) => {
+              const cardRect = card.getBoundingClientRect();
+              minTop = Math.min(minTop, cardRect.top);
+              minLeft = Math.min(minLeft, cardRect.left);
+              maxRight = Math.max(maxRight, cardRect.right);
+              maxBottom = Math.max(maxBottom, cardRect.bottom);
+            });
+            
+            // Add extra padding to include the entire section
+            const padding = 24;
+            combinedRect = {
+              top: minTop - padding,
+              left: minLeft - padding,
+              right: maxRight + padding,
+              bottom: maxBottom + padding,
+              width: (maxRight + padding) - (minLeft - padding),
+              height: (maxBottom + padding) - (minTop - padding),
+            } as DOMRect;
+            element = allCreatorCards[0];
+          }
+          
+          rect = combinedRect;
+          
+          // Set highlight to show the Discover Creators section in the spotlight
+          setHighlightRect(combinedRect);
+          setTargetElement(element);
+        } else {
+          // No cards found, use center of viewport for tooltip
+          setHighlightRect(null);
+          setTargetElement(null);
+          // Continue to set tooltip position in center
+          const centerRect = {
+            top: window.innerHeight / 2,
+            left: window.innerWidth / 2,
+            right: window.innerWidth / 2,
+            bottom: window.innerHeight / 2,
             width: 0,
             height: 0,
           } as DOMRect;
-          (combinedRect as any).width = combinedRect.right - combinedRect.left;
-          (combinedRect as any).height = combinedRect.bottom - combinedRect.top;
-          setHighlightRect(combinedRect);
-        } else {
-          // Fallback: just use the main element's rect
-          setHighlightRect(rect);
+          rect = centerRect;
         }
+        
+        // Continue to tooltip positioning
       } else if (step.id === "filters") {
         // For Filters & Discovery:
         // - Highlight the filters row (category selector).
@@ -1227,18 +1365,31 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       } else if (step.id === "follow") {
         // Special handling for "Follow Creators" step
         if (location.pathname === "/following") {
-          // On Following page: position tooltip to the right of all cards, not overlapping
-          preferredPosition = "right";
-          // Position it to the right of the cards with more spacing to avoid overlap
-          const rightSpacing = 400; // More space between cards and tooltip to prevent overlap
+          // On Following page: position tooltip to the left of all cards, not overlapping
+          preferredPosition = "left";
+          // Position it to the left of the cards with more spacing to avoid overlap
+          const leftSpacing = 20; // Space between tooltip and cards
           top = rect.top + rect.height / 2 - tooltipHeight / 2;
-          left = rect.right + rightSpacing; // Position to the right of the cards
+          left = rect.left - tooltipWidth - leftSpacing; // Position to the left of the cards
           
-          // Auto-scroll to show the creator cards when this step is active
-          if (element) {
-            setTimeout(() => {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-            }, 100);
+          // Ensure tooltip doesn't go off the left edge of the screen
+          if (left < safeAreaPadding) {
+            // If it would go off-screen, position it to the right instead
+            left = rect.right + leftSpacing;
+            preferredPosition = "right";
+          }
+          
+          // Auto-scroll to show the creator cards when this step is active - do it immediately (only if not completed)
+          if (!followTaskCompleted) {
+            const allCreatorCards = document.querySelectorAll('[data-tutorial="mock-creator-card"]') as NodeListOf<HTMLElement>;
+            if (allCreatorCards.length > 0) {
+              // Scroll to first card immediately
+              allCreatorCards[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            } else if (element) {
+              setTimeout(() => {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+              }, 100);
+            }
           }
         } else {
           // On other pages: move tooltip to the right of the navigation
@@ -1384,23 +1535,51 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       left = Math.max(safeAreaPadding, Math.min(left, viewportWidth - tooltipWidth - safeAreaPadding));
       top = Math.max(safeAreaPadding, Math.min(top, viewportHeight - tooltipHeight - safeAreaPadding));
 
+      // Final check: ensure highlight is null for follow step on Following page
+      if (step.id === "follow" && location.pathname === "/following") {
+        setHighlightRect(null);
+      }
+
       setTooltipPosition({ top, left });
     });
   }, [step, feedSortingState]);
 
   // Update position on scroll/resize with debouncing
   useEffect(() => {
+    // Don't calculate position if follow task is completed on Following page
+    if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+      setTargetElement(null);
+      setTooltipPosition(null);
+      setHighlightRect(null);
+      return;
+    }
+    
     if (step.targetSelector) {
       // Don't set transitioning on step change - let it be smooth
       // Initial calculation with minimal delay
       const initialTimeout = setTimeout(() => {
+        // Check again before calculating
+        if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          return;
+        }
         calculatePosition();
       }, 50);
 
       let resizeTimeout: NodeJS.Timeout;
       const handleResize = () => {
+        // Don't recalculate if follow task is completed
+        if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          return;
+        }
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(() => {
+          // Check again before calculating
+          if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+            return;
+          }
           calculatePosition();
           // Force a re-render to update tooltip size
           if (tooltipRef.current) {
@@ -1412,8 +1591,16 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       let scrollTimeout: NodeJS.Timeout;
       const handleScroll = () => {
+        // Don't recalculate if follow task is completed
+        if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          return;
+        }
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
+          // Check again before calculating
+          if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+            return;
+          }
           calculatePosition();
         }, 100); // Increased debounce to reduce lag
       };
@@ -1421,8 +1608,16 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       // Throttle theme changes to prevent lag
       let themeChangeTimeout: NodeJS.Timeout;
       const handleThemeChange = () => {
+        // Don't recalculate if follow task is completed
+        if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          return;
+        }
         clearTimeout(themeChangeTimeout);
         themeChangeTimeout = setTimeout(() => {
+          // Check again before calculating
+          if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+            return;
+          }
           calculatePosition();
         }, 200); // Delay position recalculation on theme change
       };
@@ -1436,6 +1631,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         attributeFilter: ['class']
       });
 
+      // Don't scroll or check visibility if follow task is completed
+      if (step.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+        return;
+      }
+      
       // Smooth scroll to element if needed with better visibility check
       let element = document.querySelector(step.targetSelector) as HTMLElement;
       
@@ -1475,8 +1675,18 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       }
       
       if (element && step.highlight) {
+        // Don't auto-scroll if follow task is completed
+        if (step.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          return;
+        }
+        
         // Wait a bit for layout to settle
         setTimeout(() => {
+          // Check again if follow task was completed during the timeout
+          if (step.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+            return;
+          }
+          
           const rect = element.getBoundingClientRect();
           const viewportPadding = 100; // Padding to ensure element is well within viewport
           const isVisible = 
@@ -1520,11 +1730,22 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       setHighlightRect(null);
       setIsTransitioning(false);
     }
-  }, [step, calculatePosition]);
+  }, [step, calculatePosition, followTaskCompleted, location.pathname]);
+
+  // Store calculatePosition in ref so it can be accessed in useEffect that runs before it's defined
+  useEffect(() => {
+    calculatePositionRef.current = calculatePosition;
+  }, [calculatePosition]);
 
   // Prevent body scroll and interactions during tutorial
   useEffect(() => {
-    if (!isVisible) {
+    // Don't lock scroll if tutorial is collapsed or not visible
+    if (!isVisible || isCollapsed) {
+      return;
+    }
+    
+    // For follow step, if task is completed, allow free scrolling
+    if (step?.id === "follow" && followTaskCompleted) {
       return;
     }
 
@@ -1590,6 +1811,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     
     // Prevent scroll events
     const preventScroll = (e: Event) => {
+      // For follow step: allow scrolling if task is completed
+      if (step?.id === "follow" && followTaskCompleted) {
+        return true; // Allow scroll
+      }
+      
       e.preventDefault();
       e.stopPropagation();
       return false;
@@ -1612,6 +1838,36 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         }
       }
       
+      // For follow step: rubber band effect - snap back to highlighted element
+      // BUT: if task is completed, allow free scrolling
+      if (step?.id === "follow") {
+        if (followTaskCompleted) {
+          return true; // Allow free scrolling after following
+        }
+        
+        if (highlightRect) {
+          const target = e.target as HTMLElement;
+          // Check if scrolling within the highlighted area or follow buttons
+          const followButton = target.closest('[data-tutorial="follow-button"]');
+          const creatorCard = target.closest('[data-tutorial="creator-card"]');
+          
+          // Allow scrolling within the follow area
+          if (followButton || creatorCard) {
+            return true;
+          }
+          
+          // Otherwise, prevent scroll and snap back to highlighted element
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Snap back to highlighted element
+          const scrollY = highlightRect.top + window.scrollY - window.innerHeight / 2;
+          window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' });
+          
+          return false;
+        }
+      }
+      
       // Otherwise, prevent scroll
       e.preventDefault();
       e.stopPropagation();
@@ -1629,6 +1885,36 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         
         if (settingsContent) {
           return true; // Allow the scroll
+        }
+      }
+      
+      // For follow step: rubber band effect - snap back to highlighted element
+      // BUT: if task is completed, allow free scrolling
+      if (step?.id === "follow") {
+        if (followTaskCompleted) {
+          return true; // Allow free scrolling after following
+        }
+        
+        if (highlightRect) {
+          const target = e.target as HTMLElement;
+          // Check if scrolling within the highlighted area or follow buttons
+          const followButton = target.closest('[data-tutorial="follow-button"]');
+          const creatorCard = target.closest('[data-tutorial="creator-card"]');
+          
+          // Allow scrolling within the follow area
+          if (followButton || creatorCard) {
+            return true;
+          }
+          
+          // Otherwise, prevent scroll and snap back to highlighted element
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Snap back to highlighted element
+          const scrollY = highlightRect.top + window.scrollY - window.innerHeight / 2;
+          window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' });
+          
+          return false;
         }
       }
       
@@ -1688,7 +1974,148 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       document.removeEventListener('scroll', preventScroll, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isVisible, markCompleted]);
+  }, [isVisible, isCollapsed, followTaskCompleted, step?.id, markCompleted]);
+
+  // Clear highlights immediately when follow task is completed
+  useEffect(() => {
+    if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+      // Force clear highlights immediately and prevent recalculation
+      setHighlightRect(null);
+      setTargetElement(null);
+      setTooltipPosition(null);
+      
+      // Also cancel any pending position updates
+      if (positionUpdateRef.current) {
+        cancelAnimationFrame(positionUpdateRef.current);
+        positionUpdateRef.current = null;
+      }
+      
+      // Set up a continuous check to ensure highlight stays cleared
+      const highlightCheckInterval = setInterval(() => {
+        if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following") {
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+        } else {
+          clearInterval(highlightCheckInterval);
+        }
+      }, 100);
+      
+      return () => {
+        clearInterval(highlightCheckInterval);
+      };
+    }
+  }, [followTaskCompleted, step?.id, location.pathname]);
+
+  // Detect when user follows someone in the follow step
+  useEffect(() => {
+    if (step?.id !== "follow" || followTaskCompleted) {
+      return;
+    }
+
+    // Listen for follow button clicks
+    const handleFollowClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const followButton = target.closest('[data-tutorial="follow-button"]');
+      
+      if (followButton) {
+        // Clear highlights FIRST before setting followTaskCompleted
+        setHighlightRect(null);
+        setTargetElement(null);
+        setTooltipPosition(null);
+        
+        // Cancel any pending position updates
+        if (positionUpdateRef.current) {
+          cancelAnimationFrame(positionUpdateRef.current);
+          positionUpdateRef.current = null;
+        }
+        
+        // Mark task as completed - allows free roaming
+        setFollowTaskCompleted(true);
+      }
+    };
+
+    // Also listen for mutations in the DOM (when follow state changes)
+    const observer = new MutationObserver(() => {
+      // Check if any follow button changed from "Follow" to "Following"
+      const followButtons = document.querySelectorAll('[data-tutorial="follow-button"]');
+      followButtons.forEach((button) => {
+        const text = button.textContent?.toLowerCase() || '';
+        // Check for "following" text or check if button has UserCheck icon (Following state)
+        const hasUserCheck = button.querySelector('svg') && (
+          text.includes('following') || 
+          button.querySelector('svg[class*="UserCheck"]') ||
+          button.getAttribute('aria-label')?.toLowerCase().includes('following')
+        );
+        if (hasUserCheck && !followTaskCompleted) {
+          // Clear highlights FIRST before setting followTaskCompleted
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          
+          // Cancel any pending position updates
+          if (positionUpdateRef.current) {
+            cancelAnimationFrame(positionUpdateRef.current);
+            positionUpdateRef.current = null;
+          }
+          
+          // Mark task as completed - allows free roaming
+          setFollowTaskCompleted(true);
+        }
+      });
+    });
+
+    // Check immediately for already-following buttons
+    const checkExistingFollows = () => {
+      const followButtons = document.querySelectorAll('[data-tutorial="follow-button"]');
+      followButtons.forEach((button) => {
+        const text = button.textContent?.toLowerCase() || '';
+        const hasUserCheck = button.querySelector('svg') && (
+          text.includes('following') || 
+          button.querySelector('svg[class*="UserCheck"]')
+        );
+        if (hasUserCheck && !followTaskCompleted) {
+          // Clear highlights FIRST before setting followTaskCompleted
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          
+          // Cancel any pending position updates
+          if (positionUpdateRef.current) {
+            cancelAnimationFrame(positionUpdateRef.current);
+            positionUpdateRef.current = null;
+          }
+          
+          // Mark task as completed - allows free roaming
+          setFollowTaskCompleted(true);
+        }
+      });
+    };
+
+    // Check immediately and periodically
+    checkExistingFollows();
+    const checkInterval = setInterval(checkExistingFollows, 500);
+
+    // Observe changes to follow buttons
+    const followButtons = document.querySelectorAll('[data-tutorial="follow-button"]');
+    followButtons.forEach((button) => {
+      observer.observe(button, { 
+        childList: true, 
+        subtree: true, 
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['class', 'aria-label']
+      });
+    });
+
+    document.addEventListener('click', handleFollowClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleFollowClick, true);
+      observer.disconnect();
+      clearInterval(checkInterval);
+    };
+  }, [step?.id, followTaskCompleted]);
 
   // Add data attributes to elements for targeting
   useEffect(() => {
@@ -1740,21 +2167,29 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       // Skip Settings-only PIN step when we're not on Settings
       if (nextStepConfig?.id === "account-pin" && !location.pathname.startsWith("/settings")) {
+        // Clear highlights first
+        setHighlightRect(null);
+        setTargetElement(null);
+        setTooltipPosition(null);
         setCurrentStep(currentStep + 2);
+        // Position will be recalculated by useEffect when currentStep changes
         return;
       }
 
       isNavigatingRef.current = true;
       setIsTransitioning(true);
-      // Shorter transition time to reduce flashing
+      // Clear highlights first for smooth transition
+      setHighlightRect(null);
+      setTargetElement(null);
+      setTooltipPosition(null);
+      // Update step immediately
+      setCurrentStep(currentStep + 1);
+      // Position will be recalculated by the useEffect when currentStep changes
+      // Just set transition state after a brief delay
       setTimeout(() => {
-        setCurrentStep(currentStep + 1);
-        // Small delay before re-enabling to ensure smooth transition
-        setTimeout(() => {
-          setIsTransitioning(false);
-          isNavigatingRef.current = false;
-        }, 50);
-      }, 200);
+        setIsTransitioning(false);
+        isNavigatingRef.current = false;
+      }, 150);
     } else {
       isNavigatingRef.current = true;
       markCompleted();
@@ -1802,15 +2237,18 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
       isNavigatingRef.current = true;
       setIsTransitioning(true);
-      // Shorter transition time to reduce flashing
+      // Clear highlights first for smooth transition
+      setHighlightRect(null);
+      setTargetElement(null);
+      setTooltipPosition(null);
+      // Update step immediately
+      setCurrentStep(currentStep - 1);
+      // Position will be recalculated by the useEffect when currentStep changes
+      // Just set transition state after a brief delay
       setTimeout(() => {
-        setCurrentStep(currentStep - 1);
-        // Small delay before re-enabling to ensure smooth transition
-        setTimeout(() => {
-          setIsTransitioning(false);
-          isNavigatingRef.current = false;
-        }, 50);
-      }, 200);
+        setIsTransitioning(false);
+        isNavigatingRef.current = false;
+      }, 150);
     }
   };
 
@@ -1920,6 +2358,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   // Dynamic description for steps that depend on UI state (e.g. Feed Sorting)
   const effectiveDescription = useMemo(() => {
+    // Include followTaskCompleted in dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (!step) return "";
     if (step.id === "feed-sorting") {
       switch (feedSortingState) {
@@ -1970,13 +2410,24 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
 
     if (step.id === "follow") {
+      // Show completion message if task is done
+      if (followTaskCompleted) {
+        return [
+          "Nice — you've followed a creator and unlocked your Following feed.",
+          "From here you can keep following more people, or just sit back and listen as new clips from the voices you follow roll in.",
+          "You can always mute or unfollow later if your feed feels too busy.",
+          "When you're ready to move on in the tutorial, expand this panel again and hit Continue."
+        ].join(" ");
+      }
+      
       // Show different copy when on the Following page
       if (location.pathname === "/following") {
         return [
-          "Click on any creator's handle or avatar to visit their profile.",
-          "Click 'Follow' to see their clips in your Following feed!",
-          "You can access your Following feed from the header anytime.",
-          "Build your personalized feed by following voices you love.",
+          "This is your Following page — a home base for all the voices you care about.",
+          "When you follow creators, their new clips will show up here so you don’t have to chase them down in Discover every time.",
+          "Try following one of the creators below: tap their avatar or handle to preview who they are, then hit the Follow button if they feel like a good fit.",
+          "Over time you can tune this feed by following more people you vibe with, and muting or unfollowing anyone who no longer fits what you want to hear.",
+          "You can always jump back to this page from the header any time you just want to hear from people you already follow."
         ].join(" ");
       }
       // Default description when not on Following page
@@ -1984,7 +2435,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     }
 
     return step.description;
-  }, [step, feedSortingState, location.pathname]);
+  }, [step, feedSortingState, location.pathname, followTaskCompleted]);
 
   // Calculate spotlight position for overlay with smooth transitions
   const spotlightStyle = useMemo(() => {
@@ -1992,7 +2443,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       return {};
     }
 
-    const padding = 12;
+    // Use larger padding for follow step on Following page to ensure Discover Creators section is fully visible
+    const padding = (step.id === "follow" && location.pathname === "/following") ? 20 : 12;
     const left = Math.max(0, highlightRect.left - padding);
     const top = Math.max(0, highlightRect.top - padding);
     const right = Math.min(window.innerWidth, highlightRect.right + padding);
@@ -2019,7 +2471,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       )`,
       transition: "clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     };
-  }, [highlightRect, step]);
+  }, [highlightRect, step, location.pathname]);
 
   const highlightStyle = useMemo(() => {
     if (!highlightRect || !step || !step.highlight) return null;
@@ -2069,6 +2521,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       // Skip if this is part of the tutorial tooltip
       if (tooltipRef.current && (element === tooltipRef.current || tooltipRef.current.contains(element))) {
         return;
+      }
+      
+      // Skip if this is a mock creator card (Discover Creators section) on Following page
+      if (step?.id === "follow" && location.pathname === "/following") {
+        const mockCard = element.closest('[data-tutorial="mock-creator-card"]');
+        if (mockCard) {
+          return;
+        }
       }
 
       // Store original state
@@ -2385,10 +2845,22 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       return;
     }
 
+    // For follow step on Following page: allow clicks on follow buttons and creator cards
+    if (step?.id === "follow" && location.pathname === "/following") {
+      const followButton = target.closest('[data-tutorial="follow-button"]');
+      const creatorCard = target.closest('[data-tutorial="mock-creator-card"]');
+      const creatorAvatar = target.closest('[data-tutorial="creator-avatar"]');
+      const creatorHandle = target.closest('[data-tutorial="creator-handle"]');
+      
+      if (followButton || creatorCard || creatorAvatar || creatorHandle) {
+        return; // Allow the click
+      }
+    }
+
     // Block all other clicks
     e.preventDefault();
     e.stopPropagation();
-  }, [targetElement]);
+  }, [targetElement, step?.id, location.pathname]);
 
   // Create click-blocking overlay that covers everything except the target
   const clickBlockingStyle = useMemo(() => {
@@ -2427,26 +2899,67 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       <>
         {/* Floating button to reopen tutorial - always visible and clickable */}
         <div 
-          className="fixed bottom-6 right-6 z-[999999] pointer-events-auto" 
+          className="fixed bottom-6 right-6 pointer-events-auto" 
           data-tutorial-active="true"
-          style={{ isolation: 'isolate' }}
+          style={{ 
+            isolation: 'isolate', 
+            zIndex: 9999999, 
+            pointerEvents: 'auto',
+            position: 'fixed'
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-2" style={{ pointerEvents: 'auto' }}>
             <Button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
                 setIsCollapsed(false);
+                // Reset followTaskCompleted so tutorial can show again
+                setFollowTaskCompleted(false);
                 if (typeof window !== "undefined") {
                   localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
                 }
+                // Force position recalculation when expanding
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 50);
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 150);
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 300);
               }}
               onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
               }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
               size="lg"
-              className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer"
+              disabled={false}
+              className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer !opacity-100 !cursor-pointer"
+              style={{ 
+                opacity: 1, 
+                cursor: 'pointer', 
+                zIndex: 9999999, 
+                position: 'relative', 
+                pointerEvents: 'auto',
+                touchAction: 'manipulation'
+              }}
               aria-label="Expand tutorial"
               title="Click to expand tutorial"
               type="button"
@@ -2456,6 +2969,12 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
             <div className="bg-primary/90 text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm border border-primary/50 whitespace-nowrap pointer-events-none">
               Tutorial
             </div>
+            {/* Inline guidance while collapsed on Follow Creators step */}
+            {!followTaskCompleted && (
+              <div className="max-w-xs text-right text-xs text-foreground bg-background/95 px-3 py-2 rounded-2xl shadow-lg border border-primary/60">
+                Follow any creator in the list, then tap this button again to reopen the tutorial and continue.
+              </div>
+            )}
           </div>
         </div>
         {/* Show step info badge when collapsed - more prominent */}
@@ -2479,23 +2998,67 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         <>
           {/* Floating button to reopen tutorial - always visible and clickable */}
           <div 
-            className="fixed bottom-6 right-6 z-[999999] pointer-events-auto" 
+            className="fixed bottom-6 right-6 pointer-events-auto" 
             data-tutorial-active="true"
-            style={{ isolation: 'isolate' }}
+            style={{ 
+              isolation: 'isolate', 
+              zIndex: 9999999, 
+              pointerEvents: 'auto',
+              position: 'fixed'
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-end gap-2" style={{ pointerEvents: 'auto' }}>
               <Button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  e.nativeEvent.stopImmediatePropagation();
                   setIsCollapsed(false);
+                  // Reset followTaskCompleted so tutorial can show again
+                  setFollowTaskCompleted(false);
+                  if (typeof window !== "undefined") {
+                    localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
+                  }
+                  // Force position recalculation when expanding
+                  setTimeout(() => {
+                    if (calculatePositionRef.current) {
+                      calculatePositionRef.current();
+                    }
+                  }, 50);
+                  setTimeout(() => {
+                    if (calculatePositionRef.current) {
+                      calculatePositionRef.current();
+                    }
+                  }, 150);
+                  setTimeout(() => {
+                    if (calculatePositionRef.current) {
+                      calculatePositionRef.current();
+                    }
+                  }, 300);
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                 }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
                 size="lg"
-                className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer"
+                disabled={false}
+                className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer !opacity-100 !cursor-pointer"
+                style={{ 
+                  opacity: 1, 
+                  cursor: 'pointer', 
+                  zIndex: 9999999, 
+                  position: 'relative', 
+                  pointerEvents: 'auto',
+                  touchAction: 'manipulation'
+                }}
                 aria-label="Expand tutorial"
                 title="Click to expand tutorial"
                 type="button"
@@ -2527,10 +3090,102 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     return null;
   }
 
+  // If follow task is completed on Following page AND tutorial is collapsed, show only expand button
+  // If expanded, continue to show the full tutorial modal below
+  if (step?.id === "follow" && followTaskCompleted && location.pathname === "/following" && isCollapsed) {
+    // Show only the expand button when collapsed
+    return (
+      <>
+        {/* Floating button to reopen tutorial - always visible and clickable */}
+        <div 
+          className="fixed bottom-6 right-6 pointer-events-auto" 
+          data-tutorial-active="true"
+          style={{ 
+            isolation: 'isolate', 
+            zIndex: 9999999, 
+            pointerEvents: 'auto',
+            position: 'fixed'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex flex-col items-end gap-2" style={{ pointerEvents: 'auto' }}>
+            <Button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
+                setIsCollapsed(false);
+                if (typeof window !== "undefined") {
+                  localStorage.removeItem(TUTORIAL_COLLAPSED_KEY);
+                }
+                // Force position recalculation when expanding
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 50);
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 150);
+                setTimeout(() => {
+                  if (calculatePositionRef.current) {
+                    calculatePositionRef.current();
+                  }
+                }, 300);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+              }}
+              size="lg"
+              disabled={false}
+              className="h-16 w-16 rounded-full shadow-2xl bg-primary hover:bg-primary/90 transition-all animate-pulse-glow border-4 border-primary/80 hover:border-primary ring-4 ring-primary/30 hover:ring-primary/50 cursor-pointer !opacity-100 !cursor-pointer"
+              style={{ 
+                opacity: 1, 
+                cursor: 'pointer', 
+                zIndex: 9999999, 
+                position: 'relative', 
+                pointerEvents: 'auto',
+                touchAction: 'manipulation'
+              }}
+              aria-label="Expand tutorial"
+              title="Click to expand tutorial"
+              type="button"
+            >
+              <ChevronUp className="h-7 w-7" />
+            </Button>
+            <div className="bg-primary/90 text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm border border-primary/50 whitespace-nowrap pointer-events-none">
+              Tutorial
+            </div>
+          </div>
+        </div>
+        {/* Show step info badge */}
+        <div 
+          className="fixed top-6 right-6 z-[999999] pointer-events-none" 
+          data-tutorial-active="true"
+        >
+          <Badge variant="secondary" className="text-sm font-medium px-4 py-2 shadow-lg bg-background/95 backdrop-blur-sm border-2 border-primary/30">
+            {currentStep + 1} of {TUTORIAL_STEPS.length} - {step?.title || "Follow Creators"}
+          </Badge>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[100000] pointer-events-none" data-tutorial-active="true">
       {/* Click-blocking overlay - covers everything except the target element */}
-      {step && step.highlight && (
+      {/* Never block clicks on Following page for follow step - users should be able to roam freely */}
+      {step && step.highlight && !(step.id === "follow" && location.pathname === "/following") && (
         <div
           className="absolute inset-0 pointer-events-auto z-[99999]"
           style={clickBlockingStyle}
@@ -2539,24 +3194,34 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       )}
       
       {/* Visual dimming layer only; we no longer intercept scroll so the page can move freely */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={spotlightStyle}
-      />
+      {/* Show dimming for follow step on Following page - dim everything except Discover Creators section */}
+      {/* Keep dimming even after follow is completed, as long as the tutorial is expanded */}
+      {step && step.highlight && !(step.id === "follow" && location.pathname === "/following" && isCollapsed) && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={spotlightStyle}
+        />
+      )}
       
       {/* Visual overlay with spotlight effect (kept lightweight to avoid lag on route changes) */}
-      <div
-        ref={overlayRef}
-        className={cn(
-          "absolute inset-0 transition-all duration-200 ease-in-out pointer-events-none",
-          // Slightly dim background on both main feed and Settings so the tutorial feels focused
-          location.pathname.startsWith("/settings") ? "bg-black/40" : "bg-black/50"
-        )}
-        style={spotlightStyle}
-      />
+      {/* Show dimming overlay for follow step on Following page - dim everything except Discover Creators section and modal */}
+      {/* Keep dimming even after follow is completed, as long as the tutorial is expanded */}
+      {step && step.highlight && !(step.id === "follow" && location.pathname === "/following" && isCollapsed) && (
+        <div
+          ref={overlayRef}
+          className={cn(
+            "absolute inset-0 transition-all duration-150 ease-out pointer-events-none",
+            // Slightly dim background on both main feed and Settings so the tutorial feels focused
+            location.pathname.startsWith("/settings") ? "bg-black/40" : "bg-black/50",
+            isTransitioning ? "opacity-95" : "opacity-100"
+          )}
+          style={spotlightStyle}
+        />
+      )}
 
       {/* Highlight ring around target element with smooth animation */}
-      {highlightRect && step.highlight && highlightStyle && (
+      {/* Show highlight on Following page for follow step - highlights Discover Creators section */}
+      {highlightRect && step && step.highlight && highlightStyle && !(step.id === "follow" && location.pathname === "/following" && followTaskCompleted) && (
         <div
           className="absolute pointer-events-none z-[99998]"
           style={{
@@ -2578,8 +3243,9 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       <div
         ref={tooltipRef}
         className={cn(
-          "absolute pointer-events-auto transition-all duration-300 ease-in-out z-[100001]",
-          "max-w-[calc(100vw-32px)]"
+          "absolute pointer-events-auto transition-all duration-200 ease-out z-[100001]",
+          "max-w-[calc(100vw-32px)]",
+          isTransitioning ? "opacity-90 scale-95" : "opacity-100 scale-100"
         )}
         style={
           // Special positioning for Account PIN step: place modal just below the highlighted section
@@ -2604,8 +3270,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
                   maxWidth: isMobile ? "340px" : "400px",
                   transform: "scale(1) translateY(0)",
-                  transition: "top 300ms ease-in-out, left 300ms ease-in-out, opacity 300ms ease-in-out, width 300ms ease-in-out",
-                  opacity: isTransitioning ? 0.9 : 1,
+                  transition: "top 150ms ease-out, left 150ms ease-out, opacity 150ms ease-out, width 150ms ease-out, transform 150ms ease-out",
+                  opacity: isTransitioning ? 0.95 : 1,
                 };
               })()
             : ((step.id === "account-linking" && location.pathname.startsWith("/settings")) || !tooltipPosition)
@@ -2617,8 +3283,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   transform: "translate(-50%, -50%) scale(1)",
                   width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
                   maxWidth: isMobile ? "340px" : "400px",
-                  transition: "opacity 300ms ease-in-out",
-                  opacity: isTransitioning ? 0.9 : 1,
+                  transition: "opacity 150ms ease-out, transform 150ms ease-out",
+                  opacity: isTransitioning ? 0.95 : 1,
                 };
               })()
             : (() => {
@@ -2639,8 +3305,8 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   width: isMobile ? "calc(100vw - 32px)" : "min(400px, calc(100vw - 40px))",
                   maxWidth: isMobile ? "340px" : "400px",
                   transform: "scale(1) translateY(0)",
-                  transition: "top 300ms ease-in-out, left 300ms ease-in-out, opacity 300ms ease-in-out, width 300ms ease-in-out",
-                  opacity: isTransitioning ? 0.9 : 1,
+                  transition: "top 150ms ease-out, left 150ms ease-out, opacity 150ms ease-out, width 150ms ease-out, transform 150ms ease-out",
+                  opacity: isTransitioning ? 0.95 : 1,
                 };
               })()
         }
@@ -2663,12 +3329,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               </div>
               <div className="flex items-center gap-2">
                 {/* Only show collapse button on "Follow Creators" step */}
-                {step.id === "follow" && (
+                {step.id === "follow" && location.pathname === "/following" && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-full hover:bg-muted transition-colors"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setIsCollapsed(true);
                       if (typeof window !== "undefined") {
                         localStorage.setItem(TUTORIAL_COLLAPSED_KEY, "true");
@@ -3081,10 +3749,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               {!(step.id === "account-linking" && location.pathname.startsWith("/settings")) && (
                 <Button
                   onClick={handleNext}
-                  disabled={isTransitioning || isNavigatingRef.current}
-                  className="flex-1 rounded-xl font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+                  disabled={
+                    isTransitioning || 
+                    isNavigatingRef.current || 
+                    (step.id === "follow" && location.pathname === "/following" && !followTaskCompleted)
+                  }
+                  className="flex-1 rounded-xl font-medium shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started" : "Next"}
+                  {step.id === "follow" ? "Continue" : (currentStep === TUTORIAL_STEPS.length - 1 ? "Get Started" : "Next")}
                   {currentStep < TUTORIAL_STEPS.length - 1 && (
                     <ArrowRight className="h-4 w-4 ml-2" />
                   )}
@@ -3096,7 +3768,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
               onClick={handleSkip}
               className="w-full text-sm text-muted-foreground hover:text-foreground rounded-xl transition-colors"
             >
-              Skip tutorial
+              End tutorial
             </Button>
           </CardContent>
         </Card>

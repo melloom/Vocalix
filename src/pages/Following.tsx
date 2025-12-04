@@ -83,6 +83,9 @@ const MockCreatorCard = ({
     setIsFollowing(!isFollowing);
     onFollowClick();
   };
+  
+  // Don't highlight if already following
+  const shouldHighlight = isHighlighted && !isFollowing;
 
   const handleProfileClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -97,10 +100,10 @@ const MockCreatorCard = ({
 
   return (
     <div 
-      className={`rounded-2xl border-2 p-4 shadow-lg transition-all duration-300 ${
-        isHighlighted 
-          ? "border-primary bg-primary/10 shadow-primary/20 ring-4 ring-primary/20 animate-pulse" 
-          : "border-border/60 bg-card/80 shadow-sm hover:-translate-y-0.5 hover:border-border hover:shadow-lg"
+      className={`rounded-xl border p-4 transition-all duration-200 ${
+        shouldHighlight 
+          ? "border-primary bg-primary/10 shadow-xl shadow-primary/40 ring-2 ring-primary/60"
+          : "border-border/40 bg-card/60 shadow-sm hover:border-border hover:bg-card/80"
       }`}
       data-tutorial="mock-creator-card"
     >
@@ -111,7 +114,7 @@ const MockCreatorCard = ({
           data-tutorial="creator-avatar"
         >
           <div className={`text-2xl hover:scale-110 transition-transform ${
-            isHighlighted ? "ring-2 ring-primary rounded-full p-1" : ""
+            shouldHighlight ? "ring-2 ring-primary bg-primary/10 rounded-full p-1" : ""
           }`}>
             {creator.emoji_avatar}
           </div>
@@ -123,7 +126,7 @@ const MockCreatorCard = ({
             data-tutorial="creator-handle"
           >
             <p className={`font-semibold text-sm truncate hover:underline ${
-              isHighlighted ? "text-primary font-bold" : ""
+              shouldHighlight ? "text-primary font-semibold" : ""
             }`}>
               @{creator.handle}
             </p>
@@ -145,7 +148,7 @@ const MockCreatorCard = ({
             variant={isFollowing ? "outline" : "default"}
             size="sm"
             className={`rounded-full h-8 px-3 text-xs ${
-              isHighlighted ? "ring-2 ring-primary ring-offset-2" : ""
+              shouldHighlight ? "ring-2 ring-primary/70 shadow-md shadow-primary/40" : ""
             }`}
             onClick={handleFollowClick}
             data-tutorial="follow-button"
@@ -164,8 +167,8 @@ const MockCreatorCard = ({
           </Button>
         )}
       </div>
-      {isHighlighted && (
-        <div className="mt-3 pt-3 border-t border-primary/30">
+      {shouldHighlight && (
+        <div className="mt-3 pt-3 border-t border-primary/40">
           <p className="text-xs text-primary font-medium">
             💡 Click the avatar or handle to visit their profile. Click Follow to add them to your feed!
           </p>
@@ -680,52 +683,33 @@ const Following = () => {
                         </div>
                       </div>
 
-                      {/* Discover Creators */}
-                      <div className="rounded-2xl border border-primary/20 bg-card p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="h-5 w-5 text-primary" />
-                            <h3 className="text-lg font-bold">Discover Creators</h3>
+                      {/* Discover Creators - Only show in tutorial */}
+                      {isTutorialActive && (
+                        <div className="rounded-xl border border-border/40 bg-card/60 p-5">
+                          <div className="flex items-center gap-2 mb-4">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            <h3 className="text-base font-semibold">Discover Creators</h3>
                           </div>
-                          <Badge variant="secondary" className="text-xs">
-                            {MOCK_CREATORS.filter(c => !c.isFollowing).length}
-                          </Badge>
+                          <div className="space-y-3">
+                            {MOCK_CREATORS.filter(c => !c.isFollowing).slice(0, 3).map((creator, index) => (
+                              <MockCreatorCard
+                                key={creator.id}
+                                creator={creator}
+                                viewerProfileId={profile?.id}
+                                isHighlighted={index === 0}
+                                toast={toast}
+                                onFollowClick={() => {
+                                  toast({
+                                    title: "Following! 🎉",
+                                    description: "Great! Following creators will show their clips in your Following feed.",
+                                    duration: 2000,
+                                  });
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-3">
-                          {MOCK_CREATORS.filter(c => !c.isFollowing).slice(0, 4).map((creator, index) => (
-                            <MockCreatorCard
-                              key={creator.id}
-                              creator={creator}
-                              viewerProfileId={profile?.id}
-                              isHighlighted={index === 0}
-                              toast={toast}
-                              onFollowClick={() => {
-                                toast({
-                                  title: "Following! 🎉",
-                                  description: "Great! Following creators will show their clips in your Following feed. Try following real creators from the main feed!",
-                                  duration: 3000,
-                                });
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-border">
-                          {isTutorialActive ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full"
-                              onClick={handleTutorialNavigation}
-                            >
-                              Explore More
-                            </Button>
-                          ) : (
-                            <Button variant="outline" size="sm" className="w-full" asChild>
-                              <Link to="/?focusSearch=true">Explore More</Link>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                   

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -195,7 +195,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [avatarImages, setAvatarImages] = useState<Map<string, string>>(new Map());
   const [avatarsLoading, setAvatarsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("overview");
-  const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview"]));
+  const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview", "get-started"]));
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
   // Detect if device is mobile (memoized to prevent re-renders)
@@ -846,6 +847,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             honeypot: honeypot || undefined,
             user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
           }),
+        }).catch((fetchError) => {
+          // Catch network errors and wrap them
+          console.warn('[OnboardingFlow] Validation fetch error:', fetchError);
+          throw new Error('Network error during validation');
         });
 
         // If function doesn't exist (404), skip validation gracefully
@@ -856,7 +861,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           // Continue without validation - function may not be deployed yet
         } else if (validationResponse.status === 400) {
           // Parse 400 errors - might be missing reCAPTCHA token in production
-          const errorData = await validationResponse.json().catch(() => ({}));
+          const errorData = await validationResponse.json().catch(() => {
+            // If JSON parsing fails, return empty object
+            return {};
+          });
           const errorMessage = errorData.reason || errorData.error || 'Account validation failed';
           
           // In development, if it's a reCAPTCHA error, allow it to proceed
@@ -878,7 +886,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           }
         } else if (!validationResponse.ok) {
           // For other errors, try to parse error message
-          const errorData = await validationResponse.json().catch(() => ({}));
+          const errorData = await validationResponse.json().catch(() => {
+            // If JSON parsing fails, return empty object
+            return {};
+          });
           const errorMessage = errorData.reason || errorData.error || 'Account validation failed';
           
           toast({
@@ -894,7 +905,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           return;
         } else {
           // Success - parse validation response
-          const validationData = await validationResponse.json();
+          const validationData = await validationResponse.json().catch(() => {
+            // If JSON parsing fails, return default object
+            return { allowed: true };
+          });
 
           if (!validationData.allowed) {
             toast({
@@ -1075,11 +1089,18 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       onComplete(data.id);
     } catch (error: any) {
       console.error("Onboarding error:", error);
-      toast({
-        title: "Something went wrong",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
+      
+      // Prevent uncaught promise rejection
+      const errorMessage = error?.message || error?.toString() || "Please try again";
+      
+      // Only show toast if it's a user-facing error
+      if (errorMessage && !errorMessage.includes('Network error') && !errorMessage.includes('fetch')) {
+        toast({
+          title: "Something went wrong",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -1108,17 +1129,51 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-center px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="flex justify-center items-center w-full">
-          {/* Onboarding Form */}
-          <Card className="w-full max-w-md mx-auto shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col">
-            <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 backdrop-blur-xl border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <div className="space-y-2">
-                <div className="mb-4 pb-4 border-b border-red-900/30 dark:border-red-800/20">
+        {/* Mobile Navigation Toggle Button - Fixed bottom left */}
+        <Button
+          onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+          className="fixed bottom-20 left-4 z-50 lg:hidden h-12 w-12 rounded-full bg-gradient-to-br from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white shadow-2xl shadow-red-500/50 border-2 border-red-400/30"
+          size="icon"
+        >
+          {isMobileNavOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </Button>
+
+        {/* Mobile Navigation Sidebar - Collapsible */}
+        <div className={`fixed inset-y-0 left-0 z-50 lg:hidden transition-transform duration-300 ease-in-out ${
+          isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          {/* Backdrop */}
+          {isMobileNavOpen && (
+            <div 
+              className="fixed inset-0 bg-black/60 z-40"
+              onClick={() => setIsMobileNavOpen(false)}
+            />
+          )}
+          
+          {/* Sidebar */}
+          <Card className="h-full w-64 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 relative overflow-hidden flex flex-col z-50 pointer-events-auto">
+            <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pointer-events-auto">
+              <div className="space-y-2 select-text">
+                <div className="mb-4 pb-4 border-b border-red-900/30 dark:border-red-800/20 flex items-center justify-between">
+                  <div>
                   <h3 className="text-sm font-bold text-white dark:text-white mb-1 flex items-center gap-2">
                     <Compass className="h-4 w-4 text-red-400" />
                     Navigation
                   </h3>
                   <p className="text-xs text-gray-400 dark:text-gray-500">Explore sections</p>
+                  </div>
+                  <Button
+                    onClick={() => setIsMobileNavOpen(false)}
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
                 
                 {[
@@ -1130,6 +1185,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   { id: "examples", label: "Example Handles", icon: Users },
                   { id: "about", label: "About Us", icon: BookOpen },
                   { id: "faq", label: "FAQ", icon: MessageCircle },
+                  { id: "get-started", label: "Get Started", icon: ArrowRight },
                 ].map((section) => {
                   const Icon = section.icon;
                   const isActive = activeSection === section.id;
@@ -1139,6 +1195,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       onClick={() => {
                         setActiveSection(section.id);
                         setLoadedSections((prev: Set<string>) => new Set([...prev, section.id]));
+                        setIsMobileNavOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left group ${
                         isActive
@@ -1163,9 +1220,67 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
             </div>
           </Card>
+            </div>
+
+        <div className="flex flex-col lg:flex-row justify-center items-start lg:items-start gap-4 lg:gap-6 w-full max-w-[1600px] mx-auto">
+          {/* Desktop Navigation Card - Hidden on mobile */}
+          <Card className="hidden lg:flex w-64 flex-shrink-0 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex-col sticky top-4 self-start max-h-[calc(100vh-40px)]">
+            <div className="rounded-xl bg-gradient-to-br from-red-950/80 to-amber-950/80 dark:from-red-950/70 dark:to-amber-950/70 backdrop-blur-xl border border-red-900/30 dark:border-red-800/20 p-4 h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="space-y-2">
+                <div className="mb-4 pb-4 border-b border-red-900/30 dark:border-red-800/20">
+                  <h3 className="text-sm font-bold text-white dark:text-white mb-1 flex items-center gap-2">
+                    <Compass className="h-4 w-4 text-red-400" />
+                    Navigation
+                </h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">Explore sections</p>
+              </div>
+
+                {[
+                  { id: "overview", label: "Welcome", icon: Radio },
+                  { id: "what-is", label: "What is Vocalix?", icon: Mic },
+                  { id: "how-it-works", label: "How It Works", icon: Zap },
+                  { id: "why", label: "Why Vocalix?", icon: HelpCircle },
+                  { id: "features", label: "Key Features", icon: Sparkles },
+                  { id: "examples", label: "Example Handles", icon: Users },
+                  { id: "about", label: "About Us", icon: BookOpen },
+                  { id: "faq", label: "FAQ", icon: MessageCircle },
+                  { id: "get-started", label: "Get Started", icon: ArrowRight },
+                ].map((section) => {
+                  const Icon = section.icon;
+                  const isActive = activeSection === section.id;
+                  return (
+                  <button
+                      key={section.id}
+                    onClick={() => {
+                        setActiveSection(section.id);
+                        setLoadedSections((prev: Set<string>) => new Set([...prev, section.id]));
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left group ${
+                        isActive
+                          ? "bg-gradient-to-r from-red-900/50 to-amber-900/50 dark:from-red-900/40 dark:to-amber-900/40 text-white shadow-lg shadow-red-500/20 border border-red-500/30"
+                          : "text-gray-300 dark:text-gray-400 hover:bg-red-950/30 dark:hover:bg-red-950/20 hover:text-white dark:hover:text-white border border-transparent"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${
+                        isActive ? "text-red-400 scale-110" : "text-gray-400 group-hover:text-red-400 group-hover:scale-110"
+                      }`} />
+                      <span className={`text-sm font-medium flex-1 ${
+                        isActive ? "font-bold" : "font-semibold"
+                      }`}>
+                        {section.label}
+                    </span>
+                      {isActive && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                      )}
+                  </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
 
           {/* Main Content Area - Sections */}
-          <div className="relative z-10 lg:max-h-[calc(100vh-120px)]">
+          <div className="relative z-10 flex-1 w-full min-w-0 lg:max-h-[calc(100vh-120px)]">
             {/* Fade-out gradient overlay at top - when scrolling down */}
             <div className="hidden lg:block absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-slate-950/60 via-slate-950/20 to-transparent pointer-events-none z-20" />
             
@@ -1173,506 +1288,155 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
             <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent pointer-events-none z-20" />
             
             {/* Scrollable content */}
-            <div ref={scrollableContentRef} className="space-y-4 lg:space-y-3 text-center lg:text-left lg:overflow-y-auto lg:pr-2 lg:max-h-[calc(100vh-120px)] lg:pb-16 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth">
-            {/* Mobile: Show all sections in order */}
-            <div className="lg:hidden space-y-6">
-              {/* Mobile Overview */}
-              <div className="space-y-4">
-              <div className="relative">
-                  <div className="absolute -top-2 -left-2 w-20 h-20 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
-                  <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
-                        <Radio className="h-5 w-5 text-red-400 animate-pulse" />
-                      </div>
-                      <Badge className="bg-gradient-to-r from-red-600/20 to-amber-600/20 border-red-500/30 text-red-300 font-bold px-3 py-1 text-xs">
-                        Audio-First
-                      </Badge>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white dark:text-white leading-[1.1] mb-3">
-                      <span className="block">Your Voice,</span>
-                      <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent">
-                        Unfiltered & Free
-                  </span>
-                </h1>
-                    <p className="text-base text-gray-300 dark:text-gray-300 leading-relaxed font-bold">
-                      The underground platform where <span className="text-red-400">voice is everything</span>. Speak your mind, stay anonymous, build real connections.
-              </p>
-                  </div>
-            </div>
-
-                {/* Mobile Value Props */}
-                <div className="grid grid-cols-1 gap-3 pt-2">
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/40 to-red-900/30 dark:from-red-950/30 dark:to-red-900/20 p-4 border border-red-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 flex items-center justify-center">
-                        <Mic className="h-5 w-5 text-red-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-white mb-1">30-Second Clips</h3>
-                        <p className="text-xs text-gray-300 leading-relaxed">Quick thoughts, instant reactions. Record in seconds.</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-gradient-to-br from-amber-950/40 to-amber-900/30 dark:from-amber-950/30 dark:to-amber-900/20 p-4 border border-amber-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 flex items-center justify-center">
-                        <Shield className="h-5 w-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-white mb-1">100% Anonymous</h3>
-                        <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name, no photos. Just emoji avatar and voice.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-            </div>
-
-              {/* Mobile: What is Echo Chamber */}
-              <div className="prose dark:prose-invert max-w-none">
-                <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                  <Mic className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  What is Vocalix?
-                </h3>
-                <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  The audio-first social platform where voice is everything. Share 30-second clips or 10-minute podcast segments—thoughts, rants, stories, whatever moves you. Your identity stays anonymous. Only your emoji avatar, voice, and handle show—no photos, no faces.
-                </p>
-                <p className="text-base text-gray-200 dark:text-gray-200 leading-relaxed mb-4 font-medium">
-                  Speak your mind. React with voice clips. Reply, remix, or continue chains. Join audio communities. Drop into live rooms. Search by what people actually said. Build collections. Go offline. Listen anywhere. No BS, no filters—just raw voice in an underground community built for authentic expression.
-                </p>
-              </div>
-
-              {/* Mobile: How It Works */}
-              <div className="rounded-2xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-6 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20">
-                <h4 className="font-bold text-white dark:text-white mb-4 flex items-center gap-2 text-xl">
-                  <Radio className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  How It Works
-                </h4>
-                <ul className="space-y-3 text-sm text-gray-200 dark:text-gray-200">
-                  {[
-                    "Record 30-second clips or 10-minute podcast segments",
-                    "React with emojis or 3-5 second voice reactions",
-                    "Reply with voice, create remixes, or continue chains",
-                    "AI moderation keeps it real—trolls get filtered out",
-                    "Stay anonymous—no personal info required, ever"
-                  ].map((item, index) => (
-                    <li key={index} className="flex items-start gap-2 font-medium">
-                      <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                      <span>{item}</span>
-                  </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Mobile: Why Echo Chamber - Collapsible */}
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="why-mobile" className="border-red-900/20 dark:border-red-800/10">
-                  <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-2 text-lg">
-                    <div className="flex items-center gap-2">
-                  <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  Why Vocalix?
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4 pt-2">
-                      {/* Include all the "Why" content here */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-5">
-                    <h4 className="font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-red-400" />
-                      Privacy First
-                    </h4>
-                    <ul className="space-y-2 text-sm text-gray-200 dark:text-gray-200">
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>No email required</strong> - Create an account with just a handle</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Fully anonymous</strong> - No real names, no photos, no faces, no personal info collected. Just emoji avatars.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-red-400 dark:text-red-400 mt-1 font-bold">•</span>
-                        <span><strong>Device-based authentication</strong> - Your device is your key</span>
-                      </li>
-                    </ul>
-                  </div>
-                  </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-
-              {/* Mobile: Features Grid */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  { 
-                    icon: Mic, 
-                    title: "Anonymous & Raw",
-                    description: "Speak freely—your identity stays hidden, only your voice shows.",
-                    iconBg: "from-amber-900/50 to-amber-800/50",
-                    iconColor: "text-amber-400",
-                  },
-                  { 
-                    icon: Headphones, 
-                    title: "30-Second Clips",
-                    description: "Quick hits. Record your thoughts in under 30 seconds.",
-                    iconBg: "from-red-900/50 to-red-800/50",
-                    iconColor: "text-red-400",
-                  },
-                  { 
-                    icon: Users, 
-                    title: "Real Community",
-                    description: "Communities, live rooms, series, collections.",
-                    iconBg: "from-amber-800/50 to-red-800/50",
-                    iconColor: "text-amber-400",
-                  },
-                ].map(({ icon: Icon, title, description, iconBg, iconColor }) => (
-                  <div
-                    key={title}
-                    className="group flex flex-col gap-3 rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-4 backdrop-blur-sm"
-                  >
-                    <div className={`inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${iconBg} ${iconColor} shadow-sm`}>
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-white dark:text-white mb-1.5 text-base">{title}</p>
-                      <p className="text-xs text-gray-200 dark:text-gray-200 leading-relaxed font-medium">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Mobile: Example Handles */}
-              <div className="space-y-3">
-              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-red-400 dark:text-red-400" />
-                Get Inspired - Popular Handles
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {[
-                  { handle: "DeepVoice42", avatar: 'avatar1' as AvatarType },
-                  { handle: "SmoothEcho89", avatar: 'avatar2' as AvatarType },
-                  { handle: "RawTone23", avatar: 'avatar3' as AvatarType },
-                  { handle: "CoolWave56", avatar: 'avatar4' as AvatarType },
-                  { handle: "CrispSignal12", avatar: 'avatar5' as AvatarType },
-                  { handle: "WarmBeat78", avatar: 'avatar6' as AvatarType },
-                ].map((example) => (
-                  <button
-                    key={example.handle}
-                    type="button"
-                    onClick={() => {
-                      setHandle(example.handle);
-                      setSelectedAvatar(example.avatar);
-                    }}
-                      className="group flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 p-4 transition-all duration-300 hover:bg-gradient-to-br hover:from-red-950/40 hover:to-amber-950/40"
-                  >
-                      <AvatarIcon 
-                        type={example.avatar}
-                        className="w-12 h-12 group-hover:scale-110 transition-transform duration-300"
-                      />
-                    <span className="text-xs font-semibold text-gray-200 dark:text-gray-200 group-hover:text-white transition-colors">
-                      @{example.handle}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-              {/* Mobile: About Us */}
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-white dark:text-white mb-3 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-red-400 dark:text-red-400" />
-                  About Vocalix
-                </h3>
-                
-                {/* About the Creator */}
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-5 border border-red-800/30">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/30 to-amber-600/30 border-2 border-red-500/40 flex-shrink-0">
-                      <Users className="h-6 w-6 text-red-300" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-lg font-black text-white mb-1 bg-gradient-to-r from-red-300 to-amber-300 bg-clip-text text-transparent">
-                        👋 Hey, I'm Melvin
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        <Badge className="bg-red-900/40 border-red-700/50 text-red-200 text-[10px] px-1.5 py-0.5">Full-Stack</Badge>
-                        <Badge className="bg-amber-900/40 border-amber-700/50 text-amber-200 text-[10px] px-1.5 py-0.5">AI Integrator</Badge>
-                      </div>
-                      <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed">
-                        I'm a solo developer who codes with <span className="text-red-400 font-bold">vision, vibes, and velocity</span>. I build fast, break limits, and learn even faster. Vocalix was built with AI as my co-pilot — it's not just coding, it's orchestration.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mission */}
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-amber-950/30 dark:from-red-950/25 dark:to-amber-950/25 p-5 border border-red-800/30">
-                  <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-                    <Radio className="h-4 w-4 text-red-400" />
-                    Our Mission
-                  </h4>
-                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium">
-                    Vocalix was born from a simple belief: <span className="text-red-400 font-bold">voice is the most authentic form of expression</span>. In a world saturated with filtered images and curated feeds, we're building a space where raw, unfiltered voice takes center stage.
-                  </p>
-                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium mt-3">
-                    We're creating an underground platform where anonymity empowers authenticity. No photos, no faces, no judgment—just your voice, your thoughts, and real connections built on what you say, not how you look.
-                  </p>
-                </div>
-
-                {/* Values Grid */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 flex items-center justify-center">
-                        <Shield className="h-5 w-5 text-red-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">Privacy First</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">We believe privacy is a fundamental right. No email required, no personal data collected, no tracking. Your voice, your choice, your anonymity.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-4 border border-amber-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 flex items-center justify-center">
-                        <Mic className="h-5 w-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">Voice-First</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">Audio is everything. We're building tools and features that celebrate voice—from 30-second clips to 10-minute podcasts, voice reactions to live rooms.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-900/20 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 flex items-center justify-center">
-                        <Users className="h-5 w-5 text-red-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">Community Driven</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">This platform belongs to the community. We listen, we adapt, we build features that matter to you. Your voice shapes Vocalix.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-red-950/30 dark:from-amber-950/25 dark:to-red-950/25 p-4 border border-amber-800/30">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/30 to-red-600/20 flex items-center justify-center">
-                        <Sparkles className="h-5 w-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">No BS, No Filters</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">Authenticity over algorithms. Real conversations over engagement metrics. We use AI to keep it civil, not to manipulate what you see.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vision */}
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-5 border border-red-800/30">
-                  <h4 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-red-400" />
-                    Our Vision
-                  </h4>
-                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium">
-                    We envision a future where voice-first platforms become the norm for authentic online expression. Where people connect through what they say, not what they look like. Where anonymity enables honesty, and where communities form around shared ideas, not curated images.
-                  </p>
-                  <p className="text-sm text-gray-200 dark:text-gray-200 leading-relaxed font-medium mt-3">
-                    Vocalix is more than a platform—it's a movement toward <span className="text-amber-400 font-bold">authentic, voice-driven communication</span> in a world that's forgotten how to listen.
-                  </p>
-                </div>
-
-                {/* Tech Stack & Connect */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="rounded-xl bg-gradient-to-br from-red-950/30 to-red-900/20 dark:from-red-950/25 dark:to-red-900/15 p-4 border border-red-800/30">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Zap className="h-4 w-4 text-red-400" />
-                      <h4 className="text-sm font-bold text-white">Built With</h4>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['React', 'Vite', 'Supabase', 'TypeScript', 'Tailwind', 'Node.js'].map((tech) => (
-                        <Badge key={tech} className="bg-red-900/40 border-red-700/50 text-red-200 text-[10px] px-1.5 py-0.5">
-                          {tech}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-gradient-to-br from-amber-950/30 to-amber-900/20 dark:from-amber-950/25 dark:to-amber-900/15 p-4 border border-amber-800/30">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Link2 className="h-4 w-4 text-amber-400" />
-                      <h4 className="text-sm font-bold text-white">Let's Connect</h4>
-                    </div>
-                    <div className="space-y-2">
-                      <a href="https://melvinworks.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-300 hover:text-amber-200 transition-colors">
-                        <Globe className="h-3 w-3" />
-                        <span className="underline">Portfolio</span>
-                      </a>
-                      <a href="https://melhub.netlify.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs text-amber-300 hover:text-amber-200 transition-colors">
-                        <Link2 className="h-3 w-3" />
-                        <span className="underline">Socials Hub</span>
-                      </a>
-                      <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-amber-800/30">
-                        Always open to collabs, freelancing, or just a good dev chat.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Mobile: FAQ */}
-              <div className="space-y-3">
-              <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-2">
-                <HelpCircle className="h-5 w-5 text-red-400 dark:text-red-400" />
-                Frequently Asked Questions
-              </h3>
-              <div className="rounded-xl bg-gradient-to-br from-red-950/25 to-amber-950/25 dark:from-red-950/20 dark:to-amber-950/20 overflow-hidden">
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="item-1" className="border-red-900/20 dark:border-red-800/10 px-4">
-                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                      Is it really anonymous?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                      Yes! We don't require any personal information. No email, no phone number, no real name. 
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="item-2" className="border-red-900/20 dark:border-red-800/10 px-4">
-                    <AccordionTrigger className="text-white dark:text-white hover:text-red-400 dark:hover:text-red-400 font-semibold py-4">
-                      How long are clips?
-                    </AccordionTrigger>
-                    <AccordionContent className="text-gray-200 dark:text-gray-200 text-sm pb-4">
-                        Regular voice clips are limited to 30 seconds. Podcast Mode allows up to 10-minute segments.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            </div>
-            </div>
-
-            {/* Desktop: Section-based navigation */}
+            <div ref={scrollableContentRef} className="space-y-4 lg:space-y-6 text-center lg:text-left lg:overflow-y-auto lg:pr-4 lg:max-h-[calc(100vh-120px)] lg:pb-16 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] scroll-smooth">
+            {/* Section-based navigation - Show only active section on all screen sizes */}
+            <div className="w-full max-w-none">
             {/* Overview Section */}
             {activeSection === "overview" && loadedSections.has("overview") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-                {/* Hero Section */}
-                <div className="space-y-4">
-                  <div className="relative">
-                    <div className="absolute -top-2 -left-2 w-20 h-20 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
-                    <div className="absolute -bottom-2 -right-2 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '1s' }} />
-                    <div className="relative">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
-                          <Radio className="h-6 w-6 text-red-400 animate-pulse" />
-                        </div>
-                        <Badge className="bg-gradient-to-r from-red-600/20 to-amber-600/20 border-red-500/30 text-red-300 font-bold px-3 py-1">
-                          Audio-First Social Platform
-                        </Badge>
+              <div className="space-y-8 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Hero Section - Enhanced */}
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 dark:from-slate-950/80 dark:via-slate-900/60 dark:to-slate-950/80 p-8 lg:p-12 border border-slate-700/50 dark:border-slate-800/50 shadow-2xl">
+                  {/* Animated background orbs */}
+                  <div className="absolute top-0 left-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+                  <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-red-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
+                  
+                  <div className="relative z-10">
+                    {/* Badge */}
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500/20 via-amber-500/20 to-red-500/20 border border-red-500/30 shadow-lg shadow-red-500/20">
+                        <Radio className="h-7 w-7 text-red-400" />
                       </div>
-                      <h1 className="text-5xl lg:text-6xl font-black tracking-tight text-white dark:text-white leading-[1.1] mb-3">
-                        <span className="block">Join The</span>
-                        <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent">
-                          Vocalix
-                        </span>
-                      </h1>
-                      <p className="text-lg lg:text-xl text-gray-300 dark:text-gray-300 max-w-2xl leading-relaxed font-bold">
-                        The underground platform where <span className="text-red-400">voice is everything</span>. Speak your mind, stay anonymous, build real connections—no BS, no filters.
-                      </p>
+                      <Badge className="bg-gradient-to-r from-red-600/30 via-amber-600/30 to-red-600/30 border-red-500/40 text-red-200 font-bold px-4 py-2 text-sm shadow-lg">
+                        Audio-First Social Platform
+                      </Badge>
+                    </div>
+                    
+                    {/* Main Heading */}
+                    <h1 className="text-6xl lg:text-7xl font-black tracking-tight text-white dark:text-white leading-[1.05] mb-6">
+                      <span className="block mb-2">Join The</span>
+                      <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent drop-shadow-2xl">
+                        Vocalix
+                      </span>
+                    </h1>
+                    
+                    {/* Subtitle */}
+                    <p className="text-xl lg:text-2xl text-slate-300 dark:text-slate-300 max-w-3xl leading-relaxed font-semibold mb-8">
+                      The underground platform where <span className="text-red-400 font-bold">voice is everything</span>. Speak your mind, stay anonymous, build real connections—<span className="text-amber-400 font-bold">no BS, no filters</span>.
+                    </p>
+                    
+                    {/* CTA Button */}
+                    <Button
+                      onClick={() => {
+                        setActiveSection("get-started");
+                        setLoadedSections((prev: Set<string>) => new Set([...prev, "get-started"]));
+                      }}
+                      className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold px-8 py-6 text-lg shadow-xl hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-105"
+                    >
+                      <span className="flex items-center gap-2">
+                        Get Started
+                        <ArrowRight className="h-5 w-5" />
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Value Propositions - Enhanced Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-800/60 dark:from-slate-900/60 dark:via-slate-800/40 dark:to-slate-900/60 p-6 border border-slate-700/50 dark:border-slate-800/50 hover:border-red-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-red-500/20 hover:-translate-y-2">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-red-500/20 transition-colors" />
+                    <div className="relative z-10">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/30 to-red-400/20 mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-red-500/20">
+                        <Mic className="h-8 w-8 text-red-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">30-Second Clips</h3>
+                      <p className="text-sm text-slate-300 leading-relaxed">Quick thoughts, instant reactions. Record in seconds, share immediately.</p>
                     </div>
                   </div>
-                  </div>
 
-                {/* Value Propositions */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 to-red-900/30 dark:from-red-950/30 dark:to-red-900/20 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
-                    <div className="relative">
-                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-red-500/20 mb-3 group-hover:scale-110 transition-transform">
-                        <Mic className="h-6 w-6 text-red-400" />
+                  <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-800/60 dark:from-slate-900/60 dark:via-slate-800/40 dark:to-slate-900/60 p-6 border border-slate-700/50 dark:border-slate-800/50 hover:border-amber-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/20 hover:-translate-y-2">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-amber-500/20 transition-colors" />
+                    <div className="relative z-10">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/30 to-amber-400/20 mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/20">
+                        <Shield className="h-8 w-8 text-amber-400" />
                       </div>
-                      <h3 className="text-base font-bold text-white mb-2">30-Second Clips</h3>
-                      <p className="text-xs text-gray-300 leading-relaxed">Quick thoughts, instant reactions. Record in seconds, share immediately.</p>
-                    </div>
-                  </div>
-
-                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-950/40 to-amber-900/30 dark:from-amber-950/30 dark:to-amber-900/20 p-5 border border-amber-800/30 hover:border-amber-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/20 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/10 transition-colors" />
-                    <div className="relative">
-                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-amber-600/30 to-amber-500/20 mb-3 group-hover:scale-110 transition-transform">
-                        <Shield className="h-6 w-6 text-amber-400" />
-                      </div>
-                      <h3 className="text-base font-bold text-white mb-2">100% Anonymous</h3>
-                      <p className="text-xs text-gray-300 leading-relaxed">No email, no phone, no real name, no photos. Just an emoji avatar, your voice, and handle.</p>
+                      <h3 className="text-xl font-bold text-white mb-3">100% Anonymous</h3>
+                      <p className="text-sm text-slate-300 leading-relaxed">No email, no phone, no real name, no photos. Just an emoji avatar, your voice, and handle.</p>
                     </div>
                   </div>
                   
-                  <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-red-950/40 via-amber-950/40 to-red-900/30 dark:from-red-950/30 dark:via-amber-950/30 dark:to-red-900/20 p-5 border border-red-800/30 hover:border-red-600/50 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-red-500/10 transition-colors" />
-                    <div className="relative">
-                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-br from-red-600/30 to-amber-600/20 mb-3 group-hover:scale-110 transition-transform">
-                        <Users className="h-6 w-6 text-red-400" />
+                  <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-800/60 dark:from-slate-900/60 dark:via-slate-800/40 dark:to-slate-900/60 p-6 border border-slate-700/50 dark:border-slate-800/50 hover:border-red-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-red-500/20 hover:-translate-y-2">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-red-500/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-red-500/20 transition-colors" />
+                    <div className="relative z-10">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500/30 via-amber-500/30 to-red-500/30 mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-red-500/20">
+                        <Users className="h-8 w-8 text-red-400" />
                       </div>
-                      <h3 className="text-base font-bold text-white mb-2">Real Community</h3>
-                      <p className="text-xs text-gray-300 leading-relaxed">Live rooms, voice reactions, remixes, chains. AI keeps it civil.</p>
+                      <h3 className="text-xl font-bold text-white mb-3">Real Community</h3>
+                      <p className="text-sm text-slate-300 leading-relaxed">Live rooms, voice reactions, remixes, chains. AI keeps it civil.</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Privacy & Security Highlights */}
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 p-6 border border-red-900/30">
-                  <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-red-400" />
-                    Privacy & Security First
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/20 to-red-500/10 flex items-center justify-center border border-red-500/20">
-                        <MailX className="h-5 w-5 text-red-400" />
+                {/* Privacy & Security Highlights - Enhanced */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-800/60 dark:from-slate-900/60 dark:via-slate-800/40 dark:to-slate-900/60 p-8 border border-slate-700/50 dark:border-slate-800/50 shadow-xl">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -ml-32 -mb-32" />
+                  <div className="relative z-10">
+                    <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/20 to-amber-500/20 border border-red-500/30">
+                        <Shield className="h-6 w-6 text-red-400" />
                       </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">No Email Required</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">Create your account instantly with just a handle. No verification needed.</p>
+                      Privacy & Security First
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-700/30 dark:bg-slate-800/30 border border-slate-600/30 dark:border-slate-700/30 hover:border-red-500/50 transition-colors">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/20 to-red-400/10 flex items-center justify-center border border-red-500/30 shadow-lg">
+                          <MailX className="h-6 w-6 text-red-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-white mb-2">No Email Required</h4>
+                          <p className="text-sm text-slate-300 leading-relaxed">Create your account instantly with just a handle. No verification needed.</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-amber-600/20 to-amber-500/10 flex items-center justify-center border border-amber-500/20">
-                        <UserX className="h-5 w-5 text-amber-400" />
+                      <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-700/30 dark:bg-slate-800/30 border border-slate-600/30 dark:border-slate-700/30 hover:border-amber-500/50 transition-colors">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center border border-amber-500/30 shadow-lg">
+                          <UserX className="h-6 w-6 text-amber-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-white mb-2">Fully Anonymous</h4>
+                          <p className="text-sm text-slate-300 leading-relaxed">No real names, no photos, no faces, no personal data collected. Just emoji avatars. Your identity stays hidden.</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">Fully Anonymous</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">No real names, no photos, no faces, no personal data collected. Just emoji avatars. Your identity stays hidden.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-red-600/20 to-amber-600/10 flex items-center justify-center border border-red-500/20">
-                        <Smartphone className="h-5 w-5 text-red-400" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white mb-1">Device-Based Auth</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">Your device is your key. Link multiple devices for seamless access.</p>
+                      <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-700/30 dark:bg-slate-800/30 border border-slate-600/30 dark:border-slate-700/30 hover:border-red-500/50 transition-colors">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-red-500/20 via-amber-500/20 to-red-500/20 flex items-center justify-center border border-red-500/30 shadow-lg">
+                          <Smartphone className="h-6 w-6 text-red-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-white mb-2">Device-Based Auth</h4>
+                          <p className="text-sm text-slate-300 leading-relaxed">Your device is your key. Link multiple devices for seamless access.</p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Stats / Highlights */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-950/40 to-red-900/30 border border-red-800/30">
-                    <Zap className="h-4 w-4 text-red-400" />
-                    <span className="text-sm font-bold text-white">Instant Setup</span>
+                {/* Quick Stats / Highlights - Enhanced */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-slate-800/60 to-slate-700/40 dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-700/50 dark:border-slate-800/50 hover:border-red-500/50 transition-all hover:scale-105 shadow-lg">
+                    <Zap className="h-5 w-5 text-red-400" />
+                    <span className="text-base font-bold text-white">Instant Setup</span>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-950/40 to-amber-900/30 border border-amber-800/30">
-                    <Headphones className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm font-bold text-white">Voice-First</span>
+                  <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-slate-800/60 to-slate-700/40 dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-700/50 dark:border-slate-800/50 hover:border-amber-500/50 transition-all hover:scale-105 shadow-lg">
+                    <Headphones className="h-5 w-5 text-amber-400" />
+                    <span className="text-base font-bold text-white">Voice-First</span>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-950/40 via-amber-950/40 to-red-900/30 border border-red-800/30">
-                    <Sparkles className="h-4 w-4 text-red-400" />
-                    <span className="text-sm font-bold text-white">AI Moderation</span>
+                  <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-slate-800/60 to-slate-700/40 dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-700/50 dark:border-slate-800/50 hover:border-red-500/50 transition-all hover:scale-105 shadow-lg">
+                    <Sparkles className="h-5 w-5 text-red-400" />
+                    <span className="text-base font-bold text-white">AI Moderation</span>
                   </div>
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-950/40 to-red-950/40 border border-amber-800/30">
-                    <Globe className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm font-bold text-white">Offline Mode</span>
+                  <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-gradient-to-r from-slate-800/60 to-slate-700/40 dark:from-slate-900/60 dark:to-slate-800/40 border border-slate-700/50 dark:border-slate-800/50 hover:border-amber-500/50 transition-all hover:scale-105 shadow-lg">
+                    <Globe className="h-5 w-5 text-amber-400" />
+                    <span className="text-base font-bold text-white">Offline Mode</span>
                   </div>
                 </div>
               </div>
@@ -1680,7 +1444,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* What is Echo Chamber Section */}
             {activeSection === "what-is" && loadedSections.has("what-is") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Hero Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -1742,7 +1506,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* How It Works Section */}
             {activeSection === "how-it-works" && loadedSections.has("how-it-works") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Hero Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -1847,7 +1611,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* Why Echo Chamber Section */}
             {activeSection === "why" && loadedSections.has("why") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Hero Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -1993,7 +1757,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* Key Features Section */}
             {activeSection === "features" && loadedSections.has("features") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Hero Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -2118,7 +1882,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* Example Handles Section */}
             {activeSection === "examples" && loadedSections.has("examples") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Hero Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -2224,7 +1988,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* About Us Section */}
             {activeSection === "about" && loadedSections.has("about") && (
-              <div className="hidden lg:block space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Header */}
                 <div className="relative">
                   <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
@@ -2423,7 +2187,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* FAQ Section */}
             {activeSection === "faq" && loadedSections.has("faq") && (
-              <div className="hidden lg:block space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
                 {/* Enhanced Header */}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
@@ -2516,50 +2280,60 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                 </div>
               </div>
             )}
+
+            {/* Get Started Section - Shows the form */}
+            {activeSection === "get-started" && loadedSections.has("get-started") && (
+              <div className="w-full max-w-md mx-auto space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+                {/* Get Started Header */}
+                <div className="relative">
+                  <div className="absolute -top-2 -left-2 w-24 h-24 bg-red-500/10 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
+                        <ArrowRight className="h-7 w-7 text-red-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-3xl lg:text-4xl font-black text-white dark:text-white leading-tight">
+                          Get <span className="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Started</span>
+                        </h3>
+                        <p className="text-sm text-gray-400 mt-1">Create your identity</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            </div>
             </div>
           </div>
 
-          {/* Right side - Clean modern form */}
-          <Card className="w-full max-w-md mx-auto lg:mx-0 lg:sticky lg:top-4 shadow-2xl bg-gradient-to-br from-red-950/95 via-amber-950/90 to-red-950/95 dark:from-red-950/90 dark:via-amber-950/85 dark:to-red-950/90 backdrop-blur-xl relative overflow-hidden transition-all duration-300 flex flex-col lg:max-h-[calc(100vh-40px)]">
+          {/* Right side - Clean modern form - Only show on Get Started section */}
+          {activeSection === "get-started" && (
+            <Card className="w-full lg:w-96 lg:flex-shrink-0 mx-auto lg:mx-0 lg:sticky lg:top-4 shadow-2xl bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-slate-950/95 border border-slate-700/50 dark:border-slate-800/50 relative overflow-hidden transition-all duration-300 flex flex-col lg:max-h-[calc(100vh-40px)]">
 
-            {/* Progress Indicator */}
-            <div className="px-3 lg:px-4 pt-3 lg:pt-4 pb-1.5 flex-shrink-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] lg:text-xs font-semibold text-gray-300 dark:text-gray-300">Setup Progress</span>
-                <span className="text-[10px] lg:text-xs font-bold text-red-400 dark:text-red-400">
-                  {Math.round((((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3) * 100)}%
-                </span>
-            </div>
-              <Progress 
-                value={((selectedAvatar ? 1 : 0) + (handle.trim() ? 1 : 0) + (recaptchaToken || !RECAPTCHA_SITE_KEY ? 1 : 0)) / 3 * 100} 
-                className="h-1.5 bg-red-950/40 dark:bg-red-950/30"
-              />
-            </div>
-
-            <CardHeader className="space-y-1.5 text-center pb-2 lg:pb-3 relative z-10 px-3 lg:px-4 flex-shrink-0">
-              <div className="inline-flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 rounded-lg lg:rounded-xl bg-gradient-to-br from-red-900/60 via-red-800/50 to-amber-900/50 dark:from-red-900/50 dark:via-red-800/40 dark:to-amber-900/40 mb-1.5 shadow-xl ring-2 ring-red-700/40 dark:ring-red-700/30 hover:scale-105 transition-transform duration-300">
+            <CardHeader className="text-center pb-4 relative z-10 px-6 pt-6 flex-shrink-0 border-b border-slate-700/30 dark:border-slate-800/30">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-red-500/20 via-amber-500/20 to-red-500/20 dark:from-red-500/10 dark:via-amber-500/10 dark:to-red-500/10 mb-4 ring-1 ring-slate-700/50 dark:ring-slate-800/50">
                 <AvatarIcon 
                   type={selectedAvatar} 
-                  className="w-10 h-10 lg:w-12 lg:h-12"
+                  className="w-16 h-16"
                   imageUrl={avatarImages.get(selectedAvatar)}
                 />
               </div>
-              <CardTitle className="text-xl lg:text-2xl font-extrabold text-white dark:text-white">
+              <CardTitle className="text-2xl font-bold text-white dark:text-white mb-2">
                 Create Your Identity
               </CardTitle>
-              <p className="text-[10px] lg:text-xs text-gray-300 dark:text-gray-300 font-semibold">
-                Pick an avatar and choose your handle
+              <p className="text-sm text-slate-400 dark:text-slate-500">
+                Choose your avatar and handle
               </p>
             </CardHeader>
 
-            <CardContent className="space-y-3 lg:space-y-3 relative z-10 flex-1 overflow-y-auto min-h-0 px-3 lg:px-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <CardContent className="space-y-6 relative z-10 flex-1 overflow-y-auto min-h-0 px-6 py-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {/* Avatar Selection */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] lg:text-xs font-bold text-white dark:text-white flex items-center gap-1.5">
-                  <Mic className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-red-400 dark:text-red-400" />
-                  Choose Your Avatar
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-white dark:text-white">
+                  Avatar
                 </label>
-                <div className="grid grid-cols-6 gap-1.5 p-1.5 rounded-lg bg-gradient-to-br from-red-950/50 via-amber-950/40 to-red-900/30 dark:from-red-950/40 dark:via-amber-950/30 dark:to-red-900/25 max-h-36 lg:max-h-40 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="grid grid-cols-6 gap-2 p-3 rounded-xl bg-slate-800/50 dark:bg-slate-900/50 border border-slate-700/30 dark:border-slate-800/30 max-h-48 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                   {AVATAR_TYPES.map((avatarType, index) => {
                     const isActive = selectedAvatar === avatarType;
                     return (
@@ -2567,20 +2341,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         key={avatarType}
                         type="button"
                         onClick={() => setSelectedAvatar(avatarType)}
-                        className={`flex h-9 lg:h-10 w-full items-center justify-center rounded-md transition-all duration-300 ${
+                        className={`flex h-12 w-full items-center justify-center rounded-lg transition-all duration-200 ${
                           isActive
-                            ? "scale-110 shadow-lg shadow-red-500/40 ring-2 ring-red-400/30 z-10"
-                            : "hover:scale-105 active:scale-95"
+                            ? "ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-800 dark:ring-offset-slate-900 scale-105"
+                            : "hover:ring-1 hover:ring-slate-600/50 dark:hover:ring-slate-700/50 hover:scale-105 active:scale-95"
                         }`}
                         style={{ animationDelay: `${index * 30}ms` }}
                         title={`Avatar ${index + 1}`}
                       >
                         {avatarsLoading && index < 8 ? (
-                          <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-slate-700 animate-pulse" />
+                          <div className="w-10 h-10 rounded-full bg-slate-700 animate-pulse" />
                         ) : (
                           <AvatarIcon 
                             type={avatarType} 
-                            className={`w-7 h-7 lg:w-8 lg:h-8 transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}
+                            className={`w-10 h-10 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}
                             imageUrl={avatarImages.get(avatarType)}
                           />
                         )}
@@ -2591,18 +2365,17 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               </div>
 
               {/* Handle Input */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] lg:text-xs font-bold text-white dark:text-white flex items-center gap-1.5">
-                  <Radio className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-red-400 dark:text-red-400" />
-                  Your Handle
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-white dark:text-white">
+                  Handle
                 </label>
-                <div className="relative flex gap-1.5">
+                <div className="relative flex gap-2">
                   <Input
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="DeepVoice42"
                     maxLength={20}
-                    className="h-9 lg:h-10 text-center text-sm lg:text-base font-semibold tracking-wide border border-red-900/30 dark:border-red-800/20 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/30 bg-slate-900/90 dark:bg-black/80 text-white dark:text-white transition-all duration-200"
+                    className="h-12 text-center text-base font-medium tracking-wide border border-slate-700/50 dark:border-slate-800/50 focus:border-red-500 dark:focus:border-red-500 focus:ring-2 focus:ring-red-500/20 bg-slate-800/50 dark:bg-slate-900/50 text-white dark:text-white transition-all duration-200"
                   />
                   <Button
                     type="button"
@@ -2611,22 +2384,19 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     onClick={() => {
                       setHandle(generateHandle());
                     }}
-                    className="h-9 w-9 lg:h-10 lg:w-10 shrink-0 border border-red-900/30 dark:border-red-800/20 hover:bg-gradient-to-br hover:from-red-950/50 hover:to-amber-950/40 dark:hover:from-red-950/40 dark:hover:to-amber-950/30 hover:border-red-500 dark:hover:border-red-500 transition-all hover:scale-105 active:scale-95"
+                    className="h-12 w-12 shrink-0 border border-slate-700/50 dark:border-slate-800/50 hover:bg-slate-700/50 dark:hover:bg-slate-800/50 hover:border-red-500 dark:hover:border-red-500 transition-all"
                     title="Generate random handle"
                   >
-                    <Wand2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-red-400 dark:text-red-400" />
+                    <Wand2 className="h-4 w-4 text-red-400 dark:text-red-400" />
                   </Button>
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] lg:text-[10px] text-gray-300 dark:text-gray-300 font-semibold">
-                    Keep it clean, 20 characters max
-                  </p>
-                  <span className={`text-[9px] lg:text-[10px] font-bold transition-colors duration-200 ${
+                <div className="flex items-center justify-end">
+                  <span className={`text-xs font-medium transition-colors duration-200 ${
                     handle.length > 18 
                       ? 'text-red-400 dark:text-red-400' 
                       : handle.length > 15 
                       ? 'text-amber-400 dark:text-amber-400'
-                      : 'text-gray-400 dark:text-gray-400'
+                      : 'text-slate-400 dark:text-slate-500'
                   }`}>
                     {handle.length}/20
                   </span>
@@ -2653,71 +2423,86 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               )}
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-1.5 lg:gap-2 pt-2 lg:pt-3 px-3 lg:px-4 flex-shrink-0 border-t border-red-900/20 dark:border-red-800/10">
+            <CardFooter className="flex flex-col gap-3 pt-4 px-6 pb-6 flex-shrink-0 border-t border-slate-700/30 dark:border-slate-800/30">
               {/* Ready indicator */}
               {handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading && (
-                <div className="flex items-center justify-center gap-1.5 text-[9px] lg:text-[10px] text-amber-400 dark:text-amber-400 mb-0.5">
-                  <CheckCircle2 className="h-3 w-3 lg:h-3.5 lg:w-3.5" />
-                  <span className="font-medium">Ready to create your identity</span>
+                <div className="flex items-center justify-center gap-2 text-xs text-amber-400 dark:text-amber-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="font-medium">Ready to create</span>
                 </div>
               )}
               
               <Button
                 onClick={handleSubmit}
                 disabled={isLoading || !handle.trim() || !deviceId}
-                className={`w-full h-9 lg:h-10 text-xs lg:text-sm font-semibold bg-gradient-to-r from-amber-600 via-amber-500 to-red-600 hover:from-amber-700 hover:via-amber-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl hover:shadow-amber-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
+                className={`w-full h-12 text-sm font-semibold bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white shadow-lg hover:shadow-xl hover:shadow-red-500/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden ${
                   handle.trim() && selectedAvatar && (recaptchaToken || !RECAPTCHA_SITE_KEY) && !isLoading 
-                    ? 'ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-900 dark:ring-offset-slate-950' 
+                    ? 'ring-2 ring-red-500/50 ring-offset-2 ring-offset-slate-800 dark:ring-offset-slate-900' 
                     : ''
                 }`}
                 size="lg"
               >
-                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
                 {isLoading ? (
-                  <span className="flex items-center gap-1.5 relative z-10">
-                    <Loader2 className="h-3.5 w-3.5 lg:h-4 lg:w-4 animate-spin" />
-                    <span className="text-[10px] lg:text-xs">Creating your identity...</span>
+                  <span className="flex items-center gap-2 relative z-10">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Creating...</span>
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 relative z-10">
-                    <span className="group-hover:translate-x-1 transition-transform duration-200">
-                    <CheckCircle2 className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
-                    </span>
-                    <span className="text-[10px] lg:text-xs">Enter The Chamber</span>
-                    <ArrowRight className="h-3 w-3 lg:h-3.5 lg:w-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
+                  <span className="flex items-center gap-2 relative z-10">
+                    <span>Enter The Chamber</span>
+                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200" />
                   </span>
                 )}
               </Button>
-              <p className="text-[9px] lg:text-[10px] text-center text-gray-300 dark:text-gray-300 leading-relaxed font-medium">
+              <p className="text-xs text-center text-slate-400 dark:text-slate-500 leading-relaxed">
                 By continuing, you agree to keep it real and respectful
               </p>
             </CardFooter>
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
-      {/* Privacy Policy, Terms & Cookie Policy Links - Bottom Left Corner (Mobile only) */}
-      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-3 flex-wrap md:hidden">
+      {/* Mobile Footer - Small footer at bottom */}
+      <footer className="md:hidden bg-gradient-to-b from-transparent via-slate-950/90 to-slate-950/95 backdrop-blur-sm border-t border-red-800/20">
+        <div className="px-4 py-2">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
         <Link
           to="/privacy"
-          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              className="text-[9px] text-gray-400/70 dark:text-gray-500/70 hover:text-red-400 dark:hover:text-red-400 transition-colors"
         >
-          Privacy Policy
+              Privacy
         </Link>
-        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
+            <span className="text-[9px] text-gray-500/40">•</span>
         <Link
           to="/terms"
-          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
+              className="text-[9px] text-gray-400/70 dark:text-gray-500/70 hover:text-red-400 dark:hover:text-red-400 transition-colors"
         >
-          Terms of Service
+              Terms
         </Link>
-        <span className="text-[10px] text-gray-400/40 dark:text-gray-500/40">•</span>
+            <span className="text-[9px] text-gray-500/40">•</span>
         <Link
           to="/cookies"
-          className="text-[10px] text-gray-400/60 dark:text-gray-500/60 hover:text-gray-500 dark:hover:text-gray-400 transition-colors"
-        >
-          Cookie Policy
+              className="text-[9px] text-gray-400/70 dark:text-gray-500/70 hover:text-red-400 dark:hover:text-red-400 transition-colors"
+            >
+              Cookies
+            </Link>
+            <span className="text-[9px] text-gray-500/40">•</span>
+            <Link
+              to="/faq"
+              className="text-[9px] text-gray-400/70 dark:text-gray-500/70 hover:text-red-400 dark:hover:text-red-400 transition-colors"
+            >
+              FAQ
+        </Link>
+            <span className="text-[9px] text-gray-500/40">•</span>
+            <Link
+              to="/docs"
+              className="text-[9px] text-gray-400/70 dark:text-gray-500/70 hover:text-red-400 dark:hover:text-red-400 transition-colors"
+            >
+              Docs
         </Link>
       </div>
+        </div>
+      </footer>
 
       {/* Desktop Footer - Small, Sleek */}
       <footer className="hidden md:flex fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-b from-transparent via-slate-950/80 to-slate-950/95 backdrop-blur-sm border-t border-red-800/20">
