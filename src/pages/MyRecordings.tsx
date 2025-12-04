@@ -706,7 +706,7 @@ const MyRecordings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 pb-24">
-      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/30 shadow-sm">
+      <header className="sticky top-0 z-10 bg-background/90 backdrop-blur-xl border-b border-border/30 shadow-sm" data-tutorial="my-recordings-header">
         <div className="w-full px-4 md:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-primary/10">
@@ -829,7 +829,7 @@ const MyRecordings = () => {
           </div>
 
           {/* Level & XP Card - Enhanced with Better Colors */}
-          <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border border-primary/20 shadow-xl shadow-primary/10 mb-4 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden">
+          <Card className="p-4 md:p-6 rounded-2xl md:rounded-3xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5 border border-primary/20 shadow-xl shadow-primary/10 mb-4 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02] relative overflow-hidden" data-tutorial="my-recordings-stats">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-3">
@@ -898,7 +898,7 @@ const MyRecordings = () => {
 
         {/* Tabs - Enhanced with Better Styling */}
         <Tabs defaultValue="recordings" className="w-full px-4 md:px-6 lg:px-8">
-          <TabsList className="grid w-full grid-cols-5 rounded-2xl border-b-2 border-primary/20 bg-gradient-to-r from-background via-background to-primary/5 backdrop-blur-sm">
+          <TabsList className="grid w-full grid-cols-5 rounded-2xl border-b-2 border-primary/20 bg-gradient-to-r from-background via-background to-primary/5 backdrop-blur-sm" data-tutorial="my-recordings-tabs">
             <TabsTrigger value="badges" className="rounded-xl">
               <Trophy className="h-4 w-4 mr-2" />
               Badges
@@ -1190,8 +1190,12 @@ const MyRecordings = () => {
             ) : (
               <>
                 <div className="space-y-4">
-                  {paginatedClips.map((clip) => (
-                    <Card key={clip.id} className="p-4 rounded-2xl space-y-3 bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]">
+                  {paginatedClips.map((clip, index) => (
+                    <Card
+                      key={clip.id}
+                      className="p-4 rounded-2xl space-y-3 bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:scale-[1.01]"
+                      data-tutorial={index === 0 ? "my-recordings-clip" : undefined}
+                    >
                       <ClipCard
                         clip={clip}
                         captionsDefault={profile.default_captions ?? true}

@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -197,6 +205,8 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [activeSection, setActiveSection] = useState<string>("overview");
   const [loadedSections, setLoadedSections] = useState<Set<string>>(new Set(["overview", "get-started"]));
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [showPostOnboardingConfirmation, setShowPostOnboardingConfirmation] = useState(false);
+  const [createdProfileId, setCreatedProfileId] = useState<string | null>(null);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
   // Detect if device is mobile (memoized to prevent re-renders)
@@ -1083,10 +1093,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       
       toast({
         title: "Welcome to Vocalix!",
-        description: "Your identity has been created. Start speaking your mind.",
+        description: "Your identity has been created. Before you enter, please review what you're agreeing to.",
       });
       
-      onComplete(data.id);
+      // Store profile ID and show a confirmation dialog so users clearly understand
+      // what this platform is about and what they are agreeing to.
+      setCreatedProfileId(data.id);
+      setShowPostOnboardingConfirmation(true);
     } catch (error: any) {
       console.error("Onboarding error:", error);
       
@@ -1110,6 +1123,79 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   try {
     return (
       <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Post-onboarding confirmation dialog */}
+      <Dialog open={showPostOnboardingConfirmation} onOpenChange={(open) => {
+        // Prevent closing the dialog without an explicit acknowledgement button click
+        if (!open) return;
+      }}>
+        <DialogContent className="max-w-lg bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-red-800/40">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">
+              You’re entering the Vocalix underground
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              A quick recap of what this space is, and what you’re agreeing to by continuing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm text-slate-200">
+            <div className="rounded-lg bg-slate-900/70 border border-slate-700/60 p-3">
+              <p className="font-semibold mb-1 text-slate-100">What Vocalix is</p>
+              <ul className="list-disc list-inside space-y-1 text-slate-300">
+                <li>Voice-first, anonymous audio clips and conversations.</li>
+                <li>No photos, no profile pictures, no public real names by default.</li>
+                <li>Community-driven spaces built around topics, not identities.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg bg-slate-900/70 border border-red-800/60 p-3">
+              <p className="font-semibold mb-1 text-red-200">What you’re agreeing to</p>
+              <ul className="list-disc list-inside space-y-1 text-slate-300">
+                <li>Keep it real, respectful, and within community guidelines.</li>
+                <li>No hate, harassment, sexual exploitation, or illegal content.</li>
+                <li>Understand that AI-powered safety checks may review clips for abuse and policy violations.</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg bg-slate-900/70 border border-amber-700/60 p-3">
+              <p className="font-semibold mb-1 text-amber-200">What this platform can provide</p>
+              <ul className="list-disc list-inside space-y-1 text-slate-300">
+                <li>A low-pressure place to speak your mind and listen to others.</li>
+                <li>Tools to discover trending clips, follow topics, and join communities.</li>
+                <li>Future features like optional email-based recovery and digests if you choose to connect an email.</li>
+              </ul>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              We don’t require an email for this account by default. If you later add an email in Settings, we’ll send a confirmation message summarizing these basics and how to manage your data.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-4 flex flex-col sm:flex-row sm:justify-end gap-3">
+            <Button
+              variant="outline"
+              className="border-slate-700/70 text-slate-200 hover:bg-slate-800/80"
+              onClick={() => {
+                // Let users back out to tweak their identity before fully entering
+                setShowPostOnboardingConfirmation(false);
+              }}
+            >
+              Go back and edit profile
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white"
+              onClick={() => {
+                if (createdProfileId) {
+                  onComplete(createdProfileId);
+                }
+                setShowPostOnboardingConfirmation(false);
+              }}
+            >
+              I understand – enter Vocalix
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Dark speakeasy background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {/* Subtle animated gradient orbs - burgundy/amber accents */}

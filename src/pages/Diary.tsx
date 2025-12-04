@@ -783,7 +783,7 @@ export default function Diary() {
   return (
     <div className={`min-h-screen ${getThemeClasses()} pb-24 transition-colors`}>
       {/* Enhanced Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b shadow-sm">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b shadow-sm" data-tutorial="diary-header">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -843,7 +843,7 @@ export default function Diary() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button onClick={handleCreateEntry} size="lg" className="bg-gradient-to-r from-primary to-purple-600">
+              <Button onClick={handleCreateEntry} size="lg" className="bg-gradient-to-r from-primary to-purple-600" data-tutorial="diary-create-button">
                 <Plus className="w-4 h-4 mr-2" />
                 New Entry
               </Button>
@@ -852,7 +852,7 @@ export default function Diary() {
 
           {/* Enhanced Search and Filters */}
           <div className="flex gap-2 flex-wrap">
-            <div className="flex-1 min-w-[200px] relative">
+            <div className="flex-1 min-w-[200px] relative" data-tutorial="diary-search">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search entries, tags, moods..."
@@ -861,7 +861,7 @@ export default function Diary() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2" data-tutorial="diary-view-modes">
               <Button
                 variant={showFavoritesOnly ? 'default' : 'outline'}
                 size="sm"
@@ -974,7 +974,7 @@ export default function Diary() {
           </Card>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEntries.map((entry) => (
+            {filteredEntries.map((entry, index) => (
               <Card
                 key={entry.id}
                 className={`p-6 cursor-pointer hover:shadow-xl transition-all border-2 ${
@@ -984,6 +984,7 @@ export default function Diary() {
                   setSelectedEntry(entry);
                   setIsEditing(false);
                 }}
+                data-tutorial={index === 0 ? "diary-entry" : undefined}
               >
                 {entry.is_pinned && (
                   <div className="flex justify-end mb-2">
@@ -1006,7 +1007,7 @@ export default function Diary() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredEntries.map((entry) => (
+            {filteredEntries.map((entry, index) => (
               <Card
                 key={entry.id}
                 className={`p-6 cursor-pointer hover:shadow-xl transition-all border ${
@@ -1016,6 +1017,7 @@ export default function Diary() {
                   setSelectedEntry(entry);
                   setIsEditing(false);
                 }}
+                data-tutorial={index === 0 ? "diary-entry" : undefined}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">

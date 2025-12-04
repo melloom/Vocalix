@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass, ChevronDown, ChevronUp } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass, ChevronDown, ChevronUp, Calendar, Plus, Music, TrendingUp, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -110,6 +110,56 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     highlight: true,
   },
   {
+    id: "voice-amas-overview",
+    title: "Voice AMAs Overview",
+    description:
+      "Welcome to Voice AMAs! This is where creators host Ask Me Anything sessions. You can browse upcoming AMAs, join live sessions, or listen to past Q&As. Each AMA lets you submit questions and hear hosts answer in real time.",
+    targetSelector: '[data-tutorial="voice-amas-header"]',
+    position: "bottom",
+    icon: <Mic className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "voice-amas-tabs",
+    title: "Browse AMAs by Status",
+    description:
+      "Use these tabs to filter AMAs: Upcoming (scheduled sessions), Live Now (active Q&As happening right now), Past (completed sessions you can replay), and All (see everything). Switch between tabs to find what interests you!",
+    targetSelector: '[data-tutorial="voice-amas-tabs"]',
+    position: "bottom",
+    icon: <Calendar className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "voice-amas-search",
+    title: "Search AMAs",
+    description:
+      "Use the search bar to find specific AMAs by title, description, or host handle. Quickly locate sessions you're interested in or discover new hosts to follow!",
+    targetSelector: '[data-tutorial="voice-amas-search"]',
+    position: "bottom",
+    icon: <Search className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "voice-amas-host",
+    title: "Host Your Own AMA",
+    description:
+      "Want to host an AMA? Click 'Host an AMA' to create your own session. Set a title, schedule a time, and let the community submit questions. You'll be able to answer them live!",
+    targetSelector: '[data-tutorial="voice-amas-host-button"]',
+    position: "left",
+    icon: <Plus className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "voice-amas-card",
+    title: "AMA Cards",
+    description:
+      "Each card shows the AMA title, host, scheduled time, participant count, and question count. Click 'Join Live' for active sessions or 'View Details' for upcoming ones. You can submit questions before or during the AMA!",
+    targetSelector: '[data-tutorial="voice-amas-card"]',
+    position: "top",
+    icon: <MessageCircle className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
     id: "communities",
     title: "Communities",
     description: "Join audio communities to connect with like-minded voices! Click the Communities icon in the header to discover themed groups. Join communities, follow them, and participate in community-specific conversations and events.",
@@ -119,11 +169,110 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     highlight: true,
   },
   {
+    id: "communities-overview",
+    title: "Communities Overview",
+    description: "Welcome to Audio Communities! Here you can discover themed groups, join communities, and participate in community-specific conversations. Communities help you connect with like-minded voices around shared interests.",
+    targetSelector: '[data-tutorial="communities-header"]',
+    position: "bottom",
+    icon: <Users className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "communities-search",
+    title: "Search Communities",
+    description: "Use the search bar to find communities by name or description. Quickly discover groups that match your interests!",
+    targetSelector: '[data-tutorial="communities-search"]',
+    position: "bottom",
+    icon: <Search className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "communities-sort",
+    title: "Sort Communities",
+    description: "Sort communities by Trending (most active), Newest (recently created), Members (most members), or Clips (most content). Find what's popular or discover fresh communities!",
+    targetSelector: '[data-tutorial="communities-sort"]',
+    position: "bottom",
+    icon: <TrendingUp className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "communities-filter",
+    title: "Filter Communities",
+    description: "Filter by All, Joined (communities you're a member of), Not Joined, or Following. Use these filters to organize your community browsing!",
+    targetSelector: '[data-tutorial="communities-filter"]',
+    position: "bottom",
+    icon: <Filter className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "communities-create",
+    title: "Create a Community",
+    description: "Want to start your own community? Click 'Create' to set up a new audio community. You'll be the creator and can invite others to join!",
+    targetSelector: '[data-tutorial="communities-create-button"]',
+    position: "left",
+    icon: <Plus className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "communities-card",
+    title: "Community Cards",
+    description: "Each card shows the community name, description, member count, and clip count. Click on any community to visit its page and see clips, join, or follow!",
+    targetSelector: '[data-tutorial="communities-card"]',
+    position: "top",
+    icon: <Users className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
     id: "live-rooms",
     title: "Live Audio Rooms",
     description: "Join real-time voice conversations in Live Rooms! Click the Live Rooms icon to see active rooms. Host your own room, join as a speaker or listener, and engage in live discussions with the community.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
+    icon: <Radio className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "live-rooms-overview",
+    title: "Live Rooms Overview",
+    description: "Welcome to Live Audio Rooms! Join real-time voice conversations, host your own discussions, or listen in. Rooms are perfect for spontaneous conversations and community engagement.",
+    targetSelector: '[data-tutorial="live-rooms-header"]',
+    position: "bottom",
+    icon: <Radio className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "live-rooms-search",
+    title: "Search Live Rooms",
+    description: "Use the search bar to find rooms by title, description, or host handle. Quickly locate discussions you're interested in!",
+    targetSelector: '[data-tutorial="live-rooms-search"]',
+    position: "bottom",
+    icon: <Search className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "live-rooms-sort",
+    title: "Sort Rooms",
+    description: "Sort by Live (active rooms happening now), Scheduled (upcoming rooms), or Newest (recently created). Find what's happening right now or plan ahead!",
+    targetSelector: '[data-tutorial="live-rooms-sort"]',
+    position: "bottom",
+    icon: <Calendar className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "live-rooms-create",
+    title: "Create a Room",
+    description: "Want to host a discussion? Click 'Create Room' to start your own live audio room. You'll be the host and can invite speakers!",
+    targetSelector: '[data-tutorial="live-rooms-create-button"]',
+    position: "left",
+    icon: <Plus className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "live-rooms-card",
+    title: "Room Cards",
+    description: "Each card shows the room title, host, status (Live/Scheduled/Ended), participant count, and scheduled time. Click 'Join' to enter live rooms or 'View Details' for scheduled ones!",
+    targetSelector: '[data-tutorial="live-rooms-card"]',
+    position: "top",
     icon: <Radio className="h-6 w-6" />,
     highlight: true,
   },
@@ -157,6 +306,42 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     highlight: true,
   },
   {
+    id: "saved-clips-overview",
+    title: "Your Saved Clips",
+    description: "Welcome to your collection! This is where all the clips you've bookmarked are saved. You can listen to them anytime, organize them into playlists, or share them with others.",
+    targetSelector: '[data-tutorial="saved-clips-header"]',
+    position: "bottom",
+    icon: <Bookmark className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "saved-clips-stats",
+    title: "Collection Stats",
+    description: "See how many clips you've saved and quickly access your playlists. Your saved clips are organized here for easy access!",
+    targetSelector: '[data-tutorial="saved-clips-stats"]',
+    position: "bottom",
+    icon: <Bookmark className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "saved-clips-playlists",
+    title: "Manage Playlists",
+    description: "Click 'Playlists' to organize your saved clips into custom playlists. Create themed collections, share playlists, and keep your favorite voices organized!",
+    targetSelector: '[data-tutorial="saved-clips-playlists"]',
+    position: "left",
+    icon: <Music className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "saved-clips-list",
+    title: "Your Saved Clips",
+    description: "Browse all your saved clips here. Click any clip to listen, or use the bookmark icon to unsave it. Your collection grows as you discover more voices you love!",
+    targetSelector: '[data-tutorial="saved-clips-list"]',
+    position: "top",
+    icon: <Bookmark className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
     id: "eighteen-plus",
     title: "18+ Content",
     description:
@@ -173,6 +358,51 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="diary"]',
     position: "bottom",
     icon: <Lock className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "diary-overview",
+    title: "Your Encrypted Diary",
+    description: "Welcome to your private journal! All entries are encrypted with your password or PIN for complete privacy. Write your thoughts, add tags and moods, pin favorites, and export your memories.",
+    targetSelector: '[data-tutorial="diary-header"]',
+    position: "bottom",
+    icon: <Lock className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "diary-create",
+    title: "Create an Entry",
+    description: "Click 'New Entry' to write a new diary entry. Add a title, content, tags, and mood. All entries are automatically encrypted and stored securely!",
+    targetSelector: '[data-tutorial="diary-create-button"]',
+    position: "left",
+    icon: <Plus className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "diary-search",
+    title: "Search Entries",
+    description: "Use the search bar to find entries by content, title, or tags. Quickly locate specific memories or thoughts you've written!",
+    targetSelector: '[data-tutorial="diary-search"]',
+    position: "bottom",
+    icon: <Search className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "diary-view-modes",
+    title: "View Modes",
+    description: "Switch between List, Grid, or Calendar view to browse your entries in different ways. Choose what works best for you!",
+    targetSelector: '[data-tutorial="diary-view-modes"]',
+    position: "bottom",
+    icon: <Grid3x3 className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "diary-entry",
+    title: "Diary Entries",
+    description: "Each entry shows the title, preview, tags, mood, and date. Click to read, edit, pin, or delete. Your thoughts are safe and encrypted!",
+    targetSelector: '[data-tutorial="diary-entry"]',
+    position: "top",
+    icon: <BookOpen className="h-6 w-6" />,
     highlight: true,
   },
   {
@@ -214,6 +444,42 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     description: "Manage all your published clips from the My Recordings page! Access it via the microphone icon in the header. View your clips, see their stats, edit them, and track your voice journey.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
+    icon: <Mic className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "my-recordings-overview",
+    title: "My Recordings",
+    description: "Welcome to your recordings dashboard! Here you can see all your published clips, view stats, track your progress, and manage your content. This is your voice journey hub!",
+    targetSelector: '[data-tutorial="my-recordings-header"]',
+    position: "bottom",
+    icon: <Mic className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "my-recordings-stats",
+    title: "Your Stats",
+    description: "See your clip count, total listens, reputation, XP, level, streaks, and more. Track your growth and achievements as a creator!",
+    targetSelector: '[data-tutorial="my-recordings-stats"]',
+    position: "bottom",
+    icon: <BarChart3 className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "my-recordings-tabs",
+    title: "Filter Your Clips",
+    description: "Use tabs to filter: All (all clips), Live (published clips), Drafts (unpublished), or Scheduled (future posts). Organize and manage your content easily!",
+    targetSelector: '[data-tutorial="my-recordings-tabs"]',
+    position: "bottom",
+    icon: <Filter className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "my-recordings-clip",
+    title: "Your Clips",
+    description: "Each clip shows stats, reactions, and options to edit, schedule, or view analytics. Click the three-dot menu for more actions like editing or deleting!",
+    targetSelector: '[data-tutorial="my-recordings-clip"]',
+    position: "top",
     icon: <Mic className="h-6 w-6" />,
     highlight: true,
   },
@@ -302,8 +568,109 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Progress and completion state
-  const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100;
+  // Define step sets for mini-tutorials
+  const settingsStepIds = new Set(["account-linking", "account-pin", "settings"]);
+  const voiceAmasStepIds = new Set(["voice-amas", "voice-amas-overview", "voice-amas-tabs", "voice-amas-search", "voice-amas-host", "voice-amas-card"]);
+  const communitiesStepIds = new Set(["communities", "communities-overview", "communities-search", "communities-sort", "communities-filter", "communities-create", "communities-card"]);
+  const liveRoomsStepIds = new Set(["live-rooms", "live-rooms-overview", "live-rooms-search", "live-rooms-sort", "live-rooms-create", "live-rooms-card"]);
+  const savedClipsStepIds = new Set(["saved-clips", "saved-clips-overview", "saved-clips-stats", "saved-clips-playlists", "saved-clips-list"]);
+  const diaryStepIds = new Set(["encrypted-diary", "diary-overview", "diary-create", "diary-search", "diary-view-modes", "diary-entry"]);
+  const myRecordingsStepIds = new Set(["my-recordings", "my-recordings-overview", "my-recordings-stats", "my-recordings-tabs", "my-recordings-clip"]);
+
+  // All mini-tutorial step IDs (excluding the main step for each feature)
+  const allMiniTutorialStepIds = new Set([
+    ...Array.from(voiceAmasStepIds).filter(id => id !== "voice-amas"),
+    ...Array.from(communitiesStepIds).filter(id => id !== "communities"),
+    ...Array.from(liveRoomsStepIds).filter(id => id !== "live-rooms"),
+    ...Array.from(savedClipsStepIds).filter(id => id !== "saved-clips"),
+    ...Array.from(diaryStepIds).filter(id => id !== "encrypted-diary"),
+    ...Array.from(myRecordingsStepIds).filter(id => id !== "my-recordings"),
+  ]);
+
+  // Calculate main tutorial step count (excluding mini-tutorial steps)
+  const mainStepInfo = useMemo(() => {
+    // Get all main steps (steps that are NOT mini-tutorial steps)
+    const mainSteps = TUTORIAL_STEPS.filter(step => !allMiniTutorialStepIds.has(step.id));
+    const totalMainSteps = mainSteps.length;
+    
+    // Count how many main steps appear at or before the current step
+    const currentMainStepNumber = mainSteps.filter(mainStep => {
+      const mainStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === mainStep.id);
+      return mainStepIndex <= currentStep;
+    }).length;
+    
+    return {
+      current: currentMainStepNumber,
+      total: totalMainSteps,
+    };
+  }, [currentStep, allMiniTutorialStepIds]);
+
+  // Calculate mini-tutorial step info if we're in a mini-tutorial
+  const miniTutorialStepInfo = useMemo(() => {
+    const currentStepId = step?.id || "";
+    
+    // Only consider it a mini-tutorial if the current step is actually a mini-tutorial step
+    // (not the main step like "voice-amas", "communities", etc.)
+    if (!allMiniTutorialStepIds.has(currentStepId)) {
+      return {
+        current: 0,
+        total: 0,
+        isInMiniTutorial: false,
+      };
+    }
+    
+    // Determine which mini-tutorial we're in (if any)
+    let miniTutorialSteps: string[] = [];
+    if (voiceAmasStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(voiceAmasStepIds);
+    } else if (communitiesStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(communitiesStepIds);
+    } else if (liveRoomsStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(liveRoomsStepIds);
+    } else if (savedClipsStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(savedClipsStepIds);
+    } else if (diaryStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(diaryStepIds);
+    } else if (myRecordingsStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(myRecordingsStepIds);
+    }
+    
+    // If we're in a mini-tutorial, calculate step number within it
+    if (miniTutorialSteps.length > 0) {
+      // Get only the mini-tutorial steps (excluding the main step which is in allMiniTutorialStepIds)
+      const pureMiniTutorialSteps = miniTutorialSteps.filter(id => allMiniTutorialStepIds.has(id));
+      
+      // Get the indices of all mini-tutorial steps (excluding main) in the full TUTORIAL_STEPS array
+      const miniTutorialStepIndices = pureMiniTutorialSteps
+        .map(id => TUTORIAL_STEPS.findIndex(s => s.id === id))
+        .filter(idx => idx !== -1)
+        .sort((a, b) => a - b);
+      
+      // Find which mini-tutorial step we're currently on (1-indexed, excluding main step)
+      const currentIndexInArray = miniTutorialStepIndices.findIndex(idx => idx === currentStep);
+      const actualStepNumber = currentIndexInArray >= 0 
+        ? currentIndexInArray + 1 
+        : miniTutorialStepIndices.filter(idx => idx <= currentStep).length || 1;
+      
+      return {
+        current: actualStepNumber,
+        total: pureMiniTutorialSteps.length,
+        isInMiniTutorial: true,
+      };
+    }
+    
+    return {
+      current: 0,
+      total: 0,
+      isInMiniTutorial: false,
+    };
+  }, [currentStep, step?.id, allMiniTutorialStepIds, voiceAmasStepIds, communitiesStepIds, liveRoomsStepIds, savedClipsStepIds, diaryStepIds, myRecordingsStepIds]);
+
+  // Use mini-tutorial step info if in a mini-tutorial, otherwise use main step info
+  const displayStepInfo = miniTutorialStepInfo.isInMiniTutorial ? miniTutorialStepInfo : mainStepInfo;
+
+  // Progress and completion state (based on current step context)
+  const progress = (displayStepInfo.current / displayStepInfo.total) * 100;
 
   // Check if tutorial is completed - use direct localStorage check for immediate response
   const isCompleted = typeof window !== "undefined" && localStorage.getItem(TUTORIAL_STORAGE_KEY) === "true";
@@ -418,7 +785,13 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     // For Settings page, give it a bit more time to render the sidebar
     // For Following page, also give it time to render creator cards
     const delay = location.pathname.startsWith("/settings") ? 350 : 
-                  location.pathname === "/following" ? 300 : 220;
+                  location.pathname === "/following" ? 300 :
+                  location.pathname === "/voice-amas" ? 300 :
+                  location.pathname === "/communities" ? 300 :
+                  location.pathname === "/live-rooms" ? 300 :
+                  location.pathname === "/saved" ? 300 :
+                  location.pathname === "/diary" ? 300 :
+                  location.pathname === "/my-recordings" ? 300 : 220;
     const timeout = setTimeout(() => {
       setIsRouteReady(true);
       setIsManualRouteChange(false);
@@ -445,14 +818,103 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           setTimeout(() => calculatePositionRef.current?.(), 400);
         }
       }
+      // For Voice AMAs page, advance to overview step when arriving
+      if (location.pathname === "/voice-amas" && step?.id === "voice-amas") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "voice-amas-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Communities page, advance to overview step when arriving
+      if (location.pathname === "/communities" && step?.id === "communities") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "communities-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Live Rooms page, advance to overview step when arriving
+      if (location.pathname === "/live-rooms" && step?.id === "live-rooms") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "live-rooms-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Saved Clips page, advance to overview step when arriving
+      if (location.pathname === "/saved" && step?.id === "saved-clips") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "saved-clips-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Diary page, advance to overview step when arriving
+      if (location.pathname === "/diary" && step?.id === "encrypted-diary") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "diary-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For My Recordings page, advance to overview step when arriving
+      if (location.pathname === "/my-recordings" && step?.id === "my-recordings") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "my-recordings-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
     }, delay);
     
-    // Also try calculating immediately if we're navigating to Settings for account-linking
-    if (location.pathname.startsWith("/settings") && step?.id === "account-linking") {
-      // Try immediately, even before route is "ready"
-      setTimeout(() => calculatePosition(), 50);
-      setTimeout(() => calculatePosition(), 150);
-    }
+      // Also try calculating immediately if we're navigating to Settings for account-linking
+      if (location.pathname.startsWith("/settings") && step?.id === "account-linking") {
+        // Try immediately, even before route is "ready"
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 150);
+      }
+      // Also try calculating immediately if we're navigating to Voice AMAs
+      if (location.pathname === "/voice-amas" && voiceAmasStepIds.has(step?.id || "")) {
+        // Try immediately, even before route is "ready"
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 150);
+        setTimeout(() => calculatePosition(), 300);
+      }
+      // Also try calculating immediately for other mini-tutorial pages
+      if ((location.pathname === "/communities" && communitiesStepIds.has(step?.id || "")) ||
+          (location.pathname === "/live-rooms" && liveRoomsStepIds.has(step?.id || "")) ||
+          (location.pathname === "/saved" && savedClipsStepIds.has(step?.id || "")) ||
+          (location.pathname === "/diary" && diaryStepIds.has(step?.id || "")) ||
+          (location.pathname === "/my-recordings" && myRecordingsStepIds.has(step?.id || ""))) {
+        setTimeout(() => calculatePosition(), 50);
+        setTimeout(() => calculatePosition(), 150);
+        setTimeout(() => calculatePosition(), 300);
+      }
     
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -552,7 +1014,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const isOnSettingsPage = location.pathname.startsWith("/settings");
   const isOnFollowingPage = location.pathname === "/following";
   const isOnVoiceAmasPage = location.pathname === "/voice-amas";
-  const settingsStepIds = new Set(["account-linking", "account-pin", "settings"]);
+  const isOnCommunitiesPage = location.pathname === "/communities";
+  const isOnLiveRoomsPage = location.pathname === "/live-rooms";
+  const isOnSavedClipsPage = location.pathname === "/saved";
+  const isOnDiaryPage = location.pathname === "/diary";
+  const isOnMyRecordingsPage = location.pathname === "/my-recordings";
 
   // Check if record modal is open during tutorial (should hide overlay)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
@@ -589,7 +1055,15 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     isRouteReady &&
     !isManualRouteChange &&
     !isRecordModalOpen && // Hide overlay when record modal is open during tutorial
-    (isOnMainFeed || (isOnSettingsPage && settingsStepIds.has(step.id)) || (isOnFollowingPage && step.id === "follow") || (isOnVoiceAmasPage && step.id === "voice-amas"));
+    (isOnMainFeed || 
+     (isOnSettingsPage && settingsStepIds.has(step.id)) || 
+     (isOnFollowingPage && step.id === "follow") || 
+     (isOnVoiceAmasPage && voiceAmasStepIds.has(step.id)) ||
+     (isOnCommunitiesPage && communitiesStepIds.has(step.id)) ||
+     (isOnLiveRoomsPage && liveRoomsStepIds.has(step.id)) ||
+     (isOnSavedClipsPage && savedClipsStepIds.has(step.id)) ||
+     (isOnDiaryPage && diaryStepIds.has(step.id)) ||
+     (isOnMyRecordingsPage && myRecordingsStepIds.has(step.id)));
 
   // NOTE: We intentionally do NOT lock body scroll here anymore.
   // Global scroll locking caused issues when navigating between pages
@@ -788,10 +1262,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           }
         }
       } else if (step.id === "voice-amas") {
-        // For "Voice AMAs", when on Voice AMAs page, show center tooltip
+        // For "Voice AMAs", when on Voice AMAs page, advance to overview step
         // Otherwise, highlight the Voice AMAs icon in the header nav.
         if (location.pathname === "/voice-amas") {
-          // On Voice AMAs page, don't highlight a specific element - show center tooltip
+          // On Voice AMAs page, don't highlight - will auto-advance to overview
           element = null;
         } else {
           const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
@@ -805,6 +1279,103 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
             }
           }
         }
+      } else if (step.id === "voice-amas-overview") {
+        const header = document.querySelector('[data-tutorial="voice-amas-header"]') as HTMLElement | null;
+        if (header) {
+          element = header;
+        }
+      } else if (step.id === "voice-amas-tabs") {
+        const tabs = document.querySelector('[data-tutorial="voice-amas-tabs"]') as HTMLElement | null;
+        if (tabs) {
+          element = tabs;
+        }
+      } else if (step.id === "voice-amas-search") {
+        const search = document.querySelector('[data-tutorial="voice-amas-search"]') as HTMLElement | null;
+        if (search) {
+          element = search;
+        }
+      } else if (step.id === "voice-amas-host") {
+        const hostButton = document.querySelector('[data-tutorial="voice-amas-host-button"]') as HTMLElement | null;
+        if (hostButton) {
+          element = hostButton;
+        }
+      } else if (step.id === "voice-amas-card") {
+        const card = document.querySelector('[data-tutorial="voice-amas-card"]') as HTMLElement | null;
+        if (card) {
+          element = card;
+        }
+      } else if (step.id === "communities-overview") {
+        const header = document.querySelector('[data-tutorial="communities-header"]') as HTMLElement | null;
+        if (header) element = header;
+      } else if (step.id === "communities-search") {
+        const search = document.querySelector('[data-tutorial="communities-search"]') as HTMLElement | null;
+        if (search) element = search;
+      } else if (step.id === "communities-sort") {
+        const sort = document.querySelector('[data-tutorial="communities-sort"]') as HTMLElement | null;
+        if (sort) element = sort;
+      } else if (step.id === "communities-filter") {
+        const filter = document.querySelector('[data-tutorial="communities-filter"]') as HTMLElement | null;
+        if (filter) element = filter;
+      } else if (step.id === "communities-create") {
+        const createButton = document.querySelector('[data-tutorial="communities-create-button"]') as HTMLElement | null;
+        if (createButton) element = createButton;
+      } else if (step.id === "communities-card") {
+        const card = document.querySelector('[data-tutorial="communities-card"]') as HTMLElement | null;
+        if (card) element = card;
+      } else if (step.id === "live-rooms-overview") {
+        const header = document.querySelector('[data-tutorial="live-rooms-header"]') as HTMLElement | null;
+        if (header) element = header;
+      } else if (step.id === "live-rooms-search") {
+        const search = document.querySelector('[data-tutorial="live-rooms-search"]') as HTMLElement | null;
+        if (search) element = search;
+      } else if (step.id === "live-rooms-sort") {
+        const sort = document.querySelector('[data-tutorial="live-rooms-sort"]') as HTMLElement | null;
+        if (sort) element = sort;
+      } else if (step.id === "live-rooms-create") {
+        const createButton = document.querySelector('[data-tutorial="live-rooms-create-button"]') as HTMLElement | null;
+        if (createButton) element = createButton;
+      } else if (step.id === "live-rooms-card") {
+        const card = document.querySelector('[data-tutorial="live-rooms-card"]') as HTMLElement | null;
+        if (card) element = card;
+      } else if (step.id === "saved-clips-overview") {
+        const header = document.querySelector('[data-tutorial="saved-clips-header"]') as HTMLElement | null;
+        if (header) element = header;
+      } else if (step.id === "saved-clips-stats") {
+        const stats = document.querySelector('[data-tutorial="saved-clips-stats"]') as HTMLElement | null;
+        if (stats) element = stats;
+      } else if (step.id === "saved-clips-playlists") {
+        const playlists = document.querySelector('[data-tutorial="saved-clips-playlists"]') as HTMLElement | null;
+        if (playlists) element = playlists;
+      } else if (step.id === "saved-clips-list") {
+        const list = document.querySelector('[data-tutorial="saved-clips-list"]') as HTMLElement | null;
+        if (list) element = list;
+      } else if (step.id === "diary-overview") {
+        const header = document.querySelector('[data-tutorial="diary-header"]') as HTMLElement | null;
+        if (header) element = header;
+      } else if (step.id === "diary-create") {
+        const createButton = document.querySelector('[data-tutorial="diary-create-button"]') as HTMLElement | null;
+        if (createButton) element = createButton;
+      } else if (step.id === "diary-search") {
+        const search = document.querySelector('[data-tutorial="diary-search"]') as HTMLElement | null;
+        if (search) element = search;
+      } else if (step.id === "diary-view-modes") {
+        const viewModes = document.querySelector('[data-tutorial="diary-view-modes"]') as HTMLElement | null;
+        if (viewModes) element = viewModes;
+      } else if (step.id === "diary-entry") {
+        const entry = document.querySelector('[data-tutorial="diary-entry"]') as HTMLElement | null;
+        if (entry) element = entry;
+      } else if (step.id === "my-recordings-overview") {
+        const header = document.querySelector('[data-tutorial="my-recordings-header"]') as HTMLElement | null;
+        if (header) element = header;
+      } else if (step.id === "my-recordings-stats") {
+        const stats = document.querySelector('[data-tutorial="my-recordings-stats"]') as HTMLElement | null;
+        if (stats) element = stats;
+      } else if (step.id === "my-recordings-tabs") {
+        const tabs = document.querySelector('[data-tutorial="my-recordings-tabs"]') as HTMLElement | null;
+        if (tabs) element = tabs;
+      } else if (step.id === "my-recordings-clip") {
+        const clip = document.querySelector('[data-tutorial="my-recordings-clip"]') as HTMLElement | null;
+        if (clip) element = clip;
       } else if (step.id === "saved-clips") {
         // For "Saved Clips & Bookmarks", highlight the Saved Clips icon/tab.
         const nav = document.querySelector('[data-tutorial="navigation"]') as HTMLElement | null;
@@ -2148,6 +2719,116 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       const currentStepConfig = TUTORIAL_STEPS[currentStep];
       const nextStepConfig = TUTORIAL_STEPS[currentStep + 1];
 
+      // Skip mini-tutorial steps if we're on a main tutorial step and NOT on the corresponding page
+      // This allows users to skip mini-tutorials by pressing Next instead of navigating
+      if (currentStepConfig?.id === "voice-amas" && location.pathname !== "/voice-amas") {
+        // Skip all Voice AMAs mini-tutorial steps and go to next main step (communities)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "communities");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "communities" && location.pathname !== "/communities") {
+        // Skip all Communities mini-tutorial steps and go to next main step (live-rooms)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "live-rooms");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "live-rooms" && location.pathname !== "/live-rooms") {
+        // Skip all Live Rooms mini-tutorial steps and go to next main step (leaderboards)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "leaderboards");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "saved-clips" && location.pathname !== "/saved") {
+        // Skip all Saved Clips mini-tutorial steps and go to next main step (eighteen-plus)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "eighteen-plus");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "encrypted-diary" && location.pathname !== "/diary") {
+        // Skip all Diary mini-tutorial steps and go to next main step (account-linking)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "account-linking");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "my-recordings" && location.pathname !== "/my-recordings") {
+        // Skip all My Recordings mini-tutorial steps and go to next main step (settings)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "settings");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+
       // If we're on the "Follow Creators" step (follow) and on the Following page,
       // navigate back to the main feed so the next step highlights the header properly
       if (currentStepConfig?.id === "follow" && location.pathname === "/following") {
@@ -2155,6 +2836,103 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         setIsTransitioning(true);
         navigate("/");
         // Wait for navigation to complete before advancing step
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last Voice AMAs step and on the Voice AMAs page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "voice-amas-card" && location.pathname === "/voice-amas") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        // Wait for navigation to complete before advancing step
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last Communities step and on the Communities page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "communities-card" && location.pathname === "/communities") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last Live Rooms step and on the Live Rooms page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "live-rooms-card" && location.pathname === "/live-rooms") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last Saved Clips step and on the Saved Clips page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "saved-clips-list" && location.pathname === "/saved") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last Diary step and on the Diary page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "diary-entry" && location.pathname === "/diary") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
+        setTimeout(() => {
+          setCurrentStep(currentStep + 1);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 50);
+        }, 300);
+        return;
+      }
+
+      // If we're on the last My Recordings step and on the My Recordings page,
+      // navigate back to the main feed so the next step highlights the header properly
+      if (currentStepConfig?.id === "my-recordings-clip" && location.pathname === "/my-recordings") {
+        isNavigatingRef.current = true;
+        setIsTransitioning(true);
+        navigate("/");
         setTimeout(() => {
           setCurrentStep(currentStep + 1);
           setTimeout(() => {
@@ -2208,6 +2986,105 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     if (currentStep > 0) {
       const currentStepConfig = TUTORIAL_STEPS[currentStep];
       const previousStepConfig = TUTORIAL_STEPS[currentStep - 1];
+
+      // If we're on a mini-tutorial step and going back
+      if (allMiniTutorialStepIds.has(currentStepConfig?.id || "")) {
+        // Determine which mini-tutorial we're in
+        let miniTutorialStepSet: Set<string> | null = null;
+        let mainStepId = "";
+        if (voiceAmasStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = voiceAmasStepIds;
+          mainStepId = "voice-amas";
+        } else if (communitiesStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = communitiesStepIds;
+          mainStepId = "communities";
+        } else if (liveRoomsStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = liveRoomsStepIds;
+          mainStepId = "live-rooms";
+        } else if (savedClipsStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = savedClipsStepIds;
+          mainStepId = "saved-clips";
+        } else if (diaryStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = diaryStepIds;
+          mainStepId = "encrypted-diary";
+        } else if (myRecordingsStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = myRecordingsStepIds;
+          mainStepId = "my-recordings";
+        }
+        
+        if (miniTutorialStepSet) {
+          // Check if the previous step is also in the same mini-tutorial
+          if (previousStepConfig && miniTutorialStepSet.has(previousStepConfig.id)) {
+            // Previous step is also in the mini-tutorial, so go to it normally
+            isNavigatingRef.current = true;
+            setIsTransitioning(true);
+            setHighlightRect(null);
+            setTargetElement(null);
+            setTooltipPosition(null);
+            setCurrentStep(currentStep - 1);
+            setTimeout(() => {
+              setIsTransitioning(false);
+              isNavigatingRef.current = false;
+            }, 150);
+            return;
+          } else {
+            // Previous step is NOT in the mini-tutorial, so we're on the first mini-tutorial step
+            // Navigate back to main feed and go to the main step
+            isNavigatingRef.current = true;
+            setIsTransitioning(true);
+            navigate("/");
+            const mainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === mainStepId);
+            if (mainStepIndex !== -1) {
+              setTimeout(() => {
+                setCurrentStep(mainStepIndex);
+                setTimeout(() => {
+                  setIsTransitioning(false);
+                  isNavigatingRef.current = false;
+                }, 50);
+              }, 300);
+              return;
+            }
+          }
+        }
+      }
+
+      // Skip mini-tutorial steps when going back from a main step
+      // If the previous step is a mini-tutorial step, find the main step it belongs to
+      if (previousStepConfig && allMiniTutorialStepIds.has(previousStepConfig.id)) {
+        // Determine which main step this mini-tutorial belongs to
+        let mainStepId = "";
+        if (voiceAmasStepIds.has(previousStepConfig.id)) {
+          mainStepId = "voice-amas";
+        } else if (communitiesStepIds.has(previousStepConfig.id)) {
+          mainStepId = "communities";
+        } else if (liveRoomsStepIds.has(previousStepConfig.id)) {
+          mainStepId = "live-rooms";
+        } else if (savedClipsStepIds.has(previousStepConfig.id)) {
+          mainStepId = "saved-clips";
+        } else if (diaryStepIds.has(previousStepConfig.id)) {
+          mainStepId = "encrypted-diary";
+        } else if (myRecordingsStepIds.has(previousStepConfig.id)) {
+          mainStepId = "my-recordings";
+        }
+        
+        // Navigate to that main step
+        if (mainStepId) {
+          const mainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === mainStepId);
+          if (mainStepIndex !== -1) {
+            isNavigatingRef.current = true;
+            setIsTransitioning(true);
+            setHighlightRect(null);
+            setTargetElement(null);
+            setTooltipPosition(null);
+            setCurrentStep(mainStepIndex);
+            setTimeout(() => {
+              setIsTransitioning(false);
+              isNavigatingRef.current = false;
+            }, 150);
+            return;
+          }
+        }
+      }
 
       // If we're on Settings for the Link Your Account step and user presses Previous,
       // navigate back to the main feed so the previous step has its proper context.
@@ -2983,7 +3860,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           data-tutorial-active="true"
         >
           <Badge variant="secondary" className="text-sm font-medium px-4 py-2 shadow-lg bg-background/95 backdrop-blur-sm border-2 border-primary/30">
-            {currentStep + 1} of {TUTORIAL_STEPS.length} - {currentStepConfig?.title || "Follow Creators"}
+            {displayStepInfo.current} of {displayStepInfo.total} - {currentStepConfig?.title || "Follow Creators"}
           </Badge>
         </div>
       </>
@@ -3174,7 +4051,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           data-tutorial-active="true"
         >
           <Badge variant="secondary" className="text-sm font-medium px-4 py-2 shadow-lg bg-background/95 backdrop-blur-sm border-2 border-primary/30">
-            {currentStep + 1} of {TUTORIAL_STEPS.length} - {step?.title || "Follow Creators"}
+            {displayStepInfo.current} of {displayStepInfo.total} - {step?.title || "Follow Creators"}
           </Badge>
         </div>
       </>
@@ -3322,7 +4199,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   <CardTitle className="text-xl font-semibold">{step.title}</CardTitle>
                   <div className="flex items-center gap-2 mt-1.5">
                     <Badge variant="secondary" className="text-xs font-medium">
-                      {currentStep + 1} of {TUTORIAL_STEPS.length}
+                      {displayStepInfo.current} of {displayStepInfo.total}
                     </Badge>
                   </div>
                 </div>

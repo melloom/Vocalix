@@ -824,13 +824,16 @@ const Settings = () => {
     
     // Debounce the save - only save after user stops typing for 1 second
     emailSaveTimeoutRef.current = setTimeout(async () => {
-    try {
-      // @ts-ignore - email field exists but not in generated types
-      await updateProfile({ email: email.trim() || (null as any) });
-      await refetch();
+      const trimmed = email.trim();
+      const previousEmail = (profile as any)?.email as string | null | undefined;
+
+      try {
+        // @ts-ignore - email field exists but not in generated types
+        await updateProfile({ email: trimmed || (null as any) });
+        await refetch();
         
         // If email was cleared and digest is enabled, disable digest
-        if (!email.trim() && digestEnabled) {
+        if (!trimmed && digestEnabled) {
           // @ts-expect-error - digest fields exist but not in generated types
           await updateProfile({ 
             digest_enabled: false,
@@ -838,24 +841,44 @@ const Settings = () => {
           } as any);
           await refetch();
           setDigestEnabled(false);
-        toast({
+          toast({
             title: "Digest disabled",
             description: "Email digests have been disabled since email was removed.",
           });
-        } else if (email.trim()) {
+        } else if (trimmed) {
           toast({
             title: "Email saved",
             description: "Your email has been saved. You can use it for digests and login links.",
+          });
+
+          // If this is the first time adding an email (or changing from empty),
+          // trigger a one-time welcome/confirmation email via Edge Function.
+          if (!previousEmail) {
+            try {
+              const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+              if (SUPABASE_URL && profile?.id) {
+                await fetch(`${SUPABASE_URL}/functions/v1/send-welcome-email`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ profile_id: profile.id }),
+                });
+              }
+            } catch (welcomeError) {
+              // Fail silently – email is an enhancement, not required
+              console.warn("Failed to trigger welcome email:", welcomeError);
+            }
+          }
+        }
+      } catch (error) {
+        logError("Failed to update email", error);
+        toast({
+          title: "Couldn't update email",
+          description: "Please try again.",
+          variant: "destructive",
         });
       }
-    } catch (error) {
-      logError("Failed to update email", error);
-      toast({
-        title: "Couldn't update email",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    }
     }, 1000); // Wait 1 second after user stops typing
   };
 

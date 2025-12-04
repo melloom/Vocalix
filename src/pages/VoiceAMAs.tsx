@@ -182,7 +182,7 @@ export default function VoiceAMAs() {
 
   return (
     <div className="w-full px-4 lg:px-8 py-6">
-      <div className="mb-6">
+      <div className="mb-6" data-tutorial="voice-amas-header">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Button
@@ -202,7 +202,10 @@ export default function VoiceAMAs() {
             </div>
           </div>
           {profile && (
-            <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)}
+              data-tutorial="voice-amas-host-button"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Host an AMA
             </Button>
@@ -212,7 +215,7 @@ export default function VoiceAMAs() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
         <div className="flex items-center justify-between mb-4">
-          <TabsList>
+          <TabsList data-tutorial="voice-amas-tabs">
             <TabsTrigger value="upcoming">
               <Calendar className="h-4 w-4 mr-2" />
               Upcoming
@@ -228,7 +231,7 @@ export default function VoiceAMAs() {
             <TabsTrigger value="all">All</TabsTrigger>
           </TabsList>
           <div className="flex-1 max-w-sm ml-4">
-            <div className="relative">
+            <div className="relative" data-tutorial="voice-amas-search">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search AMAs..."
@@ -262,8 +265,12 @@ export default function VoiceAMAs() {
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredAmas.map((ama) => (
-                <Card key={ama.id} className="rounded-3xl hover:shadow-lg transition-shadow">
+              {filteredAmas.map((ama, index) => (
+                <Card 
+                  key={ama.id} 
+                  className="rounded-3xl hover:shadow-lg transition-shadow"
+                  data-tutorial={index === 0 ? "voice-amas-card" : undefined}
+                >
                   <CardHeader>
                     <div className="flex items-start justify-between mb-2">
                       <Badge variant="secondary" className="rounded-full">

@@ -147,7 +147,7 @@ const SavedClips = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border" data-tutorial="saved-clips-header">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
@@ -157,7 +157,7 @@ const SavedClips = () => {
             </Button>
             <h1 className="text-2xl font-bold">Saved Clips</h1>
           </div>
-          <Button variant="outline" size="sm" asChild className="rounded-2xl">
+          <Button variant="outline" size="sm" asChild className="rounded-2xl" data-tutorial="saved-clips-playlists">
             <Link to="/playlists">
               <Music className="h-4 w-4 mr-2" />
               Playlists
@@ -167,7 +167,7 @@ const SavedClips = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-8">
-        <section className="space-y-4 text-center">
+        <section className="space-y-4 text-center" data-tutorial="saved-clips-stats">
           <div className="flex flex-col items-center gap-3">
             <div className="text-6xl">
               <Bookmark className="h-16 w-16 mx-auto text-primary" />
@@ -196,7 +196,7 @@ const SavedClips = () => {
           </div>
         </section>
 
-        <section className="space-y-4">
+        <section className="space-y-4" data-tutorial="saved-clips-list">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Saved Clips</h3>
             <p className="text-sm text-muted-foreground">{clips.length} total</p>

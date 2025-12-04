@@ -119,7 +119,7 @@ const Communities = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border" data-tutorial="communities-header">
         <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
@@ -134,6 +134,7 @@ const Communities = () => {
               onClick={() => setIsCreateModalOpen(true)}
               size="sm"
               className="rounded-2xl"
+              data-tutorial="communities-create-button"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create
@@ -174,7 +175,7 @@ const Communities = () => {
 
         {/* Search and Filters */}
         <div className="space-y-4">
-          <div className="relative">
+          <div className="relative" data-tutorial="communities-search">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
@@ -187,7 +188,7 @@ const Communities = () => {
 
           {/* Sort and Filter Tabs */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)} className="flex-1">
+            <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)} className="flex-1" data-tutorial="communities-sort">
               <TabsList className="grid w-full grid-cols-4 h-10">
                 <TabsTrigger value="trending" className="text-xs sm:text-sm flex items-center gap-1">
                   <TrendingUp className="w-3 h-3" />
@@ -208,7 +209,7 @@ const Communities = () => {
               </TabsList>
             </Tabs>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2" data-tutorial="communities-filter">
               <Button
                 variant={filterFollowed === true ? "default" : "outline"}
                 size="sm"
@@ -299,8 +300,10 @@ const Communities = () => {
                 Showing {filteredAndSortedCommunities.length} {filteredAndSortedCommunities.length === 1 ? "community" : "communities"}
               </span>
             </div>
-            {filteredAndSortedCommunities.map((community) => (
-              <CommunityCard key={community.id} community={community} />
+            {filteredAndSortedCommunities.map((community, index) => (
+              <div key={community.id} data-tutorial={index === 0 ? "communities-card" : undefined}>
+                <CommunityCard community={community} />
+              </div>
             ))}
           </div>
         )}

@@ -221,7 +221,7 @@ const LiveRooms = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border" data-tutorial="live-rooms-header">
         <div className="w-full px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild className="rounded-full">
@@ -238,6 +238,7 @@ const LiveRooms = () => {
             onClick={() => setIsCreateModalOpen(true)}
             size="sm"
             className="rounded-full"
+            data-tutorial="live-rooms-create-button"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Room
@@ -248,7 +249,7 @@ const LiveRooms = () => {
       <main className="w-full px-4 lg:px-8 py-6 space-y-6">
         {/* Search and Filters */}
         <div className="space-y-4">
-          <div className="relative">
+          <div className="relative" data-tutorial="live-rooms-search">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search rooms..."
@@ -258,7 +259,7 @@ const LiveRooms = () => {
             />
           </div>
 
-          <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)} data-tutorial="live-rooms-sort">
             <TabsList className="w-full">
               <TabsTrigger value="live" className="flex-1">
                 <Radio className="h-4 w-4 mr-2" />
@@ -307,11 +308,12 @@ const LiveRooms = () => {
         ) : (
           <>
             <div className="space-y-4">
-              {paginatedRooms.map((room) => (
+              {paginatedRooms.map((room, index) => (
               <Card
                 key={room.id}
                 className="p-6 rounded-3xl hover:shadow-lg transition-shadow cursor-pointer"
                 onClick={() => handleJoinRoom(room.id)}
+                data-tutorial={index === 0 ? "live-rooms-card" : undefined}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-3">
