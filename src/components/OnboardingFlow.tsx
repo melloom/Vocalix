@@ -1272,6 +1272,75 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Restore Persona Dialog */}
+      <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <DialogContent className="rounded-3xl max-w-md bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-red-800/40">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">
+              <Key className="h-5 w-5 text-amber-400" />
+              Restore Your Persona
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Enter your recovery phrase to restore your existing persona on this device. This will skip creating a new account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="rounded-xl bg-amber-50/10 dark:bg-amber-950/30 border border-amber-500/30 p-3">
+              <p className="text-sm font-medium text-amber-200 mb-1">
+                💡 Don't have a recovery phrase?
+              </p>
+              <p className="text-xs text-amber-300/80">
+                If you don't have a recovery phrase, you can create a new account by clicking "Get Started" instead.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="restorePhrase" className="text-sm font-medium text-slate-200">
+                Recovery Phrase
+              </label>
+              <Input
+                id="restorePhrase"
+                type="text"
+                placeholder="correct horse battery staple"
+                value={restorePhraseInput}
+                onChange={(e) => setRestorePhraseInput(e.target.value)}
+                className="rounded-2xl font-mono bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isRestoringPersona && restorePhraseInput.trim()) {
+                    handleRestorePersona();
+                  }
+                }}
+              />
+              <p className="text-xs text-slate-400">
+                Enter the 4-word recovery phrase you saved when setting up your persona.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRestoreDialog(false);
+                setRestorePhraseInput("");
+              }}
+              className="rounded-2xl border-slate-700/70 text-slate-200 hover:bg-slate-800/80"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRestorePersona}
+              disabled={isRestoringPersona || !restorePhraseInput.trim()}
+              className="rounded-2xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white"
+            >
+              {isRestoringPersona ? "Restoring..." : "Restore Persona"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dark speakeasy background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {/* Subtle animated gradient orbs - burgundy/amber accents */}
