@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 interface TutorialStep {
@@ -664,6 +674,7 @@ interface InteractiveTutorialProps {
 
 export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [showBackWarning, setShowBackWarning] = useState(false);
   const [targetElement, setTargetElement] = useState<HTMLElement | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1279,8 +1290,34 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       (isOnLeaderboardsPage && leaderboardsStepIds.has(step.id)) ||
       (isOnDiscoveryPage && discoveryStepIds.has(step.id)) ||
       (isOnNotificationsPage && notificationsStepIds.has(step.id)) ||
-      (isOnEighteenPlusPage && eighteenPlusStepIds.has(step.id))
-    );
+      (isOnEighteenPlusPage && eighteenPlusStepIds.has(step.id)    )
+  );
+
+  // Handle browser back button when in a mini-tutorial
+  useEffect(() => {
+    if (!step || !isVisible || isCompleted) return;
+    
+    const isInMiniTutorial = allMiniTutorialStepIds.has(step.id);
+    if (!isInMiniTutorial) return;
+
+    const handlePopState = () => {
+      // User is trying to navigate away from a mini-tutorial
+      // Push the current state back to prevent navigation
+      window.history.pushState(null, "", window.location.href);
+      
+      // Show warning dialog
+      setShowBackWarning(true);
+    };
+
+    // Push current state to history stack
+    window.history.pushState(null, "", window.location.href);
+    
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [step?.id, isVisible, isCompleted, allMiniTutorialStepIds]);
 
   // NOTE: We intentionally do NOT lock body scroll here anymore.
   // Global scroll locking caused issues when navigating between pages
@@ -4958,6 +4995,30 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           </CardContent>
         </Card>
       </div>
+      
+      <AlertDialog open={showBackWarning} onOpenChange={setShowBackWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You're in a Tutorial</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're currently in a tutorial step. Please finish the tutorial or skip it before navigating away.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowBackWarning(false)}>
+              Continue Tutorial
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowBackWarning(false);
+                markCompleted();
+              }}
+            >
+              Skip Tutorial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
