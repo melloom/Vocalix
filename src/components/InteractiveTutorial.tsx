@@ -4580,9 +4580,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  onClick={handleSkip}
+                  className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors z-[100001] relative"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleSkip();
+                  }}
                   aria-label="Skip tutorial"
+                  disabled={isNavigatingRef.current || isTransitioning}
                 >
                   <X className="h-4 w-4" />
                 </Button>
