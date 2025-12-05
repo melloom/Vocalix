@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu, Key } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -207,6 +207,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showPostOnboardingConfirmation, setShowPostOnboardingConfirmation] = useState(false);
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [restorePhraseInput, setRestorePhraseInput] = useState("");
+  const [isRestoringPersona, setIsRestoringPersona] = useState(false);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
   // Detect if device is mobile (memoized to prevent re-renders)
@@ -1119,6 +1122,77 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
   };
 
+  const handleRestorePersona = async () => {
+    setIsRestoringPersona(true);
+    try {
+      // Validate the recovery phrase
+      const validation = validateRecoveryPhrase(restorePhraseInput);
+      if (!validation.valid) {
+        toast({
+          title: "Invalid recovery phrase",
+          description: validation.error,
+          variant: "destructive",
+        });
+        setIsRestoringPersona(false);
+        return;
+      }
+
+      // Get current pseudo_id (will be replaced)
+      const currentPseudoId = getPseudoId();
+      if (!currentPseudoId) {
+        throw new Error("No pseudo ID found. Please refresh and try again.");
+      }
+
+      // Call restore-persona function
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/restore-persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          recoveryPhrase: restorePhraseInput,
+          newPseudoId: currentPseudoId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error("Invalid recovery phrase. Please check and try again.");
+      }
+
+      toast({
+        title: "Persona restored!",
+        description: `Welcome back, ${result.handle}! Your persona has been restored.`,
+      });
+
+      // Complete onboarding with restored profile
+      if (result.profileId) {
+        onComplete(result.profileId);
+      } else {
+        // Reload to ensure everything is synced
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error("Failed to restore persona:", error);
+      toast({
+        title: "Couldn't restore persona",
+        description: error?.message || "Please check your recovery phrase and try again.",
+        variant: "destructive",
+      });
+      setIsRestoringPersona(false);
+    }
+  };
+
   // CRITICAL: Wrap entire render in try-catch to prevent crashes
   try {
     return (
@@ -1411,19 +1485,31 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       The underground platform where <span className="text-red-400 font-bold">voice is everything</span>. Speak your mind, stay anonymous, build real connections—<span className="text-amber-400 font-bold">no BS, no filters</span>.
                     </p>
                     
-                    {/* CTA Button */}
-                    <Button
-                      onClick={() => {
-                        setActiveSection("get-started");
-                        setLoadedSections((prev: Set<string>) => new Set([...prev, "get-started"]));
-                      }}
-                      className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold px-8 py-6 text-lg shadow-xl hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-105"
-                    >
-                      <span className="flex items-center gap-2">
-                        Get Started
-                        <ArrowRight className="h-5 w-5" />
-                      </span>
-                    </Button>
+                    {/* CTA Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Button
+                        onClick={() => {
+                          setActiveSection("get-started");
+                          setLoadedSections((prev: Set<string>) => new Set([...prev, "get-started"]));
+                        }}
+                        className="bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white font-bold px-8 py-6 text-lg shadow-xl hover:shadow-2xl hover:shadow-red-500/30 transition-all duration-300 hover:scale-105"
+                      >
+                        <span className="flex items-center gap-2">
+                          Get Started
+                          <ArrowRight className="h-5 w-5" />
+                        </span>
+                      </Button>
+                      <Button
+                        onClick={() => setShowRestoreDialog(true)}
+                        variant="outline"
+                        className="border-amber-500/50 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300 font-semibold px-8 py-6 text-lg transition-all duration-300"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Key className="h-5 w-5" />
+                          Restore Existing Persona
+                        </span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
