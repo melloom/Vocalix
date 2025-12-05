@@ -278,23 +278,30 @@ export function CookieBanner() {
               </div>
             </div>
 
-            {/* Marketing Cookies - Currently not used but included for future */}
-            <div className="space-y-3 opacity-60">
+            {/* Marketing Cookies */}
+            <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <Checkbox
                   id="marketing"
                   checked={preferences.marketing}
-                  disabled
+                  onCheckedChange={(checked) =>
+                    setPreferences({ ...preferences, marketing: checked === true })
+                  }
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <Label htmlFor="marketing" className="text-base font-semibold cursor-default">
+                  <Label htmlFor="marketing" className="text-base font-semibold cursor-pointer">
                     Marketing Cookies
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">(Not Currently Used)</span>
                   </Label>
                   <p className="text-sm text-muted-foreground mt-1">
-                    We do not currently use marketing or advertising cookies. This option is reserved for future use.
+                    These cookies are used to deliver personalized advertisements and track campaign performance. 
+                    Currently used for promotional content and feature announcements.
                   </p>
+                  <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                    <p>• Personalized promotional content</p>
+                    <p>• Campaign performance tracking</p>
+                    <p>• Feature announcement preferences</p>
+                  </div>
                 </div>
               </div>
             </div>

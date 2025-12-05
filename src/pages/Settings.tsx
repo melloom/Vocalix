@@ -52,6 +52,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { logError, logWarn } from "@/lib/logger";
 import { ensureScrollEnabled } from "@/utils/scrollRestore";
+import { getPseudoId, clearPseudoId } from "@/lib/pseudoId";
+import { resetDeviceId } from "@/lib/deviceId";
 import { stopSessionMonitoring } from "@/lib/sessionManagement";
 import JSZip from "jszip";
 import { Smartphone, Monitor, Tablet, AlertTriangle, CheckCircle2, GraduationCap, RefreshCw, WifiOff, HardDrive, QrCode, Link as LinkIcon, Key, Clock, Lock, Activity, Bug, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
@@ -239,6 +241,8 @@ const Settings = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false);
   const [keepContentOnDelete, setKeepContentOnDelete] = useState(false);
+  const [showBurnPersonaDialog, setShowBurnPersonaDialog] = useState(false);
+  const [isBurningPersona, setIsBurningPersona] = useState(false);
   const [isMagicLinkDialogOpen, setIsMagicLinkDialogOpen] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
@@ -1798,6 +1802,80 @@ const Settings = () => {
         variant: "destructive",
       });
       setIsDeleting(false);
+    }
+  };
+
+  const handleBurnPersona = async () => {
+    setIsBurningPersona(true);
+    try {
+      const currentPseudoId = getPseudoId();
+      if (!currentPseudoId) {
+        throw new Error("No pseudo ID found. Cannot burn persona.");
+      }
+
+      // Call the burn-persona function to delete all content
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/burn-persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ pseudo_id: currentPseudoId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Persona burned:", result);
+
+      // Stop session monitoring
+      stopSessionMonitoring();
+
+      // Clear all auth-related localStorage
+      localStorage.removeItem("profileId");
+      localStorage.removeItem("deviceId");
+      localStorage.removeItem("voice-note-device-id");
+      
+      // Clear pseudo_id and device_id
+      clearPseudoId();
+      await resetDeviceId();
+
+      // Clear sessionStorage
+      try {
+        sessionStorage.clear();
+      } catch (e) {
+        // Ignore sessionStorage errors
+      }
+
+      // Clear all queries
+      queryClient.removeQueries({ queryKey: ["profile"] });
+      queryClient.clear();
+
+      // Show success message
+      toast({
+        title: "Persona burned",
+        description: "Your persona has been reset. Starting fresh...",
+      });
+
+      // Force a full page reload to generate a new deviceId and pseudo_id
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
+    } catch (error) {
+      logError("Failed to burn persona", error);
+      toast({
+        title: "Couldn't burn persona",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+      setIsBurningPersona(false);
     }
   };
 
