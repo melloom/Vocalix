@@ -3476,14 +3476,21 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
 
   const handleSkip = () => {
     // Prevent rapid clicks
-    if (isNavigatingRef.current) {
+    if (isNavigatingRef.current || isTransitioning) {
       return;
     }
     isNavigatingRef.current = true;
+    setIsTransitioning(true);
+    // Clear highlights immediately
+    setHighlightRect(null);
+    setTargetElement(null);
+    setTooltipPosition(null);
+    // Mark as completed - this will call onComplete() internally
     markCompleted();
     setTimeout(() => {
       isNavigatingRef.current = false;
-    }, 300);
+      setIsTransitioning(false);
+    }, 100);
   };
 
   // Sync parent state if completed
