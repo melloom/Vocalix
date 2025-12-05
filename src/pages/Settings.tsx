@@ -3246,6 +3246,83 @@ const Settings = () => {
               </Button>
             </div>
 
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="font-medium">Burn your persona</p>
+                <p className="text-sm text-muted-foreground">
+                  Delete all your content and start fresh with a new anonymous identity. This action cannot be undone.
+                </p>
+              </div>
+              <AlertDialog open={showBurnPersonaDialog} onOpenChange={setShowBurnPersonaDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="rounded-2xl border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                    onClick={() => setShowBurnPersonaDialog(true)}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Burn Persona
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="rounded-3xl max-w-md">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-amber-500" />
+                      Burn Your Persona?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4 pt-2">
+                        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                            ⚠️ This action cannot be undone
+                          </p>
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            All your content will be permanently deleted and you'll get a fresh start.
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <p className="text-sm text-foreground mb-2 font-medium">What will be deleted:</p>
+                          <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside ml-2">
+                            <li>All your clips and posts</li>
+                            <li>All comments and reactions</li>
+                            <li>Your profile and all personal data</li>
+                            <li>All follows, communities, and connections</li>
+                            <li>Your diary entries</li>
+                            <li>All saved clips and playlists</li>
+                          </ul>
+                        </div>
+
+                        <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
+                            ✨ Starting fresh
+                          </p>
+                          <p className="text-xs text-blue-800 dark:text-blue-200">
+                            After burning your persona, you'll get a new anonymous identity. You can reinvent yourself completely.
+                          </p>
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 sm:gap-0">
+                    <AlertDialogCancel 
+                      className="rounded-2xl"
+                      onClick={() => setShowBurnPersonaDialog(false)}
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="rounded-2xl bg-amber-600 text-white hover:bg-amber-700"
+                      disabled={isBurningPersona}
+                      onClick={handleBurnPersona}
+                    >
+                      {isBurningPersona ? "Burning..." : "Burn Persona"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
             <AlertDialog open={showDeleteAccountDialog} onOpenChange={setShowDeleteAccountDialog}>
               <AlertDialogTrigger asChild>
                 <Button 
