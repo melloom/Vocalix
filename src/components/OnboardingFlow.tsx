@@ -1571,6 +1571,18 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </span>
                       </Button>
                       <Button
+                        asChild
+                        variant="outline"
+                        className="border-slate-600/50 text-slate-300 hover:bg-slate-800/30 hover:text-white font-semibold px-8 py-6 text-lg transition-all duration-300"
+                      >
+                        <Link to="/link-pin">
+                          <span className="flex items-center gap-2">
+                            <Lock className="h-5 w-5" />
+                            Login
+                          </span>
+                        </Link>
+                      </Button>
+                      <Button
                         onClick={() => setShowRestoreDialog(true)}
                         variant="outline"
                         className="border-amber-500/50 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300 font-semibold px-8 py-6 text-lg transition-all duration-300"
