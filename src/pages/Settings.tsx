@@ -244,6 +244,12 @@ const Settings = () => {
   const [showBurnPersonaDialog, setShowBurnPersonaDialog] = useState(false);
   const [isBurningPersona, setIsBurningPersona] = useState(false);
   const [isMagicLinkDialogOpen, setIsMagicLinkDialogOpen] = useState(false);
+  const [showRecoveryPhraseDialog, setShowRecoveryPhraseDialog] = useState(false);
+  const [showRestorePersonaDialog, setShowRestorePersonaDialog] = useState(false);
+  const [recoveryPhrase, setRecoveryPhrase] = useState<string | null>(null);
+  const [restorePhraseInput, setRestorePhraseInput] = useState("");
+  const [isGeneratingPhrase, setIsGeneratingPhrase] = useState(false);
+  const [isRestoringPersona, setIsRestoringPersona] = useState(false);
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const [magicLinkUrl, setMagicLinkUrl] = useState<string | null>(null);
   const [magicLinkExpiresAt, setMagicLinkExpiresAt] = useState<string | null>(null);
@@ -3232,6 +3238,32 @@ const Settings = () => {
 
             <div className="flex items-start justify-between gap-6">
               <div>
+                <p className="font-medium">Recovery phrase</p>
+                <p className="text-sm text-muted-foreground">
+                  Generate a recovery phrase to restore your persona on a new device. No email required.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={handleGenerateRecoveryPhrase}
+                  disabled={isGeneratingPhrase}
+                >
+                  {isGeneratingPhrase ? "Generating..." : "Generate"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-2xl"
+                  onClick={() => setShowRestorePersonaDialog(true)}
+                >
+                  Restore
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-start justify-between gap-6">
+              <div>
                 <p className="font-medium">Log in on a new device</p>
                 <p className="text-sm text-muted-foreground">
                   Generate a secure login link to sign in from another device. Links last up to 7 days.
@@ -3408,6 +3440,109 @@ const Settings = () => {
           </Card>
           </section>
         </TabsContent>
+
+        {/* Recovery Phrase Dialog */}
+        <Dialog open={showRecoveryPhraseDialog} onOpenChange={setShowRecoveryPhraseDialog}>
+          <DialogContent className="rounded-3xl max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Your Recovery Phrase
+              </DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-4 pt-2">
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-1">
+                      ⚠️ Save this phrase securely
+                    </p>
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
+                      This is your only way to restore your voice persona if you lose your phone. We don't have email / phone reset. Save this somewhere safe.
+                    </p>
+                  </div>
+                  
+                  {recoveryPhrase && (
+                    <div className="rounded-xl bg-muted/50 border-2 border-primary/20 p-4">
+                      <p className="text-sm font-medium mb-2 text-center">Your Recovery Phrase:</p>
+                      <div className="bg-background rounded-lg p-4 border border-border">
+                        <p className="text-lg font-mono text-center font-semibold tracking-wide">
+                          {recoveryPhrase}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
+                        Write this down and store it in a safe place. You won't be able to see it again.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRecoveryPhraseDialog(false);
+                  setRecoveryPhrase(null);
+                }}
+                className="rounded-2xl"
+              >
+                I've saved it
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Restore Persona Dialog */}
+        <Dialog open={showRestorePersonaDialog} onOpenChange={setShowRestorePersonaDialog}>
+          <DialogContent className="rounded-3xl max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Restore Your Persona
+              </DialogTitle>
+              <DialogDescription asChild>
+                <div className="space-y-4 pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    Enter your recovery phrase to restore your persona on this device. This will link your existing persona to this device.
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="restorePhrase">Recovery Phrase</Label>
+                    <Input
+                      id="restorePhrase"
+                      type="text"
+                      placeholder="correct horse battery staple"
+                      value={restorePhraseInput}
+                      onChange={(e) => setRestorePhraseInput(e.target.value)}
+                      className="rounded-2xl font-mono"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the 4-word recovery phrase you saved when setting up your persona.
+                    </p>
+                  </div>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRestorePersonaDialog(false);
+                  setRestorePhraseInput("");
+                }}
+                className="rounded-2xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRestorePersona}
+                disabled={isRestoringPersona || !restorePhraseInput.trim()}
+                className="rounded-2xl"
+              >
+                {isRestoringPersona ? "Restoring..." : "Restore Persona"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Personal Login PIN Dialog */}
         <AlertDialog open={isPinDialogOpen} onOpenChange={setIsPinDialogOpen}>
