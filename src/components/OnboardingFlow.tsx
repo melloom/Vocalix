@@ -23,6 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
+import { validateRecoveryPhrase } from "@/lib/recoveryPhrase";
+import { getPseudoId } from "@/lib/pseudoId";
 // Note: Freepik API requires backend (CORS blocked in browser)
 // Using DiceBear which works great from browser
 
