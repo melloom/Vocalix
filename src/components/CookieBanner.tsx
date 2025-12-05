@@ -114,7 +114,8 @@ export function CookieBanner() {
         className={cn(
           "fixed bottom-0 left-0 right-0 z-[100] rounded-t-2xl rounded-b-none border-b-0 shadow-2xl",
           "bg-background/95 backdrop-blur-sm border-2",
-          "animate-slide-in-up"
+          "animate-slide-in-up",
+          "max-h-[50vh] md:max-h-none overflow-y-auto"
         )}
         role="dialog"
         aria-labelledby="cookie-banner-title"
