@@ -74,11 +74,16 @@ export function CookieBanner() {
 
   const handleRejectAll = () => {
     savePreferences({
-      essential: true, // Essential cookies cannot be disabled
+      essential: true, // Essential cookies cannot be disabled (required for platform to function)
       functional: false,
       analytics: false,
       marketing: false,
     });
+    // Note: Essential cookies will still be used for:
+    // - Authentication and session management
+    // - Security features
+    // - Basic platform functionality
+    // Functional and analytics cookies will be disabled
   };
 
   const handleCustomize = () => {
@@ -115,28 +120,27 @@ export function CookieBanner() {
         aria-labelledby="cookie-banner-title"
         aria-describedby="cookie-banner-description"
       >
-        <div className="max-w-6xl mx-auto px-4 py-4 pb-20 md:px-6 md:py-6 md:pb-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Cookie className="h-5 w-5 text-primary" />
-                <h3 id="cookie-banner-title" className="font-semibold text-base md:text-lg">
+        <div className="max-w-6xl mx-auto px-3 py-3 pb-16 md:px-6 md:py-6 md:pb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5 md:mb-2">
+                <Cookie className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0" />
+                <h3 id="cookie-banner-title" className="font-semibold text-sm md:text-lg">
                   We Value Your Privacy
                 </h3>
               </div>
-              <p id="cookie-banner-description" className="text-sm text-muted-foreground mb-3">
-                Vocalix uses cookies and similar technologies to provide, secure, and improve our audio-first platform. 
-                Essential cookies are required for the platform to function. You can customize your preferences or{" "}
+              <p id="cookie-banner-description" className="text-xs md:text-sm text-muted-foreground mb-2 md:mb-3 leading-relaxed">
+                Vocalix uses cookies to provide and secure our platform. Essential cookies are required.{" "}
                 <Link to="/cookies" className="text-primary hover:underline font-medium">
-                  learn more in our Cookie Policy
+                  Learn more
                 </Link>
                 .
               </p>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                 <Button
                   onClick={handleAcceptAll}
                   size="sm"
-                  className="text-xs md:text-sm"
+                  className="text-xs h-7 md:h-9 px-2 md:px-4"
                 >
                   Accept All
                 </Button>
@@ -144,7 +148,7 @@ export function CookieBanner() {
                   onClick={handleRejectAll}
                   variant="outline"
                   size="sm"
-                  className="text-xs md:text-sm"
+                  className="text-xs h-7 md:h-9 px-2 md:px-4"
                 >
                   Reject All
                 </Button>
@@ -152,7 +156,7 @@ export function CookieBanner() {
                   onClick={handleCustomize}
                   variant="ghost"
                   size="sm"
-                  className="text-xs md:text-sm"
+                  className="text-xs h-7 md:h-9 px-2 md:px-4"
                 >
                   <Settings className="h-3 w-3 mr-1" />
                   Customize
@@ -162,11 +166,14 @@ export function CookieBanner() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0"
-              onClick={() => setShowBanner(false)}
+              className="h-7 w-7 md:h-8 md:w-8 shrink-0 absolute top-2 right-2 md:relative md:top-0 md:right-0"
+              onClick={() => {
+                // If user closes without choosing, treat as reject all (privacy-first)
+                handleRejectAll();
+              }}
               aria-label="Close cookie banner"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
             </Button>
           </div>
         </div>
