@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu, Key } from "lucide-react";
+import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
-import { validateRecoveryPhrase } from "@/lib/recoveryPhrase";
-import { getPseudoId } from "@/lib/pseudoId";
 // Note: Freepik API requires backend (CORS blocked in browser)
 // Using DiceBear which works great from browser
 
@@ -209,9 +207,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showPostOnboardingConfirmation, setShowPostOnboardingConfirmation] = useState(false);
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null);
-  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const [restorePhraseInput, setRestorePhraseInput] = useState("");
-  const [isRestoringPersona, setIsRestoringPersona] = useState(false);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
   // Detect if device is mobile (memoized to prevent re-renders)
@@ -1124,76 +1119,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     }
   };
 
-  const handleRestorePersona = async () => {
-    setIsRestoringPersona(true);
-    try {
-      // Validate the recovery phrase
-      const validation = validateRecoveryPhrase(restorePhraseInput);
-      if (!validation.valid) {
-        toast({
-          title: "Invalid recovery phrase",
-          description: validation.error,
-          variant: "destructive",
-        });
-        setIsRestoringPersona(false);
-        return;
-      }
-
-      // Get current pseudo_id (will be replaced)
-      const currentPseudoId = getPseudoId();
-      if (!currentPseudoId) {
-        throw new Error("No pseudo ID found. Please refresh and try again.");
-      }
-
-      // Call restore-persona function
-      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/restore-persona`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_PUBLISHABLE_KEY,
-          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          recoveryPhrase: restorePhraseInput,
-          newPseudoId: currentPseudoId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error("Invalid recovery phrase. Please check and try again.");
-      }
-
-      toast({
-        title: "Persona restored!",
-        description: `Welcome back, ${result.handle}! Your persona has been restored.`,
-      });
-
-      // Complete onboarding with restored profile
-      if (result.profileId) {
-        onComplete(result.profileId);
-      } else {
-        // Reload to ensure everything is synced
-        window.location.reload();
-      }
-    } catch (error: any) {
-      console.error("Failed to restore persona:", error);
-      toast({
-        title: "Couldn't restore persona",
-        description: error?.message || "Please check your recovery phrase and try again.",
-        variant: "destructive",
-      });
-      setIsRestoringPersona(false);
-    }
-  };
 
   // CRITICAL: Wrap entire render in try-catch to prevent crashes
   try {
@@ -1273,73 +1198,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Restore Persona Dialog */}
-      <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
-        <DialogContent className="rounded-3xl max-w-md bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-red-800/40">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">
-              <Key className="h-5 w-5 text-amber-400" />
-              Restore Your Persona
-            </DialogTitle>
-            <DialogDescription className="text-slate-300">
-              Enter your recovery phrase to restore your existing persona on this device. This will skip creating a new account.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-2">
-            <div className="rounded-xl bg-amber-50/10 dark:bg-amber-950/30 border border-amber-500/30 p-3">
-              <p className="text-sm font-medium text-amber-200 mb-1">
-                💡 Don't have a recovery phrase?
-              </p>
-              <p className="text-xs text-amber-300/80">
-                If you don't have a recovery phrase, you can create a new account by clicking "Get Started" instead.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="restorePhrase" className="text-sm font-medium text-slate-200">
-                Recovery Phrase
-              </label>
-              <Input
-                id="restorePhrase"
-                type="text"
-                placeholder="correct horse battery staple"
-                value={restorePhraseInput}
-                onChange={(e) => setRestorePhraseInput(e.target.value)}
-                className="rounded-2xl font-mono bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isRestoringPersona && restorePhraseInput.trim()) {
-                    handleRestorePersona();
-                  }
-                }}
-              />
-              <p className="text-xs text-slate-400">
-                Enter the 4-word recovery phrase you saved when setting up your persona.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowRestoreDialog(false);
-                setRestorePhraseInput("");
-              }}
-              className="rounded-2xl border-slate-700/70 text-slate-200 hover:bg-slate-800/80"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRestorePersona}
-              disabled={isRestoringPersona || !restorePhraseInput.trim()}
-              className="rounded-2xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-700 hover:to-amber-700 text-white"
-            >
-              {isRestoringPersona ? "Restoring..." : "Restore Persona"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Dark speakeasy background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -1581,16 +1439,6 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                             Login
                           </span>
                         </Link>
-                      </Button>
-                      <Button
-                        onClick={() => setShowRestoreDialog(true)}
-                        variant="outline"
-                        className="border-amber-500/50 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300 font-semibold px-8 py-6 text-lg transition-all duration-300"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Key className="h-5 w-5" />
-                          Restore Existing Persona
-                        </span>
                       </Button>
                     </div>
                   </div>
