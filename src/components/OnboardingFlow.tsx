@@ -1400,7 +1400,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     
                     {/* Main Heading */}
                     <h1 className="text-6xl lg:text-7xl font-black tracking-tight text-white dark:text-white leading-[1.05] mb-6">
-                      <span className="block mb-2">Join The</span>
+                      <span className="block mb-2">Join</span>
                       <span className="block bg-gradient-to-r from-red-400 via-red-500 via-amber-500 to-amber-400 bg-clip-text text-transparent drop-shadow-2xl">
                         Vocalix
                       </span>

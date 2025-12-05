@@ -188,7 +188,7 @@ const Leaderboards = () => {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
-            <div>
+            <div data-tutorial="leaderboards-header">
               <h1 className="text-3xl font-bold flex items-center gap-2">
                 <Trophy className="h-8 w-8 text-primary" />
                 Leaderboards
@@ -199,7 +199,7 @@ const Leaderboards = () => {
             </div>
           </div>
           <Select value={timePeriod} onValueChange={(value) => setTimePeriod(value as TimePeriod)}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[140px]" data-tutorial="leaderboards-time-period">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -232,7 +232,7 @@ const Leaderboards = () => {
 
         {/* Leaderboard Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as LeaderboardType)}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-4" data-tutorial="leaderboards-tabs">
             <TabsTrigger value="creators" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Creators
@@ -283,8 +283,8 @@ const Leaderboards = () => {
                       const rank = index + 1;
 
                       return (
+                        <div key={entry.profile_id} data-tutorial={index === 0 ? "leaderboards-entry" : undefined}>
                         <Link
-                          key={entry.profile_id}
                           to={`/profile/${entry.handle}`}
                           className={`flex items-center gap-4 p-4 rounded-xl border transition-all hover:bg-accent/50 ${
                             isCurrentUser
@@ -338,6 +338,7 @@ const Leaderboards = () => {
                             </div>
                           )}
                         </Link>
+                        </div>
                       );
                     })}
                   </div>

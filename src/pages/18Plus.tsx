@@ -600,7 +600,7 @@ const EighteenPlus = () => {
                   <ArrowLeft className="h-5 w-5" />
                 </Link>
               </Button>
-              <div>
+              <div data-tutorial="eighteen-plus-header">
                 <h1 className="text-xl font-bold flex items-center gap-2">
                   <span className="text-lg">🔞</span>
                   18+ Space
@@ -690,7 +690,7 @@ const EighteenPlus = () => {
           {/* Main Controls Row */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)} data-tutorial="eighteen-plus-filters">
                 <SelectTrigger className="w-[140px]">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
@@ -848,7 +848,9 @@ const EighteenPlus = () => {
                           <Star className="h-3 w-3 mr-1" />
                           Featured
                         </Badge>
-                        <ClipCard clip={clip} showReplyButton={true} viewMode="grid" />
+                        <div data-tutorial={index === 0 ? "eighteen-plus-clip" : undefined}>
+                          <ClipCard clip={clip} showReplyButton={true} viewMode="grid" />
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -888,7 +890,9 @@ const EighteenPlus = () => {
                               <Zap className="h-3 w-3 mr-1" />
                               For You
                             </Badge>
-                            <ClipCard clip={clip} showReplyButton={true} viewMode="grid" />
+                            <div data-tutorial={index === 0 ? "eighteen-plus-clip" : undefined}>
+                          <ClipCard clip={clip} showReplyButton={true} viewMode="grid" />
+                        </div>
                           </div>
                         ))}
                     </div>
@@ -904,7 +908,7 @@ const EighteenPlus = () => {
                     if (item.type === 'clip') {
                       const clip = item.data as Clip;
                       return (
-                        <div key={`clip-${clip.id}`} className={viewMode === "grid" ? "" : ""}>
+                        <div key={`clip-${clip.id}`} className={viewMode === "grid" ? "" : ""} data-tutorial={filteredFeedItems.indexOf(item) === 0 ? "eighteen-plus-clip" : undefined}>
                           <ClipCard clip={clip} showReplyButton={true} viewMode={viewMode} />
                         </div>
                       );

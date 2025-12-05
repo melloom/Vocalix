@@ -512,7 +512,7 @@ const Discovery = () => {
     const clips = section.clips || [];
 
     return (
-      <div key={key} className="space-y-4">
+      <div key={key} className="space-y-4" data-tutorial={key === "daily" ? "discovery-sections" : undefined}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {section.icon}
@@ -528,8 +528,10 @@ const Discovery = () => {
           <ClipListSkeleton count={3} />
         ) : clips.length > 0 ? (
           <div className="space-y-4">
-            {clips.map((clip) => (
-              <ClipCard key={clip.id} clip={clip} />
+            {clips.map((clip, index) => (
+              <div key={clip.id} data-tutorial={index === 0 ? "discovery-clip" : undefined}>
+                <ClipCard clip={clip} />
+              </div>
             ))}
           </div>
         ) : (
@@ -634,7 +636,7 @@ const Discovery = () => {
         
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Discovery</h1>
+            <h1 className="text-3xl font-bold mb-2" data-tutorial="discovery-header">Discovery</h1>
             <p className="text-muted-foreground">
               Personalized recommendations to help you discover new content
             </p>
@@ -651,7 +653,7 @@ const Discovery = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-4" data-tutorial="discovery-tabs">
             <TabsTrigger value="daily">Daily</TabsTrigger>
             <TabsTrigger value="weekly">Weekly</TabsTrigger>
             <TabsTrigger value="new-voices">New Voices</TabsTrigger>

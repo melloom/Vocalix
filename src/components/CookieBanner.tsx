@@ -107,7 +107,7 @@ export function CookieBanner() {
     <>
       <Card
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl rounded-b-none border-b-0 shadow-2xl",
+          "fixed bottom-0 left-0 right-0 z-[100] rounded-t-2xl rounded-b-none border-b-0 shadow-2xl",
           "bg-background/95 backdrop-blur-sm border-2",
           "animate-slide-in-up"
         )}
@@ -115,7 +115,7 @@ export function CookieBanner() {
         aria-labelledby="cookie-banner-title"
         aria-describedby="cookie-banner-description"
       >
-        <div className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6">
+        <div className="max-w-6xl mx-auto px-4 py-4 pb-20 md:px-6 md:py-6 md:pb-6">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">

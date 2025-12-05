@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users, HelpCircle, Scale, Cookie, Copyright } from "lucide-react";
+import { ArrowLeft, Download, Trash2, Copy, Mail, Share2, FileAudio, FileText, CloudUpload, Ban, UserMinus, Search as SearchIcon, Compass, UserCheck, X, Settings as SettingsIcon, Bell, Play, Shield, User, Headphones, Volume2, Users, HelpCircle, Scale, Cookie, Copyright, Mic, Hash, Filter, Grid3x3, PlayCircle, UserPlus, Radio, Trophy, Sparkles, Lock, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -5327,6 +5327,73 @@ const Settings = () => {
                     </Button>
                   }
                 />
+              </div>
+            </Card>
+
+            <Card className="p-6 rounded-3xl space-y-4">
+              <h3 className="text-base font-semibold">Interactive Tutorials</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Learn how to use Vocalix with step-by-step guides. Click any tutorial to start!
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { id: "record-button", title: "Recording Clips", icon: Mic, description: "Learn how to record and share voice clips" },
+                  { id: "today-topic", title: "Daily Topics", icon: Hash, description: "Explore daily conversation topics" },
+                  { id: "feed-sorting", title: "Feed Sorting", icon: Filter, description: "Sort and filter your feed" },
+                  { id: "view-mode", title: "View Modes", icon: Grid3x3, description: "Switch between list and grid views" },
+                  { id: "filters", title: "Filters", icon: Filter, description: "Use filters to find content" },
+                  { id: "clip-card", title: "Clip Cards", icon: PlayCircle, description: "Interact with voice clips" },
+                  { id: "search", title: "Search", icon: SearchIcon, description: "Search for clips and users" },
+                  { id: "follow", title: "Following", icon: UserPlus, description: "Follow creators you love" },
+                  { id: "voice-amas", title: "Voice AMAs", icon: Radio, description: "Join Ask Me Anything sessions" },
+                  { id: "communities", title: "Communities", icon: Users, description: "Discover and join communities" },
+                  { id: "live-rooms", title: "Live Rooms", icon: Radio, description: "Join live voice conversations" },
+                  { id: "leaderboards", title: "Leaderboards", icon: Trophy, description: "See top creators and listeners" },
+                  { id: "discovery", title: "Discovery Feed", icon: Compass, description: "Get personalized recommendations" },
+                  { id: "saved-clips", title: "Saved Clips", icon: Bookmark, description: "Save and organize your favorites" },
+                  { id: "eighteen-plus", title: "18+ Content", icon: Sparkles, description: "Access mature content (if enabled)" },
+                  { id: "encrypted-diary", title: "Encrypted Diary", icon: Lock, description: "Keep private thoughts secure" },
+                  { id: "notifications", title: "Notifications", icon: Bell, description: "Stay updated with activity" },
+                  { id: "my-recordings", title: "My Recordings", icon: Mic, description: "Manage your published clips" },
+                  { id: "account-linking", title: "Account Linking", icon: Users, description: "Link your account for recovery" },
+                ].map((tutorial) => (
+                  <Button
+                    key={tutorial.id}
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col items-start gap-2 text-left"
+                    onClick={() => {
+                      // Reset tutorial state
+                      localStorage.removeItem("echo_garden_tutorial_completed");
+                      localStorage.removeItem("echo_garden_tutorial_current_step");
+                      localStorage.removeItem("echo_garden_tutorial_collapsed");
+                      
+                      // Navigate to main feed and trigger tutorial
+                      navigate("/");
+                      
+                      // Set the tutorial step in localStorage
+                      setTimeout(() => {
+                        // Find the step index
+                        const stepIndex = 0; // Start from beginning, tutorial will find the right step
+                        localStorage.setItem("echo_garden_tutorial_current_step", stepIndex.toString());
+                        
+                        // Dispatch event to restart tutorial
+                        window.dispatchEvent(new Event("restart-tutorial"));
+                        
+                        // Navigate to the specific tutorial step
+                        const event = new CustomEvent("start-tutorial-step", { detail: { stepId: tutorial.id } });
+                        window.dispatchEvent(event);
+                      }, 100);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <tutorial.icon className="h-4 w-4" />
+                      <span className="font-semibold text-sm">{tutorial.title}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground text-left">
+                      {tutorial.description}
+                    </span>
+                  </Button>
+                ))}
               </div>
             </Card>
 

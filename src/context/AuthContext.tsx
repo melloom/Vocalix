@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { logError, logWarn } from "@/lib/logger";
 import { CrossBrowserDetectionDialog } from "@/components/CrossBrowserDetectionDialog";
+import { getOrRegisterPseudoId, getPseudoId } from "@/lib/pseudoId";
 
 const PROFILE_STORAGE_KEY = "profileId";
 
@@ -35,6 +36,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const queryClient = useQueryClient();
+  
+  // Pseudo ID state
+  const [pseudoId, setPseudoId] = useState<string | null>(null);
+  const pseudoIdInitializedRef = useRef(false);
   
   // Cross-browser detection state
   const [showCrossBrowserDialog, setShowCrossBrowserDialog] = useState(false);
@@ -197,17 +202,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Initialize pseudo_id on mount
+  useEffect(() => {
+    if (pseudoIdInitializedRef.current) return;
+    pseudoIdInitializedRef.current = true;
+    
+    // Get or register pseudo_id
+    getOrRegisterPseudoId().then((id) => {
+      if (id) {
+        setPseudoId(id);
+      }
+    }).catch((error) => {
+      console.error('[AuthContext] Error initializing pseudo_id:', error);
+    });
+  }, []);
+
   // Load profile when userId changes or deviceId exists
   const {
     data: profile,
     isLoading: isProfileLoading,
     refetch: refetchProfile,
   } = useQuery({
-    queryKey: ["profile", userId, profileId, deviceId],
+    queryKey: ["profile", userId, profileId, deviceId, pseudoId],
     queryFn: async () => {
       // Removed debug logging to reduce console noise
       
-      // CRITICAL: Check by device_id FIRST if we have it, since that's more reliable
+      // PRIORITY 1: Check by pseudo_id FIRST (most privacy-preserving)
+      // This is the new primary lookup method
+      if (pseudoId) {
+        try {
+          const { data: pseudoProfile, error: pseudoError } = await Promise.race([
+            supabase
+              .from("profiles")
+              .select("*")
+              .eq("pseudo_id", pseudoId)
+              .maybeSingle(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Pseudo profile lookup timeout')), 3000)
+            )
+          ]) as any;
+
+          if (pseudoError) {
+            if (pseudoError.code !== "PGRST116" && pseudoError.message !== 'Pseudo profile lookup timeout') {
+              logError("Error loading profile by pseudo_id", pseudoError);
+            }
+          } else if (pseudoProfile) {
+            // Found profile by pseudo_id
+            const profileIdFromPseudo = pseudoProfile.id;
+            localStorage.setItem(PROFILE_STORAGE_KEY, profileIdFromPseudo);
+            setProfileId(profileIdFromPseudo);
+            
+            // Link this profile to the auth user if not already linked
+            const profileWithAuth = pseudoProfile as any;
+            if (!profileWithAuth.auth_user_id && userId) {
+              try {
+                await supabase
+                  .from("profiles")
+                  .update({ auth_user_id: userId } as any)
+                  .eq("id", profileIdFromPseudo);
+              } catch (linkError) {
+                console.error('[AuthContext] Failed to link profile to auth user:', linkError);
+              }
+            }
+            
+            return pseudoProfile as ProfileRow;
+          }
+        } catch (pseudoLookupError: any) {
+          if (pseudoLookupError?.message !== 'Pseudo profile lookup timeout') {
+            console.error('[AuthContext] Exception in pseudo_id lookup:', pseudoLookupError?.message || pseudoLookupError);
+          }
+        }
+      }
+      
+      // PRIORITY 2: Check by device_id (backward compatibility)
       // This ensures we find existing accounts even if auth_user_id lookup fails
       if (deviceId) {
         try {
@@ -339,8 +406,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // No profile found by any method
       return null;
     },
-    // Enable query if we have userId OR deviceId (to find existing profiles by device)
-    enabled: (!!userId || !!deviceId) && isInitialized,
+    // Enable query if we have userId, deviceId, or pseudoId (to find existing profiles)
+    enabled: (!!userId || !!deviceId || !!pseudoId) && isInitialized,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 1,

@@ -434,7 +434,7 @@ export const NotificationCenter = () => {
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0 rounded-2xl" align="end">
         <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" data-tutorial="notifications-header">
             <Bell className="h-4 w-4" />
             <h3 className="font-semibold text-sm">Notifications</h3>
             {unreadCount > 0 && (
@@ -460,6 +460,7 @@ export const NotificationCenter = () => {
                 onClick={handleMarkAllAsRead}
                 disabled={isMarkingAsRead}
                 className="h-auto px-2 py-1 text-xs rounded-full"
+                data-tutorial="notifications-mark-read"
               >
                 <CheckCheck className="h-3 w-3 mr-1" />
                 Mark all read
@@ -469,7 +470,7 @@ export const NotificationCenter = () => {
         </div>
 
         {/* Filter tabs */}
-        <div className="px-4 pt-3 pb-2 border-b">
+        <div className="px-4 pt-3 pb-2 border-b" data-tutorial="notifications-tabs">
           <ScrollArea className="w-full">
             <div className="flex gap-2">
               {filterTypes.map((filterType) => (

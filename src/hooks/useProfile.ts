@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useDeviceId } from './useDeviceId';
+import { getOrRegisterPseudoId } from '@/lib/pseudoId';
 
 const ANIMAL_EMOJIS = ['🦊', '🐻', '🐼', '🦁', '🐯', '🐨', '🐰', '🦝', '🦦', '🦘'];
 const ADJECTIVES = ['Calm', 'Happy', 'Gentle', 'Bright', 'Peaceful', 'Cheerful', 'Cozy', 'Warm'];
@@ -45,11 +46,15 @@ export const useProfile = () => {
     mutationFn: async (emojiAvatar?: string) => {
       if (!deviceId) throw new Error('No device ID');
 
+      // Get or register pseudo_id
+      const pseudoId = await getOrRegisterPseudoId();
+
       const handle = generateHandle();
       const { data, error } = await supabase
         .from('profiles')
         .insert({
           device_id: deviceId,
+          pseudo_id: pseudoId || undefined, // Include pseudo_id if available
           handle,
           emoji_avatar: emojiAvatar || ANIMAL_EMOJIS[Math.floor(Math.random() * ANIMAL_EMOJIS.length)],
         } satisfies TablesInsert<'profiles'>)

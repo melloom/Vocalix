@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass, ChevronDown, ChevronUp, Calendar, Plus, Music, TrendingUp, BarChart3 } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, Sparkles, Mic, Heart, MessageCircle, UserPlus, Bookmark, Search, Users, Radio, Filter, List, Grid3x3, Upload, Bell, Settings, Hash, PlayCircle, BookOpen, Lock, Trophy, Compass, ChevronDown, ChevronUp, Calendar, Plus, Music, TrendingUp, BarChart3, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -280,9 +280,45 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     id: "leaderboards",
     title: "Leaderboards",
     description:
-      "Use the Leaderboards icon in the header to see top creators, listeners, and more. It’s the fastest way to find who’s trending and discover standout voices on the platform.",
+      "Use the Leaderboards icon in the header to see top creators, listeners, and more. It's the fastest way to find who's trending and discover standout voices on the platform.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
+    icon: <Trophy className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "leaderboards-overview",
+    title: "Leaderboards Overview",
+    description: "Welcome to Leaderboards! See who's leading the community across different categories. Discover top creators, listeners, reactors, and streak champions.",
+    targetSelector: '[data-tutorial="leaderboards-header"]',
+    position: "bottom",
+    icon: <Trophy className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "leaderboards-tabs",
+    title: "Leaderboard Categories",
+    description: "Switch between different leaderboards: Creators (most clips and listens), Listeners (most listens), Reactors (most reactions), and Streaks (longest posting streaks). Each shows top performers!",
+    targetSelector: '[data-tutorial="leaderboards-tabs"]',
+    position: "bottom",
+    icon: <Trophy className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "leaderboards-time-period",
+    title: "Time Periods",
+    description: "Filter leaderboards by time period: Day, Week, Month, or All Time. See who's trending now or who's been consistently great!",
+    targetSelector: '[data-tutorial="leaderboards-time-period"]',
+    position: "bottom",
+    icon: <Calendar className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "leaderboards-entry",
+    title: "Leaderboard Entries",
+    description: "Each entry shows rank, profile, and key metrics. Top 3 get special badges! Click any profile to visit their page and discover great voices.",
+    targetSelector: '[data-tutorial="leaderboards-entry"]',
+    position: "top",
     icon: <Trophy className="h-6 w-6" />,
     highlight: true,
   },
@@ -294,6 +330,42 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
     icon: <Compass className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "discovery-overview",
+    title: "Discovery Feed Overview",
+    description: "Welcome to your personalized Discovery Feed! This is where Vocalix shows you clips, topics, and creators tailored to your listening habits and interests.",
+    targetSelector: '[data-tutorial="discovery-header"]',
+    position: "bottom",
+    icon: <Compass className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "discovery-tabs",
+    title: "Discovery Tabs",
+    description: "Switch between Daily (personalized picks), Weekly (best of the week), and Topics (curated by theme). Each tab offers different ways to discover great content!",
+    targetSelector: '[data-tutorial="discovery-tabs"]',
+    position: "bottom",
+    icon: <Compass className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "discovery-sections",
+    title: "Discovery Sections",
+    description: "Each section shows clips with explanations: 'Because you listened to...', 'Hidden Gems', 'Trending in Your Network', and more. Click refresh to get new recommendations!",
+    targetSelector: '[data-tutorial="discovery-sections"]',
+    position: "top",
+    icon: <Sparkles className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "discovery-clip",
+    title: "Discover Clips",
+    description: "Listen to recommended clips and explore new voices. The more you listen and interact, the better your recommendations become!",
+    targetSelector: '[data-tutorial="discovery-clip"]',
+    position: "top",
+    icon: <Mic className="h-6 w-6" />,
     highlight: true,
   },
   {
@@ -348,6 +420,33 @@ const TUTORIAL_STEPS: TutorialStep[] = [
       "If enabled, the 18+ icon in the header lets you access NSFW content. Use it to browse adult-only clips in a separate space, while keeping the rest of your experience safe by default.",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
+    icon: <Sparkles className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "eighteen-plus-overview",
+    title: "18+ Content Overview",
+    description: "Welcome to the 18+ content area! This is a separate space for adult-only content. All clips here are marked NSFW and require age verification.",
+    targetSelector: '[data-tutorial="eighteen-plus-header"]',
+    position: "bottom",
+    icon: <Sparkles className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "eighteen-plus-filters",
+    title: "18+ Filters & Sorting",
+    description: "Use filters and sorting options to find the content you're looking for. All content here is age-restricted and separate from the main feed.",
+    targetSelector: '[data-tutorial="eighteen-plus-filters"]',
+    position: "bottom",
+    icon: <Filter className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "eighteen-plus-clip",
+    title: "18+ Clips",
+    description: "Browse adult-only clips here. Remember to keep this content separate and respect community guidelines. You can disable this section anytime in Settings.",
+    targetSelector: '[data-tutorial="eighteen-plus-clip"]',
+    position: "top",
     icon: <Sparkles className="h-6 w-6" />,
     highlight: true,
   },
@@ -435,6 +534,42 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     description: "Stay updated with the bell icon in the header! Get notified about new followers, replies to your clips, reactions, and more. Never miss important interactions with your content!",
     targetSelector: '[data-tutorial="navigation"]',
     position: "bottom",
+    icon: <Bell className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "notifications-overview",
+    title: "Notifications Center",
+    description: "Welcome to your Notifications! Here you'll see all your activity updates: new followers, replies, reactions, mentions, and more. Stay connected with your community!",
+    targetSelector: '[data-tutorial="notifications-header"]',
+    position: "bottom",
+    icon: <Bell className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "notifications-tabs",
+    title: "Notification Types",
+    description: "Filter notifications by type: All, Follows, Replies, Reactions, Mentions, and more. Focus on what matters most to you!",
+    targetSelector: '[data-tutorial="notifications-tabs"]',
+    position: "bottom",
+    icon: <Bell className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "notifications-mark-read",
+    title: "Mark as Read",
+    description: "Click 'Mark all as read' to clear your notification badge. Individual notifications can be marked read by clicking on them.",
+    targetSelector: '[data-tutorial="notifications-mark-read"]',
+    position: "left",
+    icon: <Check className="h-6 w-6" />,
+    highlight: true,
+  },
+  {
+    id: "notifications-item",
+    title: "Notification Items",
+    description: "Each notification shows who did what and when. Click any notification to go directly to the clip, profile, or conversation it's about!",
+    targetSelector: '[data-tutorial="notifications-item"]',
+    position: "top",
     icon: <Bell className="h-6 w-6" />,
     highlight: true,
   },
@@ -576,6 +711,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const savedClipsStepIds = new Set(["saved-clips", "saved-clips-overview", "saved-clips-stats", "saved-clips-playlists", "saved-clips-list"]);
   const diaryStepIds = new Set(["encrypted-diary", "diary-overview", "diary-create", "diary-search", "diary-view-modes", "diary-entry"]);
   const myRecordingsStepIds = new Set(["my-recordings", "my-recordings-overview", "my-recordings-stats", "my-recordings-tabs", "my-recordings-clip"]);
+  const leaderboardsStepIds = new Set(["leaderboards", "leaderboards-overview", "leaderboards-tabs", "leaderboards-time-period", "leaderboards-entry"]);
+  const discoveryStepIds = new Set(["discovery", "discovery-overview", "discovery-tabs", "discovery-sections", "discovery-clip"]);
+  const notificationsStepIds = new Set(["notifications", "notifications-overview", "notifications-tabs", "notifications-mark-read", "notifications-item"]);
+  const eighteenPlusStepIds = new Set(["eighteen-plus", "eighteen-plus-overview", "eighteen-plus-filters", "eighteen-plus-clip"]);
 
   // All mini-tutorial step IDs (excluding the main step for each feature)
   const allMiniTutorialStepIds = new Set([
@@ -585,6 +724,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     ...Array.from(savedClipsStepIds).filter(id => id !== "saved-clips"),
     ...Array.from(diaryStepIds).filter(id => id !== "encrypted-diary"),
     ...Array.from(myRecordingsStepIds).filter(id => id !== "my-recordings"),
+    ...Array.from(leaderboardsStepIds).filter(id => id !== "leaderboards"),
+    ...Array.from(discoveryStepIds).filter(id => id !== "discovery"),
+    ...Array.from(notificationsStepIds).filter(id => id !== "notifications"),
+    ...Array.from(eighteenPlusStepIds).filter(id => id !== "eighteen-plus"),
   ]);
 
   // Calculate main tutorial step count (excluding mini-tutorial steps)
@@ -633,6 +776,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       miniTutorialSteps = Array.from(diaryStepIds);
     } else if (myRecordingsStepIds.has(currentStepId)) {
       miniTutorialSteps = Array.from(myRecordingsStepIds);
+    } else if (leaderboardsStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(leaderboardsStepIds);
+    } else if (discoveryStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(discoveryStepIds);
+    } else if (notificationsStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(notificationsStepIds);
+    } else if (eighteenPlusStepIds.has(currentStepId)) {
+      miniTutorialSteps = Array.from(eighteenPlusStepIds);
     }
     
     // If we're in a mini-tutorial, calculate step number within it
@@ -664,7 +815,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       total: 0,
       isInMiniTutorial: false,
     };
-  }, [currentStep, step?.id, allMiniTutorialStepIds, voiceAmasStepIds, communitiesStepIds, liveRoomsStepIds, savedClipsStepIds, diaryStepIds, myRecordingsStepIds]);
+  }, [currentStep, step?.id, allMiniTutorialStepIds, voiceAmasStepIds, communitiesStepIds, liveRoomsStepIds, savedClipsStepIds, diaryStepIds, myRecordingsStepIds, leaderboardsStepIds, discoveryStepIds, notificationsStepIds, eighteenPlusStepIds]);
 
   // Use mini-tutorial step info if in a mini-tutorial, otherwise use main step info
   const displayStepInfo = miniTutorialStepInfo.isInMiniTutorial ? miniTutorialStepInfo : mainStepInfo;
@@ -791,7 +942,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
                   location.pathname === "/live-rooms" ? 300 :
                   location.pathname === "/saved" ? 300 :
                   location.pathname === "/diary" ? 300 :
-                  location.pathname === "/my-recordings" ? 300 : 220;
+                  location.pathname === "/my-recordings" ? 300 :
+                  location.pathname === "/leaderboards" ? 300 :
+                  location.pathname === "/discovery" ? 300 :
+                  isOnNotificationsPage ? 300 :
+                  location.pathname === "/18-plus" ? 300 : 220;
     const timeout = setTimeout(() => {
       setIsRouteReady(true);
       setIsManualRouteChange(false);
@@ -890,6 +1045,54 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           }
         }, 300);
       }
+      // For Leaderboards page, advance to overview step when arriving
+      if (location.pathname === "/leaderboards" && step?.id === "leaderboards") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "leaderboards-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Discovery page, advance to overview step when arriving
+      if (location.pathname === "/discovery" && step?.id === "discovery") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "discovery-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For Notifications page, advance to overview step when arriving
+      if (isOnNotificationsPage && step?.id === "notifications") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "notifications-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
+      // For 18+ page, advance to overview step when arriving
+      if (location.pathname === "/18-plus" && step?.id === "eighteen-plus") {
+        setTimeout(() => {
+          const overviewStepIndex = TUTORIAL_STEPS.findIndex(s => s.id === "eighteen-plus-overview");
+          if (overviewStepIndex !== -1) {
+            setCurrentStep(overviewStepIndex);
+            setTimeout(() => calculatePosition(), 100);
+            setTimeout(() => calculatePosition(), 300);
+            setTimeout(() => calculatePosition(), 600);
+          }
+        }, 300);
+      }
     }, delay);
     
       // Also try calculating immediately if we're navigating to Settings for account-linking
@@ -910,7 +1113,11 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           (location.pathname === "/live-rooms" && liveRoomsStepIds.has(step?.id || "")) ||
           (location.pathname === "/saved" && savedClipsStepIds.has(step?.id || "")) ||
           (location.pathname === "/diary" && diaryStepIds.has(step?.id || "")) ||
-          (location.pathname === "/my-recordings" && myRecordingsStepIds.has(step?.id || ""))) {
+          (location.pathname === "/my-recordings" && myRecordingsStepIds.has(step?.id || "")) ||
+          (location.pathname === "/leaderboards" && leaderboardsStepIds.has(step?.id || "")) ||
+          (location.pathname === "/discovery" && discoveryStepIds.has(step?.id || "")) ||
+          (isOnNotificationsPage && notificationsStepIds.has(step?.id || "")) ||
+          (location.pathname === "/18-plus" && eighteenPlusStepIds.has(step?.id || ""))) {
         setTimeout(() => calculatePosition(), 50);
         setTimeout(() => calculatePosition(), 150);
         setTimeout(() => calculatePosition(), 300);
@@ -1019,6 +1226,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
   const isOnSavedClipsPage = location.pathname === "/saved";
   const isOnDiaryPage = location.pathname === "/diary";
   const isOnMyRecordingsPage = location.pathname === "/my-recordings";
+  const isOnLeaderboardsPage = location.pathname === "/leaderboards";
+  const isOnDiscoveryPage = location.pathname === "/discovery";
+  const isOnNotificationsPage = location.pathname === "/notifications" || location.pathname.startsWith("/notifications");
+  const isOnEighteenPlusPage = location.pathname === "/18-plus";
 
   // Check if record modal is open during tutorial (should hide overlay)
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
@@ -1055,15 +1266,21 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
     isRouteReady &&
     !isManualRouteChange &&
     !isRecordModalOpen && // Hide overlay when record modal is open during tutorial
-    (isOnMainFeed || 
-     (isOnSettingsPage && settingsStepIds.has(step.id)) || 
-     (isOnFollowingPage && step.id === "follow") || 
-     (isOnVoiceAmasPage && voiceAmasStepIds.has(step.id)) ||
-     (isOnCommunitiesPage && communitiesStepIds.has(step.id)) ||
-     (isOnLiveRoomsPage && liveRoomsStepIds.has(step.id)) ||
-     (isOnSavedClipsPage && savedClipsStepIds.has(step.id)) ||
-     (isOnDiaryPage && diaryStepIds.has(step.id)) ||
-     (isOnMyRecordingsPage && myRecordingsStepIds.has(step.id)));
+    step && (
+      isOnMainFeed || 
+      (isOnSettingsPage && settingsStepIds.has(step.id)) || 
+      (isOnFollowingPage && step.id === "follow") || 
+      (isOnVoiceAmasPage && voiceAmasStepIds.has(step.id)) ||
+      (isOnCommunitiesPage && communitiesStepIds.has(step.id)) ||
+      (isOnLiveRoomsPage && liveRoomsStepIds.has(step.id)) ||
+      (isOnSavedClipsPage && savedClipsStepIds.has(step.id)) ||
+      (isOnDiaryPage && diaryStepIds.has(step.id)) ||
+      (isOnMyRecordingsPage && myRecordingsStepIds.has(step.id)) ||
+      (isOnLeaderboardsPage && leaderboardsStepIds.has(step.id)) ||
+      (isOnDiscoveryPage && discoveryStepIds.has(step.id)) ||
+      (isOnNotificationsPage && notificationsStepIds.has(step.id)) ||
+      (isOnEighteenPlusPage && eighteenPlusStepIds.has(step.id))
+    );
 
   // NOTE: We intentionally do NOT lock body scroll here anymore.
   // Global scroll locking caused issues when navigating between pages
@@ -2125,7 +2342,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       return;
     }
     
-    if (step.targetSelector) {
+    if (step && step.targetSelector) {
       // Don't set transitioning on step change - let it be smooth
       // Initial calculation with minimal delay
       const initialTimeout = setTimeout(() => {
@@ -2208,10 +2425,10 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       }
       
       // Smooth scroll to element if needed with better visibility check
-      let element = document.querySelector(step.targetSelector) as HTMLElement;
+      let element = step ? document.querySelector(step.targetSelector) as HTMLElement : null;
       
       // Special handling for account-linking step on Settings page
-      if (step.id === "account-linking" && location.pathname.startsWith("/settings")) {
+      if (step && step.id === "account-linking" && location.pathname.startsWith("/settings")) {
         // Try to find Account tab immediately
         const accountTab = document.querySelector('[data-tutorial="settings-account-tab"]') as HTMLElement | null;
         if (accountTab) {
@@ -2237,7 +2454,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
       }
       
       // Special handling for record button to ensure we get the right container
-      if (step.id === "record-button") {
+      if (step && step.id === "record-button") {
         const recordContainer = document.querySelector('[data-tutorial="record-button"]') as HTMLElement;
         if (recordContainer && recordContainer.classList.contains("fixed")) {
           // Make sure we got the fixed bottom-right container, not something else
@@ -2271,8 +2488,7 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
             element.scrollIntoView({ 
               behavior: "smooth", 
               block: "center", 
-              inline: "center",
-              scrollMode: "if-needed"
+              inline: "center"
             });
             
             // Recalculate position after scroll
@@ -2828,6 +3044,78 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           return;
         }
       }
+      
+      if (currentStepConfig?.id === "leaderboards" && location.pathname !== "/leaderboards") {
+        // Skip all Leaderboards mini-tutorial steps and go to next main step (discovery)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "discovery");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "discovery" && location.pathname !== "/discovery") {
+        // Skip all Discovery mini-tutorial steps and go to next main step (saved-clips)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "saved-clips");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "notifications" && !isOnNotificationsPage) {
+        // Skip all Notifications mini-tutorial steps and go to next main step (my-recordings)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "my-recordings");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
+      
+      if (currentStepConfig?.id === "eighteen-plus" && location.pathname !== "/18-plus") {
+        // Skip all 18+ mini-tutorial steps and go to next main step (encrypted-diary)
+        const nextMainStepIndex = TUTORIAL_STEPS.findIndex(step => step.id === "encrypted-diary");
+        if (nextMainStepIndex !== -1) {
+          isNavigatingRef.current = true;
+          setIsTransitioning(true);
+          setHighlightRect(null);
+          setTargetElement(null);
+          setTooltipPosition(null);
+          setCurrentStep(nextMainStepIndex);
+          setTimeout(() => {
+            setIsTransitioning(false);
+            isNavigatingRef.current = false;
+          }, 150);
+          return;
+        }
+      }
 
       // If we're on the "Follow Creators" step (follow) and on the Following page,
       // navigate back to the main feed so the next step highlights the header properly
@@ -3010,6 +3298,18 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
         } else if (myRecordingsStepIds.has(currentStepConfig?.id || "")) {
           miniTutorialStepSet = myRecordingsStepIds;
           mainStepId = "my-recordings";
+        } else if (leaderboardsStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = leaderboardsStepIds;
+          mainStepId = "leaderboards";
+        } else if (discoveryStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = discoveryStepIds;
+          mainStepId = "discovery";
+        } else if (notificationsStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = notificationsStepIds;
+          mainStepId = "notifications";
+        } else if (eighteenPlusStepIds.has(currentStepConfig?.id || "")) {
+          miniTutorialStepSet = eighteenPlusStepIds;
+          mainStepId = "eighteen-plus";
         }
         
         if (miniTutorialStepSet) {
@@ -3065,6 +3365,14 @@ export const InteractiveTutorial = ({ onComplete }: InteractiveTutorialProps) =>
           mainStepId = "encrypted-diary";
         } else if (myRecordingsStepIds.has(previousStepConfig.id)) {
           mainStepId = "my-recordings";
+        } else if (leaderboardsStepIds.has(previousStepConfig.id)) {
+          mainStepId = "leaderboards";
+        } else if (discoveryStepIds.has(previousStepConfig.id)) {
+          mainStepId = "discovery";
+        } else if (notificationsStepIds.has(previousStepConfig.id)) {
+          mainStepId = "notifications";
+        } else if (eighteenPlusStepIds.has(previousStepConfig.id)) {
+          mainStepId = "eighteen-plus";
         }
         
         // Navigate to that main step
