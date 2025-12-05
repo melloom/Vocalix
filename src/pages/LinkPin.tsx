@@ -1,12 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield, Link2, Key } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, AlertTriangle, ArrowLeft, Lock, Smartphone, Shield, Link2, Key, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase, setSessionCookie } from "@/integrations/supabase/client";
 import { useDeviceId } from "@/hooks/useDeviceId";
 import { useAuth } from "@/context/AuthContext";
+import { validateRecoveryPhrase } from "@/lib/recoveryPhrase";
+import { getPseudoId } from "@/lib/pseudoId";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +28,8 @@ const LinkPin = () => {
   const navigate = useNavigate();
   const deviceId = useDeviceId();
   const { refetchProfile } = useAuth();
-  const [linkMethod, setLinkMethod] = useState<"login-pin" | "linking-pin" | "login-link">("linking-pin");
+  const { toast } = useToast();
+  const [linkMethod, setLinkMethod] = useState<"login-pin" | "linking-pin" | "login-link" | "recovery-phrase">("linking-pin");
   const [status, setStatus] = useState<PinStatus>("entering");
   const [pin, setPin] = useState(["", "", "", ""]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,6 +37,8 @@ const LinkPin = () => {
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [accountInfo, setAccountInfo] = useState<{ profile_id: string; handle: string } | null>(null);
+  const [recoveryPhraseInput, setRecoveryPhraseInput] = useState("");
+  const [isRestoringPersona, setIsRestoringPersona] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const isMountedRef = useRef(true);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -219,6 +226,83 @@ const LinkPin = () => {
     inputRefs.current[0]?.focus();
   };
 
+  const handleRestorePersona = async () => {
+    setIsRestoringPersona(true);
+    try {
+      // Validate the recovery phrase
+      const validation = validateRecoveryPhrase(recoveryPhraseInput);
+      if (!validation.valid) {
+        toast({
+          title: "Invalid recovery phrase",
+          description: validation.error,
+          variant: "destructive",
+        });
+        setIsRestoringPersona(false);
+        return;
+      }
+
+      // Get current pseudo_id (will be replaced)
+      const currentPseudoId = getPseudoId();
+      if (!currentPseudoId) {
+        throw new Error("No pseudo ID found. Please refresh and try again.");
+      }
+
+      // Call restore-persona function
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/restore-persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          recoveryPhrase: recoveryPhraseInput,
+          newPseudoId: currentPseudoId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error("Invalid recovery phrase. Please check and try again.");
+      }
+
+      // Set profileId in localStorage
+      localStorage.setItem("profileId", result.profileId);
+
+      // Trigger profile refetch
+      try {
+        refetchProfile();
+      } catch {}
+
+      toast({
+        title: "Persona restored!",
+        description: `Welcome back, ${result.handle}! Your persona has been restored to this device.`,
+      });
+
+      // Navigate to home
+      setTimeout(() => {
+        window.location.replace("/");
+      }, 1500);
+    } catch (error: any) {
+      console.error("Failed to restore persona:", error);
+      toast({
+        title: "Couldn't restore persona",
+        description: error?.message || "Please check your recovery phrase and try again.",
+        variant: "destructive",
+      });
+      setIsRestoringPersona(false);
+    }
+  };
+
   useEffect(() => {
     // Focus first input on mount (with delay for mobile to ensure keyboard appears)
     const timer = setTimeout(() => {
@@ -343,11 +427,11 @@ const LinkPin = () => {
                 </p>
               </div>
 
-              {/* Tab Switcher - 3 options */}
-              <div className="flex gap-2 p-1 rounded-2xl bg-red-950/40 border border-red-800/40 mb-6">
+              {/* Tab Switcher - 4 options */}
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-red-950/40 border border-red-800/40 mb-6">
                 <Button
                   variant={linkMethod === "login-pin" ? "default" : "ghost"}
-                  className={`flex-1 rounded-xl text-xs ${linkMethod === "login-pin" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  className={`rounded-xl text-xs ${linkMethod === "login-pin" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
                   onClick={() => setLinkMethod("login-pin")}
                 >
                   <Key className="mr-1 h-3 w-3" />
@@ -355,7 +439,7 @@ const LinkPin = () => {
                 </Button>
                 <Button
                   variant={linkMethod === "linking-pin" ? "default" : "ghost"}
-                  className={`flex-1 rounded-xl text-xs ${linkMethod === "linking-pin" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  className={`rounded-xl text-xs ${linkMethod === "linking-pin" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
                   onClick={() => setLinkMethod("linking-pin")}
                 >
                   <Key className="mr-1 h-3 w-3" />
@@ -363,11 +447,19 @@ const LinkPin = () => {
                 </Button>
                 <Button
                   variant={linkMethod === "login-link" ? "default" : "ghost"}
-                  className={`flex-1 rounded-xl text-xs ${linkMethod === "login-link" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  className={`rounded-xl text-xs ${linkMethod === "login-link" ? "bg-red-600 hover:bg-red-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
                   onClick={() => setLinkMethod("login-link")}
                 >
                   <Link2 className="mr-1 h-3 w-3" />
                   Login Link
+                </Button>
+                <Button
+                  variant={linkMethod === "recovery-phrase" ? "default" : "ghost"}
+                  className={`rounded-xl text-xs ${linkMethod === "recovery-phrase" ? "bg-amber-600 hover:bg-amber-700 text-white" : "hover:bg-red-950/40 text-gray-300"}`}
+                  onClick={() => setLinkMethod("recovery-phrase")}
+                >
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  Recovery
                 </Button>
               </div>
 
@@ -553,6 +645,90 @@ const LinkPin = () => {
                         >
                           Try logging in with handle + PIN
                         </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recovery Phrase Tab Content */}
+              {linkMethod === "recovery-phrase" && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-amber-900/50 dark:border-amber-800/40 bg-gradient-to-br from-amber-950/50 to-amber-950/50 p-4 text-left space-y-3">
+                    <p className="text-sm text-gray-200 font-medium">
+                      <strong className="text-white">Restore your persona with recovery phrase</strong>
+                    </p>
+                    <p className="text-xs text-gray-300">
+                      Enter your 4-word recovery phrase to restore your persona on this device. No email or PIN required.
+                    </p>
+                    <div className="flex items-start gap-2 pt-2 border-t border-amber-800/30">
+                      <Sparkles className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-300">
+                        Recovery phrases are generated in <strong className="text-white">Settings → Account</strong> and allow you to restore your persona on any device.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Shield className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-gray-300">
+                        Recovery phrases are privacy-first: no email or phone required. Save your phrase securely when you generate it.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="recoveryPhrase" className="text-white">
+                        Recovery Phrase
+                      </Label>
+                      <Input
+                        id="recoveryPhrase"
+                        type="text"
+                        placeholder="correct horse battery staple"
+                        value={recoveryPhraseInput}
+                        onChange={(e) => setRecoveryPhraseInput(e.target.value)}
+                        className="rounded-2xl font-mono bg-red-950/30 border-red-800/40 text-white placeholder:text-gray-500"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !isRestoringPersona && recoveryPhraseInput.trim()) {
+                            handleRestorePersona();
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-gray-300">
+                        Enter the 4-word recovery phrase you saved when setting up your persona.
+                      </p>
+                    </div>
+                    {errorMessage && linkMethod === "recovery-phrase" && (
+                      <div className="rounded-xl bg-red-950/50 border border-red-800/50 p-3">
+                        <p className="text-sm text-red-200 font-medium">{errorMessage}</p>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleRestorePersona}
+                      disabled={isRestoringPersona || !recoveryPhraseInput.trim()}
+                      className="w-full rounded-2xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white border-0"
+                    >
+                      {isRestoringPersona ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Restoring...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Restore Persona
+                        </>
+                      )}
+                    </Button>
+                    <div className="rounded-xl bg-amber-950/30 border border-amber-800/30 p-3 text-left">
+                      <p className="text-xs text-gray-300 mb-2">
+                        <strong className="text-white">Don't have a recovery phrase?</strong>
+                      </p>
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-300">
+                          If you didn't generate a recovery phrase, you can use one of the other linking methods above.
+                        </p>
+                        <p className="text-xs text-gray-300">
+                          Generate a recovery phrase in <strong className="text-white">Settings → Account</strong> on any device where you're signed in.
+                        </p>
                       </div>
                     </div>
                   </div>
