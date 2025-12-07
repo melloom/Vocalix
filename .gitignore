@@ -127,3 +127,10 @@ netlify/functions/.netlify/
 # Temporary PowerShell scripts
 deploy-*.ps1
 setup-*.ps1
+diagnose-push.ps1
+force-push-vocalix.ps1
+push-to-echo-garden.ps1
+fix-git-push.ps1
+fix-master-push.ps1
+push-to-master.ps1
+verify-push.ps1

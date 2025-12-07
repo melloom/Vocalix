@@ -18,7 +18,7 @@ Write-Host "   Remote URL: $remote" -ForegroundColor Cyan
 if ($remote -notmatch "Vocalix") {
     Write-Host "   ⚠ Remote doesn't point to Vocalix!" -ForegroundColor Yellow
     Write-Host "   Setting remote to Vocalix..." -ForegroundColor Yellow
-    git remote set-url origin https://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@github.com/melloom/Vocalix.git
+    git remote set-url origin https://github.com/melloom/Vocalix.git
     Write-Host "   ✓ Remote updated" -ForegroundColor Green
 }
 

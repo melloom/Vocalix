@@ -36,7 +36,7 @@ Write-Host "Remote URL: $remoteUrl" -ForegroundColor Cyan
 # Set remote if needed
 if ($remoteUrl -notmatch "Vocalix") {
     Write-Host "Setting remote to Vocalix..." -ForegroundColor Yellow
-    git remote set-url origin https://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@github.com/melloom/Vocalix.git
+    git remote set-url origin https://github.com/melloom/Vocalix.git
 }
 
 # Stage and commit everything

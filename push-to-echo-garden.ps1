@@ -3,7 +3,7 @@ Write-Host "=== Pushing to Echo-Garden ===" -ForegroundColor Cyan
 
 # Set remote
 Write-Host "`n1. Setting remote to Echo-Garden..." -ForegroundColor Yellow
-git remote set-url origin https://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@github.com/melloom/Echo-Garden.git
+git remote set-url origin https://github.com/melloom/Echo-Garden.git
 $remote = git remote get-url origin
 Write-Host "   Remote: $remote" -ForegroundColor Green
 
