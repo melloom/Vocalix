@@ -45,7 +45,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/melloom/Echo-Garden.git
+git clone https://github.com/melloom/Vocalix
 cd echo-garden-49-main
 
 # Install dependencies
@@ -353,3 +353,4 @@ Made with ❤️ for the audio community
 
 
 ````
+
