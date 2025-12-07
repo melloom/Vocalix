@@ -67,16 +67,19 @@ interface FAQAnswerDialogProps {
 }
 
 export const FAQAnswerDialog = ({ faqId, onClose }: FAQAnswerDialogProps) => {
-  if (!faqId || !FAQ_ANSWERS[faqId]) {
-    return null;
-  }
-
-  const faq = FAQ_ANSWERS[faqId];
-  const Icon = faq.icon;
+  const isOpen = !!faqId && !!FAQ_ANSWERS[faqId];
+  const faq = faqId ? FAQ_ANSWERS[faqId] : null;
+  const Icon = faq?.icon || Shield;
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+      }
+    }}>
       <DialogContent className="sm:max-w-md">
+        {faq && (
+          <>
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-full bg-red-500/10 border border-red-500/20">
@@ -100,6 +103,8 @@ export const FAQAnswerDialog = ({ faqId, onClose }: FAQAnswerDialogProps) => {
             Got it
           </Button>
         </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

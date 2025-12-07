@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Mic, Calendar, Clock, Users, Radio, Play, Plus, Search, TrendingUp, Star, MessageCircle, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mic, Calendar, Clock, Users, Radio, Play, Plus, Search, MessageCircle, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProfile } from "@/hooks/useProfile";
 import { useToast } from "@/hooks/use-toast";
 import { CreateRoomModal } from "@/components/CreateRoomModal";
-import { format, formatDistanceToNow, isPast, isFuture } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { logError } from "@/lib/logger";
 
 interface VoiceAMA {
@@ -87,8 +87,8 @@ export default function VoiceAMAs() {
           )
         `)
         .eq("is_ama", true)
-        .order("scheduled_start_time", { ascending: true, nullsLast: true })
-        .order("started_at", { ascending: false, nullsLast: true })
+        .order("scheduled_start_time", { ascending: true, nullsFirst: false })
+        .order("started_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -96,16 +96,16 @@ export default function VoiceAMAs() {
       // Get question counts for each AMA
       const amasWithCounts = await Promise.all(
         (data || []).map(async (ama: any) => {
-          const { count } = await supabase
-            .from("ama_questions")
+          const { count } = await (supabase
+            .from("ama_questions" as any)
             .select("*", { count: "exact", head: true })
-            .eq("room_id", ama.id);
+            .eq("room_id", ama.id) as any);
 
-          const { count: upvotedCount } = await supabase
-            .from("ama_questions")
+          const { count: upvotedCount } = await (supabase
+            .from("ama_questions" as any)
             .select("*", { count: "exact", head: true })
             .eq("room_id", ama.id)
-            .gt("upvotes", 0);
+            .gt("upvotes", 0) as any);
 
           return {
             ...ama,

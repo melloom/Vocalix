@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, X, Play, Pause, Send, Trash2 } from "lucide-react";
+import { Mic, X, Play, Pause, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Waves } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { logError, logWarn } from "@/lib/logger";
 
 interface VoiceCommentRecorderProps {
   clipId: string;
@@ -32,7 +32,6 @@ export const VoiceCommentRecorder = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [waveform, setWaveform] = useState<number[]>(Array(WAVEFORM_BINS).fill(0.5));
-  const [textContent, setTextContent] = useState(""); // Optional text to accompany voice comment
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -106,62 +105,67 @@ export const VoiceCommentRecorder = ({
 
       animationRef.current = requestAnimationFrame(animateWaveform);
     } catch (error) {
-      console.error("Waveform animation error:", error);
+      logWarn("Error animating waveform", error);
+      stopTracking();
     }
-  }, [isRecording]);
+  }, [isRecording, stopTracking]);
 
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
 
-      // Initialize audio context for waveform
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass();
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      await audioContextRef.current.resume();
+
       const source = audioContextRef.current.createMediaStreamSource(stream);
       analyserRef.current = audioContextRef.current.createAnalyser();
       analyserRef.current.fftSize = 256;
-      analyserRef.current.smoothingTimeConstant = 0.8;
       source.connect(analyserRef.current);
 
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      });
-
+      const options = { mimeType: "audio/webm" };
+      const recorder = new MediaRecorder(stream, options);
       chunksRef.current = [];
-      mediaRecorder.ondataavailable = (event) => {
+
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
+      recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
         cleanupAudio();
       };
 
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start(100); // Collect data every 100ms
-
+      mediaRecorderRef.current = recorder;
+      recorder.start();
       setIsRecording(true);
       startTimeRef.current = Date.now();
 
-      // Start timer
+      // Update duration every 100ms
       timerRef.current = window.setInterval(() => {
-        const elapsed = (Date.now() - (startTimeRef.current || 0)) / 1000;
-        setDuration(elapsed);
+        if (startTimeRef.current) {
+          const elapsed = (Date.now() - startTimeRef.current) / 1000;
+          setDuration(Math.min(elapsed, MAX_DURATION));
 
-        // Auto-stop at max duration
-        if (elapsed >= MAX_DURATION) {
-          stopRecording();
+          // Auto-stop at max duration
+          if (elapsed >= MAX_DURATION) {
+            stopRecording();
+          }
         }
       }, 100);
 
-      // Start waveform animation
       animateWaveform();
     } catch (error: any) {
-      console.error("Error starting recording:", error);
+      logError("Error starting recording", error);
       toast({
         title: "Recording failed",
         description: error.message || "Could not access microphone",
@@ -178,56 +182,48 @@ export const VoiceCommentRecorder = ({
     }
   }, [isRecording, stopTracking]);
 
-  const playPreview = useCallback(() => {
-    if (!audioBlob) return;
-
-    if (isPlaying && audioPlayerRef.current) {
-      audioPlayerRef.current.pause();
-      setIsPlaying(false);
-      return;
-    }
-
-    const url = URL.createObjectURL(audioBlob);
-    const audio = new Audio(url);
-    audioPlayerRef.current = audio;
-
-    audio.onended = () => {
-      setIsPlaying(false);
-      URL.revokeObjectURL(url);
-    };
-
-    audio.onerror = () => {
-      setIsPlaying(false);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Playback failed",
-        description: "Could not play audio preview",
-        variant: "destructive",
-      });
-    };
-
-    audio.play().catch((error) => {
-      console.error("Error playing audio:", error);
-      setIsPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-
-    setIsPlaying(true);
-  }, [audioBlob, isPlaying, toast]);
-
-  const resetRecording = useCallback(() => {
+  const handleReset = useCallback(() => {
     stopRecording();
     setAudioBlob(null);
     setDuration(0);
     setWaveform(Array(WAVEFORM_BINS).fill(0.5));
-    setTextContent("");
     chunksRef.current = [];
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
-      audioPlayerRef.current = null;
+      audioPlayerRef.current.currentTime = 0;
+      setIsPlaying(false);
     }
-    setIsPlaying(false);
   }, [stopRecording]);
+
+  const handlePlayPause = useCallback(() => {
+    if (!audioBlob) return;
+
+    if (!audioPlayerRef.current) {
+      const url = URL.createObjectURL(audioBlob);
+      audioPlayerRef.current = new Audio(url);
+      audioPlayerRef.current.onended = () => {
+        setIsPlaying(false);
+        if (audioPlayerRef.current) {
+          audioPlayerRef.current.currentTime = 0;
+        }
+      };
+    }
+
+    if (isPlaying) {
+      audioPlayerRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioPlayerRef.current.play().catch((error) => {
+        logWarn("Error playing audio", error);
+        toast({
+          title: "Playback failed",
+          description: "Could not play audio",
+          variant: "destructive",
+        });
+      });
+      setIsPlaying(true);
+    }
+  }, [audioBlob, isPlaying, toast]);
 
   const handleSubmit = useCallback(async () => {
     if (!audioBlob || duration < MIN_DURATION) {
@@ -239,73 +235,79 @@ export const VoiceCommentRecorder = ({
       return;
     }
 
+    const profileId = localStorage.getItem("profileId");
+    if (!profileId) {
+      toast({
+        title: "Profile missing",
+        description: "Please finish onboarding before commenting",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsUploading(true);
 
-      // Convert blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      
-      const base64Audio = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Remove data URL prefix
-          const base64 = result.split(",")[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
+      // Upload audio file
+      const fileName = `comments/${profileId}/${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from("audio")
+        .upload(fileName, audioBlob);
+
+      if (uploadError) throw uploadError;
+
+      // Generate waveform (simplified)
+      const waveformData = waveform.map((value) => Number(value.toFixed(2)));
+
+      // Insert comment with voice audio (use audio_path, not audio_url)
+      const { error: insertError } = await supabase.from("comments").insert({
+        clip_id: clipId,
+        profile_id: profileId,
+        parent_comment_id: parentCommentId || null,
+        content: null, // Voice comments have no text content
+        audio_path: fileName, // Store the storage path
+        duration_seconds: Math.round(duration),
+        waveform: waveformData,
       });
 
-      const { data, error } = await supabase.functions.invoke("add-voice-comment", {
-        body: {
-          clipId,
-          parentCommentId: parentCommentId || null,
-          audioBase64: base64Audio,
-          audioType: "audio/webm",
-          durationSeconds: Math.round(duration * 10) / 10, // Round to 1 decimal
-          content: textContent.trim() || null,
-        },
-      });
-
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       toast({
-        title: "Voice comment posted!",
+        title: "Comment posted!",
         description: "Your voice comment has been added",
       });
 
-      resetRecording();
+      handleReset();
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error("Error submitting voice comment:", error);
+      logError("Error submitting voice comment", error);
       toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload voice comment",
+        title: "Failed to post comment",
+        description: error.message || "Please try again",
         variant: "destructive",
       });
     } finally {
       setIsUploading(false);
     }
-  }, [audioBlob, duration, clipId, parentCommentId, textContent, resetRecording, onSuccess, onClose, toast]);
+  }, [audioBlob, duration, clipId, parentCommentId, waveform, toast, handleReset, onSuccess, onClose]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopTracking();
       cleanupAudio();
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
+        URL.revokeObjectURL(audioPlayerRef.current.src);
       }
     };
   }, [stopTracking, cleanupAudio]);
 
-  // Reset when dialog opens
   useEffect(() => {
-    if (isOpen) {
-      resetRecording();
+    if (!isOpen) {
+      handleReset();
     }
-  }, [isOpen, resetRecording]);
+  }, [isOpen, handleReset]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -319,20 +321,20 @@ export const VoiceCommentRecorder = ({
         <DialogHeader>
           <DialogTitle>Record Voice Comment</DialogTitle>
           <DialogDescription>
-            Record up to {MAX_DURATION} seconds. You can add optional text below.
+            Record up to {MAX_DURATION} seconds of audio
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6 py-4">
           {/* Waveform Display */}
-          <div className="flex items-center justify-center h-24 bg-muted/50 rounded-2xl p-4">
+          <div className="flex items-center justify-center h-24 px-4">
             <div className="flex items-end justify-center gap-1 w-full h-full">
               {waveform.map((value, index) => (
                 <div
                   key={index}
                   className="flex-1 bg-primary rounded-t transition-all duration-75"
                   style={{
-                    height: `${Math.max(8, value * 100)}%`,
+                    height: `${Math.max(4, value * 100)}%`,
                     minHeight: "4px",
                   }}
                 />
@@ -340,42 +342,61 @@ export const VoiceCommentRecorder = ({
             </div>
           </div>
 
-          {/* Timer and Controls */}
-          <div className="flex items-center justify-center gap-4">
-            <div className="text-2xl font-mono font-bold">
-              {formatTime(duration)} / {formatTime(MAX_DURATION)}
+          {/* Duration Display */}
+          <div className="text-center">
+            <div className="text-2xl font-mono font-semibold">
+              {formatTime(duration)}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {duration >= MAX_DURATION ? "Maximum duration reached" : `Max ${MAX_DURATION}s`}
             </div>
           </div>
 
-          {/* Recording Controls */}
-          <div className="flex items-center justify-center gap-3">
+          {/* Controls */}
+          <div className="flex items-center justify-center gap-4">
             {!audioBlob ? (
               <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onClose}
+                  className="rounded-full h-12 w-12"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
                 {!isRecording ? (
                   <Button
                     onClick={startRecording}
-                    size="lg"
-                    className="rounded-full h-16 w-16"
+                    size="icon"
+                    className="rounded-full h-16 w-16 bg-primary"
                   >
                     <Mic className="h-6 w-6" />
                   </Button>
                 ) : (
                   <Button
                     onClick={stopRecording}
-                    size="lg"
-                    variant="destructive"
-                    className="rounded-full h-16 w-16"
+                    size="icon"
+                    className="rounded-full h-16 w-16 bg-destructive"
                   >
-                    <Pause className="h-6 w-6" />
+                    <div className="h-6 w-6 rounded-full bg-background" />
                   </Button>
                 )}
+                <div className="w-12 h-12" /> {/* Spacer */}
               </>
             ) : (
-              <div className="flex items-center gap-3">
+              <>
                 <Button
-                  onClick={playPreview}
-                  size="lg"
                   variant="outline"
+                  size="icon"
+                  onClick={handleReset}
+                  className="rounded-full h-12 w-12"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePlayPause}
                   className="rounded-full h-12 w-12"
                 >
                   {isPlaying ? (
@@ -385,56 +406,22 @@ export const VoiceCommentRecorder = ({
                   )}
                 </Button>
                 <Button
-                  onClick={resetRecording}
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full h-12 w-12"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-                <Button
                   onClick={handleSubmit}
-                  size="lg"
-                  disabled={isUploading}
-                  className="rounded-full h-12 px-6"
+                  disabled={isUploading || duration < MIN_DURATION}
+                  size="icon"
+                  className="rounded-full h-12 w-12 bg-primary"
                 >
                   {isUploading ? (
-                    <>Uploading...</>
+                    <Waves className="h-5 w-5 animate-pulse" />
                   ) : (
-                    <>
-                      <Send className="mr-2 h-5 w-5" />
-                      Post Comment
-                    </>
+                    <Send className="h-5 w-5" />
                   )}
                 </Button>
-              </div>
+              </>
             )}
-          </div>
-
-          {/* Optional Text Content */}
-          {audioBlob && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Optional text (max 500 chars):</label>
-              <Textarea
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value.slice(0, 500))}
-                placeholder="Add some context to your voice comment..."
-                className="min-h-[80px] rounded-xl"
-                maxLength={500}
-              />
-              <div className="text-xs text-muted-foreground text-right">
-                {textContent.length}/500
-              </div>
-            </div>
-          )}
-
-          <div className="text-xs text-muted-foreground text-center">
-            {isRecording && "Recording... Click pause to stop"}
-            {audioBlob && !isRecording && "Preview your recording, then post"}
           </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 };
-

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Wand2, CheckCircle2, Mic, Radio, Headphones, Speaker, Volume2, RadioIcon, Zap, Music, Sparkles, ArrowRight, Loader2, Lock, MessageCircle, Repeat2, Link2, Users, TrendingUp, Search, Bookmark, Calendar, Download, PlayCircle, Filter, Bell, Award, Globe, MapPin, Layers, Compass, Shield, MailX, UserX, Smartphone, ChevronDown, ChevronRight, HelpCircle, X, Trash2, BookOpen, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { handleSchema, isReservedHandle } from "@/lib/validation";
 import { useAuth } from "@/context/AuthContext";
 import { useDeviceId } from "@/hooks/useDeviceId";
+import { FAQAnswerDialog } from "@/components/FAQAnswerDialog";
 // Note: Freepik API requires backend (CORS blocked in browser)
 // Using DiceBear which works great from browser
 
@@ -192,6 +193,7 @@ interface OnboardingFlowProps {
 
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [handle, setHandle] = useState(generateHandle());
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarType>(AVATAR_TYPES[0]);
   const [isLoading, setIsLoading] = useState(false);
@@ -207,6 +209,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showPostOnboardingConfirmation, setShowPostOnboardingConfirmation] = useState(false);
   const [createdProfileId, setCreatedProfileId] = useState<string | null>(null);
+  const [faqId, setFaqId] = useState<string | null>(null);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   
   // Detect if device is mobile (memoized to prevent re-renders)
@@ -225,6 +228,25 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   useEffect(() => {
     setAvatarsLoading(false);
   }, []);
+
+  // Check for FAQ parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const faqParam = urlParams.get("faq");
+    if (faqParam) {
+      setFaqId(faqParam);
+    }
+  }, [location.search]);
+
+  // Handle FAQ dialog close
+  const handleFAQClose = () => {
+    setFaqId(null);
+    // Remove FAQ parameter from URL
+    const urlParams = new URLSearchParams(location.search);
+    urlParams.delete("faq");
+    const newSearch = urlParams.toString();
+    navigate({ search: newSearch ? `?${newSearch}` : "" }, { replace: true });
+  };
   
   // CRITICAL: Always call hooks (React rules), but handle errors gracefully
   let toast: any;
@@ -2290,7 +2312,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
             {/* FAQ Section */}
             {activeSection === "faq" && loadedSections.has("faq") && (
-              <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+              <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300 relative z-10" style={{ pointerEvents: 'auto' }}>
                 {/* Enhanced Header */}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-amber-600/20 border border-red-500/30">
@@ -2304,13 +2326,27 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl">
+                <div className="rounded-xl bg-gradient-to-br from-red-950/30 via-amber-950/30 to-red-950/30 dark:from-red-950/25 dark:via-amber-950/25 dark:to-red-950/25 border border-red-800/30 overflow-hidden shadow-xl relative z-10">
                   {/* Quick Questions Grid */}
-                  <div className="p-4">
+                  <div className="p-4 relative z-10" style={{ pointerEvents: 'auto' }}>
                     <div className="grid grid-cols-2 gap-2.5 mb-3">
                       <div 
-                        onClick={() => navigate("/?faq=anonymous")}
-                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group"
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Clicked anonymous');
+                          setFaqId("anonymous");
+                        }}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Touched anonymous');
+                          setFaqId("anonymous");
+                        }}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group relative z-10"
+                        style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                       >
                         <Shield className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
@@ -2319,8 +2355,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </div>
                       </div>
                       <div 
-                        onClick={() => navigate("/?faq=clip-length")}
-                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group"
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Clicked clip-length');
+                          setFaqId("clip-length");
+                        }}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Touched clip-length');
+                          setFaqId("clip-length");
+                        }}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group relative z-10"
+                        style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                       >
                         <Headphones className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
@@ -2329,8 +2379,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </div>
                       </div>
                       <div 
-                        onClick={() => navigate("/?faq=how-to-record")}
-                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group"
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Clicked how-to-record');
+                          setFaqId("how-to-record");
+                        }}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('[FAQ] Touched how-to-record');
+                          setFaqId("how-to-record");
+                        }}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-red-900/30 border border-red-700/30 hover:border-red-500/50 transition-all cursor-pointer group relative z-10"
+                        style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
                       >
                         <Mic className="h-4 w-4 text-red-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
@@ -2339,8 +2403,13 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                         </div>
                       </div>
                       <div 
-                        onClick={() => navigate("/?faq=live-rooms")}
-                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setFaqId("live-rooms");
+                        }}
+                        className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-900/30 border border-amber-700/30 hover:border-amber-500/50 transition-all cursor-pointer group relative z-10"
+                        style={{ pointerEvents: 'auto' }}
                       >
                         <Radio className="h-4 w-4 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
                         <div>
@@ -2355,15 +2424,56 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                     <div className="space-y-2 mb-3">
                       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Popular Questions</p>
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/?faq=account")}>
+                        <div 
+                          role="button"
+                          tabIndex={0}
+                          className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group relative z-10" 
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[FAQ] Clicked account');
+                            setFaqId("account");
+                          }}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[FAQ] Touched account');
+                            setFaqId("account");
+                          }}
+                          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
+                        >
                           <ChevronRight className="h-3 w-3 text-red-400 group-hover:translate-x-0.5 transition-transform" />
                           <span className="text-[10px] text-gray-300 group-hover:text-white">Can I delete my account?</span>
                         </div>
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-amber-900/20 border border-amber-700/20 hover:bg-amber-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/?faq=privacy")}>
+                        <div 
+                          className="flex items-center gap-2 p-2 rounded-md bg-amber-900/20 border border-amber-700/20 hover:bg-amber-900/30 transition-colors cursor-pointer group relative z-10" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setFaqId("privacy");
+                          }}
+                        >
                           <ChevronRight className="h-3 w-3 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
                           <span className="text-[10px] text-gray-300 group-hover:text-white">Is it really anonymous?</span>
                         </div>
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group" onClick={() => navigate("/?faq=clips")}>
+                        <div 
+                          role="button"
+                          tabIndex={0}
+                          className="flex items-center gap-2 p-2 rounded-md bg-red-900/20 border border-red-700/20 hover:bg-red-900/30 transition-colors cursor-pointer group relative z-10" 
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[FAQ] Clicked clips');
+                            setFaqId("clips");
+                          }}
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[FAQ] Touched clips');
+                            setFaqId("clips");
+                          }}
+                          style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}
+                        >
                           <ChevronRight className="h-3 w-3 text-red-400 group-hover:translate-x-0.5 transition-transform" />
                           <span className="text-[10px] text-gray-300 group-hover:text-white">How long are clips?</span>
                         </div>
@@ -2668,6 +2778,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           </div>
         </div>
       </footer>
+
+      <FAQAnswerDialog
+        faqId={faqId}
+        onClose={handleFAQClose}
+      />
     </div>
     );
   } catch (error: any) {

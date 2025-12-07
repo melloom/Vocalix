@@ -1355,4 +1355,29 @@ body.theme-indigo * {
   .focus-visible-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  /* reCAPTCHA badge z-index fix - ensure it's above footer and most content but below modals */
+  .grecaptcha-badge {
+    z-index: 10000 !important;
+    position: fixed !important;
+  }
+  
+  /* Ensure reCAPTCHA badge is visible on desktop - override any conflicting styles */
+  @media (min-width: 768px) {
+    .grecaptcha-badge {
+      z-index: 10000 !important;
+      position: fixed !important;
+      bottom: 20px !important;
+      right: 20px !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  }
+  
+  /* Additional specificity for reCAPTCHA badge to ensure it's above footer */
+  div.grecaptcha-badge,
+  iframe[title*="reCAPTCHA"],
+  iframe[src*="recaptcha"] {
+    z-index: 10000 !important;
+  }
 }

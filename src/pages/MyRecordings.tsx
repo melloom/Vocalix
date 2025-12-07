@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Trophy, Flame, TrendingUp, Users, Target, Award, Star, Zap, BarChart3, Calendar, Clock, Sparkles, Crown, TrendingDown, Edit2, Settings, Share2, MoreVertical, User } from "lucide-react";
+import { ArrowLeft, Trophy, Flame, TrendingUp, Target, Award, Star, BarChart3, Calendar, Clock, Sparkles, Crown, Edit2, Settings, Share2, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CardSkeleton, PageHeaderSkeleton } from "@/components/ui/content-skeletons";
+import { CardSkeleton } from "@/components/ui/content-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -21,13 +21,7 @@ import { logError } from "@/lib/logger";
 import { getEmojiAvatar } from "@/utils/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { ClipAnalyticsDialog } from "@/components/ClipAnalyticsDialog";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface ProfileMetrics {
   clipCount: number;
@@ -100,14 +94,13 @@ interface Clip {
   content_rating?: "general" | "sensitive";
   title: string | null;
   tags: string[] | null;
-  completion_rate?: number | null;
   quality_score?: number | null;
   trending_score?: number | null;
   reply_count?: number;
   remix_count?: number;
   community_id?: string | null;
   challenge_id?: string | null;
-  scheduled_for?: string | null;
+  is_private?: boolean;
   profiles: {
     handle: string;
     emoji_avatar: string;
@@ -186,11 +179,8 @@ const MyRecordings = () => {
       }
     });
 
-    // Calculate average completion rate
-    const clipsWithCompletion = clips.filter(c => c.status === 'live' && c.completion_rate != null);
-    const avgCompletionRate = clipsWithCompletion.length > 0
-      ? clipsWithCompletion.reduce((sum, c) => sum + (c.completion_rate || 0), 0) / clipsWithCompletion.length
-      : 0;
+    // Note: completion_rate is not available in the database schema
+    const avgCompletionRate = 0;
 
     // Use fresh profile data if available, otherwise fall back to profile
     const profileData = freshProfileData || profile;
@@ -265,17 +255,17 @@ const MyRecordings = () => {
       if (!clipId) return;
       setUpdatingClipId(clipId);
       try {
-        const { error } = await supabase
+        const { error } = await (supabase
           .from("clips")
-          .update({ visibility: "private", is_private: true })
-          .eq("id", clipId);
+          .update({ is_private: true } as any)
+          .eq("id", clipId) as any);
 
         if (error) throw error;
 
         setClips((prev) =>
           prev.map((clip) =>
             clip.id === clipId
-              ? { ...clip, visibility: "private", is_private: true as any }
+              ? { ...clip, is_private: true as any }
               : clip,
           ),
         );
@@ -475,10 +465,8 @@ const MyRecordings = () => {
                 current = totalListens;
                 break;
               case "avg_completion_rate":
-                const clipsWithRate = liveClips.filter(c => c.completion_rate != null);
-                current = clipsWithRate.length > 0
-                  ? clipsWithRate.reduce((sum, c) => sum + (c.completion_rate || 0), 0) / clipsWithRate.length
-                  : 0;
+                // Note: completion_rate is not available in the database schema
+                current = 0;
                 break;
               case "streak_days":
                 current = currentStreak;
@@ -539,101 +527,25 @@ const MyRecordings = () => {
     setRetryCount((prev) => prev + 1);
   };
 
-  const handleEditSchedule = (clip: Clip) => {
-    if (clip.scheduled_for) {
-      // Convert ISO string to datetime-local format (YYYY-MM-DDTHH:mm)
-      const date = new Date(clip.scheduled_for);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      setEditScheduledTime(`${year}-${month}-${day}T${hours}:${minutes}`);
-      setEditingClip(clip);
-    }
+  const handleEditSchedule = (_clip: Clip) => {
+    // Note: scheduled_for is not available in the database schema
+    // Scheduling functionality has been disabled
+    toast({
+      title: "Scheduling unavailable",
+      description: "Scheduling functionality is not currently available.",
+      variant: "default",
+    });
   };
 
   const handleUpdateSchedule = async () => {
-    if (!editingClip || !editScheduledTime) return;
-
-    try {
-      setIsUpdatingSchedule(true);
-      
-      // Validate that the scheduled time is in the future (compare local time)
-      const scheduledDate = new Date(editScheduledTime);
-      if (scheduledDate.getTime() <= Date.now()) {
+    // Note: scheduled_for is not available in the database schema
+    // Scheduling functionality has been disabled
         toast({
-          title: "Invalid time",
-          description: "Scheduled time must be in the future.",
-          variant: "destructive",
+      title: "Scheduling unavailable",
+      description: "Scheduling functionality is not currently available.",
+      variant: "default",
         });
         setIsUpdatingSchedule(false);
-        return;
-      }
-      
-      // Convert datetime-local to ISO string for storage
-      const scheduledFor = scheduledDate.toISOString();
-
-      // Validate scheduled post using can_schedule_post function
-      if (profile?.id) {
-        try {
-          const { data: canSchedule, error: scheduleError } = await supabase
-            .rpc('can_schedule_post', {
-              profile_id_param: profile.id,
-              scheduled_for_param: scheduledFor,
-            });
-
-          if (scheduleError) throw scheduleError;
-          if (!canSchedule || canSchedule.length === 0 || !canSchedule[0].can_schedule) {
-            throw new Error(canSchedule?.[0]?.reason || 'Cannot schedule post at this time');
-          }
-        } catch (error: any) {
-          setIsUpdatingSchedule(false);
-          toast({
-            title: "Cannot schedule post",
-            description: error.message || "Please check the scheduled time and limits.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      const { error: updateError } = await supabase
-        .from("clips")
-        .update({ scheduled_for: scheduledFor })
-        .eq("id", editingClip.id)
-        .eq("profile_id", profile?.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Update local state
-      setClips((prevClips) =>
-        prevClips.map((clip) =>
-          clip.id === editingClip.id
-            ? { ...clip, scheduled_for: scheduledFor }
-            : clip
-        )
-      );
-
-      toast({
-        title: "Schedule updated! 📅",
-        description: "Your post's scheduled time has been updated.",
-      });
-
-      setEditingClip(null);
-      setEditScheduledTime("");
-    } catch (err: any) {
-      logError("Failed to update schedule", err);
-      toast({
-        title: "Failed to update schedule",
-        description: err?.message || "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdatingSchedule(false);
-    }
   };
 
   const handleCancelEdit = () => {
@@ -645,8 +557,6 @@ const MyRecordings = () => {
     paginatedData: paginatedClips,
     currentPage,
     totalPages,
-    nextPage,
-    previousPage,
     goToPage,
   } = usePagination(clips, { pageSize: 20 });
 
@@ -733,36 +643,21 @@ const MyRecordings = () => {
 
       <main className="w-full">
         {/* Cover Image - Instagram/TikTok Style */}
-        {profile.cover_image_url ? (
-          <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden">
-            <img
-              src={profile.cover_image_url}
-              alt="Cover"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          </div>
-        ) : (
           <div className="relative w-full h-48 md:h-64 lg:h-80 overflow-hidden bg-gradient-to-br from-primary/20 via-accent/15 to-primary/10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.1),transparent_50%)]" />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           </div>
-        )}
 
         {/* Profile Header - Instagram/TikTok Style */}
-        <section className={`px-4 md:px-6 lg:px-8 ${profile.cover_image_url ? '-mt-16 md:-mt-20' : 'pt-6'} relative z-10`}>
+        <section className="px-4 md:px-6 lg:px-8 pt-6 relative z-10">
           <div className="flex flex-col md:flex-row items-start md:items-end gap-4 pb-6">
             {/* Profile Picture */}
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full opacity-75 group-hover:opacity-100 blur-sm transition-opacity duration-300 animate-pulse" />
               <Avatar className="relative h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-2xl ring-4 ring-primary/20">
-                {profile.profile_picture_url ? (
-                  <AvatarImage src={profile.profile_picture_url} alt={profile.handle} />
-                ) : (
                   <AvatarFallback className="text-4xl md:text-5xl bg-gradient-to-br from-primary/20 to-accent/20">
                     {getEmojiAvatar(profile.emoji_avatar, "🎧")}
                   </AvatarFallback>
-                )}
               </Avatar>
             </div>
 
@@ -803,9 +698,6 @@ const MyRecordings = () => {
 
               {/* Bio & Info */}
               <div className="space-y-1">
-                {profile.bio && (
-                  <p className="text-sm md:text-base font-medium">{profile.bio}</p>
-                )}
                 <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-muted-foreground">
                   <span>Joined {formatDate(profile.joined_at)}</span>
                   {profile.consent_city && profile.city && (
@@ -1110,14 +1002,6 @@ const MyRecordings = () => {
                             <div className="text-right space-y-1">
                               <div className="text-sm text-muted-foreground">Listens</div>
                               <div className="text-lg font-bold">{clip.listens_count.toLocaleString()}</div>
-                              {clip.completion_rate != null && (
-                                <>
-                                  <div className="text-sm text-muted-foreground">Completion</div>
-                                  <div className="text-lg font-bold">
-                                    {(clip.completion_rate * 100).toFixed(1)}%
-                                  </div>
-                                </>
-                              )}
                               {clip.quality_score != null && (
                                 <>
                                   <div className="text-sm text-muted-foreground">Quality</div>
@@ -1209,8 +1093,7 @@ const MyRecordings = () => {
                               ? 'Hidden'
                               : 'Published'}
                           </Badge>
-                          {/* @ts-ignore - visibility fields exist on clips */}
-                          {clip.visibility === 'private' && (
+                          {((clip as any).is_private === true) && (
                             <Badge variant="secondary" className="rounded-full px-2 py-0.5">
                               🔒 Private practice
                             </Badge>
@@ -1276,7 +1159,7 @@ const MyRecordings = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Scheduled Posts</h3>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{clips.filter(c => c.status === 'draft' && c.scheduled_for).length} scheduled</span>
+                <span>0 scheduled</span>
               </div>
             </div>
 
@@ -1293,7 +1176,7 @@ const MyRecordings = () => {
                 onRetry={handleRetry}
                 variant="card"
               />
-            ) : clips.filter(c => c.status === 'draft' && c.scheduled_for).length === 0 ? (
+            ) : clips.filter(c => c.status === 'draft').length === 0 ? (
               <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-card via-card/95 to-primary/5 border border-primary/20 shadow-xl">
                 <div className="p-4 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 w-fit mx-auto mb-4">
                   <Clock className="h-12 w-12 text-primary" />
@@ -1307,10 +1190,10 @@ const MyRecordings = () => {
               <>
                 <div className="space-y-4">
                   {clips
-                    .filter(c => c.status === 'draft' && c.scheduled_for)
-                    .sort((a, b) => {
-                      const aTime = a.scheduled_for ? new Date(a.scheduled_for).getTime() : 0;
-                      const bTime = b.scheduled_for ? new Date(b.scheduled_for).getTime() : 0;
+                    .filter(c => c.status === 'draft')
+                    .sort((_a, _b) => {
+                      const aTime = 0;
+                      const bTime = 0;
                       return aTime - bTime;
                     })
                     .map((clip) => (
@@ -1327,30 +1210,6 @@ const MyRecordings = () => {
                               <Clock className="h-3 w-3 mr-1" />
                               Scheduled
                             </Badge>
-                            {clip.scheduled_for && (
-                              <div className="text-sm text-muted-foreground text-right">
-                                <div className="font-semibold">
-                                  {new Date(clip.scheduled_for).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })}
-                                </div>
-                                <div>
-                                  {new Date(clip.scheduled_for).toLocaleTimeString('en-US', {
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                    hour12: true
-                                  })}
-                                </div>
-                                <div className="text-xs mt-1">
-                                  {new Date(clip.scheduled_for).getTime() > Date.now() 
-                                    ? `In ${Math.ceil((new Date(clip.scheduled_for).getTime() - Date.now()) / (1000 * 60 * 60))} hours`
-                                    : 'Ready to publish'
-                                  }
-                                </div>
-                              </div>
-                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1417,7 +1276,7 @@ const MyRecordings = () => {
 
         {/* Analytics Dialog */}
         <ClipAnalyticsDialog
-          clip={analyticsClip}
+          clip={(analyticsClip ? { ...analyticsClip, completion_rate: null } : null) as any}
           open={isAnalyticsOpen}
           onOpenChange={setIsAnalyticsOpen}
         />

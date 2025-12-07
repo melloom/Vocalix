@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ClipCard } from "@/components/ClipCard";
 import { ClipTranslation } from "@/components/ClipTranslation";
 import { SimilarClipsSection } from "@/components/SimilarClipsSection";
+import { RemixChainView } from "@/components/RemixChainView";
+import { RemixAnalytics } from "@/components/RemixAnalytics";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
@@ -231,6 +233,18 @@ const ClipDetail = () => {
             caption={clip.summary}
           />
         )}
+        
+        {/* Remix Chain View */}
+        <RemixChainView clipId={clip.id} />
+        
+        {/* Remix Analytics - Show if this clip is a remix or has remixes */}
+        {(clip.remix_of_clip_id || (clip.remix_count && clip.remix_count > 0)) && (
+          <RemixAnalytics
+            remixClipId={clip.id}
+            originalClipId={clip.remix_of_clip_id || clip.id}
+          />
+        )}
+        
         <SimilarClipsSection clipId={clip.id} />
       </main>
     </div>

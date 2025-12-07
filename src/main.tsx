@@ -1,3 +1,13 @@
+// Type declarations for window properties
+declare global {
+  interface Window {
+    __APP_RENDERED__?: boolean;
+    __REACT_RENDERING__?: boolean;
+    __INIT_ATTEMPTED__?: boolean;
+    __APP_SCRIPT_LOADED__?: boolean;
+  }
+}
+
 // CRITICAL: Log that this module is loading
 console.log("[App] ===== MAIN.TSX MODULE LOADING ===== ");
 console.log("[App] Module execution started at:", new Date().toISOString());
@@ -5,6 +15,7 @@ console.log("[App] Module execution started at:", new Date().toISOString());
 // Ensure React loads first - critical for mobile browsers
 import * as React from "react";
 import { createRoot } from "react-dom/client";
+import * as ReactDOM from "react-dom/client";
 
 console.log("[App] React imports completed");
 
@@ -57,8 +68,11 @@ const safeStringify = (arg: any): string => {
   }
   
   // Handle DOM elements
-  if (arg instanceof HTMLElement || arg instanceof Node) {
+  if (arg instanceof HTMLElement) {
     return `[${arg.constructor.name}${arg.id ? '#' + arg.id : ''}${arg.className ? '.' + String(arg.className).split(' ').join('.') : ''}]`;
+  }
+  if (arg instanceof Node) {
+    return `[${arg.constructor.name}]`;
   }
   
   // Handle React components (they have $$typeof or _reactInternalInstance)
@@ -88,7 +102,7 @@ const safeStringify = (arg: any): string => {
     try {
       // Create a safe replacer to handle circular refs
       const seen = new WeakSet();
-      return JSON.stringify(arg, (key, value) => {
+      return JSON.stringify(arg, (_key, value) => {
         if (typeof value === 'object' && value !== null) {
           if (seen.has(value)) {
             return '[Circular]';
@@ -525,7 +539,9 @@ const initApp = () => {
       try {
         root.render(
   <Sentry.ErrorBoundary
-    fallback={({ error, resetError }) => (
+    fallback={({ error, resetError }: { error: unknown; resetError: () => void }) => {
+      const errorObj = error instanceof Error ? error : null;
+      return (
       <div 
         className="min-h-screen bg-background flex items-center justify-center p-4"
         style={{
@@ -561,26 +577,26 @@ const initApp = () => {
               <div>
                 <strong className="text-destructive">Error:</strong>
                 <pre className="whitespace-pre-wrap text-[11px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
-                  {error?.toString() || 'Unknown error'}
+                  {errorObj?.toString() || String(error) || 'Unknown error'}
                 </pre>
               </div>
-              {error?.message && (
+              {errorObj?.message && (
                 <div>
                   <strong className="text-destructive">Message:</strong>
                   <pre className="whitespace-pre-wrap text-[11px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
-                    {error.message}
+                    {errorObj.message}
                   </pre>
                 </div>
               )}
-              {error?.stack && (
+              {errorObj?.stack && (
                 <div>
                   <strong className="text-destructive">Stack Trace:</strong>
                   <pre className="whitespace-pre-wrap text-[10px] mt-1 bg-background/50 p-2 rounded font-mono overflow-auto max-h-40 border border-border">
-                    {error.stack}
+                    {errorObj.stack}
                   </pre>
                 </div>
               )}
-              {!error && (
+              {!errorObj && (
                 <p className="text-muted-foreground italic">No error details available</p>
               )}
             </div>
@@ -642,7 +658,8 @@ const initApp = () => {
           </div>
         </div>
       </div>
-    )}
+      );
+    }}
     showDialog={false}
   >
     <UploadQueueProvider>
@@ -731,9 +748,9 @@ const initApp = () => {
       // Only try to stringify if it's safe
       if (error && typeof error.toString === 'function') {
         try {
-          errorDetails.toString = String(error);
+          errorDetails.toString = () => String(error);
         } catch (e) {
-          errorDetails.toString = '[Unable to convert to string - circular reference]';
+          errorDetails.toString = () => '[Unable to convert to string - circular reference]';
         }
       }
       console.error("[App] Error details:", errorDetails);

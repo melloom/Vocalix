@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Clock } from "lucide-react";
 // Separator component inline since it might not exist
 const Separator = ({ className }: { className?: string }) => (
   <div className={`h-px bg-border ${className || ""}`} />
@@ -21,6 +23,9 @@ interface NotificationPreferences {
   polls: boolean;
   awards: boolean;
   crossposts: boolean;
+  quiet_hours_enabled?: boolean;
+  quiet_hours_start?: string; // HH:MM format (24-hour)
+  quiet_hours_end?: string; // HH:MM format (24-hour)
 }
 
 export function NotificationPreferences() {
@@ -73,7 +78,7 @@ export function NotificationPreferences() {
     }
   };
 
-  const updatePreference = async (key: keyof NotificationPreferences, value: boolean) => {
+  const updatePreference = async (key: keyof NotificationPreferences, value: boolean | string) => {
     if (!profile?.id) return;
 
     const newPreferences = { ...preferences, [key]: value };
@@ -205,6 +210,73 @@ export function NotificationPreferences() {
             {index < preferenceItems.length - 1 && <Separator className="mt-4" />}
           </div>
         ))}
+        
+        <Separator className="my-4" />
+        
+        {/* Quiet Hours Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Label className="font-medium">Quiet Hours</Label>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Pause notifications during specific hours
+              </p>
+            </div>
+            <Switch
+              checked={preferences.quiet_hours_enabled ?? false}
+              onCheckedChange={(checked) => updatePreference("quiet_hours_enabled", checked)}
+              disabled={isSaving}
+              aria-label="Toggle quiet hours"
+            />
+          </div>
+          
+          {preferences.quiet_hours_enabled && (
+            <div className="pl-6 space-y-3 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quiet-start" className="text-xs">
+                    Start Time
+                  </Label>
+                  <Input
+                    id="quiet-start"
+                    type="time"
+                    value={preferences.quiet_hours_start || "22:00"}
+                    onChange={(e) => {
+                      const newPrefs = { ...preferences, quiet_hours_start: e.target.value };
+                      setPreferences(newPrefs);
+                      updatePreference("quiet_hours_start", e.target.value);
+                    }}
+                    className="rounded-xl h-9"
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quiet-end" className="text-xs">
+                    End Time
+                  </Label>
+                  <Input
+                    id="quiet-end"
+                    type="time"
+                    value={preferences.quiet_hours_end || "08:00"}
+                    onChange={(e) => {
+                      const newPrefs = { ...preferences, quiet_hours_end: e.target.value };
+                      setPreferences(newPrefs);
+                      updatePreference("quiet_hours_end", e.target.value);
+                    }}
+                    className="rounded-xl h-9"
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Notifications will be paused from {preferences.quiet_hours_start || "22:00"} to {preferences.quiet_hours_end || "08:00"}
+              </p>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

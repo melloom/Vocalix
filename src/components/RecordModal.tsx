@@ -36,6 +36,7 @@ import { AIContentOptimization } from "@/components/AIContentOptimization";
 import { useAIContentCreation } from "@/hooks/useAIContentCreation";
 import { Wand2 } from "lucide-react";
 import { RecordModalTutorial } from "@/components/RecordModalTutorial";
+import { CreateSeriesModal } from "@/components/CreateSeriesModal";
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -133,6 +134,7 @@ export const RecordModal = ({
   const [autoEnhanceEnabled, setAutoEnhanceEnabled] = useState(true);
   const [showAudioEditor, setShowAudioEditor] = useState(false);
   const [showRecordModalTutorial, setShowRecordModalTutorial] = useState(false);
+  const [showCreateSeriesModal, setShowCreateSeriesModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dynamic max duration based on podcast mode
@@ -1071,6 +1073,8 @@ export const RecordModal = ({
         visibility,
         signLanguageUrl: signLanguageUrl || null,
         audioDescriptionUrl: audioDescriptionUrl || null,
+        seriesId: selectedSeriesId || undefined,
+        episodeNumber: episodeNumber || undefined,
       });
 
       onSuccess();
@@ -1992,53 +1996,76 @@ export const RecordModal = ({
                   </Select>
                 </div>
 
-                {userSeries.length > 0 && (
-                  <div className="space-y-1">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
                     <label className="text-xs font-medium" htmlFor="clip-series">
                       Series{" "}
                       <span className="text-xs font-normal text-muted-foreground">
                         optional
                       </span>
                     </label>
-                    <Select
-                      value={selectedSeriesId || "none"}
-                      onValueChange={(value) => {
-                        setSelectedSeriesId(value === "none" ? null : value);
-                        if (value === "none") {
-                          setEpisodeNumber(null);
-                        }
-                      }}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowCreateSeriesModal(true)}
+                      className="h-7 text-xs rounded-xl"
                     >
-                      <SelectTrigger id="clip-series" className="rounded-xl h-9">
-                        <SelectValue placeholder="Select a series" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No series</SelectItem>
-                        {userSeries.map((series) => (
-                          <SelectItem key={series.id} value={series.id}>
-                            {series.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedSeriesId && (
-                      <div className="mt-2">
-                        <Label className="text-xs">Episode Number (optional)</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="e.g., 1, 2, 3..."
-                          value={episodeNumber || ""}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setEpisodeNumber(val ? parseInt(val, 10) : null);
-                          }}
-                          className="rounded-xl h-9"
-                        />
-                      </div>
-                    )}
+                      + Create Series
+                    </Button>
                   </div>
-                )}
+                  {userSeries.length > 0 ? (
+                    <>
+                      <Select
+                        value={selectedSeriesId || "none"}
+                        onValueChange={(value) => {
+                          setSelectedSeriesId(value === "none" ? null : value);
+                          if (value === "none") {
+                            setEpisodeNumber(null);
+                          }
+                        }}
+                      >
+                        <SelectTrigger id="clip-series" className="rounded-xl h-9">
+                          <SelectValue placeholder="Select a series" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No series</SelectItem>
+                          {userSeries.map((series) => (
+                            <SelectItem key={series.id} value={series.id}>
+                              {series.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedSeriesId && (
+                        <div className="mt-2">
+                          <Label className="text-xs">Episode Number (optional)</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="e.g., 1, 2, 3..."
+                            value={episodeNumber || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEpisodeNumber(val ? parseInt(val, 10) : null);
+                            }}
+                            className="rounded-xl h-9"
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCreateSeriesModal(true)}
+                      className="w-full rounded-xl h-9 text-xs"
+                    >
+                      + Create Your First Series
+                    </Button>
+                  )}
+                </div>
 
                 {communityId && (
                   <FlairSelector
@@ -2415,6 +2442,16 @@ export const RecordModal = ({
         }}
         onSkip={() => {
           setShowRecordModalTutorial(false);
+        }}
+      />
+
+      {/* Create Series Modal */}
+      <CreateSeriesModal
+        isOpen={showCreateSeriesModal}
+        onClose={() => setShowCreateSeriesModal(false)}
+        onSuccess={() => {
+          setShowCreateSeriesModal(false);
+          loadUserSeries(); // Refresh series list
         }}
       />
     </Dialog>
