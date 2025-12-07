@@ -1,4 +1,4 @@
-# 🌱 Echo Garden (Vocalix)
+# (Vocalix)
 
 <div align="center">
 
@@ -19,7 +19,7 @@
 
 ## 📖 About
 
-**Echo Garden** (also known as **Vocalix**) is an innovative audio-first social platform where users share short voice clips instead of text posts. Think of it as a voice-based social network where conversations happen through audio, creating a more authentic and engaging way to connect.
+**Vocalix** is an innovative audio-first social platform where users share short voice clips instead of text posts. Think of it as a voice-based social network where conversations happen through audio, creating a more authentic and engaging way to connect.
 
 ### Key Features
 
@@ -350,5 +350,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Made with ❤️ for the audio community
 
 </div>
+
 
 ````
