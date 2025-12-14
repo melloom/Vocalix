@@ -899,9 +899,22 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           });
           const errorMessage = errorData.reason || errorData.error || 'Account validation failed';
           
+          // Log the full error for debugging
+          console.error('[OnboardingFlow] Validation failed (400):', {
+            status: validationResponse.status,
+            errorData,
+            errorMessage,
+            requestBody: {
+              handle: normalizedHandle,
+              device_id: finalDeviceId,
+              has_recaptcha_token: !!(enterpriseToken || recaptchaToken),
+            }
+          });
+          
           // In development, if it's a reCAPTCHA error, allow it to proceed
           if (isDevelopment && (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification'))) {
             // Silently continue in development - reCAPTCHA may not be configured
+            console.warn('[OnboardingFlow] Allowing request in development despite reCAPTCHA error');
           } else {
             // In production, show error
             toast({
