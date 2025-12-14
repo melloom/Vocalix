@@ -820,6 +820,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
                       
                       if (enterpriseToken) {
                         setRecaptchaToken(enterpriseToken);
+                        console.log('[OnboardingFlow] ✅ reCAPTCHA token obtained successfully:', enterpriseToken.substring(0, 20) + '...');
                         break; // Success!
                       }
                     } catch (error: any) {
@@ -863,6 +864,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       // Validate account creation with reCAPTCHA Enterprise token (if validation function exists)
       // This ensures reCAPTCHA is verified on the backend
       try {
+        const finalRecaptchaToken = enterpriseToken || recaptchaToken || undefined;
+        console.log('[OnboardingFlow] Calling validate-account-creation with token:', finalRecaptchaToken ? finalRecaptchaToken.substring(0, 20) + '...' : 'none');
+        
         const { data: { session } } = await supabase.auth.getSession();
         const validationResponse = await fetch(`${SUPABASE_URL}/functions/v1/validate-account-creation`, {
           method: 'POST',
@@ -875,7 +879,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           body: JSON.stringify({
             handle: normalizedHandle,
             device_id: finalDeviceId,
-            recaptcha_token: enterpriseToken || recaptchaToken || undefined,
+            recaptcha_token: finalRecaptchaToken,
             honeypot: honeypot || undefined,
             user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
           }),
