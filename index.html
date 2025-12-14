@@ -760,6 +760,15 @@
           } : 'No target'
         };
         
+        // Only log errors that have useful information - filter out empty/benign errors
+        const hasUsefulInfo = e.message || e.filename || e.error?.message || e.error?.stack || 
+                              (e.target && (e.target.src || e.target.href));
+        
+        if (!hasUsefulInfo) {
+          // This is an empty error event with no useful information - silently ignore
+          return;
+        }
+        
         console.error('[HTML] Global error caught:', errorDetails);
         
         // If this is a React/app error and we have details, show them
