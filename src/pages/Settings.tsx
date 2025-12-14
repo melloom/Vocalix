@@ -78,7 +78,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileMenu } from "@/components/MobileMenu";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
-import { generateRecoveryPhrase } from "@/lib/recoveryPhrase";
+import { generateRecoveryPhrase, validateRecoveryPhrase } from "@/lib/recoveryPhrase";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -1196,6 +1196,93 @@ const Settings = () => {
       });
     } finally {
       setIsGeneratingPhrase(false);
+    }
+  };
+
+  const handleRestorePersona = async () => {
+    if (isRestoringPersona) return;
+    setIsRestoringPersona(true);
+    
+    try {
+      // Validate the recovery phrase
+      const validation = validateRecoveryPhrase(restorePhraseInput);
+      if (!validation.valid) {
+        toast({
+          title: "Invalid recovery phrase",
+          description: validation.error,
+          variant: "destructive",
+        });
+        setIsRestoringPersona(false);
+        return;
+      }
+
+      // Get current pseudo_id (will be replaced)
+      const currentPseudoId = getPseudoId();
+      if (!currentPseudoId) {
+        throw new Error("No pseudo ID found. Please refresh and try again.");
+      }
+
+      // Call restore-persona function
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/restore-persona`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY || "",
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY || ""}`,
+        },
+        body: JSON.stringify({
+          recoveryPhrase: restorePhraseInput,
+          newPseudoId: currentPseudoId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error("Invalid recovery phrase. Please check and try again.");
+      }
+
+      // Set profileId in localStorage
+      localStorage.setItem("profileId", result.profileId);
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "profileId",
+        newValue: result.profileId,
+      }));
+
+      // Trigger profile refetch
+      try {
+        refetch();
+      } catch {}
+
+      // Close dialog and clear input
+      setShowRestorePersonaDialog(false);
+      setRestorePhraseInput("");
+
+      toast({
+        title: "Persona restored!",
+        description: `Welcome back, ${result.handle}! Your persona has been restored to this device.`,
+      });
+
+      // Refresh the page to load the restored profile
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error: any) {
+      logError("Failed to restore persona", error);
+      toast({
+        title: "Couldn't restore persona",
+        description: error?.message || "Please check your recovery phrase and try again.",
+        variant: "destructive",
+      });
+      setIsRestoringPersona(false);
     }
   };
 
