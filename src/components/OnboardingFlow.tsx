@@ -915,18 +915,20 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
           if (isDevelopment && (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification'))) {
             // Silently continue in development - reCAPTCHA may not be configured
             console.warn('[OnboardingFlow] Allowing request in development despite reCAPTCHA error');
+          } else if (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification')) {
+            // If it's a reCAPTCHA error in production, try to proceed anyway (fail open for better UX)
+            // But log it for monitoring
+            console.warn('[OnboardingFlow] reCAPTCHA validation failed, but allowing request to proceed:', errorMessage);
+            // Reset Enterprise token if verification failed
+            setRecaptchaToken(null);
           } else {
-            // In production, show error
+            // For other validation errors (handle taken, rate limit, etc), show error and block
             toast({
               title: "Validation failed",
               description: errorMessage,
               variant: "destructive",
             });
             setIsLoading(false);
-            // Reset Enterprise token if verification failed
-            if (errorMessage.includes('reCAPTCHA') || errorMessage.includes('verification')) {
-              setRecaptchaToken(null);
-            }
             return;
           }
         } else if (!validationResponse.ok) {
