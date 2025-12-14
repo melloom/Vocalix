@@ -1098,6 +1098,54 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               variant: "destructive",
             });
             setHandle(generateHandle());
+          } else if (error.message?.includes("device_id") || error.message?.includes("profiles_device_id_key")) {
+            // Profile already exists for this device - try to load it instead
+            console.log('[OnboardingFlow] Profile already exists for this device, loading existing profile...');
+            try {
+              const { data: existingProfile, error: fetchError } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("device_id", finalDeviceId)
+                .maybeSingle();
+
+              if (fetchError) {
+                console.error('[OnboardingFlow] Error fetching existing profile:', fetchError);
+                toast({
+                  title: "Account exists",
+                  description: "An account already exists for this device. Please refresh the page.",
+                  variant: "destructive",
+                });
+                // Refresh to load existing profile
+                setTimeout(() => window.location.reload(), 2000);
+              } else if (existingProfile) {
+                // Found existing profile - use it
+                localStorage.setItem("profileId", existingProfile.id);
+                window.dispatchEvent(new StorageEvent("storage", {
+                  key: "profileId",
+                  newValue: existingProfile.id,
+                }));
+                toast({
+                  title: "Welcome back!",
+                  description: "Your account has been loaded.",
+                });
+                // Complete onboarding with existing profile
+                if (onComplete) {
+                  onComplete();
+                } else {
+                  // Redirect to home
+                  window.location.href = "/";
+                }
+                return;
+              }
+            } catch (lookupError) {
+              console.error('[OnboardingFlow] Error during profile lookup:', lookupError);
+              toast({
+                title: "Account exists",
+                description: "An account already exists for this device. Please refresh the page.",
+                variant: "destructive",
+              });
+              setTimeout(() => window.location.reload(), 2000);
+            }
           } else {
             toast({
               title: "Account creation failed",
