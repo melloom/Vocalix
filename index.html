@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Vocalix" />
+    <meta name="theme-color" content="#2a1f3d" />
+    <meta name="msapplication-TileColor" content="#2a1f3d" />
+    <meta name="msapplication-navbutton-color" content="#2a1f3d" />
+    <!-- Apply theme immediately on page load before React renders -->
+    <script>
+      (function() {
+        // Apply theme immediately from localStorage
+        const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
+        const root = document.documentElement;
+        const body = document.body;
+        
+        // Helper function to safely apply class to element
+        const safeClassList = (element, method, ...classes) => {
+          if (element && element.classList) {
+            if (method === 'remove') {
+              classes.forEach(cls => element.classList.remove(cls));
+            } else if (method === 'add') {
+              classes.forEach(cls => element.classList.add(cls));
+            }
+          }
+        };
+        
+        // Remove all existing theme classes
+        const themeClasses = ["theme-indigo", "theme-light", "theme-dark", "theme-ocean", "theme-sunset", "theme-forest", "theme-neon", "theme-midnight", "theme-aurora", "theme-rose"];
+        themeClasses.forEach(themeClass => {
+          safeClassList(root, 'remove', themeClass);
+          safeClassList(body, 'remove', themeClass);
+        });
+        safeClassList(root, 'remove', 'dark', 'light');
+        
+        // Apply the stored theme
+        if (storedTheme && storedTheme !== "light" && storedTheme !== "dark") {
+          safeClassList(root, 'add', `theme-${storedTheme}`);
+          safeClassList(body, 'add', `theme-${storedTheme}`);
+          
+          // Apply dark class for dark themes
+          if (storedTheme === "midnight" || storedTheme === "indigo") {
+            safeClassList(root, 'add', 'dark');
+          } else {
+            safeClassList(root, 'add', 'light');
+          }
+        } else if (storedTheme === "dark") {
+          safeClassList(root, 'add', 'dark');
+          safeClassList(root, 'remove', 'light');
+        } else if (storedTheme === "light") {
+          safeClassList(root, 'add', 'light');
+          safeClassList(root, 'remove', 'dark');
+        } else {
+          // Default to indigo
+          safeClassList(root, 'add', 'theme-indigo');
+          safeClassList(body, 'add', 'theme-indigo');
+          safeClassList(root, 'add', 'dark');
+        }
+        
+        // Apply theme colors immediately as inline styles for instant rendering
+        if (storedTheme === "indigo") {
+          root.style.setProperty("--background", "260 55% 16%");
+          root.style.setProperty("--foreground", "0 0% 98%");
+          root.style.setProperty("--card", "260 50% 20%");
+          root.style.setProperty("--card-foreground", "0 0% 98%");
+          root.style.setProperty("--popover", "260 50% 20%");
+          root.style.setProperty("--popover-foreground", "0 0% 98%");
+          root.style.setProperty("--primary", "15 85% 62%");
+          root.style.setProperty("--primary-foreground", "0 0% 98%");
+          root.style.setProperty("--secondary", "260 45% 25%");
+          root.style.setProperty("--secondary-foreground", "0 0% 98%");
+          root.style.setProperty("--muted", "260 40% 22%");
+          root.style.setProperty("--muted-foreground", "0 0% 75%");
+          root.style.setProperty("--accent", "25 95% 55%");
+          root.style.setProperty("--accent-foreground", "0 0% 98%");
+          root.style.setProperty("--destructive", "0 72% 51%");
+          root.style.setProperty("--destructive-foreground", "0 0% 98%");
+          root.style.setProperty("--border", "260 40% 28%");
+          root.style.setProperty("--input", "260 40% 28%");
+          root.style.setProperty("--ring", "15 85% 62%");
+          root.style.setProperty("--record-pulse", "15 85% 62%");
+          root.style.setProperty("--waveform", "15 75% 55%");
+          root.style.setProperty("--emoji-glow", "45 100% 60%");
+        } else if (storedTheme === "light") {
+          root.style.setProperty("--background", "0 0% 100%");
+          root.style.setProperty("--foreground", "0 0% 3.9%");
+          root.style.setProperty("--card", "0 0% 100%");
+          root.style.setProperty("--card-foreground", "0 0% 3.9%");
+          root.style.setProperty("--popover", "0 0% 100%");
+          root.style.setProperty("--popover-foreground", "0 0% 3.9%");
+          root.style.setProperty("--primary", "0 0% 9%");
+          root.style.setProperty("--primary-foreground", "0 0% 98%");
+          root.style.setProperty("--secondary", "0 0% 96.1%");
+          root.style.setProperty("--secondary-foreground", "0 0% 9%");
+          root.style.setProperty("--muted", "0 0% 96.1%");
+          root.style.setProperty("--muted-foreground", "0 0% 45.1%");
+          root.style.setProperty("--accent", "0 0% 96.1%");
+          root.style.setProperty("--accent-foreground", "0 0% 9%");
+          root.style.setProperty("--destructive", "0 84.2% 60.2%");
+          root.style.setProperty("--destructive-foreground", "0 0% 98%");
+          root.style.setProperty("--border", "0 0% 89.8%");
+          root.style.setProperty("--input", "0 0% 89.8%");
+          root.style.setProperty("--ring", "0 0% 3.9%");
+          root.style.setProperty("--record-pulse", "0 72% 51%");
+          root.style.setProperty("--waveform", "0 65% 45%");
+          root.style.setProperty("--emoji-glow", "0 100% 60%");
+        }
+      })();
+    </script>
+    <!-- Critical CSS fallback for mobile white screen fix -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      }
+      #root {
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+      }
+      /* Theme-based background colors - will be set by script */
+      html.theme-indigo, html.dark {
+        background-color: #2a1f3d;
+      }
+      html.theme-light, html.light {
+        background-color: #ffffff;
+      }
+      html.theme-dark {
+        background-color: #1a1a1a;
+      }
+      html.theme-ocean {
+        background-color: #e0f2fe;
+      }
+      html.theme-sunset {
+        background-color: #fff5e6;
+      }
+      html.theme-forest {
+        background-color: #f0fdf4;
+      }
+      html.theme-neon {
+        background-color: #faf5ff;
+      }
+      html.theme-midnight {
+        background-color: #1e1b4b;
+      }
+      html.theme-aurora {
+        background-color: #ecfeff;
+      }
+      html.theme-rose {
+        background-color: #fff1f2;
+      }
+      /* Default to indigo if no theme set */
+      html:not([class*="theme-"]):not(.light):not(.dark) {
+        background-color: #2a1f3d;
+      }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <title>Vocalix</title>
+    <meta
+      name="description"
+      content="Vocalix helps you capture and share meaningful voice notes."
+    />
+    <meta name="author" content="Vocalix" />
+
+    <meta property="og:title" content="Vocalix" />
+    <meta
+      property="og:description"
+      content="Vocalix helps you capture and share meaningful voice notes."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/placeholder.svg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/placeholder.svg" />
+    
+    <!-- reCAPTCHA Enterprise - Load script dynamically based on environment variable -->
+  </head>
+
+  <body>
+    <div id="root">
+      <!-- Loading fallback for mobile - shows immediately while JS loads -->
+      <div id="loading-screen" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; -webkit-font-smoothing: antialiased;">
+        <div style="text-align: center; padding: 20px;">
+          <div id="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
+          <p id="loading-text" style="color: #666; font-size: 16px;">Loading Vocalix...</p>
+        </div>
+      </div>
+      <script>
+        // Update loading screen colors based on theme
+        (function() {
+          const storedTheme = localStorage.getItem("echo-garden-theme") || "indigo";
+          const loadingScreen = document.getElementById("loading-screen");
+          const loadingSpinner = document.getElementById("loading-spinner");
+          const loadingText = document.getElementById("loading-text");
+          
+          const themeColors = {
+            indigo: { bg: "#2a1f3d", text: "#e0e0e0", spinner: "#667eea" },
+            light: { bg: "#ffffff", text: "#333", spinner: "#000" },
+            dark: { bg: "#1a1a1a", text: "#e0e0e0", spinner: "#667eea" },
+            ocean: { bg: "#e0f2fe", text: "#0c4a6e", spinner: "#0ea5e9" },
+            sunset: { bg: "#fff5e6", text: "#7c2d12", spinner: "#ff6b6b" },
+            forest: { bg: "#f0fdf4", text: "#14532d", spinner: "#22c55e" },
+            neon: { bg: "#faf5ff", text: "#581c87", spinner: "#a855f7" },
+            midnight: { bg: "#1e1b4b", text: "#e0e0e0", spinner: "#6366f1" },
+            aurora: { bg: "#ecfeff", text: "#083344", spinner: "#06b6d4" },
+            rose: { bg: "#fff1f2", text: "#881337", spinner: "#f43f5e" }
+          };
+          
+          const colors = themeColors[storedTheme] || themeColors.indigo;
+          if (loadingScreen) loadingScreen.style.backgroundColor = colors.bg;
+          if (loadingText) loadingText.style.color = colors.text;
+          if (loadingSpinner) {
+            loadingSpinner.style.borderColor = colors.text + "40";
+            loadingSpinner.style.borderTopColor = colors.spinner;
+          }
+        })();
+      </script>
+      <style>
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
+    </div>
+    <script>
+      // Aggressive timeout to clear loading screen if React doesn't mount
+      // This prevents infinite "Loading Echo Chamber" on mobile
+      (function() {
+        let cleared = false;
+        const clearLoading = function() {
+          if (cleared) return;
+          const root = document.getElementById('root');
+          const loading = document.getElementById('loading-screen');
+          if (root && (loading || root.innerHTML.includes('Loading Echo Chamber'))) {
+            console.log('[HTML] Force clearing loading screen after timeout');
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">App Loading</h1><p style="color: #e0e0e0; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">If this screen persists, please refresh the page.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button></div></div>';
+            cleared = true;
+          }
+        };
+        
+        // Clear after 4 seconds if React hasn't mounted
+        setTimeout(function() {
+          if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
+            console.log('[HTML] Timeout: React did not render, clearing loading screen');
+            clearLoading();
+          }
+        }, 4000);
+        
+        // Also listen for when React should have mounted
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            // Check if React actually mounted by looking for React content
+            const root = document.getElementById('root');
+            const hasReactContent = root && (
+              root.querySelector('[data-reactroot]') ||
+              root.querySelector('._react') ||
+              (root.children.length > 0 && 
+               !root.innerHTML.includes('Loading Vocalix') && 
+               !root.innerHTML.includes('App Loading') &&
+               !root.innerHTML.includes('Rendering Error'))
+            );
+            
+            if (!hasReactContent && !window.__APP_RENDERED__ && !window.__REACT_RENDERING__) {
+              console.log('[HTML] React did not render after window load, showing error');
+              clearLoading();
+            }
+          }, 3000);
+        });
+      })();
+    </script>
+    <!-- Test if modules work at all -->
+    <script type="module">
+      console.log('[HTML] ✅ Module execution test - modules work!');
+      window.__MODULES_WORK__ = true;
+    </script>
+    
+    <!-- Vite will inject the correct script tag here during build -->
+    <!-- In development, this loads /src/main.tsx directly -->
+    <!-- In production, Vite replaces this with the bundled script -->
+    <script type="module" src="/src/main.tsx" id="main-module-script"></script>
+    <script>
+      // Track when script loads
+      var mainScript = document.getElementById('main-module-script');
+      if (mainScript) {
+        mainScript.onload = function() {
+          console.log('[HTML] ✅ Main script file loaded successfully');
+          window.__MAIN_SCRIPT_LOADED__ = true;
+        };
+        mainScript.onerror = function(e) {
+          console.error('[HTML] ❌ Main script file failed to load:', e);
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Script File Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main script file could not be loaded from the server.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">This might be a network issue or the file doesn\'t exist.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+          }
+        };
+      }
+      
+      // Catch errors from the module script
+      window.addEventListener('error', function(e) {
+        // Ignore reCAPTCHA and other third-party script errors
+        // Check both filename and target.src (some errors only have target.src)
+        const errorSource = e.filename || (e.target && (e.target.src || e.target.href)) || '';
+        if (errorSource && (
+          errorSource.includes('recaptcha') ||
+          errorSource.includes('google.com') ||
+          errorSource.includes('gstatic.com') ||
+          errorSource.includes('googleapis.com')
+        )) {
+          // Silently ignore - don't even log it
+          return; // Don't handle these errors
+        }
+        
+        // Check if it's an error from our main module
+        if (e.filename && (e.filename.includes('main.tsx') || e.filename.includes('index-') || e.filename.includes('assets/js/'))) {
+          console.error('[HTML] ❌ MODULE SCRIPT ERROR:', {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            error: e.error,
+            stack: e.error?.stack
+          });
+          
+          // Only show error if module didn't execute at all
+          if (!window.__APP_SCRIPT_LOADED__) {
+            var root = document.getElementById('root');
+            if (root && !root.innerHTML.includes('Module Failed') && !root.innerHTML.includes('Module Import') && !root.innerHTML.includes('Script File Failed')) {
+              var errorMsg = e.message || 'Unknown error';
+              var errorStack = e.error?.stack ? '<br><br><details style="text-align: left; margin-top: 12px;"><summary style="cursor: pointer; color: #667eea;">Stack Trace</summary><pre style="font-size: 10px; overflow: auto; max-height: 200px; background: #1a1525; color: #d0d0d0; padding: 8px; border-radius: 4px; margin-top: 8px; -webkit-font-smoothing: antialiased;">' + e.error.stack + '</pre></details>' : '';
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 600px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Module Error</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">An error occurred while loading the application module.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; word-break: break-all; -webkit-font-smoothing: antialiased;">Error: ' + errorMsg + '</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">File: ' + (e.filename || 'unknown') + '</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">Line: ' + (e.lineno || 'unknown') + ', Col: ' + (e.colno || 'unknown') + '</p>' + errorStack + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            }
+          }
+        }
+      }, true);
+      
+      // Also catch unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && (String(e.reason).includes('main.tsx') || String(e.reason).includes('Failed to fetch') || String(e.reason).includes('import'))) {
+          console.error('[HTML] ❌ UNHANDLED PROMISE REJECTION (module related):', e.reason);
+        }
+      });
+    </script>
+    <script>
+      // EMERGENCY: If main.tsx doesn't execute, try to render something
+      // Only show error if script loaded but app didn't render after reasonable time
+      setTimeout(function() {
+        // Don't show error if:
+        // 1. App already rendered
+        // 2. React is currently rendering
+        // 3. Script hasn't loaded yet (give it more time)
+        // 4. Error already shown
+        if (!window.__APP_RENDERED__ && !window.__REACT_RENDERING__ && !window.__MODULE_IMPORT_ERROR__) {
+          // Only show error if script loaded but app still didn't render
+          // This prevents false alarms when script is still loading
+          if (window.__APP_SCRIPT_LOADED__) {
+            // Script loaded but app didn't render - this is a real issue
+            console.error('[HTML] EMERGENCY: main.tsx module did not execute!');
+            window.__MODULE_IMPORT_ERROR__ = true;
+            var root = document.getElementById('root');
+            if (root && (root.innerHTML.includes('Loading Vocalix') || root.children.length === 0)) {
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Module Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main application module did not execute. This usually means there is a JavaScript error preventing the code from running.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">Please check the browser console for errors and try clearing your cache.</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            }
+          }
+          // If script hasn't loaded yet, don't show error - script might still be loading
+        }
+      }, 5000); // Increased timeout to 5 seconds to reduce false alarms
+    </script>
+    <script>
+      // Track script loading for error detection
+      (function() {
+        // Find the script tag that Vite injected (or the one we just added)
+        const scripts = document.querySelectorAll('script[type="module"]');
+        let mainScript = null;
+        
+        for (let script of scripts) {
+          if (script.src && (script.src.includes('/src/main.tsx') || script.src.includes('/assets/js/'))) {
+            mainScript = script;
+            break;
+          }
+        }
+        
+        if (mainScript) {
+          let loadTimeout;
+          let hasLoaded = false;
+          
+          const markLoaded = function() {
+            hasLoaded = true;
+            if (loadTimeout) clearTimeout(loadTimeout);
+            window.__APP_SCRIPT_LOADED__ = true;
+            console.log('[HTML] Main script loaded successfully');
+          };
+          
+          const handleError = function(e) {
+            if (hasLoaded) return; // Already handled
+            
+            console.error('[HTML] Script failed to load:', {
+              src: mainScript.src,
+              error: e,
+              readyState: mainScript.readyState
+            });
+            
+            var root = document.getElementById('root');
+            if (root && !window.__ERROR_SHOWN__) {
+              window.__ERROR_SHOWN__ = true;
+              root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Script Failed to Load</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">The main application script could not be loaded.</p><p style="color: #b0b0b0; font-size: 12px; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">File: ' + (mainScript.src || '/src/main.tsx') + '</p><div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Reset all caches?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset Cache</button></div></div></div>';
+            }
+          };
+          
+          // Monitor the script
+          if (mainScript.addEventListener) {
+            mainScript.addEventListener('load', markLoaded);
+            mainScript.addEventListener('error', handleError);
+          }
+          
+          // Fallback timeout
+          loadTimeout = setTimeout(function() {
+            if (!hasLoaded && mainScript.readyState !== 'complete' && mainScript.readyState !== 'loaded') {
+              console.error('[HTML] Script load timeout after 15 seconds');
+              handleError(new Error('Load timeout'));
+            }
+          }, 15000);
+          
+          // Check if already loaded
+          if (mainScript.readyState === 'complete' || mainScript.readyState === 'loaded') {
+            markLoaded();
+          }
+        }
+      })();
+    </script>
+    <script>
+      // Mobile Debug Panel - Shows logs on screen for iPhone debugging
+      (function() {
+        let logContainer = null;
+        let toggleBtn = null; // Declare at outer scope so it's accessible everywhere
+        let logs = [];
+        const maxLogs = 50;
+        
+        function createDebugPanel() {
+          // Debug panel disabled - return early to prevent UI creation
+          return;
+          
+          if (logContainer) return;
+          
+          logContainer = document.createElement('div');
+          logContainer.id = 'mobile-debug-panel';
+          logContainer.style.cssText = 'position: fixed; bottom: 10px; right: 10px; width: 90%; max-width: 400px; max-height: 300px; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 99999; overflow-y: auto; display: none; border: 2px solid #0f0;';
+          
+          toggleBtn = document.createElement('button');
+          toggleBtn.textContent = '📱 Debug';
+          toggleBtn.style.cssText = 'position: fixed; bottom: 10px; right: 10px; padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 20px; font-size: 12px; z-index: 99998; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3);';
+          toggleBtn.onclick = function() {
+            logContainer.style.display = logContainer.style.display === 'none' ? 'block' : 'none';
+          };
+          
+          const clearBtn = document.createElement('button');
+          clearBtn.textContent = 'Clear';
+          clearBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; padding: 4px 8px; background: #f00; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;';
+          clearBtn.onclick = function() {
+            logs = [];
+            updateLogDisplay();
+          };
+          logContainer.appendChild(clearBtn);
+          
+          document.body.appendChild(logContainer);
+          document.body.appendChild(toggleBtn);
+        }
+        
+        function addLog(level, message, data) {
+          if (!logContainer) createDebugPanel();
+          
+          const timestamp = new Date().toLocaleTimeString();
+          const logEntry = {
+            time: timestamp,
+            level: level,
+            message: message,
+            data: data
+          };
+          
+          logs.push(logEntry);
+          if (logs.length > maxLogs) logs.shift();
+          
+          updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+          if (!logContainer) return;
+          
+          const colors = {
+            log: '#0f0',
+            warn: '#ff0',
+            error: '#f00',
+            info: '#0ff'
+          };
+          
+          logContainer.innerHTML = '<button onclick="this.parentElement.style.display=\'none\'" style="position: absolute; top: 5px; right: 5px; padding: 4px 8px; background: #f00; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer;">Clear</button><div style="margin-top: 25px;">' +
+            logs.map(log => {
+              const color = colors[log.level] || '#fff';
+              const dataStr = log.data ? ' ' + JSON.stringify(log.data).substring(0, 100) : '';
+              return `<div style="color: ${color}; margin-bottom: 4px; word-break: break-word;"><span style="opacity: 0.7;">[${log.time}]</span> <strong>[${log.level.toUpperCase()}]</strong> ${log.message}${dataStr}</div>`;
+            }).join('') +
+            '</div>';
+        }
+        
+        // Override console methods
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        const originalInfo = console.info;
+        
+        // Safe stringify helper that handles circular references and DOM/React elements
+        const safeStringifyForLog = (arg) => {
+          if (arg === null || arg === undefined) return String(arg);
+          if (arg instanceof Error) return `Error: ${arg.message}${arg.stack ? '\n' + arg.stack : ''}`;
+          if (arg instanceof HTMLElement || arg instanceof Node) return `[${arg.constructor.name}]`;
+          if (typeof arg === 'object' && (arg.$$typeof || arg._reactInternalInstance)) return '[ReactElement]';
+          if (typeof arg === 'object') {
+            try {
+              const seen = new WeakSet();
+              return JSON.stringify(arg, (key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                  if (seen.has(value)) return '[Circular]';
+                  seen.add(value);
+                  if (value instanceof HTMLElement || value instanceof Node) return `[${value.constructor.name}]`;
+                  if (value.$$typeof || value._reactInternalInstance) return '[ReactElement]';
+                }
+                return value;
+              });
+            } catch (e) {
+              return `[Object: ${arg.constructor?.name || 'Object'}]`;
+            }
+          }
+          return String(arg);
+        };
+        
+        console.log = function(...args) {
+          originalLog.apply(console, args);
+          addLog('log', args.map(a => safeStringifyForLog(a)).join(' '));
+        };
+        
+        console.warn = function(...args) {
+          originalWarn.apply(console, args);
+          addLog('warn', args.map(a => safeStringifyForLog(a)).join(' '));
+        };
+        
+        console.error = function(...args) {
+          originalError.apply(console, args);
+          addLog('error', args.map(a => safeStringifyForLog(a)).join(' '));
+        };
+        
+        console.info = function(...args) {
+          originalInfo.apply(console, args);
+          addLog('info', args.map(a => safeStringifyForLog(a)).join(' '));
+        };
+        
+        console.info = function(...args) {
+          originalInfo.apply(console, args);
+          addLog('info', args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '));
+        };
+        
+        // Debug panel disabled - no longer showing automatically
+        // setTimeout(function() {
+        //   if (logs.some(l => l.level === 'error')) {
+        //     if (logContainer) logContainer.style.display = 'block';
+        //   }
+        // }, 3000);
+        
+        // Debug panel disabled - no longer keeping it visible
+        // setInterval(function() {
+        //   if (!logContainer) createDebugPanel();
+        //   if (logContainer && !document.body.contains(logContainer)) {
+        //     document.body.appendChild(logContainer);
+        //   }
+        //   if (toggleBtn && !document.body.contains(toggleBtn)) {
+        //     document.body.appendChild(toggleBtn);
+        //   }
+        // }, 500);
+        
+        // Also re-add on any DOM mutations (React might remove it)
+        // const observer = new MutationObserver(function() {
+        //   if (logContainer && !document.body.contains(logContainer)) {
+        //     document.body.appendChild(logContainer);
+        //   }
+        //   if (toggleBtn && !document.body.contains(toggleBtn)) {
+        //     document.body.appendChild(toggleBtn);
+        //   }
+        // });
+        // observer.observe(document.body, { childList: true, subtree: true });
+      })();
+      
+      // Track if script loaded
+      window.__APP_SCRIPT_LOADED__ = false;
+      window.__RESET_ATTEMPTED__ = false;
+      window.__RESET_IN_PROGRESS__ = false;
+      
+      async function resetAppCacheAndReload(forceReload = true) {
+        if (window.__RESET_IN_PROGRESS__) return;
+        window.__RESET_IN_PROGRESS__ = true;
+        
+        try {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((reg) => reg.unregister()));
+          }
+          
+          if (window.caches && typeof window.caches.keys === "function") {
+            const cacheNames = await window.caches.keys();
+            await Promise.all(cacheNames.map((cacheName) => window.caches.delete(cacheName)));
+          }
+        } catch (resetError) {
+          console.error("[HTML] Failed to reset caches:", resetError);
+        } finally {
+          if (forceReload) {
+            setTimeout(() => window.location.reload(), 100);
+          } else {
+            window.__RESET_IN_PROGRESS__ = false;
+          }
+        }
+      }
+      
+      window.__resetAppCache = resetAppCacheAndReload;
+      
+      // Fallback error handler if main script fails to load (mobile browsers)
+      window.addEventListener('error', function(e) {
+        // FIRST: Ignore third-party script errors immediately
+        // Check both filename and target.src (some errors only have target.src)
+        // Also check error messages, stack traces, and string representations for better reCAPTCHA detection
+        const errorSource = e.filename || (e.target && (e.target.src || e.target.href)) || '';
+        const errorMessage = e.message || '';
+        const errorStack = e.error?.stack || '';
+        const errorString = String(e.reason || e.error || e.message || '');
+        
+        // Enhanced check that includes error messages, stack traces, and string representations
+        const isThirdPartyScript = (
+          // Check error source (filename/URL)
+          (errorSource && (
+            errorSource.includes('recaptcha') ||
+            errorSource.includes('google.com') ||
+            errorSource.includes('gstatic.com') ||
+            errorSource.includes('googleapis.com') ||
+            errorSource.includes('facebook.com') ||
+            errorSource.includes('twitter.com') ||
+            errorSource.includes('analytics') ||
+            errorSource.includes('doubleclick') ||
+            errorSource.includes('googletagmanager')
+          )) ||
+          // Check error message content (case-insensitive)
+          (errorMessage && (
+            errorMessage.toLowerCase().includes('recaptcha') ||
+            errorMessage.toLowerCase().includes('grecaptcha') ||
+            errorMessage.toLowerCase().includes('google.com')
+          )) ||
+          // Check stack trace (case-insensitive)
+          (errorStack && (
+            errorStack.toLowerCase().includes('recaptcha') ||
+            errorStack.toLowerCase().includes('grecaptcha') ||
+            errorStack.toLowerCase().includes('google.com') ||
+            errorStack.toLowerCase().includes('gstatic.com')
+          )) ||
+          // Check string representation (case-insensitive)
+          (errorString && (
+            errorString.toLowerCase().includes('recaptcha') ||
+            errorString.toLowerCase().includes('grecaptcha')
+          ))
+        );
+        
+        if (isThirdPartyScript) {
+          // Silently ignore - don't even log it
+          return;
+        }
+        
+        // If error object is empty but we have a message, log it
+        const errorDetails = {
+          message: e.message || 'No error message',
+          filename: e.filename || 'Unknown file',
+          lineno: e.lineno || 'Unknown line',
+          colno: e.colno || 'Unknown column',
+          error: e.error ? {
+            message: e.error.message,
+            stack: e.error.stack,
+            name: e.error.name,
+            toString: String(e.error)
+          } : 'No error object',
+          isTrusted: e.isTrusted,
+          type: e.type,
+          target: e.target ? {
+            tagName: e.target.tagName,
+            src: e.target.src,
+            href: e.target.href,
+            id: e.target.id
+          } : 'No target'
+        };
+        
+        console.error('[HTML] Global error caught:', errorDetails);
+        
+        // If this is a React/app error and we have details, show them
+        if (e.filename && (e.filename.includes('assets/js/') || e.filename.includes('index-'))) {
+          console.error('[HTML] This appears to be an app error. Full details:', errorDetails);
+        }
+        
+        // Check for React loading errors specifically
+        const isReactError = e.message && (
+          e.message.includes('createContext') ||
+          e.message.includes('undefined is not an object') ||
+          e.message.includes('React') ||
+          e.filename?.includes('react')
+        );
+        
+        // Check if it's a script loading error (network failure, 404, etc.)
+        // Only for OUR scripts, not third-party
+        const isScriptError = e.target && (
+          (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK') &&
+          (e.filename?.includes('main.tsx') ||
+           e.filename?.includes('index-') ||
+           e.filename?.includes('assets/js/') ||
+           e.filename?.includes('assets/css/'))
+        ) || (
+          e.filename?.includes('main.tsx') ||
+          (e.filename?.includes('.js') && e.filename?.includes('assets/js/')) ||
+          (e.filename?.includes('.tsx') && !isThirdPartyScript) ||
+          (e.filename?.includes('.mjs') && !isThirdPartyScript)
+        ) || (
+          e.message?.includes('Failed to fetch') && !isThirdPartyScript ||
+          e.message?.includes('NetworkError') && !isThirdPartyScript ||
+          e.message?.includes('Load failed') && !isThirdPartyScript
+        );
+        
+        if (isScriptError || isReactError) {
+          console.error('[HTML] Script loading error detected:', {
+            filename: e.filename || (e.target ? e.target.src || e.target.href : 'unknown'),
+            message: e.message,
+            error: e.error
+          });
+          
+          var root = document.getElementById('root');
+          if (root && (!window.__APP_SCRIPT_LOADED__ || isReactError || isScriptError)) {
+            // Try auto-reset once - but only if we haven't already tried
+            // Also check if we're in a reload loop (multiple errors in quick succession)
+            const now = Date.now();
+            const lastErrorTime = window.__LAST_ERROR_TIME__ || 0;
+            const timeSinceLastError = now - lastErrorTime;
+            window.__LAST_ERROR_TIME__ = now;
+            
+            // Only auto-reset ONCE - prevent infinite loops
+            // Check if we're in a reload loop (errors happening too quickly)
+            if (!window.__RESET_ATTEMPTED__ && timeSinceLastError > 3000 && (navigator.serviceWorker || window.caches)) {
+              window.__RESET_ATTEMPTED__ = true;
+              console.log('[HTML] Attempting automatic cache reset (one time only)...');
+              // Don't reload immediately - let user see the error first
+              resetAppCacheAndReload(false);
+              // Show message that cache was reset
+              setTimeout(() => {
+                var root = document.getElementById('root');
+                if (root) {
+                  var existing = root.innerHTML;
+                  root.innerHTML = existing.replace('</h1>', '</h1><p style="color: #667eea; margin-bottom: 12px; font-size: 14px;">Cache has been reset. Please refresh the page.</p>');
+                }
+              }, 1000);
+              return;
+            }
+            
+            // If we've already tried resetting, or we're in a loop, just show the error (no auto-reload)
+            
+            // Build detailed error message HTML string
+            var errorDetailsHtml = '';
+            if (e.filename) errorDetailsHtml += '<br><small style="color: #999;">File: ' + e.filename + '</small>';
+            if (e.message) errorDetailsHtml += '<br><small style="color: #999;">Error: ' + e.message + '</small>';
+            if (e.target && e.target.src) errorDetailsHtml += '<br><small style="color: #999;">URL: ' + e.target.src + '</small>';
+            
+            var errorMsg = isReactError 
+              ? 'React failed to load. This can happen on mobile browsers with cached files.'
+              : 'Script failed to load. This might be a network issue or cached file problem.';
+            
+            root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 500px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">' + (isReactError ? 'React Loading Error' : 'Script Loading Error') + '</h1><p style="color: #e0e0e0; margin-bottom: 12px; -webkit-font-smoothing: antialiased;">' + errorMsg + '</p>' + errorDetailsHtml + '<div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top: 24px;"><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">Refresh Page</button><button onclick="if(confirm(\'Completely reset cached files?\')){window.__resetAppCache(true);}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Reset App Cache</button><button onclick="if(confirm(\'Clear local/session storage?\')){localStorage.clear();sessionStorage.clear();window.location.reload();}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Clear Storage</button></div></div></div>';
+          }
+        }
+      }, true);
+      
+      // Track unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[HTML] Unhandled promise rejection:', e.reason);
+      });
+      
+      // Timeout fallback - if app doesn't load within 15 seconds, show error
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        // Check if still showing loading screen OR if root is empty (app didn't render)
+        var stillLoading = root && (
+          (root.children.length === 1 && root.querySelector('div[style*="Loading Vocalix"]')) ||
+          (root.children.length === 0 && root.innerHTML.includes('Loading Vocalix'))
+        );
+        if (stillLoading) {
+          console.error('[App] Timeout: App did not load within 15 seconds');
+          root.innerHTML = '<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background-color: #2a1f3d; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; -webkit-font-smoothing: antialiased;"><div style="max-width: 400px; text-align: center;"><h1 style="font-size: 24px; margin-bottom: 16px; color: #fafafa; font-weight: 600; -webkit-font-smoothing: antialiased;">Loading Taking Too Long</h1><p style="color: #e0e0e0; margin-bottom: 24px; -webkit-font-smoothing: antialiased;">The app is taking longer than expected to load. This might be due to a slow connection or a JavaScript error. Please check the browser console and try refreshing.</p><button onclick="window.location.reload()" style="padding: 12px 24px; background-color: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-right: 8px;">Refresh Page</button><button onclick="if(navigator.onLine){window.location.reload()}else{alert(\'You appear to be offline. Please check your internet connection.\')}" style="padding: 12px 24px; background-color: transparent; color: #667eea; border: 1px solid #667eea; border-radius: 8px; font-size: 16px; cursor: pointer;">Check Connection</button></div></div>';
+        }
+      }, 15000);
+    </script>
+  </body>
+</html>
