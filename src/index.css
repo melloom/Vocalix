@@ -1,0 +1,1383 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital,wght@0,400;0,600;1,400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Default to light theme colors - will be overridden by theme classes */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+
+    --radius: 1rem;
+
+    --record-pulse: 0 72% 51%;
+    --waveform: 0 65% 45%;
+    --emoji-glow: 0 100% 60%;
+
+    --font-sans: "DM Sans", "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: "DM Serif Display", "Georgia", serif;
+  }
+
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+
+    --record-pulse: 0 72% 51%;
+    --waveform: 0 65% 45%;
+    --emoji-glow: 0 100% 60%;
+  }
+
+  .dark {
+    --background: 20 20% 8%;
+    --foreground: 30 30% 95%;
+
+    --card: 20 18% 12%;
+    --card-foreground: 30 30% 95%;
+
+    --popover: 20 18% 12%;
+    --popover-foreground: 30 30% 95%;
+
+    --primary: 15 85% 62%;
+    --primary-foreground: 30 50% 99%;
+
+    --secondary: 160 15% 20%;
+    --secondary-foreground: 30 30% 95%;
+
+    --muted: 20 15% 18%;
+    --muted-foreground: 30 15% 60%;
+
+    --accent: 25 95% 55%;
+    --accent-foreground: 30 50% 99%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 30 30% 95%;
+
+    --border: 20 15% 18%;
+    --input: 20 15% 18%;
+    --ring: 15 85% 62%;
+
+    --record-pulse: 15 85% 62%;
+    --waveform: 15 75% 55%;
+    --emoji-glow: 45 100% 60%;
+  }
+
+  /* Enhanced dark mode contrast improvements */
+  .dark .card {
+    border-color: hsl(var(--border) / 0.5);
+  }
+
+  .dark .border {
+    border-color: hsl(var(--border) / 0.5);
+  }
+
+  /* Better text contrast in dark mode */
+  .dark p,
+  .dark span {
+    color: hsl(var(--foreground) / 0.9);
+  }
+
+  /* High contrast mode */
+  .high-contrast {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --border: 0 0% 0%;
+    --input: 0 0% 0%;
+    --muted-foreground: 0 0% 30%;
+  }
+
+  .dark.high-contrast {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --muted-foreground: 0 0% 70%;
+  }
+
+  .high-contrast * {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .high-contrast button,
+  .high-contrast a {
+    border: 2px solid hsl(var(--foreground)) !important;
+  }
+
+  /* Reduced motion */
+  .reduced-motion *,
+  .reduced-motion *::before,
+  .reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .dark .text-muted-foreground {
+    color: hsl(var(--muted-foreground) / 0.8);
+  }
+}
+
+/* Premium Color Schemes - 4K Quality - MUST be outside @layer for maximum priority */
+
+/* Ocean Theme - Deep blue to cyan gradient - Enhanced vibrant blue */
+html.theme-ocean,
+html.theme-ocean :root,
+html.theme-ocean *,
+:root.theme-ocean,
+body.theme-ocean,
+body.theme-ocean * {
+    --background: 200 60% 96% !important;
+    --foreground: 210 40% 12% !important;
+    --card: 200 55% 98% !important;
+    --card-foreground: 210 35% 12% !important;
+    --popover: 200 55% 98% !important;
+    --popover-foreground: 210 35% 12% !important;
+    --primary: 195 95% 50% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 180 50% 80% !important;
+    --secondary-foreground: 210 40% 12% !important;
+    --muted: 200 40% 90% !important;
+    --muted-foreground: 210 30% 40% !important;
+    --accent: 190 95% 45% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 200 40% 85% !important;
+    --input: 200 40% 85% !important;
+    --ring: 195 95% 50% !important;
+    --record-pulse: 195 95% 50% !important;
+    --waveform: 190 85% 45% !important;
+    --emoji-glow: 195 100% 55% !important;
+  }
+
+  html.theme-ocean.dark,
+  html.theme-ocean.dark :root,
+  html.theme-ocean.dark *,
+  :root.theme-ocean.dark,
+  body.theme-ocean.dark,
+  body.theme-ocean.dark * {
+    --background: 210 40% 8% !important;
+    --foreground: 200 30% 95% !important;
+    --card: 210 35% 12% !important;
+    --card-foreground: 200 30% 95% !important;
+    --popover: 210 35% 12% !important;
+    --popover-foreground: 200 30% 95% !important;
+    --primary: 195 85% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 200 25% 20% !important;
+    --secondary-foreground: 200 30% 95% !important;
+    --muted: 210 25% 18% !important;
+    --muted-foreground: 200 20% 60% !important;
+    --accent: 190 90% 50% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 200 30% 95% !important;
+    --border: 210 25% 18% !important;
+    --input: 210 25% 18% !important;
+    --ring: 195 85% 55% !important;
+    --record-pulse: 195 85% 55% !important;
+    --waveform: 190 75% 50% !important;
+    --emoji-glow: 195 100% 60% !important;
+  }
+
+  /* Sunset Theme - Warm orange to pink gradient - Enhanced vibrant colors */
+  html.theme-sunset,
+  html.theme-sunset :root,
+  html.theme-sunset *,
+  :root.theme-sunset,
+  body.theme-sunset,
+  body.theme-sunset * {
+    --background: 25 60% 96% !important;
+    --foreground: 20 35% 12% !important;
+    --card: 25 55% 98% !important;
+    --card-foreground: 20 35% 12% !important;
+    --popover: 25 55% 98% !important;
+    --popover-foreground: 20 35% 12% !important;
+    --primary: 15 95% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 30 70% 85% !important;
+    --secondary-foreground: 20 35% 12% !important;
+    --muted: 25 45% 90% !important;
+    --muted-foreground: 20 30% 40% !important;
+    --accent: 350 90% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 25 40% 85% !important;
+    --input: 25 40% 85% !important;
+    --ring: 15 95% 55% !important;
+    --record-pulse: 15 95% 55% !important;
+    --waveform: 10 85% 50% !important;
+    --emoji-glow: 20 100% 60% !important;
+  }
+
+  html.theme-sunset.dark,
+  html.theme-sunset.dark :root,
+  html.theme-sunset.dark *,
+  :root.theme-sunset.dark,
+  body.theme-sunset.dark,
+  body.theme-sunset.dark * {
+    --background: 20 30% 8% !important;
+    --foreground: 25 25% 95% !important;
+    --card: 20 25% 12% !important;
+    --card-foreground: 25 25% 95% !important;
+    --popover: 20 25% 12% !important;
+    --popover-foreground: 25 25% 95% !important;
+    --primary: 15 90% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 25 20% 20% !important;
+    --secondary-foreground: 25 25% 95% !important;
+    --muted: 20 20% 18% !important;
+    --muted-foreground: 25 15% 60% !important;
+    --accent: 350 85% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 25 25% 95% !important;
+    --border: 20 20% 18% !important;
+    --input: 20 20% 18% !important;
+    --ring: 15 90% 60% !important;
+    --record-pulse: 15 90% 60% !important;
+    --waveform: 10 80% 55% !important;
+    --emoji-glow: 20 100% 65% !important;
+  }
+
+  /* Forest Theme - Green to teal gradient - Enhanced vibrant green */
+  html.theme-forest,
+  html.theme-forest :root,
+  html.theme-forest *,
+  :root.theme-forest,
+  body.theme-forest,
+  body.theme-forest * {
+    --background: 150 50% 96% !important;
+    --foreground: 160 40% 12% !important;
+    --card: 150 45% 98% !important;
+    --card-foreground: 160 40% 12% !important;
+    --popover: 150 45% 98% !important;
+    --popover-foreground: 160 40% 12% !important;
+    --primary: 145 80% 40% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 160 50% 80% !important;
+    --secondary-foreground: 160 40% 12% !important;
+    --muted: 150 40% 90% !important;
+    --muted-foreground: 160 30% 40% !important;
+    --accent: 170 80% 45% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 150 40% 85% !important;
+    --input: 150 40% 85% !important;
+    --ring: 145 80% 40% !important;
+    --record-pulse: 145 80% 40% !important;
+    --waveform: 150 70% 35% !important;
+    --emoji-glow: 155 100% 45% !important;
+  }
+
+  html.theme-forest.dark,
+  html.theme-forest.dark :root,
+  html.theme-forest.dark *,
+  :root.theme-forest.dark,
+  body.theme-forest.dark,
+  body.theme-forest.dark * {
+    --background: 160 40% 8% !important;
+    --foreground: 150 30% 95% !important;
+    --card: 160 35% 12% !important;
+    --card-foreground: 150 30% 95% !important;
+    --popover: 160 35% 12% !important;
+    --popover-foreground: 150 30% 95% !important;
+    --primary: 145 70% 45% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 160 25% 20% !important;
+    --secondary-foreground: 150 30% 95% !important;
+    --muted: 160 25% 18% !important;
+    --muted-foreground: 150 20% 60% !important;
+    --accent: 170 75% 50% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 150 30% 95% !important;
+    --border: 160 25% 18% !important;
+    --input: 160 25% 18% !important;
+    --ring: 145 70% 45% !important;
+    --record-pulse: 145 70% 45% !important;
+    --waveform: 150 65% 40% !important;
+    --emoji-glow: 155 100% 50% !important;
+  }
+
+  /* Neon Theme - Vibrant purple to pink gradient - Enhanced vibrant colors */
+  html.theme-neon,
+  html.theme-neon :root,
+  html.theme-neon *,
+  :root.theme-neon,
+  body.theme-neon,
+  body.theme-neon * {
+    --background: 280 60% 96% !important;
+    --foreground: 270 40% 12% !important;
+    --card: 280 55% 98% !important;
+    --card-foreground: 270 40% 12% !important;
+    --popover: 280 55% 98% !important;
+    --popover-foreground: 270 40% 12% !important;
+    --primary: 280 95% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 300 60% 85% !important;
+    --secondary-foreground: 270 40% 12% !important;
+    --muted: 280 45% 90% !important;
+    --muted-foreground: 270 30% 40% !important;
+    --accent: 320 90% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 280 40% 85% !important;
+    --input: 280 40% 85% !important;
+    --ring: 280 95% 60% !important;
+    --record-pulse: 280 95% 60% !important;
+    --waveform: 290 85% 55% !important;
+    --emoji-glow: 285 100% 65% !important;
+  }
+
+  html.theme-neon.dark,
+  html.theme-neon.dark :root,
+  html.theme-neon.dark *,
+  :root.theme-neon.dark,
+  body.theme-neon.dark,
+  body.theme-neon.dark * {
+    --background: 270 40% 8% !important;
+    --foreground: 280 30% 95% !important;
+    --card: 270 35% 12% !important;
+    --card-foreground: 280 30% 95% !important;
+    --popover: 270 35% 12% !important;
+    --popover-foreground: 280 30% 95% !important;
+    --primary: 280 90% 65% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 25% 20% !important;
+    --secondary-foreground: 280 30% 95% !important;
+    --muted: 270 25% 18% !important;
+    --muted-foreground: 280 20% 60% !important;
+    --accent: 320 85% 70% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 280 30% 95% !important;
+    --border: 270 25% 18% !important;
+    --input: 270 25% 18% !important;
+    --ring: 280 90% 65% !important;
+    --record-pulse: 280 90% 65% !important;
+    --waveform: 290 80% 60% !important;
+    --emoji-glow: 285 100% 70% !important;
+  }
+
+  /* Midnight Theme - Deep purple to blue gradient */
+  html.theme-midnight,
+  html.theme-midnight :root,
+  html.theme-midnight *,
+  :root.theme-midnight,
+  body.theme-midnight,
+  body.theme-midnight * {
+    --background: 240 50% 98% !important;
+    --foreground: 240 30% 15% !important;
+    --card: 240 45% 99% !important;
+    --card-foreground: 240 30% 15% !important;
+    --popover: 240 45% 99% !important;
+    --popover-foreground: 240 30% 15% !important;
+    --primary: 230 75% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 250 40% 85% !important;
+    --secondary-foreground: 240 30% 15% !important;
+    --muted: 240 35% 92% !important;
+    --muted-foreground: 240 25% 45% !important;
+    --accent: 260 80% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 240 30% 88% !important;
+    --input: 240 30% 88% !important;
+    --ring: 230 75% 55% !important;
+    --record-pulse: 230 75% 55% !important;
+    --waveform: 235 70% 50% !important;
+    --emoji-glow: 240 100% 60% !important;
+  }
+
+  html.theme-midnight.dark,
+  html.theme-midnight.dark :root,
+  html.theme-midnight.dark *,
+  :root.theme-midnight.dark,
+  body.theme-midnight.dark,
+  body.theme-midnight.dark * {
+    --background: 240 40% 8% !important;
+    --foreground: 230 30% 95% !important;
+    --card: 240 35% 12% !important;
+    --card-foreground: 230 30% 95% !important;
+    --popover: 240 35% 12% !important;
+    --popover-foreground: 230 30% 95% !important;
+    --primary: 230 75% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 240 25% 20% !important;
+    --secondary-foreground: 230 30% 95% !important;
+    --muted: 240 25% 18% !important;
+    --muted-foreground: 230 20% 60% !important;
+    --accent: 260 80% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 230 30% 95% !important;
+    --border: 240 25% 18% !important;
+    --input: 240 25% 18% !important;
+    --ring: 230 75% 55% !important;
+    --record-pulse: 230 75% 55% !important;
+    --waveform: 235 70% 50% !important;
+    --emoji-glow: 240 100% 60% !important;
+  }
+
+  /* Aurora Theme - Cyan to purple gradient - Enhanced vibrant colors */
+  html.theme-aurora,
+  html.theme-aurora :root,
+  html.theme-aurora *,
+  :root.theme-aurora,
+  body.theme-aurora,
+  body.theme-aurora * {
+    --background: 200 60% 96% !important;
+    --foreground: 220 40% 12% !important;
+    --card: 200 55% 98% !important;
+    --card-foreground: 220 40% 12% !important;
+    --popover: 200 55% 98% !important;
+    --popover-foreground: 220 40% 12% !important;
+    --primary: 195 95% 50% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 50% 85% !important;
+    --secondary-foreground: 220 40% 12% !important;
+    --muted: 200 45% 90% !important;
+    --muted-foreground: 220 30% 40% !important;
+    --accent: 270 80% 55% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 200 40% 85% !important;
+    --input: 200 40% 85% !important;
+    --ring: 195 95% 50% !important;
+    --record-pulse: 195 95% 50% !important;
+    --waveform: 200 80% 45% !important;
+    --emoji-glow: 195 100% 55% !important;
+  }
+
+  html.theme-aurora.dark,
+  html.theme-aurora.dark :root,
+  html.theme-aurora.dark *,
+  :root.theme-aurora.dark,
+  body.theme-aurora.dark,
+  body.theme-aurora.dark * {
+    --background: 220 40% 8% !important;
+    --foreground: 200 30% 95% !important;
+    --card: 220 35% 12% !important;
+    --card-foreground: 200 30% 95% !important;
+    --popover: 220 35% 12% !important;
+    --popover-foreground: 200 30% 95% !important;
+    --primary: 195 85% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 280 25% 20% !important;
+    --secondary-foreground: 200 30% 95% !important;
+    --muted: 220 25% 18% !important;
+    --muted-foreground: 200 20% 60% !important;
+    --accent: 270 75% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 200 30% 95% !important;
+    --border: 220 25% 18% !important;
+    --input: 220 25% 18% !important;
+    --ring: 195 85% 55% !important;
+    --record-pulse: 195 85% 55% !important;
+    --waveform: 200 75% 50% !important;
+    --emoji-glow: 195 100% 60% !important;
+  }
+
+  /* Rose Theme - Soft pink to rose gradient - Enhanced vibrant colors */
+  html.theme-rose,
+  html.theme-rose :root,
+  html.theme-rose *,
+  :root.theme-rose,
+  body.theme-rose,
+  body.theme-rose * {
+    --background: 340 60% 96% !important;
+    --foreground: 330 40% 12% !important;
+    --card: 340 55% 98% !important;
+    --card-foreground: 330 40% 12% !important;
+    --popover: 340 55% 98% !important;
+    --popover-foreground: 330 40% 12% !important;
+    --primary: 330 80% 55% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 350 60% 85% !important;
+    --secondary-foreground: 330 40% 12% !important;
+    --muted: 340 45% 90% !important;
+    --muted-foreground: 330 30% 40% !important;
+    --accent: 320 85% 60% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 100% !important;
+    --border: 340 40% 85% !important;
+    --input: 340 40% 85% !important;
+    --ring: 330 80% 55% !important;
+    --record-pulse: 330 80% 55% !important;
+    --waveform: 335 75% 50% !important;
+    --emoji-glow: 330 100% 60% !important;
+  }
+
+  html.theme-rose.dark,
+  html.theme-rose.dark :root,
+  html.theme-rose.dark *,
+  :root.theme-rose.dark,
+  body.theme-rose.dark,
+  body.theme-rose.dark * {
+    --background: 330 40% 8% !important;
+    --foreground: 340 30% 95% !important;
+    --card: 330 35% 12% !important;
+    --card-foreground: 340 30% 95% !important;
+    --popover: 330 35% 12% !important;
+    --popover-foreground: 340 30% 95% !important;
+    --primary: 330 75% 60% !important;
+    --primary-foreground: 0 0% 100% !important;
+    --secondary: 340 25% 20% !important;
+    --secondary-foreground: 340 30% 95% !important;
+    --muted: 330 25% 18% !important;
+    --muted-foreground: 340 20% 60% !important;
+    --accent: 320 80% 65% !important;
+    --accent-foreground: 0 0% 100% !important;
+    --destructive: 0 62% 45% !important;
+    --destructive-foreground: 340 30% 95% !important;
+    --border: 330 25% 18% !important;
+    --input: 330 25% 18% !important;
+    --ring: 330 75% 60% !important;
+    --record-pulse: 330 75% 60% !important;
+    --waveform: 335 70% 55% !important;
+    --emoji-glow: 330 100% 65% !important;
+  }
+
+  /* Indigo Theme - Rich dark purple/indigo (Default) */
+  html.theme-indigo,
+  html.theme-indigo :root,
+  html.theme-indigo *,
+  :root.theme-indigo,
+  body.theme-indigo,
+  body.theme-indigo * {
+    --background: 260 55% 16% !important;
+    --foreground: 0 0% 98% !important;
+    --card: 260 50% 20% !important;
+    --card-foreground: 0 0% 98% !important;
+    --popover: 260 50% 20% !important;
+    --popover-foreground: 0 0% 98% !important;
+    --primary: 15 85% 62% !important;
+    --primary-foreground: 0 0% 98% !important;
+    --secondary: 260 45% 25% !important;
+    --secondary-foreground: 0 0% 98% !important;
+    --muted: 260 40% 22% !important;
+    --muted-foreground: 0 0% 75% !important;
+    --accent: 25 95% 55% !important;
+    --accent-foreground: 0 0% 98% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 98% !important;
+    --border: 260 40% 28% !important;
+    --input: 260 40% 28% !important;
+    --ring: 15 85% 62% !important;
+    --record-pulse: 15 85% 62% !important;
+    --waveform: 15 75% 55% !important;
+    --emoji-glow: 45 100% 60% !important;
+  }
+
+  html.theme-indigo.dark,
+  html.theme-indigo.dark :root,
+  html.theme-indigo.dark *,
+  :root.theme-indigo.dark,
+  body.theme-indigo.dark,
+  body.theme-indigo.dark *,
+  html.dark.theme-indigo,
+  html.dark.theme-indigo :root,
+  html.dark.theme-indigo *,
+  :root.dark.theme-indigo,
+  body.dark.theme-indigo,
+  body.dark.theme-indigo * {
+    --background: 260 55% 16% !important;
+    --foreground: 0 0% 98% !important;
+    --card: 260 50% 20% !important;
+    --card-foreground: 0 0% 98% !important;
+    --popover: 260 50% 20% !important;
+    --popover-foreground: 0 0% 98% !important;
+    --primary: 15 85% 62% !important;
+    --primary-foreground: 0 0% 98% !important;
+    --secondary: 260 45% 25% !important;
+    --secondary-foreground: 0 0% 98% !important;
+    --muted: 260 40% 22% !important;
+    --muted-foreground: 0 0% 75% !important;
+    --accent: 25 95% 55% !important;
+    --accent-foreground: 0 0% 98% !important;
+    --destructive: 0 72% 51% !important;
+    --destructive-foreground: 0 0% 98% !important;
+    --border: 260 40% 28% !important;
+    --input: 260 40% 28% !important;
+    --ring: 15 85% 62% !important;
+    --record-pulse: 15 85% 62% !important;
+    --waveform: 15 75% 55% !important;
+    --emoji-glow: 45 100% 60% !important;
+  }
+
+/* Force theme application with higher specificity - outside @layer for maximum priority */
+html.theme-ocean,
+html.theme-ocean *,
+body.theme-ocean,
+body.theme-ocean * {
+  color-scheme: light;
+}
+
+html.theme-sunset,
+html.theme-sunset *,
+body.theme-sunset,
+body.theme-sunset * {
+  color-scheme: light;
+}
+
+html.theme-forest,
+html.theme-forest *,
+body.theme-forest,
+body.theme-forest * {
+  color-scheme: light;
+}
+
+html.theme-neon,
+html.theme-neon *,
+body.theme-neon,
+body.theme-neon * {
+  color-scheme: light;
+}
+
+html.theme-aurora,
+html.theme-aurora *,
+body.theme-aurora,
+body.theme-aurora * {
+  color-scheme: light;
+}
+
+html.theme-rose,
+html.theme-rose *,
+body.theme-rose,
+body.theme-rose * {
+  color-scheme: light;
+}
+
+html.theme-midnight,
+html.theme-midnight *,
+body.theme-midnight,
+body.theme-midnight * {
+  color-scheme: dark;
+}
+
+html.theme-indigo,
+html.theme-indigo *,
+body.theme-indigo,
+body.theme-indigo * {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border selection:bg-primary/20 selection:text-primary-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fix bold text rendering - prevent blur and sticky letters */
+  strong,
+  b,
+  .font-bold,
+  .font-semibold,
+  [class*="font-bold"],
+  [class*="font-semibold"],
+  h3.font-semibold,
+  h4.font-semibold,
+  h5.font-semibold,
+  h6.font-semibold {
+    letter-spacing: 0.04em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 500 !important;
+    font-feature-settings: "kern" 0 !important;
+  }
+
+  /* Fix font-weight 700+ which can be too heavy and blurry */
+  [class*="font-extrabold"],
+  [class*="font-black"] {
+    letter-spacing: 0.05em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 600 !important;
+    font-feature-settings: "kern" 0 !important;
+  }
+
+  /* Specific fix for sidebar bold text - more aggressive */
+  aside .font-semibold,
+  aside h3.font-semibold,
+  aside h4.font-semibold,
+  aside h5.font-semibold,
+  aside h6.font-semibold,
+  [class*="sidebar"] .font-semibold,
+  [class*="Sidebar"] .font-semibold,
+  [class*="sidebar"] h3,
+  [class*="sidebar"] h4,
+  [class*="Sidebar"] h3,
+  [class*="Sidebar"] h4 {
+    letter-spacing: 0.05em !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeSpeed !important;
+    font-weight: 500 !important;
+    font-feature-settings: "kern" 0 !important;
+  }
+
+  html {
+    height: 100%;
+    background-color: hsl(260 55% 16%);
+    @apply bg-background;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: hsl(260 55% 16%);
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+    /* Performance optimization for theme switching */
+    will-change: background-color, color;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+
+  h1 {
+    @apply text-4xl leading-tight md:text-5xl;
+  }
+
+  h2 {
+    @apply text-3xl leading-tight md:text-4xl;
+  }
+
+  h3 {
+    @apply text-2xl leading-snug md:text-3xl;
+  }
+
+  p {
+    @apply leading-relaxed text-base;
+    color: hsl(var(--foreground));
+    opacity: 0.95;
+  }
+
+  a,
+  button {
+    @apply transition-colors duration-200;
+  }
+
+  /* Optimized theme transitions - only transition the body element */
+  /* CSS variables will update smoothly without needing transitions on every element */
+  body {
+    transition: background-color 150ms ease-in-out, 
+                color 150ms ease-in-out;
+  }
+
+  /* Focus visible styles for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow:
+      0 25px 45px -35px hsl(var(--foreground) / 0.25),
+      0 18px 35px -30px hsl(var(--primary) / 0.3);
+  }
+
+  .glass-surface {
+    @apply bg-card/80 backdrop-blur-lg supports-[backdrop-filter]:bg-card/70 border border-border/30;
+    border-width: 1px;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-transform duration-300 ease-out hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Touch target minimum size for mobile */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Loading skeleton animation */
+  @keyframes skeleton-loading {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+  }
+
+  /* Page transition animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* Mobile swipe gestures hint - only show on touch devices */
+  .swipe-hint {
+    @apply relative overflow-hidden;
+  }
+
+  /* Only show swipe hint animation on touch-enabled devices */
+  @media (hover: none) and (pointer: coarse) {
+    .swipe-hint::after {
+      content: "";
+      @apply absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent;
+      transform: translateX(-100%);
+      animation: swipe-hint 2s ease-in-out infinite;
+    }
+  }
+
+  /* Hide swipe hint on non-touch devices */
+  @media (hover: hover) and (pointer: fine) {
+    .swipe-hint::after {
+      display: none;
+    }
+  }
+
+  @keyframes swipe-hint {
+    0%, 100% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Enhanced animations for smooth transitions */
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-in-up {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-in-down {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+      transform: translateX(-8px);
+    }
+    20%, 40%, 60%, 80% {
+      transform: translateX(8px);
+    }
+  }
+
+  /* Animation utility classes */
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.3s ease-out;
+  }
+
+  .animate-slide-in-up {
+    animation: slide-in-up 0.3s ease-out;
+  }
+
+  .animate-slide-in-down {
+    animation: slide-in-down 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 25%,
+      hsl(var(--muted-foreground) / 0.15) 50%,
+      hsl(var(--muted-foreground) / 0.1) 75%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 3s linear infinite;
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  /* Smooth hover transitions */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out;
+  }
+
+  .hover-scale:hover {
+    @apply scale-105;
+  }
+
+  .hover-scale-lg:hover {
+    @apply scale-110;
+  }
+
+  /* Enhanced dark mode styles */
+  .dark .glass-surface {
+    @apply bg-card/90 backdrop-blur-xl border-border/80;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    :root {
+      --border: 20 20% 60%;
+    }
+    
+    .dark {
+      --border: 20 20% 40%;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    /* Prevent horizontal scrolling but allow vertical scrolling */
+    html, body {
+      overflow-x: hidden;
+      overflow-y: auto;
+      width: 100%;
+      max-width: 100vw;
+      position: relative;
+    }
+
+    /* Fix header overflow on mobile */
+    header {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Fix bottom navigation overflow */
+    nav[class*="fixed bottom-0"] {
+      max-width: 100vw;
+      overflow-x: hidden;
+      left: 0;
+      right: 0;
+    }
+
+    /* Ensure viewport units work correctly */
+    #root {
+      width: 100vw;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Ensure all containers respect viewport width */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Prevent specific elements from overflowing */
+    div, section, article, main, header, footer, aside {
+      max-width: 100%;
+    }
+
+    /* Prevent elements from overflowing */
+    img, video, iframe, embed, object {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Fix table overflow */
+    table {
+      width: 100%;
+      table-layout: fixed;
+      word-wrap: break-word;
+    }
+
+    /* Ensure containers don't exceed viewport */
+    .container, [class*="max-w-"] {
+      max-width: 100vw;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    /* Reduce animations on mobile for better performance */
+    .hover-lift:hover {
+      transform: none;
+    }
+    
+    /* Optimize touch targets - iOS and Android minimum */
+    button, a, [role="button"], input[type="button"], input[type="submit"] {
+      min-height: 44px;
+      min-width: 44px;
+      touch-action: manipulation;
+    }
+
+    /* Better tap targets for interactive elements */
+    [role="tab"], [role="menuitem"], .select-item, .dropdown-item {
+      min-height: 48px;
+      padding: 12px 16px;
+    }
+
+    /* Reduce shadow complexity on mobile */
+    .shadow-soft {
+      box-shadow: 0 2px 8px -2px hsl(var(--foreground) / 0.1);
+    }
+
+    /* Prevent text selection on buttons during tap */
+    button, [role="button"] {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    /* Better scrolling on mobile */
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent zoom on input focus (iOS) */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="search"],
+    textarea,
+    select {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    /* Fix padding on mobile - ensure content doesn't touch edges */
+    main:not([class*="px-"]):not([class*="p-"]), 
+    section:not([class*="px-"]):not([class*="p-"]), 
+    article:not([class*="px-"]):not([class*="p-"]) {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    /* Ensure text doesn't overflow */
+    p, span, div, h1, h2, h3, h4, h5, h6 {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    /* Fix long words and URLs */
+    a {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+  }
+
+  /* Safe area insets for iOS notch and home indicator */
+  :root {
+    --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  }
+
+  /* Safe area utility classes */
+  .pb-safe {
+    padding-bottom: calc(1.5rem + var(--safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: calc(1.5rem + var(--safe-area-inset-top));
+  }
+
+  .pl-safe {
+    padding-left: calc(1.5rem + var(--safe-area-inset-left));
+  }
+
+  .pr-safe {
+    padding-right: calc(1.5rem + var(--safe-area-inset-right));
+  }
+
+  .mb-safe {
+    margin-bottom: calc(1.5rem + var(--safe-area-inset-bottom));
+  }
+
+  .mt-safe {
+    margin-top: calc(1.5rem + var(--safe-area-inset-top));
+  }
+
+  /* Full height with safe areas */
+  .h-screen-safe {
+    height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+  }
+
+  .min-h-screen-safe {
+    min-height: calc(100vh - var(--safe-area-inset-top) - var(--safe-area-inset-bottom));
+  }
+
+  /* Performance optimizations */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-opacity {
+    will-change: opacity;
+  }
+
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* Focus visible improvements */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* reCAPTCHA badge z-index fix - ensure it's above footer and most content but below modals */
+  .grecaptcha-badge {
+    z-index: 10000 !important;
+    position: fixed !important;
+  }
+  
+  /* Ensure reCAPTCHA badge is visible on desktop - override any conflicting styles */
+  @media (min-width: 768px) {
+    .grecaptcha-badge {
+      z-index: 10000 !important;
+      position: fixed !important;
+      bottom: 20px !important;
+      right: 20px !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+  }
+  
+  /* Additional specificity for reCAPTCHA badge to ensure it's above footer */
+  div.grecaptcha-badge,
+  iframe[title*="reCAPTCHA"],
+  iframe[src*="recaptcha"] {
+    z-index: 10000 !important;
+  }
+}

@@ -1,0 +1,36 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Run every 6 days at 2 AM UTC to prevent 7-day inactivity pause
+    - cron: '0 2 */6 * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    name: Keep Supabase Active
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ping Supabase to prevent pause
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node scripts/keep-alive.mjs
+
+      - name: Log success
+        if: success()
+        run: |
+          echo "✅ Supabase keep-alive ping successful at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Next run scheduled in 6 days"
+
