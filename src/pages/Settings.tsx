@@ -78,6 +78,7 @@ import { useAdminStatus } from "@/hooks/useAdminStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileMenu } from "@/components/MobileMenu";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { generateRecoveryPhrase } from "@/lib/recoveryPhrase";
 
 const CHANGE_WINDOW_DAYS = 7;
 
@@ -1139,6 +1140,62 @@ const Settings = () => {
       });
     } finally {
       setIsGeneratingPhoneQR(false);
+    }
+  };
+
+  const handleGenerateRecoveryPhrase = async () => {
+    if (isGeneratingPhrase) return;
+    setIsGeneratingPhrase(true);
+    
+    try {
+      // Generate recovery phrase
+      const phrase = generateRecoveryPhrase();
+      
+      // Hash the phrase via Edge Function
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const hashResponse = await fetch(`${SUPABASE_URL}/functions/v1/hash-recovery-phrase`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY || "",
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY || ""}`,
+        },
+        body: JSON.stringify({ recoveryPhrase: phrase }),
+      });
+
+      if (!hashResponse.ok) {
+        throw new Error("Failed to hash recovery phrase");
+      }
+
+      const { recoveryPhraseHash } = await hashResponse.json();
+
+      // Update profile with recovery phrase hash
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ recovery_phrase_hash: recoveryPhraseHash })
+        .eq("id", profile?.id);
+
+      if (updateError) throw updateError;
+
+      // Show the phrase to the user
+      setRecoveryPhrase(phrase);
+      setShowRecoveryPhraseDialog(true);
+      
+      toast({
+        title: "Recovery phrase generated",
+        description: "Please save this phrase in a safe place. You'll need it to restore your persona on a new device.",
+      });
+    } catch (error: any) {
+      logError("Failed to generate recovery phrase", error);
+      toast({
+        title: "Failed to generate recovery phrase",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPhrase(false);
     }
   };
 
